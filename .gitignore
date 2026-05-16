@@ -9,6 +9,33 @@ __pypackages__/
 .DS_Store
 .obsidian
 
+# secrets and credentials — never commit
+secrets/
+kaggle.json
+**/kaggle.json
+
+# competition data — mount locally, do not commit
+data/
+
+# generated run artifacts and outputs — do not commit unless explicitly reviewed
+artifacts/
+runs/
+
+# agent audit/transient state — do not commit unless intentionally reviewed
+.agent/
+
+# model weights and checkpoints
+*.ckpt
+*.pt
+*.pth
+*.h5
+*.safetensors
+*.gguf
+*.bin
+
+# node
+node_modules/
+
 .jrun
 .kkr
 ext_tools
