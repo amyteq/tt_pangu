@@ -12,6 +12,8 @@
       "comments": "#00ff00"
     }
   },
+  "window.openFilesInNewWindow": "off",
+  "workbench.editor.enablePreview": true,
   "workbench.colorTheme": "Dark Modern",
   "workbench.editorAssociations": {
     "*.neo4j": "neo4j.cypher",

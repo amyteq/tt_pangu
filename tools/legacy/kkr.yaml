@@ -1,0 +1,121 @@
+_base:
+  # competition
+  competition: ai-mathematical-olympiad-progress-prize-3
+  submit_file: submission.parquet
+  submit_type: notebook   # local, notebook
+  # kernel
+  id: harrysun2006/test
+  title: Test
+  code_file: test.ipynb
+  language: python
+  kernel_type: notebook
+  is_private: true
+  enable_gpu: true
+  enable_tpu: false
+  enable_internet: false
+  keywords: 
+  # keywords: []
+  # competition_sources: []
+  # dataset_sources: []
+  # kernel_sources: []
+  # model_sources: []
+  competition_sources: 
+    - ai-mathematical-olympiad-progress-prize-3
+  dataset_sources:
+    - harrysun2006/aimo-p3-hard
+  kernel_sources:
+    # - andreasbis/aimo-3-utils
+    # - firefly2006/aimo-3-utils
+    # vllm==0.15.1, openai==2.24.0, sympy==1.14.0
+    - harrysun2006/aimo-3-utils
+  # ⭐️ 需要 patch kaggle 1.8.3, 否则只接受 owner/model-slug 格式!
+  model_sources:
+    - danielhanchen/gpt-oss-120b/Transformers/default/1
+    # - qwen-lm/qwen2.5-math/transformers/72b-instruct/1
+    # - deepseek-ai/deepseek-r1/transformers/deepseek-r1-distill-qwen-32b/2
+    # - danielhanchen/gpt-oss-120b/transformers/default/1
+    # - danielhanchen/gpt-oss-120b
+  # ⭐️ 可以 patch kaggle 1.8.3, 来使用 H100 GPU!
+  docker_image: gcr.io/kaggle-private-byod/python@sha256:58f63ed194fa7d5c55181f1e8ec0be141e9211efa23bc7501c1c865f7e00057d
+  machine_shape: NvidiaH100
+  # extra stuff
+  # submission_message up to 500 chars!
+  _msg: kkr_auto_submit@{ts}
+  # _stub: test('p10.csv')
+  # _stub: test('hard3.csv')
+  _stub: test('reference.csv')
+  _exts: ['kkr_simple', 'kkr_report', 'kkr_pycoll']
+  _refs: []
+  # _refs:
+  #   - title: Demo Model
+  #     url: https://www.kaggle.com/annonymous/demo-model
+  #     note: Blah, Blah, Blah ...
+
+# a09h, a09m: baseline test/submission
+# kkr.py push a09h --run-dir a09h_test --stub "test('hard3.csv')"
+# kkr.py push a09m --run-dir a09m_test --stub "test('reference.csv')"
+a09h:
+  id: harrysun2006/gpt-oss-120b-a09h
+  title: gpt-oss-120b a09h
+  kernel_sources:
+    - andreasbis/aimo-3-utils
+  code_file: a09h.ipynb
+  _stub: test('reference.csv')
+
+a09m:
+  id: firefly2006/gpt-oss-120b-a09m
+  title: gpt-oss-120b a09m
+  kernel_sources:
+    - andreasbis/aimo-3-utils
+  code_file: a09m.ipynb
+  _stub: test('reference.csv')
+
+# b09h, b09m: working version test/submission
+# kkr.py push b09h --run-dir b09h_test --stub "test('hard3.csv')"
+# kkr.py push b09m --run-dir b09m_test --stub "test('reference.csv')"
+b09h:
+  id: harrysun2006/gpt-oss-120b-b09h
+  title: gpt-oss-120b b09h
+  code_file: b09.ipynb
+  _stub: test('p10.csv')
+
+b09m:
+  id: firefly2006/gpt-oss-120b-b09m
+  title: gpt-oss-120b b09m
+  code_file: b09.ipynb
+  _stub: test('p10.csv')
+
+# working version continue
+c09h:
+  id: harrysun2006/gpt-oss-120b-c09h
+  title: gpt-oss-120b c09h
+  model_sources:
+    - danielhanchen/gpt-oss-120b/Transformers/default/1
+  code_file: b09.ipynb
+  _stub: pass
+
+c09m:
+  id: firefly2006/gpt-oss-120b-c09m
+  title: gpt-oss-120b c09m
+  model_sources:
+    - danielhanchen/gpt-oss-120b/Transformers/default/1
+  code_file: b09.ipynb
+  # _stub: test('reference.csv')
+  _stub: pass
+
+# for deepseek etc. models
+d09h:
+  id: harrysun2006/deepseek-r1-distill-qwen-32b-d09h
+  title: deepseek-r1-distill-qwen-32b d09h
+  model_sources:
+    - deepseek-ai/deepseek-r1/transformers/deepseek-r1-distill-qwen-32b/2
+  code_file: d09.ipynb
+  _stub: test('easy2.csv')
+
+d09m:
+  id: firefly2006/deepseek-r1-distill-qwen-32b-d09m
+  title: deepseek-r1-distill-qwen-32b d09m
+  model_sources:
+    - deepseek-ai/deepseek-r1/transformers/deepseek-r1-distill-qwen-32b/2
+  code_file: d09.ipynb
+  _stub: test('easy2.csv')
