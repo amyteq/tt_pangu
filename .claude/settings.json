@@ -1,8 +1,19 @@
 {
   "permissions": {
     "defaultMode": "default",
-    "disableBypassPermissionsMode": "disable",
     "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "MultiEdit",
+      "Glob",
+      "Grep",
+      "LS",
+      "NotebookRead",
+      "NotebookEdit",
+      "WebFetch",
+      "WebSearch",
+      "Bash",
       "Bash(git status*)",
       "Bash(git diff*)",
       "Bash(git log*)",
@@ -15,19 +26,37 @@
       "Bash(npm run test*)",
       "Bash(npm run lint*)",
       "Bash(make test*)",
-      "Bash(make lint*)"
+      "Bash(make lint*)",
+      "Bash(python tools/kca/kca.py nb*)",
+      "Bash(python tools/kca/kca.py run init*)",
+      "Bash(python tools/kca/kca.py run record-metric*)",
+      "Bash(python tools/kca/kca.py run list*)",
+      "Bash(python tools/kca/kca.py eval*)",
+      "Bash(python tools/kca/kca.py kaggle watch*)",
+      "Bash(python tools/kca/kca.py kaggle fetch*)",
+      "Bash(python tools/kca/kca.py kaggle list*)",
+      "Bash(python tools/legacy/nb2py.py*)",
+      "Bash(python tools/legacy/py2nb.py*)",
+      "Bash(python tools/legacy/nb2test.py*)",
+      "Bash(python tools/legacy/nb2md.py*)",
+      "Bash(mkdir *)",
+      "Bash(uv --version)",
+      "Bash(pnpm --version)",
+      "Bash(npm --version)",
+      "Bash(python -m pytest tests/test_kca_smoke*)"
     ],
     "ask": [
       "Bash(git add*)",
       "Bash(git commit*)",
       "Bash(git push*)",
-      "Bash(kaggle competitions submit*)",
-      "Bash(kaggle kernels push*)",
       "Bash(supabase db push*)",
       "Bash(supabase migration up*)",
       "Bash(docker*)",
       "Bash(gh pr create*)",
-      "Bash(gh pr merge*)"
+      "Bash(gh pr merge*)",
+      "Bash(python tools/kca/kca.py kaggle submit*)",
+      "Bash(python tools/kca/kca.py kaggle push*)",
+      "Bash(python tools/kca/kca.py kaggle upload*)"
     ],
     "deny": [
       "Read(./.env)",
@@ -43,14 +72,22 @@
       "Bash(git push --force*)",
       "Bash(rm -rf / *)",
       "Bash(rm -rf ~*)",
-      "Bash(sudo*)"
+      "Bash(sudo*)",
+      "Bash(kaggle competitions submit*)",
+      "Bash(kaggle kernels push*)",
+      "Bash(kaggle datasets create*)",
+      "Bash(kaggle datasets version*)",
+      "Bash(python tools/legacy/kkr.py submit*)",
+      "Bash(python tools/legacy/kkr.py push*)",
+      "Bash(tools/legacy/kkr.py submit*)",
+      "Bash(tools/legacy/kkr.py push*)"
     ]
   },
   "sandbox": {
     "enabled": true,
     "failIfUnavailable": false,
-    "autoAllowBashIfSandboxed": false,
-    "allowUnsandboxedCommands": false,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": true,
     "filesystem": {
       "denyRead": ["~/.ssh", "~/.aws", "~/.config/gcloud"],
       "denyWrite": ["/", "/etc", "/usr", "/var", "~/.ssh", "~/.aws", "~/.config/gcloud"],

@@ -1,0 +1,55 @@
+---
+name: kg-nb
+description: Convert between Jupyter notebooks and percent-format Python scripts via the kca CLI. Use when the user asks to turn .ipynb into editable .py, or rebuild .ipynb from .py.
+---
+
+# kg-nb — notebook ↔ percent-format conversion
+
+Use this skill when the user wants to:
+
+- Turn a `.ipynb` into a flat percent-format `.py` for editing or diff review.
+- Rebuild a `.ipynb` from a `.py` percent-format script for execution or submission.
+
+`.py` is the editable truth source; `.ipynb` is an execution/submission artifact.
+Never edit a `.ipynb` directly when a `.py` exists.
+
+## Commands
+
+Convert `.ipynb` → `.py`:
+
+```
+python tools/kca/kca.py nb to-py <SRC.ipynb> [--output DST.py] [--no-keep-markdown] --json
+```
+
+Convert `.py` → `.ipynb`:
+
+```
+python tools/kca/kca.py nb to-ipynb <SRC.py> [--output DST.ipynb] [--keep-markdown] --json
+```
+
+Both commands emit one JSON object on stdout with these fields:
+
+- `ok`: `true`/`false`
+- `side_effect`: `"LOCAL_WRITE"`
+- `src`, `dst`: absolute paths
+- `written_cells`, `code_cells`, `markdown_cells`: cell counts (only on success)
+- `changed`: whether the destination changed
+- `error`, `stderr`: failure details (only on failure)
+
+## How to interpret output
+
+- `ok: true` → write succeeded; report `dst` and cell counts to the user.
+- `ok: false` → do **not** retry blindly. Inspect `error` and `stderr`. Common causes:
+  - `ModuleNotFoundError: percent_nb` → `tools/legacy/percent_nb.py` missing; do not patch.
+  - format errors (mismatched `# %%` markers) → quote the line range and ask the human.
+
+## Safety
+
+- Side effect: `LOCAL_WRITE`. No network. No remote services.
+- Never invoke `nb to-ipynb` over an unreviewed `.py` if the user hasn't asked for it.
+- Do not commit generated `.ipynb` files unless the user asks; treat them as artifacts.
+
+## Out of scope
+
+- Test-notebook construction → use the legacy `nb2test.py` directly, or a future `kca nb to-test`.
+- Markdown export → use `python tools/legacy/nb2md.py` directly.
