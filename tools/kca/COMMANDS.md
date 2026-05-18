@@ -63,6 +63,27 @@ Direct CLI bypass routes are listed under `permissions.deny` (hard block):
 
 Either layer alone stops accidental submission. Both layers in place is the design.
 
+### Approval event recording (M2-T005)
+
+When Layer A blocks a `kaggle submit | push | upload`, kca **also** inserts a
+`pending` row in `human_decisions` (best-effort — DB unavailability never
+prevents the refusal). The envelope then includes:
+
+- `approval_request_id` (uuid) — the new row's id, or absent if DB write failed
+- `approval_recorded` — `true`/`false`
+- `approval_warning` — present only on failure, with a short reason
+
+This is the first link between kca's runtime gates and the control plane.
+Future milestones (M3+) may move the gate from env-var to "an approved row
+exists for this attempt".
+
+## Artifact storage
+
+Artifact bytes live in the local filesystem under
+`runs/<comp>/<run_id>/artifacts/<filename>` in M2. The `artifacts.storage_path`
+column uses a URI scheme so the M3 migration to Supabase Storage is a
+1:1 path rewrite without schema changes. See **ADR-0008** (`docs/adr/0008-artifact-storage-local-first.md`).
+
 ## Skill invocation reference
 
 Skills are prompt templates in `.claude/skills/*/SKILL.md`. They tell Claude how to use

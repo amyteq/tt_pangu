@@ -7,6 +7,8 @@ import os
 from _types import EXIT_OK, EXIT_BLOCKED, SideEffect
 from _util import warn
 
+import db
+
 _GATE_ENV = "KCA_ALLOW_REMOTE"
 
 
@@ -19,13 +21,49 @@ def _gate(side_effect: SideEffect, command_name: str) -> tuple[bool, str | None]
     return False, f"remote operation requires {_GATE_ENV}=1 and human approval"
 
 
-def _emit_blocked(command_name: str, side_effect: SideEffect, reason: str) -> int:
-    print(json.dumps({
+def _record_approval(command_name: str, options: dict) -> tuple[str | None, str | None]:
+    """Insert a pending human_decisions row. Returns (approval_id, warning).
+
+    Best-effort: DB failures never block the refusal path. Caller emits the
+    blocked envelope regardless.
+    """
+    args_summary = ", ".join(f"{k}={v}" for k, v in options.items() if v is not None)
+    prompt = f"Approve Kaggle {command_name} ({args_summary or 'no args'})"
+    try:
+        approval_id = db.insert_approval_request(
+            decision_type=f"kaggle.{command_name}",
+            prompt=prompt,
+            options=options,
+        )
+        return approval_id, None
+    except Exception as e:
+        return None, f"approval recording failed: {type(e).__name__}: {e}"
+
+
+def _emit_blocked(
+    command_name: str,
+    side_effect: SideEffect,
+    reason: str,
+    options: dict | None = None,
+) -> int:
+    payload = {
         "ok": False,
         "error": reason,
         "command": f"kaggle {command_name}",
         "side_effect": side_effect.value,
-    }, ensure_ascii=False))
+    }
+    # Best-effort: record the attempt in human_decisions.
+    if options is not None:
+        approval_id, warning = _record_approval(command_name, options)
+        if approval_id:
+            payload["approval_request_id"] = approval_id
+            payload["approval_recorded"] = True
+        else:
+            payload["approval_recorded"] = False
+            if warning:
+                payload["approval_warning"] = warning
+                warn(warning)
+    print(json.dumps(payload, ensure_ascii=False))
     return EXIT_BLOCKED
 
 
@@ -44,30 +82,33 @@ def _emit_stub(command_name: str, side_effect: SideEffect, extra: dict | None = 
 
 def cmd_submit(args: argparse.Namespace) -> int:
     se = SideEffect.SUBMISSION
-    ok, reason = _gate(se, "submit")
-    if not ok:
-        return _emit_blocked("submit", se, reason or "blocked")
-    return _emit_stub("submit", se, {
+    options = {
         "competition": args.competition,
         "file": args.file,
         "message": args.message,
-    })
+    }
+    ok, reason = _gate(se, "submit")
+    if not ok:
+        return _emit_blocked("submit", se, reason or "blocked", options=options)
+    return _emit_stub("submit", se, options)
 
 
 def cmd_push(args: argparse.Namespace) -> int:
     se = SideEffect.REMOTE_WRITE
+    options = {"name": args.name}
     ok, reason = _gate(se, "push")
     if not ok:
-        return _emit_blocked("push", se, reason or "blocked")
-    return _emit_stub("push", se, {"name": args.name})
+        return _emit_blocked("push", se, reason or "blocked", options=options)
+    return _emit_stub("push", se, options)
 
 
 def cmd_upload(args: argparse.Namespace) -> int:
     se = SideEffect.REMOTE_WRITE
+    options = {"path": args.path}
     ok, reason = _gate(se, "upload")
     if not ok:
-        return _emit_blocked("upload", se, reason or "blocked")
-    return _emit_stub("upload", se, {"path": args.path})
+        return _emit_blocked("upload", se, reason or "blocked", options=options)
+    return _emit_stub("upload", se, options)
 
 
 def cmd_watch(args: argparse.Namespace) -> int:

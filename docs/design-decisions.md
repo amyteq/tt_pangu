@@ -55,3 +55,11 @@ Status: proposed
 Decision: Use a simple job table first because it is easy to inspect and migrate. Move to Supabase Queues if/when background delivery semantics become the bottleneck.
 
 Rationale: Early product learning matters more than queue sophistication.
+
+## ADR-008 — Artifact storage is local-first in M2
+
+Status: accepted (M2)
+
+Decision: Artifact bytes live under `runs/<comp>/<run_id>/artifacts/` in M2. The `artifacts.storage_path` column uses a URI scheme (`local://<rel-path>`, `supabase://<bucket>/<key>` reserved for M3) so the M3 migration to Supabase Storage is a 1:1 path rewrite. `content_hash` is populated with SHA-256 at write time.
+
+Rationale: M2 has no worker that produces shared artifacts yet. Going to Supabase Storage from day one buys nothing and forces auth/upload code we don't need. Full details and trade-offs: `docs/adr/0008-artifact-storage-local-first.md`.
