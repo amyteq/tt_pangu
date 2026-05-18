@@ -9,6 +9,13 @@ in Docker. You only need Postgres + Studio for M2 work, but it's all bundled.
 - **Docker** running on the local machine.
 - **Supabase CLI ≥ 2.0**. Verified with `supabase 2.98.x`.
 - **psql** (Postgres client) for ad-hoc queries.
+- **Python deps** for the kca DB layer (`tools/kca/db.py`):
+
+  ```bash
+  pip install 'psycopg[binary]>=3.2'
+  ```
+
+  `psycopg[binary]` ships libpq so no system libpq install is required.
 
 Quick install (Arch Linux example, macOS / Linux variants in
 [Supabase docs](https://supabase.com/docs/guides/local-development/cli/getting-started)):
