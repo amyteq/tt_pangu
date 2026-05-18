@@ -139,7 +139,13 @@ def test_kaggle_submit_blocked_without_env(tmp_path: Path) -> None:
         "--file", "/dev/null",
         "--message", "test",
         "--json",
-        env={"KCA_ALLOW_REMOTE": None},
+        # Unset DB env so the M2 approval-recording side-effect doesn't fire
+        # and this test stays FS-only / DB-free.
+        env={
+            "KCA_ALLOW_REMOTE": None,
+            "KCA_DB_TARGET": None,
+            "SUPABASE_DB_URL": None,
+        },
     )
     assert proc.returncode != 0, "submit should fail without KCA_ALLOW_REMOTE=1"
     payload = _parse_json(proc)
@@ -155,7 +161,11 @@ def test_kaggle_submit_stub_with_env(tmp_path: Path) -> None:
         "--file", "/dev/null",
         "--message", "test",
         "--json",
-        env={"KCA_ALLOW_REMOTE": "1"},
+        env={
+            "KCA_ALLOW_REMOTE": "1",
+            "KCA_DB_TARGET": None,
+            "SUPABASE_DB_URL": None,
+        },
     )
     assert proc.returncode == 0, proc.stderr
     payload = _parse_json(proc)
