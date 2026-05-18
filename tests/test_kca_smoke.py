@@ -16,6 +16,13 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 KCA = [sys.executable, str(REPO_ROOT / "tools" / "kca" / "kca.py")]
 
+# As of M2-T004, `kca run` is DB-first. Tests that exercise it skip when no DB
+# is configured. Set KCA_DB_TARGET=local + SUPABASE_DB_URL to enable them.
+requires_db = pytest.mark.skipif(
+    not (os.environ.get("KCA_DB_TARGET") and os.environ.get("SUPABASE_DB_URL")),
+    reason="kca run tests need KCA_DB_TARGET=local + SUPABASE_DB_URL (M2-T004 DB-first).",
+)
+
 
 def _run(*argv: str, env: dict | None = None, cwd: Path | None = None) -> subprocess.CompletedProcess:
     full_env = os.environ.copy()
@@ -73,6 +80,7 @@ def test_nb_to_py_roundtrip(tmp_path: Path) -> None:
     assert "x = 2" in out_py.read_text(encoding="utf-8")
 
 
+@requires_db
 def test_run_init_creates_layout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     # Use a temp HOME-like sandbox: invoke from a temp cwd-equivalent by patching RUNS_ROOT via cwd.
     # The kca run module resolves runs/ relative to REPO_ROOT, so we use a competition slug
@@ -99,6 +107,7 @@ def test_run_init_creates_layout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
             shutil.rmtree(runs_path)
 
 
+@requires_db
 def test_run_record_metric(tmp_path: Path) -> None:
     competition = "test_smoke_metric"
     runs_path = REPO_ROOT / "runs" / competition
