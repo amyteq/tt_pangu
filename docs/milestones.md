@@ -169,7 +169,7 @@ Exit criteria:
 - Schema and data model support MVP-1 artifacts and future worker jobs.
 - A local/dev worker can record run events without needing product UI.
 
-## M3: Python-first competition worker v0
+## M3: Python-first competition worker v0 ✓ done
 
 Goal: run controlled local worker jobs from the platform queue.
 
@@ -208,6 +208,22 @@ Exit criteria:
 ## M4: Kaggle competition workflow v0
 
 Goal: support a full Kaggle baseline loop with proper competition repo isolation.
+
+### M4 task sequence
+
+| Task | Description | Depends on |
+|---|---|---|
+| M4-T000 | `pyproject.toml` pip-installable kca entry point | — |
+| M4-T001 | Migration 0004: competition repo cols + experiments/runs/submissions tables | — |
+| M4-T002 | DB layer: competition, experiment, run, submission functions | T001 |
+| M4-T003 | `kca competition register/clone/list` subcommands | T002 |
+| M4-T004 | `kca workspace init --repo` flag + `kca run init/record-metric/list` | T002 |
+| M4-T005 | `scripts/run_job.py` competition repo lifecycle | T002, T003, T004 |
+| M4-T006 | Configurable approval gate policy resolution (ADR-0006) | — |
+| M4-T007 | Wire real `kaggle` CLI into `kca kaggle` commands | T006 |
+| M4-T008 | TC-1 Titanic end-to-end dry-run loop | T003–T007 |
+| M4-T009 | `tests/test_m4_smoke.py` (8–12 tests, no API/DB/credentials) | T003–T007 |
+| M4-T010 | M4 exit criteria validation + `docs/m4-final-review.md` | all |
 
 Planned capabilities:
 

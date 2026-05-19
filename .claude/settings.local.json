@@ -5,5 +5,8 @@
       "Bash(pnpm --version)",
       "Bash(npm --version)"
     ]
+  },
+  "worktree": {
+    "bgIsolation": "none"
   }
 }

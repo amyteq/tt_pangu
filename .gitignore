@@ -10,9 +10,28 @@ __pypackages__/
 .obsidian
 
 # secrets and credentials — never commit
+secrets
 secrets/
 kaggle.json
 **/kaggle.json
+
+# sandbox-injected read-only dot-files (bind-mounted by Claude Code sandbox)
+.bash_profile
+.bashrc
+.bash_logout
+.gitconfig
+.gitmodules
+.zprofile
+.zshrc
+.profile
+.ripgreprc
+
+# editor / IDE config
+.idea
+.mcp.json
+
+# Claude Code local state
+.claude/commands
 
 # competition data — mount locally, do not commit
 data/

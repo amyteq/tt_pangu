@@ -43,7 +43,14 @@
       "Bash(uv --version)",
       "Bash(pnpm --version)",
       "Bash(npm --version)",
-      "Bash(python -m pytest tests/test_kca_smoke*)"
+      "Bash(python -m pytest tests/test_kca_smoke*)",
+      "Bash(python scripts/run_job.py*)",
+      "Bash(python -c*)",
+      "Bash(python tools/kca/kca.py workspace*)",
+      "Bash(python tools/kca/kca.py decisions*)",
+      "Bash(git worktree*)",
+      "Bash(psql*)",
+      "Bash(grep -r*)"
     ],
     "ask": [
       "Bash(git add*)",
@@ -60,9 +67,14 @@
     ],
     "deny": [
       "Read(./.env)",
-      "Read(./.env.*)",
-      "Read(./secrets/**)",
+      "Read(./.env.local)",
+      "Read(./.env.development)",
+      "Read(./.env.production)",
+      "Read(./.env.test)",
       "Read(./kaggle.json)",
+      "Read(./.kaggle/kaggle.json)",
+      "Read(~/.kaggle/kaggle.json)",
+      "Read(./secrets/**)",
       "Read(./**/kaggle.json)",
       "Read(~/.ssh/**)",
       "Read(~/.aws/**)",

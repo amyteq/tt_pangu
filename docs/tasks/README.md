@@ -31,15 +31,26 @@ Example: `M0-T001-project-baseline.md`
 | `M2-T006-artifact-storage-adr.md` | M2 | done | ADR-0008 artifact storage local-first |
 | `M2-T007-db-smoke-tests.md` | M2 | done | DB smoke suite (5 tests) |
 | `M2-T008-final-integration-review.md` | M2 | done | M2 exit criteria validation |
-| `M3-T000-hotfix-kaggle-rename.md` | M3 | proposed | Rename `kaggle.py` → `kg.py` (import shadow fix) |
-| `M3-T001-migration-0003-job-events.md` | M3 | proposed | Migration 0003: job events schema + db.py job methods |
-| `M3-T002-workspace-management.md` | M3 | proposed | `kca workspace init/clean/list` git worktree isolation |
-| `M3-T003-worker-scaffold.md` | M3 | proposed | `src/worker/` scaffold: types, tools, budget |
-| `M3-T004-agent-worker-core.md` | M3 | proposed | `AgentWorker` core loop + budget enforcement |
-| `M3-T005-approval-gate-worker.md` | M3 | proposed | Approval-gate pause + `kca decisions` CLI |
-| `M3-T006-local-job-runner.md` | M3 | proposed | `scripts/run_job.py` local job runner |
-| `M3-T007-worker-smoke-tests.md` | M3 | proposed | `tests/test_worker_smoke.py` (6 tests, no API key) |
-| `M3-T008-m3-exit-criteria.md` | M3 | proposed | M3 exit criteria validation + `docs/m3-final-review.md` |
+| `M3-T000-hotfix-kaggle-rename.md` | M3 | done | Rename `kaggle.py` → `kg.py` (import shadow fix) |
+| `M3-T001-migration-0003-job-events.md` | M3 | done | Migration 0003: job events schema + db.py job methods |
+| `M3-T002-workspace-management.md` | M3 | done | `kca workspace init/clean/list` git worktree isolation |
+| `M3-T003-worker-scaffold.md` | M3 | done | `src/worker/` scaffold: types, tools, budget |
+| `M3-T004-agent-worker-core.md` | M3 | done | `AgentWorker` core loop + budget enforcement |
+| `M3-T005-approval-gate-worker.md` | M3 | done | Approval-gate pause + `kca decisions` CLI |
+| `M3-T006-local-job-runner.md` | M3 | done | `scripts/run_job.py` local job runner |
+| `M3-T007-worker-smoke-tests.md` | M3 | done | `tests/test_worker_smoke.py` (6 tests, no API key) |
+| `M3-T008-m3-exit-criteria.md` | M3 | done | M3 exit criteria validation + `docs/m3-final-review.md` |
+| `M4-T000-pyproject-kca-entry-point.md` | M4 | proposed | `pyproject.toml` — pip-installable `kca` entry point |
+| `M4-T001-migration-0004-competition-repo.md` | M4 | proposed | Migration 0004: competition repo cols + experiments/runs/submissions tables |
+| `M4-T002-db-layer-competition-experiment.md` | M4 | proposed | DB layer: competition, experiment, run, submission functions |
+| `M4-T003-kca-competition-commands.md` | M4 | proposed | `kca competition register/clone/list` subcommands |
+| `M4-T004-workspace-repo-flag-and-kca-run.md` | M4 | proposed | `kca workspace init --repo` flag + `kca run init/record-metric/list` |
+| `M4-T005-run-job-competition-lifecycle.md` | M4 | proposed | `scripts/run_job.py` competition repo lifecycle (ADR-0009) |
+| `M4-T006-approval-gate-policy-resolution.md` | M4 | proposed | Configurable approval gate policy resolution (ADR-0006 full impl) |
+| `M4-T007-real-kaggle-cli-wiring.md` | M4 | proposed | Wire real `kaggle` CLI into `kca kaggle submit/push/download/watch` |
+| `M4-T008-tc1-titanic-end-to-end.md` | M4 | proposed | TC-1 Titanic end-to-end dry-run loop |
+| `M4-T009-m4-smoke-tests.md` | M4 | proposed | `tests/test_m4_smoke.py` (8–12 tests, no API/DB/credentials) |
+| `M4-T010-m4-exit-criteria.md` | M4 | proposed | M4 exit criteria validation + `docs/m4-final-review.md` |
 
 ## How to use these files
 
