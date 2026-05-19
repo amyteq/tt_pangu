@@ -35,21 +35,40 @@ def _emit(ok: bool, payload: dict, exit_code: int = EXIT_OK) -> int:
 
 
 def cmd_init(args: argparse.Namespace) -> int:
-    root = Path(args.root)
-    workspace_dir = root / args.job_id
+    repo_arg = getattr(args, "repo", None)
+    if repo_arg:
+        repo_root = Path(repo_arg).resolve()
+        workspace_dir = repo_root / "jobs" / args.job_id
+        git_cwd: str | None = str(repo_root)
+    else:
+        repo_root = REPO_ROOT
+        workspace_dir = Path(args.root) / args.job_id
+        git_cwd = None
 
     if workspace_dir.exists():
         return _emit(False, {"error": "workspace already exists",
                               "workspace_path": str(workspace_dir)}, 1)
 
-    branch = args.branch or _current_branch()
+    workspace_dir.parent.mkdir(parents=True, exist_ok=True)
+
+    branch = args.branch or (_current_branch() if not repo_arg else None)
     if args.branch:
-        # Named branch: try direct add; fails if branch is already checked out.
-        rc, out, err = _git(["worktree", "add", str(workspace_dir), branch])
+        # Ensure branch exists in competition repo first (best-effort).
+        if repo_arg:
+            subprocess.run(
+                ["git", "-C", str(repo_root), "checkout", "-b", args.branch],
+                capture_output=True, text=True,
+            )
+            # Switch back to default so the worktree add can claim the branch.
+            subprocess.run(
+                ["git", "-C", str(repo_root), "checkout", "-"],
+                capture_output=True, text=True,
+            )
+        rc, out, err = _git(["worktree", "add", str(workspace_dir), args.branch], cwd=git_cwd)
     else:
         # Default: detached HEAD at current HEAD — never conflicts with the
         # primary worktree and gives the job an isolated snapshot.
-        rc, out, err = _git(["worktree", "add", "--detach", str(workspace_dir)])
+        rc, out, err = _git(["worktree", "add", "--detach", str(workspace_dir)], cwd=git_cwd)
         branch = "(detached)"
     if rc != 0:
         return _emit(False, {"error": err or out}, 1)
@@ -77,8 +96,14 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 
 def cmd_clean(args: argparse.Namespace) -> int:
-    root = Path(args.root)
-    workspace_dir = root / args.job_id
+    repo_arg = getattr(args, "repo", None)
+    if repo_arg:
+        repo_root = Path(repo_arg).resolve()
+        workspace_dir = repo_root / "jobs" / args.job_id
+        git_cwd: str | None = str(repo_root)
+    else:
+        workspace_dir = Path(args.root) / args.job_id
+        git_cwd = None
 
     if not workspace_dir.exists():
         return _emit(False, {"error": "workspace not found",
@@ -87,7 +112,7 @@ def cmd_clean(args: argparse.Namespace) -> int:
     git_args = ["worktree", "remove", str(workspace_dir)]
     if args.force:
         git_args.append("--force")
-    rc, out, err = _git(git_args)
+    rc, out, err = _git(git_args, cwd=git_cwd)
     if rc != 0:
         return _emit(False, {"error": err or out}, 1)
 
@@ -157,12 +182,16 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_init.add_argument("--job-id", required=True)
     p_init.add_argument("--branch", default=None)
     p_init.add_argument("--root", default=_DEFAULT_ROOT)
+    p_init.add_argument("--repo", default=None,
+                        help="Competition repo path; workspace becomes <repo>/jobs/<job_id>")
     p_init.add_argument("--json", action="store_true")
     p_init.set_defaults(func=cmd_init)
 
     p_clean = ws_sub.add_parser("clean", help="Remove a job workspace (LOCAL_WRITE)")
     p_clean.add_argument("--job-id", required=True)
     p_clean.add_argument("--root", default=_DEFAULT_ROOT)
+    p_clean.add_argument("--repo", default=None,
+                        help="Competition repo path; workspace at <repo>/jobs/<job_id>")
     p_clean.add_argument("--force", action="store_true")
     p_clean.add_argument("--json", action="store_true")
     p_clean.set_defaults(func=cmd_clean)

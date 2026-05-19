@@ -2,6 +2,9 @@ __pycache__/
 *.py[cod]
 *.pyc
 *$py.class
+*.egg-info/
+build/
+dist/
 .ipynb_checkpoints
 __pypackages__/
 .env

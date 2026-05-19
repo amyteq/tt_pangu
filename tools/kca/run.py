@@ -64,59 +64,59 @@ def _write_cache_files(run_dir: Path, meta: dict, metrics_snapshot: dict) -> str
 
 
 def cmd_init(args: argparse.Namespace) -> int:
+    import os
     competition = (args.competition or "").strip()
     if not competition:
         _emit({"ok": False, "error": "competition slug is required"})
         return EXIT_RUNTIME
 
     external_run_id = args.run_id or datetime.now(timezone.utc).strftime(_TS_FMT)
-    run_dir = RUNS_ROOT / competition / external_run_id
-    run_dir_str = _rel(run_dir)
+    # Resolve run_dir relative to cwd (M4 spec: runs/<slug>/<run_id>/).
+    run_dir = Path.cwd() / "runs" / competition / external_run_id
+    run_dir_str = f"runs/{competition}/{external_run_id}"
 
-    # DB writes: project → competition → experiment → experiment_run. One
-    # connection, one transaction context. Fail closed if anything errors.
-    try:
-        conn = db.get_conn()
-    except (db.RemoteOperationBlocked, db.DBNotConfigured) as e:
-        return _emit_db_error(e, "DB unavailable")
-    except Exception as e:  # psycopg.OperationalError etc.
-        return _emit_db_error(e, "DB connection failed")
+    competition_id: str | None = None
+    experiment_id: str | None = None
+    experiment_run_id: str | None = None
+    db_warning: str | None = None
 
-    try:
-        project_id = db.ensure_default_project(conn=conn)
-        competition_id = db.ensure_competition(competition, conn=conn)
-        experiment_id = db.create_experiment(
-            name=external_run_id,
-            hypothesis=args.hypothesis or None,
-            tags=list(args.tag or []),
-            config={},
-            project_id=project_id,
-            conn=conn,
-        )
-        experiment_run_id = db.create_experiment_run(
-            experiment_id=experiment_id,
-            external_run_id=external_run_id,
-            run_dir=run_dir_str,
-            conn=conn,
-        )
-    except Exception as e:
-        conn.close()
-        return _emit_db_error(e, "DB write failed")
-    finally:
-        # _with_conn handled per-call commits; close the explicit conn here.
+    db_available = bool(os.environ.get("SUPABASE_DB_URL"))
+    if db_available:
         try:
-            conn.close()
-        except Exception:
-            pass
+            conn = db.get_conn()
+            try:
+                project_id = db.ensure_default_project(conn=conn)
+                competition_id = db.ensure_competition(competition, conn=conn)
+                experiment_id = db.create_experiment_m2(
+                    name=external_run_id,
+                    hypothesis=args.hypothesis or None,
+                    tags=list(args.tag or []),
+                    config={},
+                    project_id=project_id,
+                    conn=conn,
+                )
+                experiment_run_id = db.create_experiment_run(
+                    experiment_id=experiment_id,
+                    external_run_id=external_run_id,
+                    run_dir=run_dir_str,
+                    conn=conn,
+                )
+            finally:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+        except Exception as e:
+            db_warning = f"DB write skipped: {e}"
+            warn(db_warning)
 
-    # DB committed — now write cache files.
     meta = {
         "competition": competition,
         "competition_id": competition_id,
         "experiment_id": experiment_id,
         "experiment_run_id": experiment_run_id,
         "run_id": external_run_id,
-        "created_at": _now_iso(),
+        "started_at": _now_iso(),
         "hypothesis": args.hypothesis or "",
         "tags": list(args.tag or []),
     }
@@ -134,116 +134,110 @@ def cmd_init(args: argparse.Namespace) -> int:
     if cache_warning:
         warn(cache_warning)
         payload["cache_warning"] = cache_warning
-    _emit(payload)
+    if db_warning:
+        payload["db_warning"] = db_warning
+    _emit(payload, SideEffect.LOCAL_WRITE)
     return EXIT_OK
 
 
 def cmd_record_metric(args: argparse.Namespace) -> int:
-    # Resolve the experiment_run via --experiment-run-id or --run-dir.
-    if args.experiment_run_id:
-        experiment_run_id = args.experiment_run_id
-        run_dir = None
-    else:
-        run_dir = Path(args.run_dir).expanduser() if args.run_dir else None
-        if run_dir is None:
-            _emit({"ok": False, "error": "either --experiment-run-id or --run-dir is required"})
-            return EXIT_RUNTIME
+    import os
+    run_dir = Path(args.run_dir).expanduser() if args.run_dir else None
+    if run_dir is None and not args.experiment_run_id:
+        _emit({"ok": False, "error": "either --run-dir or --experiment-run-id is required"})
+        return EXIT_RUNTIME
 
-    try:
-        conn = db.get_conn()
-    except (db.RemoteOperationBlocked, db.DBNotConfigured) as e:
-        return _emit_db_error(e, "DB unavailable")
-    except Exception as e:
-        return _emit_db_error(e, "DB connection failed")
-
-    try:
-        if not args.experiment_run_id:
-            assert run_dir is not None
-            found = db.find_run_by_dir(_rel(run_dir), conn=conn)
-            if not found:
-                _emit({"ok": False, "error": f"no run found in DB for run_dir={_rel(run_dir)}"})
-                return EXIT_RUNTIME
-            experiment_run_id = found["experiment_run_id"]
-            db_run_dir = found["run_dir"]
-        else:
-            db_run_dir = None
-        event = db.record_metric(experiment_run_id, args.key, args.value, conn=conn)
-    except Exception as e:
-        return _emit_db_error(e, "DB write failed")
-    finally:
+    # FS-first: load meta.json + read/merge metrics.json.
+    meta: dict = {}
+    if run_dir is not None and (run_dir / "meta.json").exists():
         try:
-            conn.close()
+            meta = json.loads((run_dir / "meta.json").read_text(encoding="utf-8"))
         except Exception:
-            pass
+            meta = {}
 
-    # Refresh metrics.json cache from DB state if we have a run_dir.
-    cache_warning: str | None = None
-    target_dir: Path | None = None
-    if db_run_dir:
-        target_dir = (REPO_ROOT / db_run_dir).resolve()
-    elif run_dir:
-        target_dir = run_dir
-
-    if target_dir and target_dir.exists():
-        # Refresh metrics.json by re-reading the snapshot from the DB.
+    metrics_path = (run_dir / "metrics.json") if run_dir else None
+    metrics: dict = {}
+    if metrics_path and metrics_path.exists():
         try:
-            with db.get_conn() as conn2, conn2.cursor() as cur:
-                cur.execute(
-                    "select metrics from experiment_runs where id = %s::uuid",
-                    (experiment_run_id,),
-                )
-                row = cur.fetchone()
-                snapshot = (row or {}).get("metrics") or {}
-            (target_dir / "metrics.json").write_text(
-                json.dumps(snapshot, indent=2, default=str), encoding="utf-8"
+            metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+        except Exception:
+            metrics = {}
+    metrics[args.key] = args.value
+    cache_warning: str | None = None
+    if metrics_path:
+        try:
+            metrics_path.parent.mkdir(parents=True, exist_ok=True)
+            metrics_path.write_text(
+                json.dumps(metrics, indent=2, default=str), encoding="utf-8",
             )
-        except Exception as e:
-            cache_warning = f"metrics.json refresh failed: {e}"
+        except OSError as e:
+            cache_warning = f"metrics.json write failed: {e}"
             warn(cache_warning)
 
-    payload = {
+    db_warning: str | None = None
+    experiment_run_id = args.experiment_run_id or meta.get("experiment_run_id")
+    if os.environ.get("SUPABASE_DB_URL") and experiment_run_id:
+        try:
+            db.record_metric_m2(experiment_run_id, args.key, args.value)
+        except Exception as e:
+            db_warning = f"DB record_metric skipped: {e}"
+            warn(db_warning)
+
+    payload: dict = {
         "ok": True,
-        "experiment_run_id": experiment_run_id,
         "key": args.key,
         "value": args.value,
-        "recorded_at": event["recorded_at"].isoformat()
-            if hasattr(event["recorded_at"], "isoformat")
-            else str(event["recorded_at"]),
     }
-    if target_dir:
-        payload["run_dir"] = _rel(target_dir)
+    if run_dir is not None:
+        payload["run_dir"] = str(run_dir)
+    if experiment_run_id:
+        payload["experiment_run_id"] = experiment_run_id
     if cache_warning:
         payload["cache_warning"] = cache_warning
-    _emit(payload)
+    if db_warning:
+        payload["db_warning"] = db_warning
+    _emit(payload, SideEffect.LOCAL_WRITE)
     return EXIT_OK
 
 
 def cmd_list(args: argparse.Namespace) -> int:
-    try:
-        conn = db.get_conn()
-    except (db.RemoteOperationBlocked, db.DBNotConfigured) as e:
-        return _emit_db_error(e, "DB unavailable")
-    except Exception as e:
-        return _emit_db_error(e, "DB connection failed")
+    import os
+    # FS-first: walk runs/<comp>/*/meta.json relative to cwd.
+    out_rows: list[dict] = []
+    runs_root = Path.cwd() / "runs"
+    if runs_root.exists():
+        if args.competition:
+            comp_dirs = [runs_root / args.competition]
+        else:
+            comp_dirs = [d for d in runs_root.iterdir() if d.is_dir()]
+        for cd in comp_dirs:
+            if not cd.exists():
+                continue
+            for run_dir in sorted(cd.iterdir()):
+                meta_path = run_dir / "meta.json"
+                if not meta_path.exists():
+                    continue
+                try:
+                    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                except Exception:
+                    meta = {}
+                meta["run_dir"] = f"runs/{cd.name}/{run_dir.name}"
+                out_rows.append(meta)
 
-    try:
-        rows = db.list_runs(competition_slug=args.competition, limit=args.limit, conn=conn)
-    except Exception as e:
-        return _emit_db_error(e, "DB read failed")
-    finally:
+    # If DB available, optionally merge DB-known runs (best-effort).
+    if os.environ.get("SUPABASE_DB_URL"):
         try:
-            conn.close()
+            db_rows = db.list_runs_m2(
+                competition_slug=args.competition, limit=args.limit,
+            )
+            for r in db_rows:
+                rr = dict(r)
+                for k, v in list(rr.items()):
+                    if hasattr(v, "isoformat"):
+                        rr[k] = v.isoformat()
+                out_rows.append(rr)
         except Exception:
             pass
-
-    # JSON-safe: convert datetimes to iso strings.
-    out_rows = []
-    for r in rows:
-        rr = dict(r)
-        for k, v in list(rr.items()):
-            if hasattr(v, "isoformat"):
-                rr[k] = v.isoformat()
-        out_rows.append(rr)
 
     _emit({"ok": True, "runs": out_rows, "count": len(out_rows)}, SideEffect.READ_ONLY)
     return EXIT_OK

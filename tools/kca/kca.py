@@ -18,6 +18,7 @@ import kg
 import eval as eval_mod
 import workspace as workspace_mod
 import decisions as decisions_mod
+import competition as competition_mod
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -32,6 +33,7 @@ def build_parser() -> argparse.ArgumentParser:
     eval_mod.add_parsers(sub)
     workspace_mod.add_parsers(sub)
     decisions_mod.add_parsers(sub)
+    competition_mod.add_parsers(sub)
     return parser
 
 

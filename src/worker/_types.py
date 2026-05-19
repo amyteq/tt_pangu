@@ -16,11 +16,13 @@ class JobPolicy:
     top_p: float = 0.90
     min_p: float | None = None
     approval_gates: dict = field(default_factory=lambda: {
-        "kaggle_submit":  False,
-        "kernel_push":    False,
-        "git_push":       False,
-        "dataset_upload": True,
-        "git_force_push": True,
+        "kaggle_submit":     False,
+        "kernel_push":       False,
+        "dataset_upload":    True,
+        "git_push":          False,
+        "git_force_push":    True,
+        "supabase_migrate":  True,
+        "delete_artifact":   True,
     })
     max_side_effect: str = "SUBMISSION"
 

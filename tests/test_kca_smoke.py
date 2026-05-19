@@ -124,8 +124,9 @@ def test_run_record_metric(tmp_path: Path) -> None:
         assert proc.returncode == 0, proc.stderr
         payload = _parse_json(proc)
         assert payload["ok"] is True
+        # M4 made metrics.json flat (key→value).
         metrics = json.loads((REPO_ROOT / run_dir / "metrics.json").read_text(encoding="utf-8"))
-        assert metrics["cv_score"]["value"] == 0.82
+        assert metrics["cv_score"] == 0.82
     finally:
         if runs_path.exists():
             import shutil
@@ -133,36 +134,38 @@ def test_run_record_metric(tmp_path: Path) -> None:
 
 
 def test_kaggle_submit_blocked_without_env(tmp_path: Path) -> None:
+    # M4: missing Kaggle credentials short-circuit before any approval check.
     proc = _run(
         "kaggle", "submit",
         "--competition", "x",
         "--file", "/dev/null",
         "--message", "test",
         "--json",
-        # Unset DB env so the M2 approval-recording side-effect doesn't fire
-        # and this test stays FS-only / DB-free.
         env={
             "KCA_ALLOW_REMOTE": None,
             "KCA_DB_TARGET": None,
             "SUPABASE_DB_URL": None,
+            "KAGGLE_USERNAME": None,
+            "KAGGLE_KEY": None,
         },
     )
-    assert proc.returncode != 0, "submit should fail without KCA_ALLOW_REMOTE=1"
+    assert proc.returncode != 0
     payload = _parse_json(proc)
     assert payload["ok"] is False
     assert payload["side_effect"] == "SUBMISSION"
-    assert "KCA_ALLOW_REMOTE" in payload["error"]
+    assert "KAGGLE_USERNAME" in payload["error"] or "KAGGLE_KEY" in payload["error"]
 
 
 def test_kaggle_submit_stub_with_env(tmp_path: Path) -> None:
+    # M4: kca kaggle push --dry-run replaces the M2 'stub' contract for
+    # exercising the gated remote-write path without credentials.
     proc = _run(
-        "kaggle", "submit",
-        "--competition", "x",
-        "--file", "/dev/null",
-        "--message", "test",
+        "kaggle", "push",
+        "--kernel-dir", str(REPO_ROOT / "tests" / "fixtures" / "sample_kernel"),
+        "--dry-run",
         "--json",
         env={
-            "KCA_ALLOW_REMOTE": "1",
+            "KCA_ALLOW_REMOTE": None,
             "KCA_DB_TARGET": None,
             "SUPABASE_DB_URL": None,
         },
@@ -170,5 +173,5 @@ def test_kaggle_submit_stub_with_env(tmp_path: Path) -> None:
     assert proc.returncode == 0, proc.stderr
     payload = _parse_json(proc)
     assert payload["ok"] is True
-    assert payload.get("stub") is True
-    assert payload["side_effect"] == "SUBMISSION"
+    assert payload.get("dry_run") is True
+    assert payload["side_effect"] == "READ_ONLY"

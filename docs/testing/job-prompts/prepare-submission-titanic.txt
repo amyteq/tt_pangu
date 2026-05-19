@@ -1,0 +1,19 @@
+Prepare submission job — Titanic.
+
+Goal: stage a submission file and request human approval; do NOT submit.
+
+Tasks:
+1. Verify submission.csv exists at the competition repo root.
+2. Verify it has 419 lines (1 header + 418 rows).
+3. Verify the header is exactly "PassengerId,Survived".
+4. Verify every Survived value is 0 or 1.
+5. Read the latest runs/titanic/<run_id>/metrics.json to obtain cv_accuracy.
+6. Write a prep summary to runs/<run_id>/prep.md including: file path,
+   row count, header, cv_accuracy, and the intended submission message.
+7. Emit a structured decision request via the agent's approval channel:
+   {"decision": "submit_titanic", "file": "submission.csv",
+    "cv_accuracy": <float>, "message": "<intended msg>"}.
+
+Constraints:
+- Do NOT run kca kaggle submit even with KCA_ALLOW_REMOTE=1.
+- Stop after the approval request is recorded.

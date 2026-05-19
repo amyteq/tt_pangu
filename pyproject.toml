@@ -1,3 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tt-pangu"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "psycopg[binary]>=3.1",
+    "python-dotenv>=1.0",
+]
+
+[project.optional-dependencies]
+llm = ["litellm>=1.40"]
+dev = ["pytest>=8", "ruff>=0.4"]
+
+[project.scripts]
+kca = "tools.kca.kca:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["tools*", "src*"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]

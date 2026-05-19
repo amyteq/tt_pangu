@@ -1,0 +1,22 @@
+Implement job — Titanic logistic regression baseline.
+
+Goal: produce a self-contained baseline script and a metric JSON, no submission.
+
+Tasks:
+1. Read docs/research/titanic.md (or the brief from the research job).
+2. Create src/titanic/baseline.py:
+   - Load seaborn's built-in titanic dataset (no Kaggle download required).
+   - Feature set: Pclass, Sex (encoded 0/1), Age (median-filled), SibSp, Parch.
+   - Train LogisticRegression with 5-fold KFold(random_state=42).
+   - Print to stdout: {"metric": "cv_accuracy", "value": <float>, "fold_scores": [...]}.
+   - Generate submission.csv with 418 rows (PassengerId 892-1309) and
+     Survived ∈ {0, 1}.
+3. Run the script once and capture the cv_accuracy.
+4. Record the metric: kca run record-metric --run-dir <run_dir>
+   --key cv_accuracy --value <float> --json.
+5. Write a one-paragraph analysis.md.
+
+Constraints:
+- Do not call kca kaggle submit. Submission is a separate job under approval.
+- Keep the script deterministic (fixed seeds).
+- No external network calls beyond seaborn's dataset cache.

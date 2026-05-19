@@ -165,13 +165,17 @@ def test_record_metric_writes_event_and_jsonb(db_url: str, cleanup_run_dir: str)
             "select metrics from experiment_runs where id = %s::uuid",
             (run_id_uuid,),
         )
+        # M2 jsonb snapshot keeps the nested {value, recorded_at} shape because
+        # record_metric_m2 builds it that way.
         assert snapshot and snapshot[0]["cv_score"]["value"] == 0.722
         assert snapshot[0]["leaderboard"]["value"] == 0.689
 
-        # The metrics.json cache mirrors the snapshot.
+        # M4 run.py made metrics.json flat (key→value); FS cache no longer
+        # mirrors the M2 nested shape.
+        # Run-dir lives under the cwd (REPO_ROOT for these tests).
         cache = json.loads((REPO_ROOT / run_dir / "metrics.json").read_text())
-        assert cache["cv_score"]["value"] == 0.722
-        assert cache["leaderboard"]["value"] == 0.689
+        assert cache["cv_score"] == 0.722
+        assert cache["leaderboard"] == 0.689
     finally:
         _cleanup_competition(db_url, slug)
 
@@ -192,7 +196,8 @@ def test_run_list_sources_from_db(db_url: str, cleanup_run_dir: str) -> None:
 
 
 @requires_db
-def test_db_unreachable_fails_cleanly(cleanup_run_dir: str) -> None:
+def test_db_unreachable_degrades_gracefully(cleanup_run_dir: str) -> None:
+    """M4: run init is FS-first; DB failure becomes a warning, FS still wins."""
     slug = cleanup_run_dir
     proc = _run(
         "run", "init",
@@ -200,15 +205,18 @@ def test_db_unreachable_fails_cleanly(cleanup_run_dir: str) -> None:
         "--json",
         env_override={"SUPABASE_DB_URL": "postgres://postgres:postgres@127.0.0.1:54998/postgres"},
     )
-    assert proc.returncode != 0
+    assert proc.returncode == 0, proc.stderr
     payload = _parse(proc)
-    assert payload["ok"] is False
-    # No FS state created.
-    assert not (REPO_ROOT / "runs" / slug).exists()
+    assert payload["ok"] is True
+    assert payload.get("db_warning"), "DB failure should surface as db_warning"
+    # FS state still created (relative to the worker's cwd = REPO_ROOT).
+    assert (REPO_ROOT / payload["run_dir"] / "meta.json").exists()
 
 
 @requires_db
 def test_kaggle_submit_blocks_and_records_approval(db_url: str) -> None:
+    """M4: with credentials present + policy tightened, submit is gated by
+    ApprovalRequired and the blocked envelope records a human_decisions row."""
     marker = f"smoke_marker_{os.urandom(4).hex()}"
     proc = _run(
         "kaggle", "submit",
@@ -216,7 +224,12 @@ def test_kaggle_submit_blocks_and_records_approval(db_url: str) -> None:
         "--file", "/dev/null",
         "--message", "smoke",
         "--json",
-        env_override={"KCA_ALLOW_REMOTE": None},
+        env_override={
+            "KCA_ALLOW_REMOTE": None,
+            "KAGGLE_USERNAME": "smoke-user",
+            "KAGGLE_KEY": "smoke-key",
+            "KCA_POLICY": json.dumps({"approval_gates": {"kaggle_submit": True}}),
+        },
     )
     try:
         assert proc.returncode == 2, proc.stderr
@@ -232,7 +245,6 @@ def test_kaggle_submit_blocks_and_records_approval(db_url: str) -> None:
         )
         assert row and row[0] == "kaggle.submit" and row[1] == "pending"
     finally:
-        # Cleanup any rows we made.
         with psycopg.connect(db_url) as conn:
             with conn.cursor() as cur:
                 cur.execute(
