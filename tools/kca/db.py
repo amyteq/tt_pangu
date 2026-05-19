@@ -44,6 +44,15 @@ __all__ = [
     "list_runs",
     "find_run_by_dir",
     "insert_approval_request",
+    # M3 job lifecycle
+    "create_job",
+    "get_job",
+    "lease_job",
+    "update_job",
+    "append_job_event",
+    "list_jobs",
+    "list_pending_decisions",
+    "resolve_decision",
 ]
 
 
@@ -426,6 +435,313 @@ def _insert_approval_request(
     conn.commit()
     assert row is not None
     return row["id"]
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# M3 job lifecycle
+# ---------------------------------------------------------------------------
+
+def create_job(
+    project_id: str,
+    prompt: str,
+    policy: dict,
+    model: str = "claude-sonnet-4-6",
+    competition_slug: str | None = None,
+    session_id: str | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> str:
+    """Insert a new queued agent_jobs row. Returns job_id (uuid str)."""
+    return _with_conn(conn, _create_job, project_id, prompt, policy, model,
+                      competition_slug, session_id)
+
+
+def _create_job(
+    conn: "psycopg.Connection",
+    project_id: str,
+    prompt: str,
+    policy: dict,
+    model: str,
+    competition_slug: str | None,
+    session_id: str | None,
+) -> str:
+    competition_id = None
+    if competition_slug:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id::text FROM competitions WHERE slug = %s LIMIT 1",
+                (competition_slug,),
+            )
+            row = cur.fetchone()
+            if row:
+                competition_id = row["id"]
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO agent_jobs
+              (project_id, session_id, competition_id, status, payload,
+               prompt, model, policy)
+            VALUES
+              (%s::uuid, %s::uuid, %s::uuid, 'queued', %s::jsonb,
+               %s, %s, %s::jsonb)
+            RETURNING id::text
+            """,
+            (
+                project_id,
+                session_id,
+                competition_id,
+                json.dumps(policy),
+                prompt,
+                model,
+                json.dumps(policy),
+            ),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    assert row is not None
+    return row["id"]
+
+
+def get_job(job_id: str, conn: "psycopg.Connection | None" = None) -> dict:
+    """Fetch one agent_jobs row as a dict. Raises KeyError if not found."""
+    return _with_conn(conn, _get_job, job_id)
+
+
+def _get_job(conn: "psycopg.Connection", job_id: str) -> dict:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM agent_jobs WHERE id = %s::uuid",
+            (job_id,),
+        )
+        row = cur.fetchone()
+    if row is None:
+        raise KeyError(f"agent_jobs row not found: {job_id}")
+    return dict(row)
+
+
+def lease_job(
+    job_id: str,
+    worker_id: str,
+    lease_seconds: int = 300,
+    conn: "psycopg.Connection | None" = None,
+) -> bool:
+    """Atomically set status='running', leased_by, leased_until.
+
+    Returns True if successfully leased, False if already running/leased.
+    """
+    return _with_conn(conn, _lease_job, job_id, worker_id, lease_seconds)
+
+
+def _lease_job(
+    conn: "psycopg.Connection",
+    job_id: str,
+    worker_id: str,
+    lease_seconds: int,
+) -> bool:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE agent_jobs
+               SET status = 'running',
+                   leased_by = %s,
+                   leased_until = now() + (%s || ' seconds')::interval,
+                   started_at = COALESCE(started_at, now())
+             WHERE id = %s::uuid
+               AND status IN ('queued', 'paused')
+            """,
+            (worker_id, str(lease_seconds), job_id),
+        )
+        updated = cur.rowcount
+    conn.commit()
+    return updated > 0
+
+
+def update_job(
+    job_id: str,
+    *,
+    status: str | None = None,
+    workspace_path: str | None = None,
+    turns_used: int | None = None,
+    cost_usd: float | None = None,
+    error: str | None = None,
+    started_at=None,
+    finished_at=None,
+    conn: "psycopg.Connection | None" = None,
+) -> None:
+    """Partial update of agent_jobs columns. Only non-None kwargs are updated."""
+    fields: list[str] = []
+    params: list[Any] = []
+    if status is not None:
+        fields.append("status = %s::job_status")
+        params.append(status)
+    if workspace_path is not None:
+        fields.append("workspace_path = %s")
+        params.append(workspace_path)
+    if turns_used is not None:
+        fields.append("turns_used = %s")
+        params.append(turns_used)
+    if cost_usd is not None:
+        fields.append("cost_usd = %s")
+        params.append(cost_usd)
+    if error is not None:
+        fields.append("error = %s")
+        params.append(error)
+    if started_at is not None:
+        fields.append("started_at = %s")
+        params.append(started_at)
+    if finished_at is not None:
+        fields.append("finished_at = %s")
+        params.append(finished_at)
+    if not fields:
+        return
+    _with_conn(conn, _update_job, job_id, fields, params)
+
+
+def _update_job(
+    conn: "psycopg.Connection",
+    job_id: str,
+    fields: list[str],
+    params: list[Any],
+) -> None:
+    set_clause = ", ".join(fields)
+    params.append(job_id)
+    with conn.cursor() as cur:
+        cur.execute(
+            f"UPDATE agent_jobs SET {set_clause} WHERE id = %s::uuid",
+            params,
+        )
+    conn.commit()
+
+
+def append_job_event(
+    job_id: str,
+    event_type: str,
+    turn_number: int | None = None,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
+    cost_usd: float | None = None,
+    event_data: dict | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> int:
+    """Insert one agent_job_events row. Returns the new event id."""
+    return _with_conn(conn, _append_job_event, job_id, event_type,
+                      turn_number, input_tokens, output_tokens, cost_usd,
+                      event_data or {})
+
+
+def _append_job_event(
+    conn: "psycopg.Connection",
+    job_id: str,
+    event_type: str,
+    turn_number: int | None,
+    input_tokens: int | None,
+    output_tokens: int | None,
+    cost_usd: float | None,
+    event_data: dict,
+) -> int:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO agent_job_events
+              (job_id, event_type, turn_number, input_tokens, output_tokens,
+               cost_usd, event_data)
+            VALUES
+              (%s::uuid, %s, %s, %s, %s, %s, %s::jsonb)
+            RETURNING id
+            """,
+            (job_id, event_type, turn_number, input_tokens, output_tokens,
+             cost_usd, json.dumps(event_data)),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    assert row is not None
+    return row["id"]
+
+
+def list_jobs(
+    status: str | None = None,
+    limit: int = 20,
+    conn: "psycopg.Connection | None" = None,
+) -> list[dict]:
+    """List agent_jobs rows, newest first. Filter by status if given."""
+    return _with_conn(conn, _list_jobs, status, limit)
+
+
+def _list_jobs(
+    conn: "psycopg.Connection",
+    status: str | None,
+    limit: int,
+) -> list[dict]:
+    if status is not None:
+        query = ("SELECT * FROM agent_jobs WHERE status = %s::job_status "
+                 "ORDER BY created_at DESC LIMIT %s")
+        params: list[Any] = [status, limit]
+    else:
+        query = "SELECT * FROM agent_jobs ORDER BY created_at DESC LIMIT %s"
+        params = [limit]
+    with conn.cursor() as cur:
+        cur.execute(query, params)
+        rows = cur.fetchall()
+    return [dict(r) for r in rows]
+
+
+def list_pending_decisions(
+    job_id: str | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> list[dict]:
+    """List human_decisions with status='pending'. Filter by job_id if given."""
+    return _with_conn(conn, _list_pending_decisions, job_id)
+
+
+def _list_pending_decisions(
+    conn: "psycopg.Connection",
+    job_id: str | None,
+) -> list[dict]:
+    if job_id is not None:
+        query = ("SELECT * FROM human_decisions WHERE status = 'pending' "
+                 "AND job_id = %s::uuid ORDER BY created_at DESC")
+        params: list[Any] = [job_id]
+    else:
+        query = ("SELECT * FROM human_decisions WHERE status = 'pending' "
+                 "ORDER BY created_at DESC")
+        params = []
+    with conn.cursor() as cur:
+        cur.execute(query, params)
+        rows = cur.fetchall()
+    return [dict(r) for r in rows]
+
+
+def resolve_decision(
+    decision_id: str,
+    resolution: str,
+    notes: str | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> None:
+    """Set human_decisions.status = resolution, decided_at = now(), notes."""
+    _with_conn(conn, _resolve_decision, decision_id, resolution, notes)
+
+
+def _resolve_decision(
+    conn: "psycopg.Connection",
+    decision_id: str,
+    resolution: str,
+    notes: str | None,
+) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE human_decisions
+               SET status = %s,
+                   notes = %s,
+                   decided_at = now()
+             WHERE id = %s::uuid
+            """,
+            (resolution, notes, decision_id),
+        )
+    conn.commit()
 
 
 # ---------------------------------------------------------------------------

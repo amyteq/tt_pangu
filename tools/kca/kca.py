@@ -14,8 +14,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import nb
 import run as run_mod
-import kaggle
+import kg
 import eval as eval_mod
+import workspace as workspace_mod
+import decisions as decisions_mod
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -26,8 +28,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="group", required=True)
     nb.add_parsers(sub)
     run_mod.add_parsers(sub)
-    kaggle.add_parsers(sub)
+    kg.add_parsers(sub)
     eval_mod.add_parsers(sub)
+    workspace_mod.add_parsers(sub)
+    decisions_mod.add_parsers(sub)
     return parser
 
 

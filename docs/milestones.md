@@ -178,37 +178,65 @@ Planned capabilities:
 - Worker creates isolated workspace/worktree per job.
 - Worker can call `kca` local tools.
 - Worker records job status, logs, artifacts, metrics.
-- Worker enforces max turns, max cost, max runtime, and approval gates.
+- Worker enforces max turns, max cost, max runtime, and configurable approval gates.
 - Worker can run tests/evaluations and summarize results.
 
 Runtime agent:
 
-- Initial core: Claude Agent SDK.
-- Use CLI/Claude Code for development; use Agent SDK for productized runtime.
+- `litellm.completion()` as the unified LLM provider interface (ADR-0004).
+- Provider-agnostic: Claude, GPT-4o, local vLLM/Ollama selectable per job.
+- Sampling params (temperature, top_p) set per job type in JobPolicy.
+
+Workspace strategy (M3 interim):
+
+- M3 creates worktrees inside the platform repo at `.workspaces/<job_id>/`.
+- This is a temporary simplification to get the worker skeleton working.
+- Full competition repo strategy (ADR-0009) is implemented in M4.
+
+Approval gates:
+
+- Configurable per project/competition (ADR-0006).
+- Default: allow for kaggle_submit, kernel_push, git_push.
+- Human intervention reserved for major direction decisions.
 
 Exit criteria:
 
-- A job can run locally from prompt → code edit or tool call → test/eval → recorded result.
-- No remote Kaggle side effect occurs without approval.
+- A job runs locally: prompt → workspace → LLM tool loop → kca tool call → recorded result.
+- Budget limits (turns, cost, runtime) enforced and logged.
+- Approval gate fires and records a human_decisions row when configured.
 
 ## M4: Kaggle competition workflow v0
 
-Goal: support a safe Kaggle baseline loop.
+Goal: support a full Kaggle baseline loop with proper competition repo isolation.
 
 Planned capabilities:
 
+- **Competition repo management** (ADR-0009):
+  - `kca competition register --slug <slug> --repo-url <url>`
+  - `kca competition clone --slug <slug>` — git clone to local_clone_path
+  - `kca workspace init` gains `--repo <path>` flag (worktree inside competition repo)
+  - Migration 0004: `repo_url`, `default_branch`, `local_clone_path` on `competitions`
+  - `pyproject.toml` in platform repo so `pip install -e .` makes kca available in competition repos
 - Competition metadata and rule notes.
 - Data download/checksum policy.
-- Baseline notebook/script generation.
-- Local validation/CV strategy documentation.
-- Experiment tracking and leaderboard result recording.
-- Submission file validation.
-- Human approval request before submission.
+- Baseline notebook/script generation from research brief.
+- Local validation/CV strategy (cross-validation harness).
+- Experiment tracking: branch per hypothesis, run per execution, metrics in DB.
+- Leaderboard result recording (public LB score vs CV).
+- Submission file format validation.
+- Kernel push and kaggle submit via configured approval policy.
+
+Regression test competitions (TC-1 through TC-4 from `docs/testing/competition-test-cases.md`):
+- TC-1 Titanic — validates full L1 loop end-to-end.
+- TC-2 House Prices — validates feature engineering iteration.
+- TC-3 Digit Recognizer — validates kernel push dry-run.
+- TC-4 Flower Classification with TPUs — validates full L3 complexity.
 
 Exit criteria:
 
-- Platform can run a small Kaggle practice workflow end-to-end locally.
-- It can prepare a submission package but not submit automatically.
+- Platform can run a Titanic end-to-end loop: research → implement → experiment → prepare_submission.
+- Each competition runs in its own GitHub repo with experiment branches.
+- Submission is prepared and validated locally; submit job executes per approval policy.
 
 ## M5: research and browser workflow
 

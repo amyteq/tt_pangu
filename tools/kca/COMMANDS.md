@@ -33,12 +33,18 @@ All commands emit a single JSON object to stdout. Exit codes: `0` ok, `1` runtim
 | `kca kaggle list`             | `READ_ONLY`    | _will wrap_ `kkr.py list`   | Stub                                       |
 | `kca eval score`              | `READ_ONLY`    | (native, planned)         | Stub                                        |
 | `kca eval compare`            | `READ_ONLY`    | (native, planned)         | Stub                                        |
+| `kca workspace init`          | `LOCAL_WRITE`  | `git worktree add`        | Creates detached-HEAD worktree under `.workspaces/<job_id>/` |
+| `kca workspace clean`         | `LOCAL_WRITE`  | `git worktree remove`     | Removes worktree; best-effort DB update     |
+| `kca workspace list`          | `READ_ONLY`    | `git worktree list`       | Lists active workspaces under `.workspaces/` |
+| `kca decisions list`          | `READ_ONLY`    | (native)                  | List pending human approval requests        |
+| `kca decisions approve`       | `LOCAL_WRITE`  | (native)                  | Approve a pending decision                  |
+| `kca decisions deny`          | `LOCAL_WRITE`  | (native)                  | Deny a pending decision                     |
 
 ## Safety
 
 Remote-write and submission commands are guarded by **two independent layers**:
 
-### Layer A — kca internal gate (`tools/kca/kaggle.py`)
+### Layer A — kca internal gate (`tools/kca/kg.py`)
 
 `REMOTE_WRITE` and `SUBMISSION` commands check the env var `KCA_ALLOW_REMOTE`:
 

@@ -16,8 +16,30 @@ Example: `M0-T001-project-baseline.md`
 
 | File | Milestone | Status | Description |
 |---|---|---|---|
-| `M0-T001-project-baseline.md` | M0 | in progress | Repository baseline: docs, vocabulary, safety rules, test commands |
-| `M1-T001.md` | M1 | proposed | Local Kaggle tooling wrapper skeleton (`tools/kca/`) |
+| `M0-T001-project-baseline.md` | M0 | done | Repository baseline: docs, vocabulary, safety rules, test commands |
+| `M1-T000-legacy-tool-inventory.md` | M1 | done | Inventory and smoke-test legacy tools |
+| `M1-T001-kca-cli-skeleton.md` | M1 | done | `tools/kca/` CLI skeleton |
+| `M1-T002-notebook-conversion-wrappers.md` | M1 | done | `kca nb to-py / to-ipynb` wrappers |
+| `M1-T003-run-artifact-layout-and-smoke-tests.md` | M1 | done | `runs/<comp>/<run_id>/` layout + smoke tests |
+| `M1-T004-kaggle-remote-operation-approval-hooks.md` | M1 | done | Hooks + kca approval gate |
+| `M1-T005-m1-final-integration-review.md` | M1 | done | M1 exit criteria validation |
+| `M2-T001-schema-reconciliation.md` | M2 | done | Supabase schema alignment |
+| `M2-T002-local-supabase-dev.md` | M2 | done | Local Supabase dev workflow |
+| `M2-T003-python-db-layer.md` | M2 | done | `tools/kca/db.py` psycopg3 access layer |
+| `M2-T004-kca-run-db-writers.md` | M2 | done | `kca run *` commands DB-first |
+| `M2-T005-approval-event-recording.md` | M2 | done | Approval gate records `human_decisions` row |
+| `M2-T006-artifact-storage-adr.md` | M2 | done | ADR-0008 artifact storage local-first |
+| `M2-T007-db-smoke-tests.md` | M2 | done | DB smoke suite (5 tests) |
+| `M2-T008-final-integration-review.md` | M2 | done | M2 exit criteria validation |
+| `M3-T000-hotfix-kaggle-rename.md` | M3 | proposed | Rename `kaggle.py` → `kg.py` (import shadow fix) |
+| `M3-T001-migration-0003-job-events.md` | M3 | proposed | Migration 0003: job events schema + db.py job methods |
+| `M3-T002-workspace-management.md` | M3 | proposed | `kca workspace init/clean/list` git worktree isolation |
+| `M3-T003-worker-scaffold.md` | M3 | proposed | `src/worker/` scaffold: types, tools, budget |
+| `M3-T004-agent-worker-core.md` | M3 | proposed | `AgentWorker` core loop + budget enforcement |
+| `M3-T005-approval-gate-worker.md` | M3 | proposed | Approval-gate pause + `kca decisions` CLI |
+| `M3-T006-local-job-runner.md` | M3 | proposed | `scripts/run_job.py` local job runner |
+| `M3-T007-worker-smoke-tests.md` | M3 | proposed | `tests/test_worker_smoke.py` (6 tests, no API key) |
+| `M3-T008-m3-exit-criteria.md` | M3 | proposed | M3 exit criteria validation + `docs/m3-final-review.md` |
 
 ## How to use these files
 

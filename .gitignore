@@ -24,6 +24,9 @@ runs/
 # agent audit/transient state — do not commit unless intentionally reviewed
 .agent/
 
+# per-job git worktree workspaces
+.workspaces/
+
 # model weights and checkpoints
 *.ckpt
 *.pt
