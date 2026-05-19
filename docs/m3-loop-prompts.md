@@ -819,3 +819,15 @@ Do not call the real Anthropic API (use dry_run=True for all worker tests).
 Report PASS/FAIL for each prompt's verification step.
 "
 ```
+
+### extra
+Q1:
+- supabase 本地容器已经启动, 请使用 postgres/s3cr3t 连接并验证 DB schema 更改
+- 本次milestone (M3) 任务为何生成了很多空文件, 如 `.bashrc`, `.bash_profile`, `.gitconfig` 等等, 这些文件是预留做什么用的?
+- 如果这些空文件没用的话，请删除，否则保留，并 commit/push 这次的修改
+
+Q2: 几个M3收尾任务:
+- 请将我们的讨论问答放到meeting notes 中，以后的讨论都要记录
+- 将上面的任务列表再列一下，让我review
+- 按照docs/m3-loop-prompts.md 生成M4 的prompts文件，我会开启一个新的 agent 来运行
+- commit/push 所有的修改
