@@ -205,7 +205,7 @@ Exit criteria:
 - Budget limits (turns, cost, runtime) enforced and logged.
 - Approval gate fires and records a human_decisions row when configured.
 
-## M4: Kaggle competition workflow v0
+## M4: Kaggle competition workflow v0 ✓ done
 
 Goal: support a full Kaggle baseline loop with proper competition repo isolation.
 
@@ -256,20 +256,52 @@ Exit criteria:
 
 ## M5: research and browser workflow
 
-Goal: add research, webpage reading, and browser-visible analysis loops.
+Goal: add research, webpage reading, and browser-visible analysis loops,
+plus clear the M4 follow-ups (kaggle download checksums, resume paused jobs,
+model routing, CI).
+
+### M5 task sequence
+
+| Task | Description | Depends on |
+|---|---|---|
+| M5-T000 | Migration 0005 — research_items extensions + research_citations table | — |
+| M5-T001 | DB layer — research / artifact / citation helpers | T000 |
+| M5-T002 | `tools/kca/research_fetch.py` — lightweight HTTP + opt-in Playwright | — |
+| M5-T003 | `kca research add/fetch/list/show/cite` CLI + `external_fetch` gate | T001, T002 |
+| M5-T004 | `kca kaggle download --resume` + `kca kaggle verify` with sha256 manifest | — |
+| M5-T005 | Resume paused jobs via `scripts/run_job.py --job-id` after approve | — |
+| M5-T006 | Model routing per job type (`src/worker/routing.py`, ADR-0010) | — |
+| M5-T007 | `.github/workflows/test.yml` — no-db + live-db + lint | — |
+| M5-T008 | TC-2 House Prices end-to-end (RMSLE, two-experiment loop) | T003, T004 |
+| M5-T009 | `tests/test_m5_smoke.py` (10–12 tests) | T002, T003, T004, T006 |
+| M5-T010 | M5 exit criteria + `docs/m5-final-review.md` | all |
 
 Planned capabilities:
 
-- Browser/page reading via Playwright or MCP-compatible browser tooling.
-- Research notes with citations/source URLs and trust labels.
-- Competition rules extraction.
-- Notebook/discussion/paper summarization.
-- Browser screenshots or DOM snapshots stored as artifacts when useful.
+- Browser/page reading via lightweight HTTP + readability (default) with an
+  opt-in Playwright path for JS-heavy pages.
+- Research notes with citations/source URLs and trust labels recorded in
+  `research_items`; per-run citations in `research_citations`.
+- `external_fetch` approval gate per ADR-0006; default allow, opt-in tighten.
+- Browser screenshots or DOM snapshots stored under `artifacts/research/`
+  and linked from the DB row.
+- Kaggle data integrity via sha256 manifest + `--resume` + `kca kaggle verify`.
+- Paused-job resume via `scripts/run_job.py --job-id` after `kca decisions
+  approve` — re-uses budget tracker state from `agent_job_events`.
+- Per-job-type model routing (ADR-0010): Sonnet for implement/experiment,
+  Opus for eval/analysis, Haiku for triage; CLI override always wins.
+- CI on every PR runs `no-db` + `lint` (and `live-db` for trusted PRs).
 
 Exit criteria:
 
-- Agent can research competition context and produce auditable notes.
-- Research output is linked to experiment decisions.
+- Agent can research competition context and produce auditable notes
+  linked from experiment runs.
+- `kca kaggle download --resume` + `verify` survive a tampered file.
+- A paused job resumes after approval and finishes with correct
+  `turns_used` accumulation.
+- TC-2 House Prices loop completes; `cv_rmsle` for the log1p experiment is
+  lower than the baseline.
+- Full test suite passes with and without `SUPABASE_DB_URL`.
 
 ## M6: model router and multi-agent review
 

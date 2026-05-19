@@ -40,17 +40,28 @@ Example: `M0-T001-project-baseline.md`
 | `M3-T006-local-job-runner.md` | M3 | done | `scripts/run_job.py` local job runner |
 | `M3-T007-worker-smoke-tests.md` | M3 | done | `tests/test_worker_smoke.py` (6 tests, no API key) |
 | `M3-T008-m3-exit-criteria.md` | M3 | done | M3 exit criteria validation + `docs/m3-final-review.md` |
-| `M4-T000-pyproject-kca-entry-point.md` | M4 | proposed | `pyproject.toml` — pip-installable `kca` entry point |
-| `M4-T001-migration-0004-competition-repo.md` | M4 | proposed | Migration 0004: competition repo cols + experiments/runs/submissions tables |
-| `M4-T002-db-layer-competition-experiment.md` | M4 | proposed | DB layer: competition, experiment, run, submission functions |
-| `M4-T003-kca-competition-commands.md` | M4 | proposed | `kca competition register/clone/list` subcommands |
-| `M4-T004-workspace-repo-flag-and-kca-run.md` | M4 | proposed | `kca workspace init --repo` flag + `kca run init/record-metric/list` |
-| `M4-T005-run-job-competition-lifecycle.md` | M4 | proposed | `scripts/run_job.py` competition repo lifecycle (ADR-0009) |
-| `M4-T006-approval-gate-policy-resolution.md` | M4 | proposed | Configurable approval gate policy resolution (ADR-0006 full impl) |
-| `M4-T007-real-kaggle-cli-wiring.md` | M4 | proposed | Wire real `kaggle` CLI into `kca kaggle submit/push/download/watch` |
-| `M4-T008-tc1-titanic-end-to-end.md` | M4 | proposed | TC-1 Titanic end-to-end dry-run loop |
-| `M4-T009-m4-smoke-tests.md` | M4 | proposed | `tests/test_m4_smoke.py` (8–12 tests, no API/DB/credentials) |
-| `M4-T010-m4-exit-criteria.md` | M4 | proposed | M4 exit criteria validation + `docs/m4-final-review.md` |
+| `M4-T000-pyproject-kca-entry-point.md` | M4 | done | `pyproject.toml` — pip-installable `kca` entry point |
+| `M4-T001-migration-0004-competition-repo.md` | M4 | done | Migration 0004: competition repo cols + experiments/runs/submissions tables |
+| `M4-T002-db-layer-competition-experiment.md` | M4 | done | DB layer: competition, experiment, run, submission functions |
+| `M4-T003-kca-competition-commands.md` | M4 | done | `kca competition register/clone/list` subcommands |
+| `M4-T004-workspace-repo-flag-and-kca-run.md` | M4 | done | `kca workspace init --repo` flag + `kca run init/record-metric/list` |
+| `M4-T005-run-job-competition-lifecycle.md` | M4 | done | `scripts/run_job.py` competition repo lifecycle (ADR-0009) |
+| `M4-T006-approval-gate-policy-resolution.md` | M4 | done | Configurable approval gate policy resolution (ADR-0006 full impl) |
+| `M4-T007-real-kaggle-cli-wiring.md` | M4 | done | Wire real `kaggle` CLI into `kca kaggle submit/push/download/watch` |
+| `M4-T008-tc1-titanic-end-to-end.md` | M4 | done | TC-1 Titanic end-to-end dry-run loop |
+| `M4-T009-m4-smoke-tests.md` | M4 | done | `tests/test_m4_smoke.py` (10 tests, no API/DB/credentials) |
+| `M4-T010-m4-exit-criteria.md` | M4 | done | M4 exit criteria validation + `docs/m4-final-review.md` |
+| `M5-T000-migration-0005-research-citations.md` | M5 | proposed | Migration 0005 — research_items extensions + research_citations table |
+| `M5-T001-db-layer-research.md` | M5 | proposed | DB layer — research / artifact / citation helpers |
+| `M5-T002-browser-fetch-tool.md` | M5 | proposed | `tools/kca/research_fetch.py` — lightweight HTTP + opt-in Playwright |
+| `M5-T003-kca-research-cli.md` | M5 | proposed | `kca research add/fetch/list/show/cite` CLI + `external_fetch` gate |
+| `M5-T004-kaggle-download-checksum.md` | M5 | proposed | `kca kaggle download --resume` + `kca kaggle verify` with sha256 manifest |
+| `M5-T005-resume-paused-jobs.md` | M5 | proposed | Resume paused jobs via `scripts/run_job.py --job-id` after approve |
+| `M5-T006-model-routing.md` | M5 | proposed | Model routing per job type (`src/worker/routing.py`, ADR-0010) |
+| `M5-T007-ci-github-actions.md` | M5 | proposed | `.github/workflows/test.yml` — no-db + live-db + lint |
+| `M5-T008-tc2-house-prices.md` | M5 | proposed | TC-2 House Prices end-to-end (RMSLE, two-experiment loop) |
+| `M5-T009-m5-smoke-tests.md` | M5 | proposed | `tests/test_m5_smoke.py` (10–12 tests) |
+| `M5-T010-m5-exit-criteria.md` | M5 | proposed | M5 exit criteria + `docs/m5-final-review.md` |
 
 ## How to use these files
 
