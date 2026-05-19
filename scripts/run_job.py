@@ -22,6 +22,13 @@ from pathlib import Path
 
 # Ensure repo root is on the path.
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# Load .env from repo root if python-dotenv is installed.
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    _load_dotenv(REPO_ROOT / ".env", override=False)
+except ImportError:
+    pass
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "tools" / "kca"))
 

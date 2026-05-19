@@ -45,6 +45,23 @@ For any substantial task:
 8. Decide whether to iterate, stop, or ask for human input.
 9. Leave a concise summary with changed files, commands run, metrics, risks, and next steps.
 
+## Environment configuration
+
+Runtime secrets and deployment settings live in `.env` at the repo root (gitignored).
+Copy `env.example` → `.env` and fill in real values before running any DB or LLM command.
+
+Key variables:
+
+| Variable | Purpose |
+|---|---|
+| `SUPABASE_DB_URL` | Postgres DSN — see `docs/tooling/env-configuration.md` for local vs. hosted formats |
+| `KCA_DB_TARGET` | `local` (default) or `remote` (engages REMOTE\_WRITE gate) |
+| `KCA_ALLOW_REMOTE` | Set to `1` to allow kaggle submit / push / remote-write ops |
+| `ANTHROPIC_API_KEY` | Required for live LLM calls; not needed with `--dry-run` |
+| `KAGGLE_USERNAME` / `KAGGLE_KEY` | Required for live Kaggle submissions |
+
+Full reference: `docs/tooling/env-configuration.md`.
+
 ## Repository conventions
 
 Recommended directories:

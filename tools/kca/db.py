@@ -5,10 +5,13 @@ Side-effect classification:
   - Operations against a remote Postgres are REMOTE_WRITE and require
     both KCA_DB_TARGET=remote and KCA_ALLOW_REMOTE=1.
 
-Env contract:
-  - KCA_DB_TARGET           : "local" (default) or "remote".
+Env contract (set in .env, loaded automatically via python-dotenv if installed):
   - SUPABASE_DB_URL         : libpq conninfo string (preferred).
+  - KCA_DB_TARGET           : "local" (default) or "remote".
+  - KCA_ALLOW_REMOTE        : "1" to allow remote/submission operations.
   - SUPABASE_DB_HOST/PORT/USER/PASSWORD/DB : fallback discrete vars.
+
+See env.example in the repo root for the full template.
 
 Module is importable without a live DB — connections happen lazily.
 """
@@ -16,7 +19,16 @@ from __future__ import annotations
 
 import json
 import os
+from pathlib import Path
 from typing import Any, Iterable
+
+# Load .env from repo root automatically if python-dotenv is installed.
+# This is a no-op when .env doesn't exist or dotenv isn't installed.
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    _load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env", override=False)
+except ImportError:
+    pass
 
 try:
     import psycopg
