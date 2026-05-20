@@ -51,17 +51,28 @@ Example: `M0-T001-project-baseline.md`
 | `M4-T008-tc1-titanic-end-to-end.md` | M4 | done | TC-1 Titanic end-to-end dry-run loop |
 | `M4-T009-m4-smoke-tests.md` | M4 | done | `tests/test_m4_smoke.py` (10 tests, no API/DB/credentials) |
 | `M4-T010-m4-exit-criteria.md` | M4 | done | M4 exit criteria validation + `docs/m4-final-review.md` |
-| `M5-T000-migration-0005-research-citations.md` | M5 | proposed | Migration 0005 — research_items extensions + research_citations table |
-| `M5-T001-db-layer-research.md` | M5 | proposed | DB layer — research / artifact / citation helpers |
-| `M5-T002-browser-fetch-tool.md` | M5 | proposed | `tools/kca/research_fetch.py` — lightweight HTTP + opt-in Playwright |
-| `M5-T003-kca-research-cli.md` | M5 | proposed | `kca research add/fetch/list/show/cite` CLI + `external_fetch` gate |
-| `M5-T004-kaggle-download-checksum.md` | M5 | proposed | `kca kaggle download --resume` + `kca kaggle verify` with sha256 manifest |
-| `M5-T005-resume-paused-jobs.md` | M5 | proposed | Resume paused jobs via `scripts/run_job.py --job-id` after approve |
-| `M5-T006-model-routing.md` | M5 | proposed | Model routing per job type (`src/worker/routing.py`, ADR-0010) |
-| `M5-T007-ci-github-actions.md` | M5 | proposed | `.github/workflows/test.yml` — no-db + live-db + lint |
-| `M5-T008-tc2-house-prices.md` | M5 | proposed | TC-2 House Prices end-to-end (RMSLE, two-experiment loop) |
-| `M5-T009-m5-smoke-tests.md` | M5 | proposed | `tests/test_m5_smoke.py` (10–12 tests) |
-| `M5-T010-m5-exit-criteria.md` | M5 | proposed | M5 exit criteria + `docs/m5-final-review.md` |
+| `M5-T000-migration-0005-research-citations.md` | M5 | done | Migration 0005 — research_items extensions + research_citations table |
+| `M5-T001-db-layer-research.md` | M5 | done | DB layer — research / artifact / citation helpers |
+| `M5-T002-browser-fetch-tool.md` | M5 | done | `tools/kca/research_fetch.py` — lightweight HTTP + opt-in Playwright |
+| `M5-T003-kca-research-cli.md` | M5 | done | `kca research add/fetch/list/show/cite` CLI + `external_fetch` gate |
+| `M5-T004-kaggle-download-checksum.md` | M5 | done | `kca kaggle download --resume` + `kca kaggle verify` with sha256 manifest |
+| `M5-T005-resume-paused-jobs.md` | M5 | done | Resume paused jobs via `scripts/run_job.py --job-id` after approve |
+| `M5-T006-model-routing.md` | M5 | done | Model routing per job type (`src/worker/routing.py`, ADR-0010) |
+| `M5-T007-ci-github-actions.md` | M5 | done | `.github/workflows/test.yml` — no-db + live-db + lint |
+| `M5-T008-tc2-house-prices.md` | M5 | done | TC-2 House Prices end-to-end (RMSLE, two-experiment loop) |
+| `M5-T009-m5-smoke-tests.md` | M5 | done | `tests/test_m5_smoke.py` (10–12 tests) |
+| `M5-T010-m5-exit-criteria.md` | M5 | done | M5 exit criteria + `docs/m5-final-review.md` |
+| `M6-T000-migration-0006-reviews-spans.md` | M6 | proposed | Migration 0006 — agent_reviews + agent_telemetry_spans + agent_jobs.otel_* |
+| `M6-T001-db-layer-reviews-telemetry.md` | M6 | proposed | DB layer — review + telemetry helpers |
+| `M6-T002-local-model-layer.md` | M6 | proposed | `src/worker/local_model.py` — endpoint config + probe + LiteLLM dispatch (ADR-0011) |
+| `M6-T003-env-example-update.md` | M6 | proposed | `env.example` — snorlax/may endpoints + reviewer + OTEL knobs |
+| `M6-T004-reviewer-worker.md` | M6 | proposed | `src/worker/reviewer.py` + sync-gate integration (ADR-0012) |
+| `M6-T005-otel-instrumentation.md` | M6 | proposed | OTEL instrumentation: console + SQLite + Supabase exporters (ADR-0013) |
+| `M6-T006-local-model-job-types.md` | M6 | proposed | `log_triage` / `summarise` job types + `kca local triage` |
+| `M6-T007-kca-review-cli.md` | M6 | proposed | `kca review list / show / run` CLI |
+| `M6-T008-tc3-spaceship-titanic.md` | M6 | proposed | TC-3 Spaceship Titanic end-to-end with reviewer-gate |
+| `M6-T009-m6-smoke-tests.md` | M6 | proposed | `tests/test_m6_smoke.py` (12–14 tests) |
+| `M6-T010-m6-exit-criteria.md` | M6 | proposed | M6 exit criteria + `docs/m6-final-review.md` |
 
 ## How to use these files
 

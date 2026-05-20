@@ -303,21 +303,46 @@ Exit criteria:
   lower than the baseline.
 - Full test suite passes with and without `SUPABASE_DB_URL`.
 
-## M6: model router and multi-agent review
+## M6: multi-agent review + OTEL telemetry + local-model layer
 
-Goal: route tasks by difficulty, cost, and risk.
+Goal: harden the M3–M5 worker with an independent reviewer agent, end-to-end
+OpenTelemetry tracing, and a local-model layer that routes log-triage /
+summarisation jobs to user-owned GPU hosts before paying for cloud tokens.
 
-Planned routing examples:
+Planned capabilities:
 
-- Main implementation/debug: Claude Sonnet/Opus via Agent SDK.
-- Independent code/strategy review: GPT-style model or another Claude session.
-- Low-cost summarization/log triage: local vLLM/Ollama model where adequate.
-- Final high-value review: strongest available model, human-approved budget.
+- Reviewer agent (sync mode) fires before high-stakes ops
+  (`kaggle_submit`, `supabase_migrate`, `git_force_push`, `dataset_upload`,
+  `delete_artifact`). Verdict `approve | reject | abstain` lands in a new
+  `agent_reviews` table; `approve` satisfies the matching approval gate
+  without human intervention, `reject` escalates (default) or fails the
+  job, `abstain` falls through to the existing human-decisions flow.
+- Local-model layer (`src/worker/local_model.py`) talks to vLLM / Ollama
+  endpoints on the user's GPU hosts (`snorlax` RTX 4090, `may` RTX 3090)
+  via OpenAI-compatible HTTP. Numbered-slot env config
+  (`KCA_LOCAL_ENDPOINT_<n>_*`), priority ordering, a TTL-cached probe, and
+  a `KCA_LOCAL_FALLBACK_MODEL` cloud fallback.
+- New job types `log_triage` and `summarise` route to the local layer by
+  default; `kca local probe / pick / triage` surfaces endpoint state.
+- OTEL instrumentation per ADR-0007 with three exporters: stderr (dev),
+  SQLite (`.agent/telemetry.sqlite`), and Supabase
+  (`agent_telemetry_spans`). Spans cover job / turn / tool / reviewer /
+  local-probe.
+- TC-3 Spaceship Titanic exercises the reviewer-gate path end-to-end on a
+  binary-classification submission flow.
 
 Exit criteria:
 
-- Model choice is explicit, logged, and policy-controlled.
-- Local/cheap models can be used for bounded support tasks without weakening safety gates.
+- Migration 0006 idempotent; `agent_reviews` + `agent_telemetry_spans` +
+  `agent_jobs.otel_*` columns present.
+- `kca local probe` reports per-endpoint state with cached results.
+- `kca review run --dry-run` round-trips through `agent_reviews`.
+- Reviewer gate fires on `kaggle_submit` in a dry-run job and either
+  approves, escalates to a human, or fails the job.
+- OTEL spans land in stderr, SQLite, and `agent_telemetry_spans` for the
+  same trace_id when all three exporters are enabled.
+- TC-3 Spaceship Titanic 8/8 validation checks pass.
+- Full test suite passes with and without `SUPABASE_DB_URL`.
 
 ## M7: product UI shell
 
