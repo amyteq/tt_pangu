@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
+import hashlib
 import json
 import os
 import subprocess
@@ -24,6 +26,7 @@ OPERATION_DEFAULTS = {
     "git_force_push":   True,
     "supabase_migrate": True,
     "delete_artifact":  True,
+    "external_fetch":   False,
 }
 
 
@@ -235,22 +238,172 @@ def cmd_upload(args: argparse.Namespace) -> int:
     })
 
 
+def _sha256_file(p: Path) -> str:
+    h = hashlib.sha256()
+    with p.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _walk_files(root: Path) -> list[Path]:
+    out: list[Path] = []
+    for child in sorted(root.rglob("*")):
+        if child.is_file() and child.name != "manifest.json":
+            out.append(child)
+    return out
+
+
 def cmd_download(args: argparse.Namespace) -> int:
     se = SideEffect.LOCAL_WRITE
     competition = args.competition
-    path = args.path or str(Path.cwd() / "data" / competition)
-    Path(path).mkdir(parents=True, exist_ok=True)
-    proc = subprocess.run(
-        ["kaggle", "competitions", "download", "-c", competition, "-p", path],
-        capture_output=True, text=True,
+    path_str = args.path or str(Path.cwd() / "data" / competition)
+    path = Path(path_str)
+    path.mkdir(parents=True, exist_ok=True)
+    manifest_path = path / "manifest.json"
+
+    existing: dict = {"files": []}
+    if manifest_path.exists():
+        try:
+            existing = json.loads(manifest_path.read_text())
+        except json.JSONDecodeError:
+            existing = {"files": []}
+
+    skipped = 0
+    if args.resume and existing.get("files"):
+        # Walk existing manifest; if file on disk matches sha256, skip its
+        # re-download by removing it from a "to download" list. Since the
+        # kaggle CLI fetches the whole bundle, we cannot truly skip per-file
+        # — but we record how many files matched so the caller knows the
+        # resume comparison ran. The actual download is still invoked unless
+        # every file matched.
+        all_matched = True
+        for entry in existing.get("files", []):
+            target = path / entry["name"]
+            if target.exists() and _sha256_file(target) == entry.get("sha256"):
+                skipped += 1
+            else:
+                all_matched = False
+        if all_matched and skipped > 0:
+            # Nothing left to fetch; just refresh manifest and return.
+            return _refresh_manifest_and_emit(
+                competition=competition, path=path,
+                manifest_path=manifest_path,
+                skipped=skipped, rc=0, stdout="", stderr="",
+                ran_kaggle=False, side_effect=se,
+            )
+
+    # Run kaggle CLI; if it isn't installed or creds missing, surface a
+    # graceful error and still build/refresh the manifest from whatever is
+    # already on disk (useful for tests and --resume scenarios).
+    rc = 0
+    stdout = ""
+    stderr = ""
+    try:
+        proc = subprocess.run(
+            ["kaggle", "competitions", "download", "-c", competition, "-p", str(path)],
+            capture_output=True, text=True,
+        )
+        rc = proc.returncode
+        stdout = proc.stdout or ""
+        stderr = proc.stderr or ""
+    except FileNotFoundError as e:
+        rc = 127
+        stderr = f"kaggle CLI not found: {e}"
+
+    return _refresh_manifest_and_emit(
+        competition=competition, path=path,
+        manifest_path=manifest_path,
+        skipped=skipped, rc=rc, stdout=stdout, stderr=stderr,
+        ran_kaggle=True, side_effect=se,
     )
-    return _emit_json({
-        "ok": proc.returncode == 0,
+
+
+def _refresh_manifest_and_emit(
+    *,
+    competition: str,
+    path: Path,
+    manifest_path: Path,
+    skipped: int,
+    rc: int,
+    stdout: str,
+    stderr: str,
+    ran_kaggle: bool,
+    side_effect: SideEffect,
+) -> int:
+    files = _walk_files(path)
+    entries = []
+    for f in files:
+        rel = f.relative_to(path).as_posix()
+        entries.append({
+            "name": rel,
+            "sha256": _sha256_file(f),
+            "bytes": f.stat().st_size,
+        })
+    manifest = {
         "competition": competition,
-        "path": path,
+        "fetched_at": _dt.datetime.utcnow().isoformat() + "Z",
+        "files": entries,
+    }
+    manifest_path.write_text(json.dumps(manifest, indent=2))
+    payload = {
+        "ok": rc == 0,
+        "competition": competition,
+        "path": str(path),
+        "files": len(entries),
+        "skipped": skipped,
+        "manifest": str(manifest_path),
+        "side_effect": side_effect.value,
+    }
+    if not ran_kaggle:
+        payload["all_matched"] = True
+    if stdout:
+        payload["stdout"] = stdout
+    if stderr:
+        payload["stderr"] = stderr
+    return _emit_json(payload)
+
+
+def cmd_verify(args: argparse.Namespace) -> int:
+    se = SideEffect.READ_ONLY
+    path = Path(args.path)
+    manifest_path = path / "manifest.json"
+    if not manifest_path.exists():
+        return _emit_json({
+            "ok": False,
+            "error": f"manifest not found: {manifest_path}",
+            "path": str(path),
+            "side_effect": se.value,
+        })
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except json.JSONDecodeError as e:
+        return _emit_json({
+            "ok": False,
+            "error": f"manifest parse error: {e}",
+            "path": str(path),
+            "side_effect": se.value,
+        })
+    ok_count = 0
+    missing: list[str] = []
+    mismatched: list[str] = []
+    for entry in manifest.get("files", []):
+        name = entry["name"]
+        target = path / name
+        if not target.exists():
+            missing.append(name)
+            continue
+        if _sha256_file(target) != entry.get("sha256"):
+            mismatched.append(name)
+            continue
+        ok_count += 1
+    return _emit_json({
+        "ok": (not missing) and (not mismatched),
+        "ok_count": ok_count,
+        "missing": missing,
+        "mismatched": mismatched,
+        "path": str(path),
         "side_effect": se.value,
-        "stdout": proc.stdout,
-        "stderr": proc.stderr,
     })
 
 
@@ -321,8 +474,17 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_download.add_argument("--competition", required=True)
     p_download.add_argument("--path", default=None,
                             help="Destination dir (default ./data/<competition>)")
+    p_download.add_argument("--resume", action="store_true",
+                            help="Skip files whose sha256 matches manifest entry")
     p_download.add_argument("--json", action="store_true")
     p_download.set_defaults(func=cmd_download)
+
+    p_verify = kg_sub.add_parser("verify",
+                                 help="Verify a downloaded dataset against manifest.json")
+    p_verify.add_argument("--path", required=True,
+                          help="Directory holding manifest.json")
+    p_verify.add_argument("--json", action="store_true")
+    p_verify.set_defaults(func=cmd_verify)
 
     p_watch = kg_sub.add_parser("watch", help="Watch a kernel run (READ_ONLY)")
     p_watch.add_argument("--run", default=None, help="Legacy alias for --kernel")

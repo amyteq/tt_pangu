@@ -115,3 +115,14 @@ Status: accepted (strategy); implementation deferred to M3/M4
 Decision: Adopt OTEL for end-to-end visibility: one root span per job, child spans per turn and per tool call. LiteLLM OTEL callback covers LLM-call spans automatically. Enables model comparison, cost forecasting, platform regression detection.
 
 Full details: `docs/adr/0007-otel-telemetry-strategy.md`.
+
+## ADR-0010 — Per-job-type model routing
+
+Status: accepted (M5).
+
+Decision: route the default model by job type — Haiku for `research`, Sonnet
+for `implement`/`experiment`, Opus for `eval`/`analysis`/`review`. `--model`
+on `scripts/run_job.py` remains a hard override; the routing function lives in
+`src/worker/routing.py`. JSON output now includes the resolved `model`.
+
+Full details: `docs/adr/0010-model-routing.md`.

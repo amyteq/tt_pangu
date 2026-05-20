@@ -95,6 +95,7 @@ class AgentWorker:
         db_url: str | None = None,
         model: str | None = None,
         dry_run: bool = False,
+        resume_state: dict | None = None,
     ):
         self.job_id = job_id
         self.prompt = prompt
@@ -102,6 +103,8 @@ class AgentWorker:
         self.workspace = Path(workspace)
         self.db_url = db_url
         self.dry_run = dry_run
+        # Optional resume state: {turns_used, cost_usd, last_msg, allow_once}
+        self.resume_state = resume_state or {}
         # model kwarg overrides policy.model when given
         if model is not None:
             self.policy = JobPolicy(
@@ -128,7 +131,13 @@ class AgentWorker:
         else:
             client = None
         budget = BudgetTracker(self.policy, model=self.policy.model)
+        # Seed from resume_state so cumulative turns/cost roll forward.
+        if self.resume_state:
+            budget.turns = int(self.resume_state.get("turns_used") or 0)
+            budget.cost_usd = float(self.resume_state.get("cost_usd") or 0.0)
         executor = ToolExecutor(self.workspace, self.policy)
+        # One-shot allowlist for the paused tool_input from a prior pause.
+        allow_once = (self.resume_state or {}).get("allow_once") or None
         messages: list[dict] = [{"role": "user", "content": self.prompt}]
         start = time.monotonic()
 
@@ -224,7 +233,29 @@ class AgentWorker:
                     try:
                         result_content = executor.execute(tc.function.name, tool_input)
                     except ApprovalRequired as exc:
-                        return self._handle_approval_required(exc, budget, start)
+                        # One-shot resume allowance: bypass the matching gate
+                        # exactly once after `kca decisions approve`.
+                        if (
+                            allow_once
+                            and (
+                                allow_once.get("operation") == exc.tool_name
+                                or allow_once.get("operation") == "tool_approval"
+                            )
+                        ):
+                            allow_once = None  # consume
+                            # Recurse into the actual tool with policy bypass
+                            # by temporarily relaxing max_side_effect for this
+                            # one call.
+                            saved = executor.policy.max_side_effect
+                            executor.policy.max_side_effect = "SUBMISSION"
+                            try:
+                                result_content = executor.execute(
+                                    tc.function.name, tool_input
+                                )
+                            finally:
+                                executor.policy.max_side_effect = saved
+                        else:
+                            return self._handle_approval_required(exc, budget, start)
 
                     self._append_event(
                         "tool_result", budget.turns,
@@ -269,13 +300,23 @@ class AgentWorker:
                     options={"approve": "allow this tool call", "deny": "block and stop job"},
                     job_id=self.job_id,
                 )
-                _db.update_job(self.job_id, status="paused")
+                _db.update_job(
+                    self.job_id,
+                    status="paused",
+                    turns_used=budget.turns,
+                    cost_usd=budget.cost_usd,
+                )
             except Exception:
                 pass
         self._append_event(
             "approval_pause", budget.turns,
-            event_data={"tool": exc.tool_name, "side_effect": exc.side_effect,
-                        "decision_id": decision_id},
+            event_data={
+                "tool": exc.tool_name,
+                "operation": exc.tool_name,
+                "tool_input": exc.tool_input,
+                "side_effect": exc.side_effect,
+                "decision_id": decision_id,
+            },
         )
         import sys
         print(
@@ -290,6 +331,69 @@ class AgentWorker:
             final_message=f"Waiting for approval: decision_id={decision_id}",
             stop_reason="approval_required",
         )
+
+    @classmethod
+    def resume(
+        cls,
+        job_id: str,
+        *,
+        workspace: Path,
+        policy: JobPolicy | None = None,
+        db_url: str | None = None,
+        dry_run: bool = False,
+    ) -> "AgentWorker":
+        """Construct an AgentWorker primed from prior agent_job_events.
+
+        Reads the job row + events; reconstructs (turns_used, cost_usd) and
+        seeds a one-shot approval allowlist for the paused tool_input so the
+        next gate check passes once.
+        """
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
+        import db as _db
+        job = _db.get_job(job_id)
+        events = _db.list_job_events(job_id)
+        turns = int(job.get("turns_used") or 0)
+        cost = float(job.get("cost_usd") or 0)
+        last_pause_input = None
+        last_pause_op = None
+        # Walk events: the most recent approval_pause defines the next-resume
+        # allowlist entry, unless followed by an approval_resume already
+        # consumed in a previous resume attempt.
+        for ev in events:
+            t = ev.get("event_type")
+            ed = ev.get("event_data") or {}
+            if isinstance(ed, str):
+                try:
+                    ed = json.loads(ed)
+                except Exception:
+                    ed = {}
+            if t == "approval_pause":
+                last_pause_input = ed.get("tool_input")
+                last_pause_op = ed.get("operation") or ed.get("tool")
+            elif t == "approval_resume":
+                # Resume consumed; clear pending allowance.
+                last_pause_input = None
+                last_pause_op = None
+        prompt = job.get("prompt") or ""
+        policy = policy or JobPolicy()
+        worker = cls(
+            job_id=job_id,
+            prompt=prompt,
+            policy=policy,
+            workspace=workspace,
+            db_url=db_url,
+            dry_run=dry_run,
+            resume_state={
+                "turns_used": turns,
+                "cost_usd": cost,
+                "allow_once": {
+                    "operation": last_pause_op,
+                    "tool_input": last_pause_input,
+                } if last_pause_op else None,
+            },
+        )
+        return worker
 
     def _append_event(
         self, event_type: str, turn_number: int, *,

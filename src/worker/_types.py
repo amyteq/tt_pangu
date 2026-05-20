@@ -23,6 +23,7 @@ class JobPolicy:
         "git_force_push":    True,
         "supabase_migrate":  True,
         "delete_artifact":   True,
+        "external_fetch":    False,
     })
     max_side_effect: str = "SUBMISSION"
 

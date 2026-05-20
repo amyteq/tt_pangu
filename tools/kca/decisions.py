@@ -46,9 +46,27 @@ def cmd_approve(args: argparse.Namespace) -> int:
         _db = _load_db()
         notes = getattr(args, "notes", None)
         _db.resolve_decision(args.id, "approved", notes=notes)
+        # If the decision is linked to a job, append an approval_resume event
+        # so a subsequent `scripts/run_job.py --job-id <uuid>` resume path can
+        # find it.
+        job_id = None
+        try:
+            row = _db.get_decision(args.id)
+            job_id = row.get("job_id")
+        except Exception:
+            job_id = None
+        if job_id:
+            try:
+                _db.append_job_event(
+                    str(job_id), "approval_resume",
+                    event_data={"decision_id": args.id},
+                )
+            except Exception:
+                pass
         return _emit(True, {
             "decision_id": args.id,
             "resolution": "approved",
+            "job_id": str(job_id) if job_id else None,
             "side_effect": SideEffect.LOCAL_WRITE.value,
         })
     except Exception as exc:

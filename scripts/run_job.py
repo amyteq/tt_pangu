@@ -34,18 +34,23 @@ sys.path.insert(0, str(REPO_ROOT / "tools" / "kca"))
 
 from src.worker._types import JobPolicy
 from src.worker.worker import AgentWorker
+from src.worker import routing as _routing
 
 _DEFAULT_PROJECT_ID = "00000000-0000-0000-0000-000000000001"
 
 
 def _build_policy(args: argparse.Namespace) -> JobPolicy:
     allowed = list(args.allowed_tools) if args.allowed_tools else ["kca *", "pytest *"]
+    job_type = getattr(args, "job_type", None) or "implement"
+    # --model overrides the route table; the routing function preserves this
+    # precedence.
+    model = _routing.model_for(job_type, override=args.model)
     return JobPolicy(
         max_turns=args.max_turns,
         max_cost_usd=args.max_cost_usd,
         max_runtime_s=args.max_runtime_s,
         allowed_tool_patterns=allowed,
-        model=args.model,
+        model=model,
     )
 
 
@@ -175,8 +180,9 @@ def _ensure_branch(repo_path: str, branch: str) -> None:
     )
 
 
-def _result_json(result) -> dict:
-    return {
+def _result_json(result, job_id: str | None = None,
+                 model: str | None = None) -> dict:
+    out = {
         "status": result.status,
         "turns_used": result.turns_used,
         "cost_usd": round(result.cost_usd, 6),
@@ -184,6 +190,11 @@ def _result_json(result) -> dict:
         "final_message": result.final_message,
         "stop_reason": result.stop_reason,
     }
+    if job_id:
+        out["job_id"] = job_id
+    if model:
+        out["model"] = model
+    return out
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -207,7 +218,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--allowed-tools", nargs="+", metavar="PATTERN")
     parser.add_argument("--require-approval", nargs="+", metavar="OP",
                         help="Force approval on these operations (ADR-0006)")
-    parser.add_argument("--model", default="claude-sonnet-4-6")
+    parser.add_argument("--model", default=None,
+                        help="Override the routed model id")
+    parser.add_argument("--job-type", dest="job_type", default="implement",
+                        choices=("research", "implement", "experiment",
+                                 "eval", "analysis", "review"),
+                        help="Job type for model routing (ADR-0010)")
     # Existing queued job
     parser.add_argument("--job-id", default=None, metavar="UUID")
     # Behaviour flags
@@ -302,14 +318,36 @@ def main(argv: list[str] | None = None) -> int:
         workspace_was_created = True
 
     # ---- Step 5+6: Run worker -----------------------------------------------
-    worker = AgentWorker(
-        job_id=job_id,
-        prompt=prompt,
-        policy=policy,
-        workspace=workspace,
-        db_url=os.environ.get("SUPABASE_DB_URL") if _db is not None else None,
-        dry_run=args.dry_run,
-    )
+    is_resume = bool(args.job_id and _db is not None and not args.prompt)
+    if is_resume:
+        try:
+            worker = AgentWorker.resume(
+                job_id=job_id,
+                workspace=workspace,
+                policy=policy,
+                db_url=os.environ.get("SUPABASE_DB_URL"),
+                dry_run=args.dry_run,
+            )
+        except Exception as exc:
+            print(f"[run_job] resume failed, falling back to fresh start: {exc}",
+                  file=sys.stderr)
+            worker = AgentWorker(
+                job_id=job_id,
+                prompt=prompt,
+                policy=policy,
+                workspace=workspace,
+                db_url=os.environ.get("SUPABASE_DB_URL") if _db is not None else None,
+                dry_run=args.dry_run,
+            )
+    else:
+        worker = AgentWorker(
+            job_id=job_id,
+            prompt=prompt,
+            policy=policy,
+            workspace=workspace,
+            db_url=os.environ.get("SUPABASE_DB_URL") if _db is not None else None,
+            dry_run=args.dry_run,
+        )
     result = worker.run()
 
     if args.verbose:
@@ -348,7 +386,9 @@ def main(argv: list[str] | None = None) -> int:
 
     # ---- Step 9: Print result -----------------------------------------------
     if args.json:
-        print(json.dumps(_result_json(result), ensure_ascii=False))
+        print(json.dumps(_result_json(result, job_id=job_id,
+                                       model=policy.model),
+                         ensure_ascii=False))
     else:
         status_emoji = {"done": "✓", "budget_stop": "✗", "failed": "✗", "paused": "⏸"}.get(
             result.status, "?"

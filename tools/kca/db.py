@@ -57,6 +57,8 @@ __all__ = [
     "list_runs_m2",
     "find_run_by_dir",
     "insert_approval_request",
+    "get_decision",
+    "list_job_events",
     # M3 job lifecycle
     "create_job",
     "get_job",
@@ -79,6 +81,14 @@ __all__ = [
     "list_runs",
     "create_submission",
     "update_submission",
+    # M5 research / artifacts / citations (0005 schema)
+    "create_research_item",
+    "get_research_item",
+    "list_research_items",
+    "find_research_by_url",
+    "attach_artifact",
+    "cite_research",
+    "list_citations",
 ]
 
 
@@ -411,6 +421,7 @@ def insert_approval_request(
     session_id: str | None = None,
     project_id: str | None = None,
     requested_by: str | None = "kca",
+    job_id: str | None = None,
     conn: "psycopg.Connection | None" = None,
 ) -> str:
     """Insert a pending human_decisions row. Return its id (uuid str)."""
@@ -425,6 +436,7 @@ def insert_approval_request(
         session_id,
         project_id,
         requested_by,
+        job_id,
     )
 
 
@@ -436,13 +448,15 @@ def _insert_approval_request(
     session_id: str | None,
     project_id: str,
     requested_by: str | None,
+    job_id: str | None,
 ) -> str:
     with conn.cursor() as cur:
         cur.execute(
             """
             insert into human_decisions
-              (project_id, session_id, decision_type, prompt, options, requested_by)
-            values (%s::uuid, %s::uuid, %s, %s, %s::jsonb, %s)
+              (project_id, session_id, decision_type, prompt, options,
+               requested_by, job_id)
+            values (%s::uuid, %s::uuid, %s, %s, %s::jsonb, %s, %s::uuid)
             returning id::text
             """,
             (
@@ -452,12 +466,49 @@ def _insert_approval_request(
                 prompt,
                 json.dumps(options),
                 requested_by,
+                job_id,
             ),
         )
         row = cur.fetchone()
     conn.commit()
     assert row is not None
     return row["id"]
+
+
+def get_decision(
+    decision_id: str,
+    conn: "psycopg.Connection | None" = None,
+) -> dict:
+    """Fetch one human_decisions row. Raises KeyError if not found."""
+    return _with_conn(conn, _get_decision, decision_id)
+
+
+def _get_decision(conn: "psycopg.Connection", decision_id: str) -> dict:
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM human_decisions WHERE id = %s::uuid",
+                    (decision_id,))
+        row = cur.fetchone()
+    if row is None:
+        raise KeyError(f"decision not found: {decision_id}")
+    return dict(row)
+
+
+def list_job_events(
+    job_id: str,
+    conn: "psycopg.Connection | None" = None,
+) -> list[dict]:
+    """List agent_job_events rows for a job in id order."""
+    return _with_conn(conn, _list_job_events, job_id)
+
+
+def _list_job_events(conn: "psycopg.Connection", job_id: str) -> list[dict]:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM agent_job_events WHERE job_id = %s::uuid ORDER BY id",
+            (job_id,),
+        )
+        rows = cur.fetchall()
+    return [dict(r) for r in rows]
 
 
 # ---------------------------------------------------------------------------
@@ -757,8 +808,8 @@ def _resolve_decision(
         cur.execute(
             """
             UPDATE human_decisions
-               SET status = %s,
-                   notes = %s,
+               SET status = %s::decision_status,
+                   rationale = %s,
                    decided_at = now()
              WHERE id = %s::uuid
             """,
@@ -1180,6 +1231,261 @@ def _update_submission_m4(
             params,
         )
     conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# M5: research items / artifacts / citations (schema in 0005)
+# ---------------------------------------------------------------------------
+
+def attach_artifact(
+    kind: str,
+    storage_path: str,
+    *,
+    content_hash: str | None = None,
+    byte_size: int | None = None,
+    metadata: dict | None = None,
+    project_id: str | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> str:
+    """Insert an artifacts row. Returns artifact_id."""
+    project_id = project_id or DEFAULT_PROJECT_ID
+    return _with_conn(
+        conn, _attach_artifact, kind, storage_path, content_hash,
+        byte_size, metadata or {}, project_id,
+    )
+
+
+def _attach_artifact(
+    conn: "psycopg.Connection",
+    kind: str,
+    storage_path: str,
+    content_hash: str | None,
+    byte_size: int | None,
+    metadata: dict,
+    project_id: str,
+) -> str:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO artifacts
+              (project_id, kind, storage_path, content_hash, byte_size, metadata)
+            VALUES
+              (%s::uuid, %s, %s, %s, %s, %s::jsonb)
+            RETURNING id::text
+            """,
+            (project_id, kind, storage_path, content_hash, byte_size,
+             json.dumps(metadata)),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    assert row is not None
+    return row["id"]
+
+
+def create_research_item(
+    *,
+    url: str,
+    title: str | None = None,
+    source_kind: str | None = None,
+    trust: str = "unknown",
+    summary: str | None = None,
+    competition_id: str | None = None,
+    fetcher: str | None = None,
+    http_status: int | None = None,
+    content_hash: str | None = None,
+    html_artifact_id: str | None = None,
+    text_artifact_id: str | None = None,
+    source_policy: dict | None = None,
+    project_id: str | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> str:
+    """Insert a research_items row (M5 fields). Returns item id."""
+    project_id = project_id or DEFAULT_PROJECT_ID
+    return _with_conn(
+        conn, _create_research_item, url, title, source_kind, trust, summary,
+        competition_id, fetcher, http_status, content_hash, html_artifact_id,
+        text_artifact_id, source_policy or {}, project_id,
+    )
+
+
+def _create_research_item(
+    conn: "psycopg.Connection",
+    url: str,
+    title: str | None,
+    source_kind: str | None,
+    trust: str,
+    summary: str | None,
+    competition_id: str | None,
+    fetcher: str | None,
+    http_status: int | None,
+    content_hash: str | None,
+    html_artifact_id: str | None,
+    text_artifact_id: str | None,
+    source_policy: dict,
+    project_id: str,
+) -> str:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO research_items
+              (project_id, url, title, source_kind, trust, summary,
+               competition_id, fetcher, http_status, content_hash,
+               html_artifact_id, text_artifact_id, source_policy, fetched_at)
+            VALUES
+              (%s::uuid, %s, %s, %s, %s::trust_level, %s,
+               %s::uuid, %s, %s, %s,
+               %s::uuid, %s::uuid, %s::jsonb, now())
+            RETURNING id::text
+            """,
+            (project_id, url, title, source_kind, trust, summary,
+             competition_id, fetcher, http_status, content_hash,
+             html_artifact_id, text_artifact_id, json.dumps(source_policy)),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    assert row is not None
+    return row["id"]
+
+
+def get_research_item(
+    item_id: str,
+    conn: "psycopg.Connection | None" = None,
+) -> dict:
+    """Fetch one research_items row. Raises KeyError if not found."""
+    return _with_conn(conn, _get_research_item, item_id)
+
+
+def _get_research_item(conn: "psycopg.Connection", item_id: str) -> dict:
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM research_items WHERE id = %s::uuid", (item_id,))
+        row = cur.fetchone()
+    if row is None:
+        raise KeyError(f"research_item not found: {item_id}")
+    return dict(row)
+
+
+def list_research_items(
+    competition_id: str | None = None,
+    limit: int = 50,
+    conn: "psycopg.Connection | None" = None,
+) -> list[dict]:
+    """List research_items, newest first; optionally filter by competition."""
+    return _with_conn(conn, _list_research_items, competition_id, limit)
+
+
+def _list_research_items(
+    conn: "psycopg.Connection",
+    competition_id: str | None,
+    limit: int,
+) -> list[dict]:
+    if competition_id is not None:
+        query = ("SELECT * FROM research_items WHERE competition_id = %s::uuid "
+                 "ORDER BY created_at DESC LIMIT %s")
+        params: list[Any] = [competition_id, limit]
+    else:
+        query = "SELECT * FROM research_items ORDER BY created_at DESC LIMIT %s"
+        params = [limit]
+    with conn.cursor() as cur:
+        cur.execute(query, params)
+        rows = cur.fetchall()
+    return [dict(r) for r in rows]
+
+
+def find_research_by_url(
+    url: str,
+    conn: "psycopg.Connection | None" = None,
+) -> dict | None:
+    """Return the newest research_items row matching the URL, or None."""
+    return _with_conn(conn, _find_research_by_url, url)
+
+
+def _find_research_by_url(conn: "psycopg.Connection", url: str) -> dict | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT * FROM research_items
+             WHERE url = %s
+             ORDER BY created_at DESC
+             LIMIT 1
+            """,
+            (url,),
+        )
+        row = cur.fetchone()
+    return dict(row) if row else None
+
+
+def cite_research(
+    research_item_id: str,
+    *,
+    run_id: str | None = None,
+    experiment_id: str | None = None,
+    job_id: str | None = None,
+    quote: str | None = None,
+    page_anchor: str | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> str:
+    """Insert a research_citations row. Returns citation id."""
+    return _with_conn(
+        conn, _cite_research, research_item_id, run_id, experiment_id,
+        job_id, quote, page_anchor,
+    )
+
+
+def _cite_research(
+    conn: "psycopg.Connection",
+    research_item_id: str,
+    run_id: str | None,
+    experiment_id: str | None,
+    job_id: str | None,
+    quote: str | None,
+    page_anchor: str | None,
+) -> str:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO research_citations
+              (research_item_id, run_id, experiment_id, job_id, quote, page_anchor)
+            VALUES
+              (%s::uuid, %s::uuid, %s::uuid, %s::uuid, %s, %s)
+            RETURNING id::text
+            """,
+            (research_item_id, run_id, experiment_id, job_id, quote, page_anchor),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    assert row is not None
+    return row["id"]
+
+
+def list_citations(
+    run_id: str | None = None,
+    experiment_id: str | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> list[dict]:
+    """List research_citations filtered by run_id or experiment_id."""
+    return _with_conn(conn, _list_citations, run_id, experiment_id)
+
+
+def _list_citations(
+    conn: "psycopg.Connection",
+    run_id: str | None,
+    experiment_id: str | None,
+) -> list[dict]:
+    if run_id is not None:
+        query = ("SELECT * FROM research_citations WHERE run_id = %s::uuid "
+                 "ORDER BY created_at DESC")
+        params: list[Any] = [run_id]
+    elif experiment_id is not None:
+        query = ("SELECT * FROM research_citations WHERE experiment_id = %s::uuid "
+                 "ORDER BY created_at DESC")
+        params = [experiment_id]
+    else:
+        query = "SELECT * FROM research_citations ORDER BY created_at DESC LIMIT 100"
+        params = []
+    with conn.cursor() as cur:
+        cur.execute(query, params)
+        rows = cur.fetchall()
+    return [dict(r) for r in rows]
 
 
 # ---------------------------------------------------------------------------
