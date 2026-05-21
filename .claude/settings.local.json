@@ -1,9 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "Bash(uv --version)",
-      "Bash(pnpm --version)",
-      "Bash(npm --version)",
       "WebFetch(domain:ndownloader.figshare.com)",
       "WebFetch(domain:supabase-db)"
     ]

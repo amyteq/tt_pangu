@@ -562,3 +562,11 @@ DB and local-endpoint calls require dangerouslyDisableSandbox=true.
 Report PASS/FAIL for each prompt's verification step inline.
 "
 ```
+
+### Closeout
+让我们先review 下面的问题, 调整完所有 milestones 之后, 在执行 M7 的计划规划
+- 每个milestone final review 之后, 标注为完成时别忘了更新PROJECT_STATE.md, README.md (Current milestone section), docs/milestones.md 等文档
+- 因为 KCA 平台开始主要是 personal use, local first, 所以目前不需要 cloud deployment; 不过还是请添加 INSTALL.md 或者在 README.md 中添加 Install/Configure 部分, 描述 KCA 平台ready时如何在本地安装, 配置和运行; 并预留以后在 AWS/GCP 上部署的部分
+- source of truth 是 GitHub repo + Claude Code + CI + Supabase migrations, Lovable 暂时不用, 请更新docs/milestones.md 及相关文档来继续在 Claude Code 中开发UI
+- KCA Claude Code like CLI: 请将下面的需求添加到已有或者新增一个 milestone, details refer to temp/kca_cli.md
+

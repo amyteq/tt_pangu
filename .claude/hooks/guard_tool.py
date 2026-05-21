@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
-"""Claude Code PreToolUse guardrail hook.
+"""Claude Code PreToolUse guardrail hook for permissive KCA development.
 
-Reads hook JSON from stdin. Blocks obvious dangerous actions and protected
-secret paths. This is a deterministic safety net, not a replacement for
-container isolation, permission settings, or human review.
+Policy:
+- Allow normal development work without prompts.
+- Deny secret access and host-destructive operations.
+- Ask only for irreversible or decision-level operations.
 """
 from __future__ import annotations
 
 import json
 import os
 import re
+import shlex
 import sys
 from pathlib import Path
 
@@ -33,52 +35,89 @@ def normalize_path(value: str) -> str:
 def path_is_protected(path: str) -> bool:
     p = normalize_path(path)
     protected_fragments = [
-        "/.env", "/secrets/", "/.ssh/", "/.aws/", "/.config/gcloud/",
-        "/kaggle.json", "/.netrc", "/id_rsa", "/id_ed25519",
+        "/.env",
+        "/secrets/",
+        "/.ssh/",
+        "/.aws/",
+        "/.config/gcloud/",
+        "/.config/gh/hosts.yml",
+        "/kaggle.json",
+        "/.netrc",
+        "/id_rsa",
+        "/id_ed25519",
     ]
-    protected_names = {".env", "kaggle.json", ".netrc", "id_rsa", "id_ed25519"}
+    protected_names = {
+        ".env",
+        ".env.local",
+        ".env.development",
+        ".env.production",
+        ".env.test",
+        "kaggle.json",
+        ".netrc",
+        "id_rsa",
+        "id_ed25519",
+        "hosts.yml",
+    }
     name = Path(p).name
     return name in protected_names or any(fragment in p for fragment in protected_fragments)
 
 
-def bash_is_blocked(command: str) -> str | None:
-    c = " ".join(command.strip().split())
-    dangerous_patterns = [
-        (r"\brm\s+-rf\s+(/|~|\$HOME)(\s|$)", "Refusing recursive deletion of root/home."),
+def compact(command: str) -> str:
+    return " ".join(command.strip().split())
+
+
+def bash_decision(command: str) -> tuple[str | None, str | None]:
+    c = compact(command)
+    lc = c.lower()
+
+    # Hard deny: host-destructive, privilege escalation, secret exfiltration.
+    deny_patterns = [
         (r"\bsudo\b", "Refusing sudo from the agent."),
+        (r"\bsu\s+", "Refusing su from the agent."),
+        (r"\bdoas\b", "Refusing doas from the agent."),
+        (r"\brm\s+-rf\s+(/|~|\$HOME)(\s|$)", "Refusing recursive deletion of root/home."),
+        (r"\brm\s+-rf\s+/\S+", "Refusing recursive deletion of absolute filesystem paths."),
         (r"\bchmod\s+777\b", "Refusing chmod 777."),
         (r"\bchown\s+.*\s+(/|~|\$HOME)\b", "Refusing ownership change on broad paths."),
-        (r"\bdd\s+.*\bof=/", "Refusing raw disk write."),
+        (r"\bdd\s+.*\bof=/dev/", "Refusing raw disk write."),
         (r"\bmkfs(\.|\s|$)", "Refusing filesystem formatting command."),
         (r"\bshutdown\b|\breboot\b|\bhalt\b", "Refusing host power command."),
-        (r"\bgit\s+push\s+--force", "Refusing force push."),
+        (r"\bgit\s+push\s+(-f|--force|--force-with-lease)", "Refusing force push."),
         (r"\bdocker\s+run\b.*\s--privileged\b", "Refusing privileged Docker container."),
-        (r"\b(cat|less|more|head|tail|grep)\b.*(\.env|kaggle\.json|id_rsa|id_ed25519|\.aws|\.ssh)", "Refusing shell read of protected secrets."),
+        (r"\b(cat|less|more|head|tail|grep|rg)\b.*(\.env|kaggle\.json|id_rsa|id_ed25519|\.aws|\.ssh|hosts\.yml)", "Refusing shell read of protected secrets."),
         (r"\b(curl|wget)\b.*(\.env|kaggle\.json|id_rsa|id_ed25519|metadata\.google|169\.254\.169\.254)", "Refusing shell exfiltration/metadata access pattern."),
+        (r"\b(psql|sqlite3)\b.*\b(drop\s+database|drop\s+schema)\b", "Refusing database/schema drop from the agent."),
     ]
-    for pattern, reason in dangerous_patterns:
-        if re.search(pattern, c, flags=re.IGNORECASE):
-            return reason
+    for pattern, reason in deny_patterns:
+        if re.search(pattern, lc, flags=re.IGNORECASE):
+            return "deny", reason
 
+    # Ask: irreversible or product/competition decision gates.
     ask_patterns = [
+        (r"\brm\b", "File deletion requires approval unless implemented through an approved cleanup command."),
+        (r"\brmdir\b", "Directory deletion requires approval."),
+        (r"\bfind\b.*\s-delete\b", "find -delete requires approval."),
+        (r"\bgit\s+clean\b", "git clean requires approval."),
+        (r"\bgh\s+pr\s+merge\b", "Merging a PR is a decision gate."),
         (r"\bkaggle\s+competitions\s+submit\b", "Kaggle submission requires human approval."),
-        (r"\bgit\s+push\b", "Git push requires human approval."),
-        (r"\bgh\s+pr\s+(create|merge)\b", "GitHub PR side effect requires human approval."),
-        (r"\bsupabase\s+db\s+push\b", "Supabase database push requires human approval."),
-        (r"\bnmap\b", "Network scanning requires explicit authorized CTF scope and human approval."),
-        (r"\b(sqlmap|hydra|metasploit|msfconsole)\b", "Dual-use security tool requires explicit authorized CTF scope and human approval."),
+        (r"\bkaggle\s+kernels\s+push\b", "Kaggle kernel push requires human approval."),
+        (r"\bkaggle\s+datasets\s+(create|version)\b", "Kaggle dataset publication requires human approval."),
+        (r"\bpython\s+tools/kca/kca\.py\s+kaggle\s+(submit|push|upload)\b", "KCA Kaggle publication requires human approval."),
+        (r"\bsupabase\s+db\s+(push|reset)\b", "Remote/destructive Supabase database operation requires approval."),
+        (r"\b(psql|sqlite3)\b.*\b(truncate|delete\s+from)\b", "Destructive SQL requires approval."),
+        (r"\bdocker\s+compose\s+down\b.*\s-v\b", "Docker volume deletion requires approval."),
     ]
     for pattern, reason in ask_patterns:
-        if re.search(pattern, c, flags=re.IGNORECASE):
-            return "ASK:" + reason
+        if re.search(pattern, lc, flags=re.IGNORECASE):
+            return "ask", reason
 
-    return None
+    return None, None
 
 
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
-    except Exception as exc:  # fail closed
+    except Exception as exc:
         emit("deny", f"Guard hook could not parse input: {exc}")
         return 0
 
@@ -93,12 +132,9 @@ def main() -> int:
 
     if tool == "Bash":
         command = tool_input.get("command") or ""
-        reason = bash_is_blocked(command)
-        if reason:
-            if reason.startswith("ASK:"):
-                emit("ask", reason[4:])
-            else:
-                emit("deny", reason)
+        decision, reason = bash_decision(command)
+        if decision and reason:
+            emit(decision, reason)
             return 0
 
     return 0

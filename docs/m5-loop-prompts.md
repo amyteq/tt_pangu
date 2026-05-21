@@ -728,7 +728,7 @@ Report PASS/FAIL for each prompt's verification step inline.
 "
 ```
 
-### closeout
+### Closeout
 vLLM/Ollama:
 我有2个本地算力资源:
 1. RTX 4090 on Void Linux

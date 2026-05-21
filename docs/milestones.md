@@ -1,6 +1,6 @@
 # kaggle-code-agent Milestones
 
-Status: proposed  
+Status: M6 done, M7 in planning  
 Created: 2026-05-16  
 Scope: hybrid human + AI code competition platform
 
@@ -20,6 +20,14 @@ The platform should help a human user:
 - require human approval for external side effects such as Kaggle submissions or remote kernel pushes;
 - summarize learnings and produce final writeups.
 
+## Source of truth
+
+**GitHub repo + Claude Code + CI + Supabase migrations.**
+
+All product source code, migrations, tests, architecture decisions, and task specs live in this repository. AI tools do not share hidden memory reliably across sessions or products. Claude Code is the primary development environment for all layers: CLI, backend, UI shell, and worker.
+
+Lovable may be used for visual prototyping or landing-page mockups only. It is not the source of truth for schema, migrations, agent runners, or any backend logic.
+
 ## Terminology: two meanings of "code agent"
 
 This project uses two related but distinct agent concepts.
@@ -30,10 +38,8 @@ These are external AI tools used to build this repository.
 
 Examples:
 
-- Claude Code CLI / VS Code / Desktop / Web;
-- ChatGPT Pro;
-- Cursor;
-- Lovable later, mainly for UI/product shell;
+- Claude Code CLI / VS Code / Desktop / Web (primary);
+- ChatGPT Pro / Cursor (supplementary);
 - GitHub Actions / Claude Code Web / Routines for cloud automation.
 
 Role:
@@ -98,7 +104,17 @@ External systems
 - Every worker loop should have budget, turn, time, and side-effect limits.
 - Tests and local validation should run before external submission.
 
-## M0 / MVP-0: project baseline and memory discipline
+## Milestone final-review protocol
+
+After every milestone final review, before marking done:
+
+1. Update `PROJECT_STATE.md` — set current milestone, summarize open decisions, and record any new known blockers.
+2. Update `README.md` current milestone section to name the new active milestone and goal.
+3. Update `docs/milestones.md` — mark the finished milestone `✓ done`, add a one-line summary of what landed, and note any follow-ups carried forward.
+
+---
+
+## M0 / MVP-0: project baseline and memory discipline ✓ done
 
 Goal: make the repository safe and legible for multi-tool AI-assisted development.
 
@@ -119,7 +135,9 @@ Exit criteria:
 - A new Claude Code session can read repo docs and understand what not to touch.
 - A human can safely launch a small Claude Code task without ambiguous scope.
 
-## M1 / MVP-1: local Kaggle tooling wrapper baseline
+---
+
+## M1 / MVP-1: local Kaggle tooling wrapper baseline ✓ done
 
 Goal: create a local-first wrapper layer that AI agents can call safely.
 
@@ -145,7 +163,9 @@ Exit criteria:
 - Dangerous remote operations are blocked or require approval.
 - Local run artifacts are structured and testable.
 
-## M2: Supabase/control plane foundation
+---
+
+## M2: Supabase/control plane foundation ✓ done
 
 Goal: define and prototype the persistent control plane.
 
@@ -168,6 +188,8 @@ Exit criteria:
 
 - Schema and data model support MVP-1 artifacts and future worker jobs.
 - A local/dev worker can record run events without needing product UI.
+
+---
 
 ## M3: Python-first competition worker v0 ✓ done
 
@@ -204,6 +226,8 @@ Exit criteria:
 - A job runs locally: prompt → workspace → LLM tool loop → kca tool call → recorded result.
 - Budget limits (turns, cost, runtime) enforced and logged.
 - Approval gate fires and records a human_decisions row when configured.
+
+---
 
 ## M4: Kaggle competition workflow v0 ✓ done
 
@@ -254,7 +278,9 @@ Exit criteria:
 - Each competition runs in its own GitHub repo with experiment branches.
 - Submission is prepared and validated locally; submit job executes per approval policy.
 
-## M5: research and browser workflow
+---
+
+## M5: research and browser workflow ✓ done
 
 Goal: add research, webpage reading, and browser-visible analysis loops,
 plus clear the M4 follow-ups (kaggle download checksums, resume paused jobs,
@@ -303,7 +329,9 @@ Exit criteria:
   lower than the baseline.
 - Full test suite passes with and without `SUPABASE_DB_URL`.
 
-## M6: multi-agent review + OTEL telemetry + local-model layer
+---
+
+## M6: multi-agent review + OTEL telemetry + local-model layer ✓ done
 
 Goal: harden the M3–M5 worker with an independent reviewer agent, end-to-end
 OpenTelemetry tracing, and a local-model layer that routes log-triage /
@@ -331,22 +359,112 @@ Planned capabilities:
 - TC-3 Spaceship Titanic exercises the reviewer-gate path end-to-end on a
   binary-classification submission flow.
 
+Exit criteria: all met. See `docs/m6-final-review.md`.
+
+---
+
+## M7: KCA CLI architecture — command / skill / tool / job / permission policy
+
+Goal: implement the full KCA command/skill/tool/job architecture so the platform
+has a stable, inspectable CLI that can drive agent workflows, replace ad-hoc
+`python tools/kca/kca.py` calls, and enforce structured permission decisions.
+
+This is distinct from the product UI shell (M8): M7 is operator/developer-facing
+and headless. The UI in M8 will call into the same CLI/API surface.
+
+See `docs/meeting-notes/2026-05-21-r1.md` §1–3 for full design rationale.
+
+### Four-layer model
+
+| Layer | Description |
+|---|---|
+| **Command** | Deterministic CLI/API entry points for operators (`kca job run`, `kca decision approve`). |
+| **Skill** | Agent-facing workflow recipes stored under `.kca/skills/<name>/SKILL.md` with YAML frontmatter. Callable via `kca skill run <name>` or slash-style invocation. |
+| **Tool** | Executable actions with input/output schema, timeout, permission label, sandbox metadata, and audit logging. |
+| **Job** | Durable records that run a skill through the agent loop with budget, turn, cost, runtime limits, and decision gates. |
+
+### M7 task sequence
+
+| Task | Description | Depends on |
+|---|---|---|
+| M7-T000 | Audit + repair `.github/workflows/` — fix failing CI checks, add no-db + lint jobs | — |
+| M7-T001 | Skill loader: read `.kca/skills/<name>/SKILL.md` with YAML frontmatter; argument substitution | — |
+| M7-T002 | Command registry: register KCA CLI subcommands declaratively | T001 |
+| M7-T003 | Tool registry: tool metadata, approval policy labels, sandbox metadata | T001 |
+| M7-T004 | Permission policy layer: allow/ask/deny resolution with structured JSON policy records | T003 |
+| M7-T005 | Slash-style invocation: `kca skill run <name> [args] [--dry-run]` shows permissions + rendered prompt | T001, T004 |
+| M7-T006 | Audit logging: record every tool execution in `agent_job_events` with policy decision | T004 |
+| M7-T007 | Seed `.kca/skills/` with `run-milestone`, `triage-log`, `prepare-submission`, `review-pr` | T001 |
+| M7-T008 | `tests/test_m7_smoke.py`: skill parsing, arg substitution, permission resolution, command registry, decision gates | T001–T006 |
+| M7-T009 | Documentation: `docs/architecture/kca-cli-architecture.md` explaining Commands vs Skills vs Tools vs Jobs | all |
+| M7-T010 | M7 exit criteria validation + `docs/m7-final-review.md` | all |
+
+### Permission policy design
+
+Runtime agent permissions are data, not ad-hoc prompts:
+
+```json
+{
+  "operation": "kaggle.submit",
+  "default_decision": "ask",
+  "reason": "External competition submission",
+  "allowed_in_modes": ["human-approved", "competition-finalization"],
+  "audit_required": true
+}
+```
+
+Allow by default: edit workspace files, run tests/benchmark, create artifacts,
+summarize logs, call LiteLLM/local models, create branch, commit, create PR.
+
+Decision gate: submit to Kaggle, merge PR, publish dataset/kernel, apply
+remote Supabase migration, spend above budget threshold, change model tier,
+change competition direction/objective.
+
+Deny: read secrets, write outside workspace, sudo/root, rm outside workspace,
+drop database/schema, force push, network exfiltration.
+
+### Recommended directory layout
+
+```text
+.kca/
+  skills/
+    run-milestone/SKILL.md
+    triage-log/SKILL.md
+    prepare-submission/SKILL.md
+    review-pr/SKILL.md
+  tools/tools.yaml
+  permissions/
+    default.yaml
+    permissive-dev.yaml
+    competition-runner.yaml
+
+tools/kca/
+  kca.py
+  commands/
+    job.py  skill.py  tool.py  decision.py
+    workspace.py  kaggle.py  supabase.py
+  agent/
+    runner.py  skill_loader.py  tool_executor.py
+    permission_policy.py  audit.py
+```
+
 Exit criteria:
 
-- Migration 0006 idempotent; `agent_reviews` + `agent_telemetry_spans` +
-  `agent_jobs.otel_*` columns present.
-- `kca local probe` reports per-endpoint state with cached results.
-- `kca review run --dry-run` round-trips through `agent_reviews`.
-- Reviewer gate fires on `kaggle_submit` in a dry-run job and either
-  approves, escalates to a human, or fails the job.
-- OTEL spans land in stderr, SQLite, and `agent_telemetry_spans` for the
-  same trace_id when all three exporters are enabled.
-- TC-3 Spaceship Titanic 8/8 validation checks pass.
-- Full test suite passes with and without `SUPABASE_DB_URL`.
+- `kca skill list` shows available skills from `.kca/skills/`.
+- `kca skill show <name>` prints parsed metadata and body.
+- `kca skill run <name> ... --dry-run` prints planned tool permissions and rendered prompt without executing.
+- Permission policy resolves allow/ask/deny for any (operation, mode) pair.
+- Audit log records every tool execution with policy decision.
+- `.github/workflows/` CI passes on main branch (no-db + lint at minimum).
+- `tests/test_m7_smoke.py` passes without API keys or DB.
+- Documentation explains Commands vs Skills vs Tools vs Jobs.
 
-## M7: product UI shell
+---
 
-Goal: expose the control plane through a human-friendly interface.
+## M8: product UI shell
+
+Goal: expose the control plane through a human-friendly interface, built and
+maintained in Claude Code with this repository as source of truth.
 
 Planned capabilities:
 
@@ -357,18 +475,60 @@ Planned capabilities:
 - Experiment/run table.
 - Approval inbox for submissions/remote actions.
 - Artifact browser.
+- Decision gate UI: shows `operation`, `cv_score`, `cost_so_far`, artifact,
+  and Approve / Reject / Ask agent to improve actions.
 
-Likely approach:
+Stack:
 
-- TypeScript-first app.
-- Lovable may be used later for product shell, dashboard, or management UI.
-- UI reads/writes Supabase-backed data and never bypasses policy gates.
+- TypeScript-first React app (Next.js or Vite/React).
+- Supabase client for data; never bypasses policy gates.
+- Developed in Claude Code — same repo, same migrations, same CI.
 
 Exit criteria:
 
 - Human can monitor and approve/reject worker actions through UI.
+- Decision gate shows current CV score and artifact before approve/reject.
+- Reviewer verdicts and telemetry spans are visible per run.
 
-## M8: authorized CTF/lab workflow
+---
+
+## M9: live end-to-end regression test — Spaceship Titanic
+
+Goal: validate the full platform loop with a real Kaggle submission for
+[Spaceship Titanic](https://www.kaggle.com/competitions/spaceship-titanic/overview)
+(binary classification, public leaderboard, no cash prize, safe for automated
+dry-run + 1 real submission under human approval).
+
+This milestone is the first time a real `kaggle competitions submit` runs
+through the approved KCA approval gate and records a public LB score in the DB.
+
+### M9 task sequence
+
+| Task | Description | Depends on |
+|---|---|---|
+| M9-T000 | Verify Kaggle credentials and competition acceptance in env | — |
+| M9-T001 | Download Spaceship Titanic data, verify sha256 manifest | T000 |
+| M9-T002 | Agent worker loop: research → baseline LR → CV → submission.csv | T001 |
+| M9-T003 | Reviewer gate fires; human approves `kaggle_submit` | T002 |
+| M9-T004 | Real submission; record public LB score in `runs` table | T003 |
+| M9-T005 | Second experiment (HGB / feature engineering); CV improvement | T004 |
+| M9-T006 | Regression assertions: CV ≥ 0.78 (LR), ≥ 0.80 (HGB); LB score recorded | T005 |
+| M9-T007 | `tests/test_m9_e2e.py` (dry-run path without real submission) | T002, T003 |
+| M9-T008 | M9 exit criteria validation + `docs/m9-final-review.md` | all |
+
+Exit criteria:
+
+- Data downloaded and verified (sha256 manifest, no corruption).
+- Agent worker completes research → baseline → CV → submission.csv without human intervention in allowed operations.
+- Reviewer gate fires and records verdict in `agent_reviews` before `kaggle_submit`.
+- Human approves submission via `kca decision approve`.
+- Public LB score recorded in `runs` table; `kca run list` shows it.
+- Second experiment achieves measurably higher CV than baseline.
+- `tests/test_m9_e2e.py` (dry-run) passes in CI without credentials.
+
+---
+
+## M10: authorized CTF/lab workflow
 
 Goal: support CTF-style challenges only inside explicit authorization boundaries.
 
@@ -384,7 +544,9 @@ Exit criteria:
 
 - CTF workflow is useful for local/sandbox labs and safely refuses out-of-scope activity.
 
-## M9: Devpost/hackathon workflow
+---
+
+## M11: Devpost/hackathon workflow
 
 Goal: generalize competition policy modules beyond Kaggle and CTF.
 
@@ -400,7 +562,9 @@ Exit criteria:
 
 - The same platform can represent different competition policies without changing worker core logic.
 
-## M10: evaluation, reliability, and regression suite
+---
+
+## M12: evaluation, reliability, and regression suite
 
 Goal: measure whether the platform improves over time.
 
@@ -427,32 +591,12 @@ Exit criteria:
 
 - New platform changes can be evaluated against known workflows before use in real competitions.
 
+---
+
 ## Open design questions
 
-- Should the first platform service be TypeScript-only, or TypeScript API + Python worker from day one?
+- Should the first platform UI service be TypeScript-only, or TypeScript API + Python worker from day one?
 - Which Supabase queue/job mechanism should be used first?
 - What is the minimal local sandbox acceptable for Kaggle worker experiments?
-- How should existing helper scripts be wrapped: direct CLI, Python package, or MCP/custom tools?
-- What is the first Kaggle practice competition for regression testing?
 - What policy schema best represents Kaggle vs CTF vs hackathon side effects?
 - What model-router interface is stable enough for MVP without overengineering?
-
-## Suggested next tasks after M0-T001
-
-1. `M1-T001-kca-cli-skeleton.md`
-   - Create `tools/kca/` CLI skeleton.
-   - Register 1-2 existing helper scripts.
-   - Add smoke tests.
-
-2. `M1-T002-artifact-layout.md`
-   - Define `runs/<competition>/<run_id>/`.
-   - Add run metadata schema and sample artifact.
-
-3. `M1-T003-approval-hooks.md`
-   - Strengthen hooks/settings to require approval for Kaggle submissions, kernel pushes, dataset uploads, and destructive commands.
-
-4. `M2-T001-supabase-control-plane-schema.md`
-   - Convert current Supabase ideas into an initial migration and local development notes.
-
-5. `M3-T001-agent-sdk-worker-spike.md`
-   - Minimal Agent SDK worker spike in sandbox/workspace, no real competition side effects.

@@ -4,7 +4,7 @@ This repository builds a hybrid human + AI coding agent for Kaggle-style competi
 
 ## Two meanings of "code agent"
 
-**Platform-development coding agents** are external AI tools — Claude Code, ChatGPT, Cursor, Lovable — used to build this repository. They write source code, update docs, run local tests, and open PRs under human supervision.
+**Platform-development coding agents** are external AI tools — Claude Code (primary), ChatGPT, Cursor — used to build this repository. They write source code, update docs, run local tests, and open PRs under human supervision.
 
 **Runtime competition code agents** are agents launched by the finished platform to help a human user compete. Initial runtime: Claude Agent SDK in an isolated Python worker. Future: model router for Claude, GPT-style, and local models.
 
@@ -23,7 +23,7 @@ Use this repository as the durable project memory. Do not rely on hidden memory 
 - Claude Code CLI/Desktop is used for interactive repository development.
 - Claude Agent SDK is the intended core production worker.
 - Worker execution is Python-first for Kaggle/ML/CTF tasks.
-- Control plane and future UI are TypeScript/Supabase/Lovable-friendly.
+- Control plane and future UI are TypeScript/Supabase, developed in Claude Code (same repo, same migrations, same CI).
 - Supabase stores metadata, messages, research notes, runs, results, artifacts, approvals, and audit events.
 - Git stores code and agent instructions.
 - Large datasets and generated artifacts should not be committed unless explicitly required.

@@ -820,7 +820,7 @@ Report PASS/FAIL for each prompt's verification step.
 "
 ```
 
-### closeout
+### Closeout
 Q1:
 - supabase 本地容器已经启动, 请使用 postgres/s3cr3t 连接并验证 DB schema 更改
 - 本次milestone (M3) 任务为何生成了很多空文件, 如 `.bashrc`, `.bash_profile`, `.gitconfig` 等等, 这些文件是预留做什么用的?
