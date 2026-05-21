@@ -7,6 +7,7 @@ Run with:
     KCA_DB_TARGET=local SUPABASE_DB_URL=postgres://postgres:postgres@127.0.0.1:54322/postgres \
       python -m pytest tests/test_kca_db_smoke.py -v
 """
+
 from __future__ import annotations
 
 import json
@@ -32,6 +33,7 @@ KCA = [sys.executable, str(REPO_ROOT / "tools" / "kca" / "kca.py")]
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _run(*argv: str, env_override: dict | None = None) -> subprocess.CompletedProcess:
     full_env = os.environ.copy()
@@ -96,15 +98,20 @@ def _cleanup_competition(db_url: str, slug: str) -> None:
 # Tests
 # ---------------------------------------------------------------------------
 
+
 @requires_db
 def test_run_init_writes_db_and_fs(db_url: str, cleanup_run_dir: str) -> None:
     slug = cleanup_run_dir
     try:
         proc = _run(
-            "run", "init",
-            "--competition", slug,
-            "--hypothesis", "smoke baseline",
-            "--tag", "smoke",
+            "run",
+            "init",
+            "--competition",
+            slug,
+            "--hypothesis",
+            "smoke baseline",
+            "--tag",
+            "smoke",
             "--json",
         )
         assert proc.returncode == 0, proc.stderr
@@ -134,19 +141,28 @@ def test_run_init_writes_db_and_fs(db_url: str, cleanup_run_dir: str) -> None:
 
 
 @requires_db
-def test_record_metric_writes_event_and_jsonb(db_url: str, cleanup_run_dir: str) -> None:
+def test_record_metric_writes_event_and_jsonb(
+    db_url: str, cleanup_run_dir: str
+) -> None:
     slug = cleanup_run_dir
     try:
-        init = _parse(_run("run", "init", "--competition", slug, "--hypothesis", "h", "--json"))
+        init = _parse(
+            _run("run", "init", "--competition", slug, "--hypothesis", "h", "--json")
+        )
         run_dir = init["run_dir"]
         run_id_uuid = init["experiment_run_id"]
 
         # Record two events on the same key + one on a different key.
         for k, v in [("cv_score", 0.701), ("cv_score", 0.722), ("leaderboard", 0.689)]:
             p = _run(
-                "run", "record-metric",
-                "--run-dir", run_dir,
-                "--key", k, "--value", str(v),
+                "run",
+                "record-metric",
+                "--run-dir",
+                run_dir,
+                "--key",
+                k,
+                "--value",
+                str(v),
                 "--json",
             )
             assert p.returncode == 0, p.stderr
@@ -184,7 +200,9 @@ def test_record_metric_writes_event_and_jsonb(db_url: str, cleanup_run_dir: str)
 def test_run_list_sources_from_db(db_url: str, cleanup_run_dir: str) -> None:
     slug = cleanup_run_dir
     try:
-        _parse(_run("run", "init", "--competition", slug, "--hypothesis", "h", "--json"))
+        _parse(
+            _run("run", "init", "--competition", slug, "--hypothesis", "h", "--json")
+        )
         list_proc = _run("run", "list", "--competition", slug, "--json")
         assert list_proc.returncode == 0, list_proc.stderr
         payload = _parse(list_proc)
@@ -200,10 +218,14 @@ def test_db_unreachable_degrades_gracefully(cleanup_run_dir: str) -> None:
     """M4: run init is FS-first; DB failure becomes a warning, FS still wins."""
     slug = cleanup_run_dir
     proc = _run(
-        "run", "init",
-        "--competition", slug,
+        "run",
+        "init",
+        "--competition",
+        slug,
         "--json",
-        env_override={"SUPABASE_DB_URL": "postgres://postgres:postgres@127.0.0.1:54998/postgres"},
+        env_override={
+            "SUPABASE_DB_URL": "postgres://postgres:postgres@127.0.0.1:54998/postgres"
+        },
     )
     assert proc.returncode == 0, proc.stderr
     payload = _parse(proc)
@@ -219,10 +241,14 @@ def test_kaggle_submit_blocks_and_records_approval(db_url: str) -> None:
     ApprovalRequired and the blocked envelope records a human_decisions row."""
     marker = f"smoke_marker_{os.urandom(4).hex()}"
     proc = _run(
-        "kaggle", "submit",
-        "--competition", marker,
-        "--file", "/dev/null",
-        "--message", "smoke",
+        "kaggle",
+        "submit",
+        "--competition",
+        marker,
+        "--file",
+        "/dev/null",
+        "--message",
+        "smoke",
         "--json",
         env_override={
             "KCA_ALLOW_REMOTE": None,

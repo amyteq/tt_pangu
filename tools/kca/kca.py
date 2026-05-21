@@ -4,6 +4,7 @@
 Side-effect levels (see COMMANDS.md):
   READ_ONLY | LOCAL_WRITE | REMOTE_WRITE | SUBMISSION
 """
+
 from __future__ import annotations
 
 import argparse
@@ -12,16 +13,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-import nb
-import run as run_mod
-import kg
-import eval as eval_mod
-import workspace as workspace_mod
-import decisions as decisions_mod
-import competition as competition_mod
-import research as research_mod
-import local as local_mod
-import review as review_mod
+from agent.command_registry import REGISTRY  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -30,16 +22,8 @@ def build_parser() -> argparse.ArgumentParser:
         description="Kaggle Code Agent stable CLI. Each subcommand declares a side-effect level.",
     )
     sub = parser.add_subparsers(dest="group", required=True)
-    nb.add_parsers(sub)
-    run_mod.add_parsers(sub)
-    kg.add_parsers(sub)
-    eval_mod.add_parsers(sub)
-    workspace_mod.add_parsers(sub)
-    decisions_mod.add_parsers(sub)
-    competition_mod.add_parsers(sub)
-    research_mod.add_parsers(sub)
-    local_mod.add_parsers(sub)
-    review_mod.add_parsers(sub)
+    for spec in REGISTRY.list_all():
+        spec.add_parsers_fn(sub)
     return parser
 
 

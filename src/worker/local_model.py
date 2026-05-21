@@ -5,6 +5,7 @@ servers. The layer is opt-in: configuring zero endpoints in the
 environment yields an empty list and a None pick, which the caller
 treats as "fall back to the cloud default".
 """
+
 from __future__ import annotations
 
 import os
@@ -43,9 +44,15 @@ def load_endpoints() -> list[LocalEndpoint]:
         model = os.environ.get(f"KCA_LOCAL_ENDPOINT_{n}_MODEL", "")
         backend = os.environ.get(f"KCA_LOCAL_ENDPOINT_{n}_BACKEND", "vllm")
         api_key = os.environ.get(f"KCA_LOCAL_ENDPOINT_{n}_API_KEY", "local")
-        out.append(LocalEndpoint(
-            name=name, url=url, model=model, backend=backend, api_key=api_key,
-        ))
+        out.append(
+            LocalEndpoint(
+                name=name,
+                url=url,
+                model=model,
+                backend=backend,
+                api_key=api_key,
+            )
+        )
     return out
 
 
@@ -66,9 +73,12 @@ def probe(endpoint: LocalEndpoint, *, timeout_s: float | None = None) -> dict:
         with urllib.request.urlopen(req, timeout=timeout_s) as resp:
             body = resp.read().decode("utf-8", errors="replace")
         import json as _json
+
         try:
             payload = _json.loads(body)
-            models = [m.get("id") for m in payload.get("data", []) if isinstance(m, dict)]
+            models = [
+                m.get("id") for m in payload.get("data", []) if isinstance(m, dict)
+            ]
         except Exception:
             models = []
         latency_ms = int((time.monotonic() - started) * 1000)

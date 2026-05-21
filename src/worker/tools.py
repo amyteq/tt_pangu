@@ -2,6 +2,7 @@
 
 TOOL_SCHEMAS uses OpenAI tool schema format (LiteLLM-compatible for all providers).
 """
+
 from __future__ import annotations
 
 import fnmatch
@@ -24,7 +25,10 @@ TOOL_SCHEMAS: list[dict] = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "path": {"type": "string", "description": "Path relative to workspace root"}
+                    "path": {
+                        "type": "string",
+                        "description": "Path relative to workspace root",
+                    }
                 },
                 "required": ["path"],
             },
@@ -101,7 +105,10 @@ _SIDE_EFFECT_ORDER = ["READ_ONLY", "LOCAL_WRITE", "REMOTE_WRITE", "SUBMISSION"]
 
 # Hard-deny patterns for run_bash (regardless of policy).
 _HARD_DENY_PATTERNS = [
-    "sudo *", "rm -rf*", "git push*", "kaggle submit*",
+    "sudo *",
+    "rm -rf*",
+    "git push*",
+    "kaggle submit*",
 ]
 _HARD_DENY_SUBSTRINGS = [".."]
 
@@ -117,13 +124,15 @@ def _side_effect_ge(a: str, b: str) -> bool:
 def _bash_side_effect(command: str) -> str:
     """Classify the side-effect level of a bash command."""
     cmd = command.strip()
-    if any(fnmatch.fnmatch(cmd, pat) for pat in [
-        "kca kaggle submit*", "kca kaggle push*", "kca kaggle upload*"
-    ]):
+    if any(
+        fnmatch.fnmatch(cmd, pat)
+        for pat in ["kca kaggle submit*", "kca kaggle push*", "kca kaggle upload*"]
+    ):
         return "SUBMISSION"
-    if any(fnmatch.fnmatch(cmd, pat) for pat in [
-        "kca kaggle *", "kca run *", "python *", "pytest *"
-    ]):
+    if any(
+        fnmatch.fnmatch(cmd, pat)
+        for pat in ["kca kaggle *", "kca run *", "python *", "pytest *"]
+    ):
         return "LOCAL_WRITE"
     return "LOCAL_WRITE"
 
@@ -147,6 +156,7 @@ def _is_bash_allowed(command: str, policy: JobPolicy) -> tuple[bool, str]:
 # ApprovalRequired exception
 # ---------------------------------------------------------------------------
 
+
 class ApprovalRequired(Exception):
     """Raised when a tool call exceeds policy.max_side_effect."""
 
@@ -154,14 +164,13 @@ class ApprovalRequired(Exception):
         self.tool_name = tool_name
         self.tool_input = tool_input
         self.side_effect = side_effect
-        super().__init__(
-            f"{tool_name} requires approval (side_effect={side_effect})"
-        )
+        super().__init__(f"{tool_name} requires approval (side_effect={side_effect})")
 
 
 # ---------------------------------------------------------------------------
 # ToolExecutor
 # ---------------------------------------------------------------------------
+
 
 class ToolExecutor:
     def __init__(self, workspace: Path, policy: JobPolicy):
@@ -178,7 +187,10 @@ class ToolExecutor:
     def execute(self, tool_name: str, tool_input: dict) -> str:
         # Determine side effect and check approval gate.
         se = self._classify_side_effect(tool_name, tool_input)
-        if _side_effect_ge(se, self.policy.max_side_effect) and se != self.policy.max_side_effect:
+        if (
+            _side_effect_ge(se, self.policy.max_side_effect)
+            and se != self.policy.max_side_effect
+        ):
             raise ApprovalRequired(tool_name, tool_input, se)
 
         if tool_name == "read_file":
@@ -253,11 +265,13 @@ class ToolExecutor:
                 timeout=timeout_s,
                 cwd=str(self.workspace),
             )
-            return json.dumps({
-                "stdout": proc.stdout,
-                "stderr": proc.stderr,
-                "exit_code": proc.returncode,
-            })
+            return json.dumps(
+                {
+                    "stdout": proc.stdout,
+                    "stderr": proc.stderr,
+                    "exit_code": proc.returncode,
+                }
+            )
         except subprocess.TimeoutExpired:
             return json.dumps({"stdout": "", "stderr": "timeout", "exit_code": 124})
         except Exception as e:
@@ -275,13 +289,17 @@ class ToolExecutor:
                 if not p.is_file():
                     continue
                 try:
-                    for i, line in enumerate(p.read_text(errors="replace").splitlines(), 1):
+                    for i, line in enumerate(
+                        p.read_text(errors="replace").splitlines(), 1
+                    ):
                         if pattern.lower() in line.lower():
-                            results.append({
-                                "file": str(p.relative_to(self.workspace)),
-                                "line_number": i,
-                                "line": line,
-                            })
+                            results.append(
+                                {
+                                    "file": str(p.relative_to(self.workspace)),
+                                    "line_number": i,
+                                    "line": line,
+                                }
+                            )
                 except Exception:
                     continue
         except Exception as e:

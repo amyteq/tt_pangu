@@ -18,7 +18,9 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     ev = sub.add_parser("eval", help="Evaluation harness (stubs)")
     ev_sub = ev.add_subparsers(dest="eval_cmd", required=True)
 
-    p_score = ev_sub.add_parser("score", help="Score predictions vs labels (READ_ONLY) [stub]")
+    p_score = ev_sub.add_parser(
+        "score", help="Score predictions vs labels (READ_ONLY) [stub]"
+    )
     p_score.add_argument("--pred", required=True)
     p_score.add_argument("--truth", required=True)
     p_score.add_argument("--json", action="store_true")

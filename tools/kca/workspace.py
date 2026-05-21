@@ -1,14 +1,14 @@
 """kca workspace: git worktree-based per-job workspace management."""
+
 from __future__ import annotations
 
 import argparse
 import json
 import subprocess
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from _types import EXIT_OK, EXIT_BLOCKED, SideEffect
+from _types import EXIT_OK, SideEffect
 from _util import REPO_ROOT, warn
 
 _DEFAULT_ROOT = ".workspaces"
@@ -46,8 +46,11 @@ def cmd_init(args: argparse.Namespace) -> int:
         git_cwd = None
 
     if workspace_dir.exists():
-        return _emit(False, {"error": "workspace already exists",
-                              "workspace_path": str(workspace_dir)}, 1)
+        return _emit(
+            False,
+            {"error": "workspace already exists", "workspace_path": str(workspace_dir)},
+            1,
+        )
 
     workspace_dir.parent.mkdir(parents=True, exist_ok=True)
 
@@ -57,18 +60,24 @@ def cmd_init(args: argparse.Namespace) -> int:
         if repo_arg:
             subprocess.run(
                 ["git", "-C", str(repo_root), "checkout", "-b", args.branch],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
             # Switch back to default so the worktree add can claim the branch.
             subprocess.run(
                 ["git", "-C", str(repo_root), "checkout", "-"],
-                capture_output=True, text=True,
+                capture_output=True,
+                text=True,
             )
-        rc, out, err = _git(["worktree", "add", str(workspace_dir), args.branch], cwd=git_cwd)
+        rc, out, err = _git(
+            ["worktree", "add", str(workspace_dir), args.branch], cwd=git_cwd
+        )
     else:
         # Default: detached HEAD at current HEAD — never conflicts with the
         # primary worktree and gives the job an isolated snapshot.
-        rc, out, err = _git(["worktree", "add", "--detach", str(workspace_dir)], cwd=git_cwd)
+        rc, out, err = _git(
+            ["worktree", "add", "--detach", str(workspace_dir)], cwd=git_cwd
+        )
         branch = "(detached)"
     if rc != 0:
         return _emit(False, {"error": err or out}, 1)
@@ -78,21 +87,27 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     # Best-effort DB update — skip silently if no env.
     import os
+
     if os.environ.get("SUPABASE_DB_URL"):
         try:
             import sys
+
             sys.path.insert(0, str(Path(__file__).resolve().parent))
             import db as _db
+
             _db.update_job(args.job_id, workspace_path=str(workspace_dir))
         except Exception as exc:
             warn(f"workspace init: DB update skipped: {exc}")
 
-    return _emit(True, {
-        "workspace_path": str(workspace_dir),
-        "job_id": args.job_id,
-        "branch": branch,
-        "side_effect": SideEffect.LOCAL_WRITE.value,
-    })
+    return _emit(
+        True,
+        {
+            "workspace_path": str(workspace_dir),
+            "job_id": args.job_id,
+            "branch": branch,
+            "side_effect": SideEffect.LOCAL_WRITE.value,
+        },
+    )
 
 
 def cmd_clean(args: argparse.Namespace) -> int:
@@ -106,8 +121,11 @@ def cmd_clean(args: argparse.Namespace) -> int:
         git_cwd = None
 
     if not workspace_dir.exists():
-        return _emit(False, {"error": "workspace not found",
-                              "workspace_path": str(workspace_dir)}, 1)
+        return _emit(
+            False,
+            {"error": "workspace not found", "workspace_path": str(workspace_dir)},
+            1,
+        )
 
     git_args = ["worktree", "remove", str(workspace_dir)]
     if args.force:
@@ -118,21 +136,26 @@ def cmd_clean(args: argparse.Namespace) -> int:
 
     # Best-effort DB update.
     import os
+
     if os.environ.get("SUPABASE_DB_URL"):
         try:
             import sys
+
             sys.path.insert(0, str(Path(__file__).resolve().parent))
             import db as _db
-            _db.update_job(args.job_id,
-                           finished_at=datetime.now(timezone.utc))
+
+            _db.update_job(args.job_id, finished_at=datetime.now(timezone.utc))
         except Exception as exc:
             warn(f"workspace clean: DB update skipped: {exc}")
 
-    return _emit(True, {
-        "removed": str(workspace_dir),
-        "job_id": args.job_id,
-        "side_effect": SideEffect.LOCAL_WRITE.value,
-    })
+    return _emit(
+        True,
+        {
+            "removed": str(workspace_dir),
+            "job_id": args.job_id,
+            "side_effect": SideEffect.LOCAL_WRITE.value,
+        },
+    )
 
 
 def cmd_list(args: argparse.Namespace) -> int:
@@ -147,11 +170,11 @@ def cmd_list(args: argparse.Namespace) -> int:
         if line.startswith("worktree "):
             if current:
                 workspaces.append(current)
-            current = {"path": line[len("worktree "):]}
+            current = {"path": line[len("worktree ") :]}
         elif line.startswith("HEAD "):
-            current["commit"] = line[len("HEAD "):]
+            current["commit"] = line[len("HEAD ") :]
         elif line.startswith("branch "):
-            current["branch"] = line[len("branch "):]
+            current["branch"] = line[len("branch ") :]
         elif line == "bare":
             current["branch"] = "(bare)"
         elif line == "" and current:
@@ -168,30 +191,41 @@ def cmd_list(args: argparse.Namespace) -> int:
             ws["job_id"] = Path(p).name
             filtered.append(ws)
 
-    return _emit(True, {
-        "workspaces": filtered,
-        "side_effect": SideEffect.READ_ONLY.value,
-    })
+    return _emit(
+        True,
+        {
+            "workspaces": filtered,
+            "side_effect": SideEffect.READ_ONLY.value,
+        },
+    )
 
 
 def add_parsers(sub: argparse._SubParsersAction) -> None:
     ws = sub.add_parser("workspace", help="Manage per-job git worktree workspaces")
     ws_sub = ws.add_subparsers(dest="workspace_cmd", required=True)
 
-    p_init = ws_sub.add_parser("init", help="Create a workspace for a job (LOCAL_WRITE)")
+    p_init = ws_sub.add_parser(
+        "init", help="Create a workspace for a job (LOCAL_WRITE)"
+    )
     p_init.add_argument("--job-id", required=True)
     p_init.add_argument("--branch", default=None)
     p_init.add_argument("--root", default=_DEFAULT_ROOT)
-    p_init.add_argument("--repo", default=None,
-                        help="Competition repo path; workspace becomes <repo>/jobs/<job_id>")
+    p_init.add_argument(
+        "--repo",
+        default=None,
+        help="Competition repo path; workspace becomes <repo>/jobs/<job_id>",
+    )
     p_init.add_argument("--json", action="store_true")
     p_init.set_defaults(func=cmd_init)
 
     p_clean = ws_sub.add_parser("clean", help="Remove a job workspace (LOCAL_WRITE)")
     p_clean.add_argument("--job-id", required=True)
     p_clean.add_argument("--root", default=_DEFAULT_ROOT)
-    p_clean.add_argument("--repo", default=None,
-                        help="Competition repo path; workspace at <repo>/jobs/<job_id>")
+    p_clean.add_argument(
+        "--repo",
+        default=None,
+        help="Competition repo path; workspace at <repo>/jobs/<job_id>",
+    )
     p_clean.add_argument("--force", action="store_true")
     p_clean.add_argument("--json", action="store_true")
     p_clean.set_defaults(func=cmd_clean)

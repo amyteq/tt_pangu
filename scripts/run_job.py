@@ -8,6 +8,7 @@ Exit codes:
   1  job failed (budget, error, or tool error)
   2  job paused (awaiting approval)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -26,15 +27,16 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 # Load .env from repo root if python-dotenv is installed.
 try:
     from dotenv import load_dotenv as _load_dotenv
+
     _load_dotenv(REPO_ROOT / ".env", override=False)
 except ImportError:
     pass
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "tools" / "kca"))
 
-from src.worker._types import JobPolicy
-from src.worker.worker import AgentWorker
-from src.worker import routing as _routing
+from src.worker._types import JobPolicy  # noqa: E402
+from src.worker.worker import AgentWorker  # noqa: E402
+from src.worker import routing as _routing  # noqa: E402
 
 _DEFAULT_PROJECT_ID = "00000000-0000-0000-0000-000000000001"
 
@@ -80,6 +82,7 @@ def _try_db():
     """Return the db module or None if DB is unavailable."""
     try:
         import db as _db
+
         # Cheap import check — don't open a connection yet.
         return _db
     except Exception:
@@ -89,9 +92,17 @@ def _try_db():
 def _workspace_init(job_id: str) -> str | None:
     """Create worktree workspace; return workspace_path or None on failure."""
     result = subprocess.run(
-        [sys.executable, str(REPO_ROOT / "tools" / "kca" / "kca.py"),
-         "workspace", "init", "--job-id", job_id, "--json"],
-        capture_output=True, text=True,
+        [
+            sys.executable,
+            str(REPO_ROOT / "tools" / "kca" / "kca.py"),
+            "workspace",
+            "init",
+            "--job-id",
+            job_id,
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
     )
     try:
         data = json.loads(result.stdout)
@@ -105,8 +116,17 @@ def _workspace_init(job_id: str) -> str | None:
 
 def _workspace_init_repo(job_id: str, repo: str, branch: str | None) -> str | None:
     """kca workspace init --job-id <id> --repo <repo> [--branch <branch>]."""
-    cmd = [sys.executable, str(REPO_ROOT / "tools" / "kca" / "kca.py"),
-           "workspace", "init", "--job-id", job_id, "--repo", repo, "--json"]
+    cmd = [
+        sys.executable,
+        str(REPO_ROOT / "tools" / "kca" / "kca.py"),
+        "workspace",
+        "init",
+        "--job-id",
+        job_id,
+        "--repo",
+        repo,
+        "--json",
+    ]
     if branch:
         cmd += ["--branch", branch]
     result = subprocess.run(cmd, capture_output=True, text=True)
@@ -121,8 +141,15 @@ def _workspace_init_repo(job_id: str, repo: str, branch: str | None) -> str | No
 
 
 def _workspace_clean(job_id: str, repo: str | None = None) -> None:
-    cmd = [sys.executable, str(REPO_ROOT / "tools" / "kca" / "kca.py"),
-           "workspace", "clean", "--job-id", job_id, "--json"]
+    cmd = [
+        sys.executable,
+        str(REPO_ROOT / "tools" / "kca" / "kca.py"),
+        "workspace",
+        "clean",
+        "--job-id",
+        job_id,
+        "--json",
+    ]
     if repo:
         cmd += ["--repo", repo]
     subprocess.run(cmd, capture_output=True)
@@ -130,6 +157,7 @@ def _workspace_clean(job_id: str, repo: str | None = None) -> None:
 
 def _slugify(text: str) -> str:
     import re
+
     return re.sub(r"[^a-z0-9]+", "-", text.lower().strip()).strip("-")[:50]
 
 
@@ -146,11 +174,17 @@ def _resolve_competition_repo(slug: str, _db) -> tuple[str | None, str]:
     default_branch = comp.get("default_branch") or "main"
     if clone_path and not Path(clone_path).exists() and repo_url:
         try:
-            subprocess.run(["git", "clone", repo_url, clone_path],
-                           check=True, capture_output=True, text=True)
+            subprocess.run(
+                ["git", "clone", repo_url, clone_path],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
         except subprocess.CalledProcessError as exc:
-            print(f"[run_job] git clone failed: {exc.stderr or exc.stdout}",
-                  file=sys.stderr)
+            print(
+                f"[run_job] git clone failed: {exc.stderr or exc.stdout}",
+                file=sys.stderr,
+            )
             return None, default_branch
     return clone_path, default_branch
 
@@ -176,12 +210,12 @@ def _ensure_branch(repo_path: str, branch: str) -> None:
     """Create branch in competition repo if it doesn't already exist."""
     subprocess.run(
         ["git", "-C", repo_path, "checkout", "-b", branch],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
 
 
-def _result_json(result, job_id: str | None = None,
-                 model: str | None = None) -> dict:
+def _result_json(result, job_id: str | None = None, model: str | None = None) -> dict:
     out = {
         "status": result.status,
         "turns_used": result.turns_used,
@@ -205,34 +239,55 @@ def main(argv: list[str] | None = None) -> int:
     # New job from prompt
     parser.add_argument("--prompt", default=None, help="Agent prompt")
     parser.add_argument("--competition", default=None, metavar="SLUG")
-    parser.add_argument("--competition-slug", dest="competition_slug",
-                        default=None, metavar="SLUG",
-                        help="Competition slug (M4): looks up repo + branch in DB")
-    parser.add_argument("--branch", default=None,
-                        help="Experiment branch (auto-derived from --hypothesis if not given)")
-    parser.add_argument("--hypothesis", default=None,
-                        help="Hypothesis text; auto-derives branch as exp/<slugified>")
+    parser.add_argument(
+        "--competition-slug",
+        dest="competition_slug",
+        default=None,
+        metavar="SLUG",
+        help="Competition slug (M4): looks up repo + branch in DB",
+    )
+    parser.add_argument(
+        "--branch",
+        default=None,
+        help="Experiment branch (auto-derived from --hypothesis if not given)",
+    )
+    parser.add_argument(
+        "--hypothesis",
+        default=None,
+        help="Hypothesis text; auto-derives branch as exp/<slugified>",
+    )
     parser.add_argument("--max-turns", type=int, default=30)
     parser.add_argument("--max-cost-usd", type=float, default=5.0)
     parser.add_argument("--max-runtime-s", type=int, default=3600)
     parser.add_argument("--allowed-tools", nargs="+", metavar="PATTERN")
-    parser.add_argument("--require-approval", nargs="+", metavar="OP",
-                        help="Force approval on these operations (ADR-0006)")
-    parser.add_argument("--model", default=None,
-                        help="Override the routed model id")
-    parser.add_argument("--job-type", dest="job_type", default="implement",
-                        choices=("research", "implement", "experiment",
-                                 "eval", "analysis", "review"),
-                        help="Job type for model routing (ADR-0010)")
+    parser.add_argument(
+        "--require-approval",
+        nargs="+",
+        metavar="OP",
+        help="Force approval on these operations (ADR-0006)",
+    )
+    parser.add_argument("--model", default=None, help="Override the routed model id")
+    parser.add_argument(
+        "--job-type",
+        dest="job_type",
+        default="implement",
+        choices=("research", "implement", "experiment", "eval", "analysis", "review"),
+        help="Job type for model routing (ADR-0010)",
+    )
     # Existing queued job
     parser.add_argument("--job-id", default=None, metavar="UUID")
     # Behaviour flags
-    parser.add_argument("--dry-run", action="store_true",
-                        help="No real API calls; use MockLiteLLMClient")
-    parser.add_argument("--no-cleanup", action="store_true",
-                        help="Keep workspace after job")
-    parser.add_argument("--json", action="store_true",
-                        help="Emit result as JSON to stdout")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="No real API calls; use MockLiteLLMClient",
+    )
+    parser.add_argument(
+        "--no-cleanup", action="store_true", help="Keep workspace after job"
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="Emit result as JSON to stdout"
+    )
     parser.add_argument("-v", "--verbose", action="store_true")
 
     args = parser.parse_args(argv)
@@ -265,12 +320,15 @@ def main(argv: list[str] | None = None) -> int:
                     competition_slug=args.competition,
                 )
         except Exception as exc:
-            print(f"[run_job] DB create_job failed (continuing offline): {exc}",
-                  file=sys.stderr)
+            print(
+                f"[run_job] DB create_job failed (continuing offline): {exc}",
+                file=sys.stderr,
+            )
             _db = None
 
     if not job_id:
         import uuid
+
         job_id = str(uuid.uuid4())
 
     # ---- Step 3: Lease job --------------------------------------------------
@@ -292,7 +350,8 @@ def main(argv: list[str] | None = None) -> int:
             except Exception:
                 job_row = None
         competition_repo_path, default_branch = _resolve_competition_repo(
-            comp_slug, _db,
+            comp_slug,
+            _db,
         )
         branch = _resolve_branch(args, job_row) or default_branch
 
@@ -329,8 +388,10 @@ def main(argv: list[str] | None = None) -> int:
                 dry_run=args.dry_run,
             )
         except Exception as exc:
-            print(f"[run_job] resume failed, falling back to fresh start: {exc}",
-                  file=sys.stderr)
+            print(
+                f"[run_job] resume failed, falling back to fresh start: {exc}",
+                file=sys.stderr,
+            )
             worker = AgentWorker(
                 job_id=job_id,
                 prompt=prompt,
@@ -356,6 +417,7 @@ def main(argv: list[str] | None = None) -> int:
     # ---- Step 7: Update job status ------------------------------------------
     if _db is not None:
         import datetime
+
         try:
             _db.update_job(
                 job_id,
@@ -368,12 +430,20 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[run_job] update_job failed: {exc}", file=sys.stderr)
 
     # ---- Step 7b: commit agent changes on success (M4) ---------------------
-    if (competition_repo_path and result.status == "done" and not args.dry_run):
+    if competition_repo_path and result.status == "done" and not args.dry_run:
         subprocess.run(["git", "-C", str(workspace), "add", "-A"], check=False)
         subprocess.run(
-            ["git", "-C", str(workspace), "commit", "-m",
-             f"job/{job_id[:8]}: agent changes"],
-            check=False, capture_output=True, text=True,
+            [
+                "git",
+                "-C",
+                str(workspace),
+                "commit",
+                "-m",
+                f"job/{job_id[:8]}: agent changes",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
         )
 
     # ---- Step 8: Cleanup ----------------------------------------------------
@@ -386,16 +456,24 @@ def main(argv: list[str] | None = None) -> int:
 
     # ---- Step 9: Print result -----------------------------------------------
     if args.json:
-        print(json.dumps(_result_json(result, job_id=job_id,
-                                       model=policy.model),
-                         ensure_ascii=False))
-    else:
-        status_emoji = {"done": "✓", "budget_stop": "✗", "failed": "✗", "paused": "⏸"}.get(
-            result.status, "?"
+        print(
+            json.dumps(
+                _result_json(result, job_id=job_id, model=policy.model),
+                ensure_ascii=False,
+            )
         )
-        print(f"[run_job] {status_emoji} status={result.status} "
-              f"turns={result.turns_used} cost=${result.cost_usd:.4f} "
-              f"job_id={job_id}")
+    else:
+        status_emoji = {
+            "done": "✓",
+            "budget_stop": "✗",
+            "failed": "✗",
+            "paused": "⏸",
+        }.get(result.status, "?")
+        print(
+            f"[run_job] {status_emoji} status={result.status} "
+            f"turns={result.turns_used} cost=${result.cost_usd:.4f} "
+            f"job_id={job_id}"
+        )
 
     # ---- Step 10: Exit code --------------------------------------------------
     if result.status == "done":

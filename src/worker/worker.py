@@ -1,4 +1,5 @@
 """AgentWorker — agentic tool loop powered by LiteLLM (ADR-0004)."""
+
 from __future__ import annotations
 
 import json
@@ -15,6 +16,7 @@ from src.worker.budget import BudgetTracker
 # Mock LiteLLM client for dry_run tests
 # ---------------------------------------------------------------------------
 
+
 def _make_usage(prompt_tokens: int, completion_tokens: int):
     return types.SimpleNamespace(
         prompt_tokens=prompt_tokens,
@@ -22,8 +24,12 @@ def _make_usage(prompt_tokens: int, completion_tokens: int):
     )
 
 
-def _make_tool_calls_response(tool_name: str, tool_input: dict,
-                               prompt_tokens: int = 50, completion_tokens: int = 20):
+def _make_tool_calls_response(
+    tool_name: str,
+    tool_input: dict,
+    prompt_tokens: int = 50,
+    completion_tokens: int = 20,
+):
     tc = types.SimpleNamespace(
         id=f"call_{tool_name}",
         type="function",
@@ -46,7 +52,9 @@ def _make_tool_calls_response(tool_name: str, tool_input: dict,
     )
 
 
-def _make_stop_response(text: str, prompt_tokens: int = 30, completion_tokens: int = 10):
+def _make_stop_response(
+    text: str, prompt_tokens: int = 30, completion_tokens: int = 10
+):
     msg = types.SimpleNamespace(
         content=text,
         tool_calls=None,
@@ -72,16 +80,21 @@ class MockLiteLLMClient:
         self._turn += 1
         if self._scenario == "two_turns":
             if self._turn == 1:
-                return _make_tool_calls_response("read_file", {"path": "README.md"}, 50, 20)
+                return _make_tool_calls_response(
+                    "read_file", {"path": "README.md"}, 50, 20
+                )
             return _make_stop_response("dry run complete", 30, 10)
         if self._scenario == "infinite_tool":
-            return _make_tool_calls_response("read_file", {"path": "README.md"}, 100, 50)
+            return _make_tool_calls_response(
+                "read_file", {"path": "README.md"}, 100, 50
+            )
         raise ValueError(f"unknown scenario: {self._scenario}")
 
 
 # ---------------------------------------------------------------------------
 # AgentWorker
 # ---------------------------------------------------------------------------
+
 
 class AgentWorker:
     """Competition agent worker using LiteLLM as the provider layer (ADR-0004)."""
@@ -125,6 +138,7 @@ class AgentWorker:
 
     def run(self) -> WorkerResult:
         from src.worker import telemetry as _otel
+
         # Only tag spans with a job_id when we know that row exists in the DB
         # (otherwise the Supabase exporter trips on the agent_jobs FK).
         tracer_job_id = self.job_id if self.db_url else None
@@ -147,14 +161,19 @@ class AgentWorker:
     def _safe_set_job_trace(self, trace_id: str, root_span_id: str) -> None:
         try:
             import sys as _sys
-            _sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
+
+            _sys.path.insert(
+                0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
+            )
             import db as _db
+
             _db.set_job_trace(self.job_id, trace_id, root_span_id)
         except Exception:
             pass
 
     def _run_inner(self, tracer) -> WorkerResult:
         from src.worker import telemetry as _otel
+
         if self._mock_client is not None:
             client = self._mock_client
         elif self.dry_run:
@@ -187,7 +206,9 @@ class AgentWorker:
                 )
 
             # 2. LiteLLM call (OpenAI format for all providers)
-            extra: dict = {} if self.policy.min_p is None else {"min_p": self.policy.min_p}
+            extra: dict = (
+                {} if self.policy.min_p is None else {"min_p": self.policy.min_p}
+            )
             with _otel.with_turn_span(tracer, budget.turns + 1) as _turn_span:
                 if client is not None:
                     response = client.completion(
@@ -201,6 +222,7 @@ class AgentWorker:
                     )
                 else:
                     import litellm
+
                     response = litellm.completion(
                         model=self.policy.model,
                         max_tokens=8192,
@@ -215,10 +237,12 @@ class AgentWorker:
                     usage = getattr(response, "usage", None)
                     if usage is not None:
                         _turn_span.set_attribute(
-                            "prompt_tokens", getattr(usage, "prompt_tokens", 0),
+                            "prompt_tokens",
+                            getattr(usage, "prompt_tokens", 0),
                         )
                         _turn_span.set_attribute(
-                            "completion_tokens", getattr(usage, "completion_tokens", 0),
+                            "completion_tokens",
+                            getattr(usage, "completion_tokens", 0),
                         )
 
             # 3. Record turn cost
@@ -227,7 +251,8 @@ class AgentWorker:
             finish_reason = response.choices[0].finish_reason
 
             self._append_event(
-                "turn_start", budget.turns,
+                "turn_start",
+                budget.turns,
                 input_tokens=getattr(response.usage, "prompt_tokens", 0),
                 output_tokens=getattr(response.usage, "completion_tokens", 0),
                 cost_usd=budget.cost_usd,
@@ -251,39 +276,41 @@ class AgentWorker:
             if finish_reason == "tool_calls":
                 tool_calls = msg.tool_calls or []
                 # Append assistant turn with tool_calls (OpenAI message format)
-                messages.append({
-                    "role": "assistant",
-                    "content": msg.content,
-                    "tool_calls": [
-                        {
-                            "id": tc.id,
-                            "type": "function",
-                            "function": {
-                                "name": tc.function.name,
-                                "arguments": tc.function.arguments,
-                            },
-                        }
-                        for tc in tool_calls
-                    ],
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": msg.content,
+                        "tool_calls": [
+                            {
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {
+                                    "name": tc.function.name,
+                                    "arguments": tc.function.arguments,
+                                },
+                            }
+                            for tc in tool_calls
+                        ],
+                    }
+                )
                 for tc in tool_calls:
                     tool_input = json.loads(tc.function.arguments)
                     self._append_event(
-                        "tool_call", budget.turns,
+                        "tool_call",
+                        budget.turns,
                         event_data={"tool": tc.function.name, "input": tool_input},
                     )
                     try:
                         with _otel.with_tool_span(tracer, tc.function.name, tool_input):
-                            result_content = executor.execute(tc.function.name, tool_input)
+                            result_content = executor.execute(
+                                tc.function.name, tool_input
+                            )
                     except ApprovalRequired as exc:
                         # One-shot resume allowance: bypass the matching gate
                         # exactly once after `kca decisions approve`.
-                        if (
-                            allow_once
-                            and (
-                                allow_once.get("operation") == exc.tool_name
-                                or allow_once.get("operation") == "tool_approval"
-                            )
+                        if allow_once and (
+                            allow_once.get("operation") == exc.tool_name
+                            or allow_once.get("operation") == "tool_approval"
                         ):
                             allow_once = None  # consume
                             # Recurse into the actual tool with policy bypass
@@ -301,22 +328,27 @@ class AgentWorker:
                             return self._handle_approval_required(exc, budget, start)
 
                     self._append_event(
-                        "tool_result", budget.turns,
+                        "tool_result",
+                        budget.turns,
                         event_data={
                             "tool": tc.function.name,
                             "result_preview": str(result_content)[:200],
                         },
                     )
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tc.id,
-                        "content": str(result_content),
-                    })
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": tc.id,
+                            "content": str(result_content),
+                        }
+                    )
                 continue
 
             # 6. Unexpected finish_reason
             self._update_status(
-                "failed", error=f"unexpected finish_reason={finish_reason}", budget=budget
+                "failed",
+                error=f"unexpected finish_reason={finish_reason}",
+                budget=budget,
             )
             return WorkerResult(
                 status="failed",
@@ -354,7 +386,9 @@ class AgentWorker:
             )
         if reviewer_outcome == "reject_fail":
             self._update_status(
-                "failed", error="reviewer rejected high-stakes operation", budget=budget,
+                "failed",
+                error="reviewer rejected high-stakes operation",
+                budget=budget,
             )
             return WorkerResult(
                 status="failed",
@@ -370,12 +404,22 @@ class AgentWorker:
         if self.db_url:
             try:
                 import sys
-                sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
+
+                sys.path.insert(
+                    0,
+                    str(
+                        Path(__file__).resolve().parent.parent.parent / "tools" / "kca"
+                    ),
+                )
                 import db as _db
+
                 decision_id = _db.insert_approval_request(
                     decision_type="tool_approval",
                     prompt=f"Worker job {self.job_id} wants to call {exc.tool_name}",
-                    options={"approve": "allow this tool call", "deny": "block and stop job"},
+                    options={
+                        "approve": "allow this tool call",
+                        "deny": "block and stop job",
+                    },
                     job_id=self.job_id,
                 )
                 _db.update_job(
@@ -387,7 +431,8 @@ class AgentWorker:
             except Exception:
                 pass
         self._append_event(
-            "approval_pause", budget.turns,
+            "approval_pause",
+            budget.turns,
             event_data={
                 "tool": exc.tool_name,
                 "operation": exc.tool_name,
@@ -397,6 +442,7 @@ class AgentWorker:
             },
         )
         import sys
+
         print(
             f"JOB PAUSED — run `kca decisions approve --id {decision_id}` to resume",
             file=sys.stderr,
@@ -427,8 +473,12 @@ class AgentWorker:
         next gate check passes once.
         """
         import sys as _sys
-        _sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
+
+        _sys.path.insert(
+            0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
+        )
         import db as _db
+
         job = _db.get_job(job_id)
         events = _db.list_job_events(job_id)
         turns = int(job.get("turns_used") or 0)
@@ -468,7 +518,9 @@ class AgentWorker:
                 "allow_once": {
                     "operation": last_pause_op,
                     "tool_input": last_pause_input,
-                } if last_pause_op else None,
+                }
+                if last_pause_op
+                else None,
             },
         )
         return worker
@@ -487,7 +539,10 @@ class AgentWorker:
           "abstain"        — reviewer abstained, caller should page humans
         """
         from src.worker.reviewer import (
-            Reviewer, ReviewRequest, should_consult_reviewer, escalate_reject,
+            Reviewer,
+            ReviewRequest,
+            should_consult_reviewer,
+            escalate_reject,
         )
 
         target_op = exc.tool_name
@@ -500,8 +555,12 @@ class AgentWorker:
             return None
         try:
             import sys as _sys
-            _sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
+
+            _sys.path.insert(
+                0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
+            )
             import db as _db
+
             # Skip if reviewer already ran for (job_id, target_op).
             try:
                 existing = _db.find_review_for_op(self.job_id, target_op)
@@ -538,7 +597,8 @@ class AgentWorker:
                 pass
             if verdict.verdict == "approve":
                 self._append_event(
-                    "approval_resume", budget.turns,
+                    "approval_resume",
+                    budget.turns,
                     event_data={
                         "source": "reviewer",
                         "verdict": "approve",
@@ -550,7 +610,8 @@ class AgentWorker:
             if verdict.verdict == "reject":
                 if escalate_reject():
                     self._append_event(
-                        "reviewer_reject", budget.turns,
+                        "reviewer_reject",
+                        budget.turns,
                         event_data={
                             "target_op": target_op,
                             "rationale": verdict.rationale[:200],
@@ -559,7 +620,8 @@ class AgentWorker:
                     )
                     return "reject_escalate"
                 self._append_event(
-                    "reviewer_reject", budget.turns,
+                    "reviewer_reject",
+                    budget.turns,
                     event_data={
                         "target_op": target_op,
                         "rationale": verdict.rationale[:200],
@@ -569,7 +631,8 @@ class AgentWorker:
                 return "reject_fail"
             # abstain → fall through
             self._append_event(
-                "reviewer_abstain", budget.turns,
+                "reviewer_abstain",
+                budget.turns,
                 event_data={
                     "target_op": target_op,
                     "rationale": verdict.rationale[:200],
@@ -580,7 +643,10 @@ class AgentWorker:
             return None
 
     def _append_event(
-        self, event_type: str, turn_number: int, *,
+        self,
+        event_type: str,
+        turn_number: int,
+        *,
         input_tokens: int | None = None,
         output_tokens: int | None = None,
         cost_usd: float | None = None,
@@ -590,28 +656,46 @@ class AgentWorker:
             return
         try:
             import sys
-            sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
+
+            sys.path.insert(
+                0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
+            )
             import db as _db
+
             _db.append_job_event(
-                self.job_id, event_type, turn_number=turn_number,
-                input_tokens=input_tokens, output_tokens=output_tokens,
-                cost_usd=cost_usd, event_data=event_data or {},
+                self.job_id,
+                event_type,
+                turn_number=turn_number,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                cost_usd=cost_usd,
+                event_data=event_data or {},
             )
         except Exception:
             pass
 
     def _update_status(
-        self, status: str, *, error: str | None = None, budget: BudgetTracker | None = None
+        self,
+        status: str,
+        *,
+        error: str | None = None,
+        budget: BudgetTracker | None = None,
     ) -> None:
         if not self.db_url:
             return
         try:
             import datetime
             import sys
-            sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
+
+            sys.path.insert(
+                0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
+            )
             import db as _db
+
             _db.update_job(
-                self.job_id, status=status, error=error,
+                self.job_id,
+                status=status,
+                error=error,
                 turns_used=budget.turns if budget else None,
                 cost_usd=budget.cost_usd if budget else None,
                 finished_at=datetime.datetime.now(datetime.timezone.utc),

@@ -54,7 +54,12 @@ def _emit_fail(
 ) -> int:
     _log(message, "ERROR")
     if args.json:
-        print(json.dumps({"ok": False, "error": error, "message": message, **payload}, ensure_ascii=False))
+        print(
+            json.dumps(
+                {"ok": False, "error": error, "message": message, **payload},
+                ensure_ascii=False,
+            )
+        )
     return exit_code
 
 
@@ -136,11 +141,18 @@ def _collect_block_ranges(indexes: list[int]) -> list[tuple[int, int]]:
     return ranges
 
 
-def _add_issue(issues: list[dict[str, Any]], severity: str, code: str, message: str, **extra: Any) -> None:
+def _add_issue(
+    issues: list[dict[str, Any]], severity: str, code: str, message: str, **extra: Any
+) -> None:
     issues.append({"severity": severity, "code": code, "message": message, **extra})
 
 
-def merge_notebook(src_path: Path, dst_path: Path | None = None, src_tag: str | None = None, keep_markdown: bool = True) -> dict[str, Any]:
+def merge_notebook(
+    src_path: Path,
+    dst_path: Path | None = None,
+    src_tag: str | None = None,
+    keep_markdown: bool = True,
+) -> dict[str, Any]:
     src = Path(src_path).expanduser().resolve()
     if not src.exists() or src.suffix.lower() != ".ipynb":
         raise FileNotFoundError(f"source notebook not found or not .ipynb: {src}")
@@ -170,12 +182,17 @@ def merge_notebook(src_path: Path, dst_path: Path | None = None, src_tag: str | 
             continue
         copied_cells.append(_clean_copied_cell(cell, tag))
 
-    head_cells = [cell for cell in dst_nb.cells if _has_head_tag(cell) and (keep_markdown or cell.cell_type == "code")]
+    head_cells = [
+        cell
+        for cell in dst_nb.cells
+        if _has_head_tag(cell) and (keep_markdown or cell.cell_type == "code")
+    ]
     remaining_cells = [
         cell
         for cell in dst_nb.cells
         if (keep_markdown or cell.cell_type == "code")
-        and not _has_head_tag(cell) and tag.lower() not in {t.lower() for t in _normalize_tags(cell)}
+        and not _has_head_tag(cell)
+        and tag.lower() not in {t.lower() for t in _normalize_tags(cell)}
     ]
 
     dst_nb.cells = head_cells + copied_cells + remaining_cells
@@ -195,7 +212,12 @@ def merge_notebook(src_path: Path, dst_path: Path | None = None, src_tag: str | 
     }
 
 
-def validate_notebooks(src_path: Path, dst_path: Path | None = None, src_tag: str | None = None, keep_markdown: bool = True) -> dict[str, Any]:
+def validate_notebooks(
+    src_path: Path,
+    dst_path: Path | None = None,
+    src_tag: str | None = None,
+    keep_markdown: bool = True,
+) -> dict[str, Any]:
     import nbformat
 
     src = Path(src_path).expanduser().resolve()
@@ -348,7 +370,9 @@ def validate_notebooks(src_path: Path, dst_path: Path | None = None, src_tag: st
         if src_tag_indexes:
             first_src = min(src_tag_indexes)
             last_src = max(src_tag_indexes)
-            manual_inside_src_gap = [idx for idx in manual_indexes if first_src < idx < last_src]
+            manual_inside_src_gap = [
+                idx for idx in manual_indexes if first_src < idx < last_src
+            ]
             if manual_inside_src_gap:
                 _add_issue(
                     dst_issues,
@@ -368,7 +392,9 @@ def validate_notebooks(src_path: Path, dst_path: Path | None = None, src_tag: st
 
         merge_preview = merge_notebook(src, dst, tag, keep_markdown=keep_markdown)
         merged_nb = merge_preview["notebook"]
-        would_change = nbformat.writes(dst_nb, version=4) != nbformat.writes(merged_nb, version=4)
+        would_change = nbformat.writes(dst_nb, version=4) != nbformat.writes(
+            merged_nb, version=4
+        )
 
         reports["dst"] = {
             "path": str(dst),
@@ -422,8 +448,6 @@ def validate_notebooks(src_path: Path, dst_path: Path | None = None, src_tag: st
     }
 
 
-
-
 def _parse_bool_arg(value: str) -> bool:
     text = str(value).strip().lower()
     if text in {"1", "true", "t", "yes", "y", "on"}:
@@ -439,9 +463,16 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Build, refresh, or validate a *_test.ipynb notebook from a source notebook.",
     )
     parser.add_argument("src", help="Source .ipynb file")
-    parser.add_argument("dst", nargs="?", help="Destination .ipynb file; default: <src_stem>_test.ipynb")
-    parser.add_argument("--src-tag", help="Override the tag added to copied cells; default: source notebook stem")
-    parser.add_argument("--json", action="store_true", help="Print machine-readable JSON to stdout")
+    parser.add_argument(
+        "dst", nargs="?", help="Destination .ipynb file; default: <src_stem>_test.ipynb"
+    )
+    parser.add_argument(
+        "--src-tag",
+        help="Override the tag added to copied cells; default: source notebook stem",
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="Print machine-readable JSON to stdout"
+    )
     parser.add_argument(
         "--keep-markdown",
         type=_parse_bool_arg,
@@ -449,7 +480,11 @@ def _build_parser() -> argparse.ArgumentParser:
         metavar="BOOL",
         help="keep markdown cells in the merged test notebook (default: true)",
     )
-    parser.add_argument("--dry-run", action="store_true", help="Show the planned merge without writing the notebook")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show the planned merge without writing the notebook",
+    )
     parser.add_argument(
         "--check",
         dest="check",
@@ -463,8 +498,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Alias of --check",
     )
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--quiet", action="store_true", help="Suppress non-error stderr logs")
-    group.add_argument("--verbose", action="count", default=0, help="Increase stderr log detail; repeat for more detail")
+    group.add_argument(
+        "--quiet", action="store_true", help="Suppress non-error stderr logs"
+    )
+    group.add_argument(
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase stderr log detail; repeat for more detail",
+    )
     return parser
 
 
@@ -474,7 +516,9 @@ def main(argv: list[str]) -> int:
 
     try:
         if args.check:
-            result = validate_notebooks(args.src, args.dst, args.src_tag, bool(args.keep_markdown))
+            result = validate_notebooks(
+                args.src, args.dst, args.src_tag, bool(args.keep_markdown)
+            )
             _log(
                 "validation complete: "
                 f"src={result['src']} dst={result['dst']} "
@@ -484,10 +528,17 @@ def main(argv: list[str]) -> int:
             if result["summary"]["valid"]:
                 return _emit_ok(args, action="validate", **result)
             if args.json:
-                print(json.dumps({"ok": False, "error": "validation_failed", **result}, ensure_ascii=False))
+                print(
+                    json.dumps(
+                        {"ok": False, "error": "validation_failed", **result},
+                        ensure_ascii=False,
+                    )
+                )
             return EXIT_VALIDATE_FAILED
 
-        result = merge_notebook(args.src, args.dst, args.src_tag, bool(args.keep_markdown))
+        result = merge_notebook(
+            args.src, args.dst, args.src_tag, bool(args.keep_markdown)
+        )
         notebook = result.pop("notebook")
         _log(
             "merge planned: "
@@ -502,9 +553,13 @@ def main(argv: list[str]) -> int:
     except FileNotFoundError as exc:
         return _emit_fail(args, str(exc), error="invalid_input", exit_code=EXIT_INPUT)
     except ImportError as exc:
-        return _emit_fail(args, str(exc), error="missing_dependency", exit_code=EXIT_DEP)
+        return _emit_fail(
+            args, str(exc), error="missing_dependency", exit_code=EXIT_DEP
+        )
     except KeyboardInterrupt:
-        return _emit_fail(args, "interrupted", error="interrupted", exit_code=EXIT_RUNTIME)
+        return _emit_fail(
+            args, "interrupted", error="interrupted", exit_code=EXIT_RUNTIME
+        )
     except Exception as exc:
         return _emit_fail(args, str(exc), error="runtime_error", exit_code=EXIT_RUNTIME)
 

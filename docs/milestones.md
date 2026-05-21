@@ -363,7 +363,9 @@ Exit criteria: all met. See `docs/m6-final-review.md`.
 
 ---
 
-## M7: KCA CLI architecture — command / skill / tool / job / permission policy
+## M7: KCA CLI architecture — command / skill / tool / job / permission policy ✓ done
+
+_Shipped 2026-05-21: four-layer CLI scaffold (command/skill/tool/job), skill loader, tool registry (16 tools), three permission profiles, `kca skill list/show/run` + `kca tool list/audit/doctor`, four seed skills, audit JSONL, 15 smoke tests, and `docs/architecture/kca-cli-architecture.md`. 28/28 exit checks PASS — see `docs/m7-final-review.md`._
 
 Goal: implement the full KCA command/skill/tool/job architecture so the platform
 has a stable, inspectable CLI that can drive agent workflows, replace ad-hoc

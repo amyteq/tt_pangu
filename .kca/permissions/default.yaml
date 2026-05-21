@@ -1,0 +1,42 @@
+# Default permission policy: conservative — SUBMISSION + remote writes ask.
+- operation: kaggle_submit
+  default_decision: ask
+  reason: External leaderboard submission requires human approval.
+  audit_required: true
+- operation: kaggle_push
+  default_decision: ask
+  reason: Pushing a kernel publishes code; requires human approval.
+  audit_required: true
+- operation: git_push
+  default_decision: allow
+  reason: Local-branch pushes are routine in default workflows.
+- operation: gh_pr_create
+  default_decision: allow
+  reason: Opening a PR is reviewable downstream.
+- operation: gh_pr_merge
+  default_decision: ask
+  reason: Merging is irreversible-by-default; gate on human.
+  audit_required: true
+- operation: supabase_migrate
+  default_decision: ask
+  reason: Schema changes against the remote DB require explicit approval.
+  audit_required: true
+- operation: bash
+  default_decision: ask
+  reason: Arbitrary shell is dual-use; gate by default.
+- operation: read_file
+  default_decision: allow
+- operation: write_file
+  default_decision: allow
+- operation: edit_file
+  default_decision: allow
+- operation: create_artifact
+  default_decision: allow
+- operation: run_tests
+  default_decision: allow
+- operation: web_fetch
+  default_decision: allow
+- operation: web_search
+  default_decision: allow
+- operation: litellm_call
+  default_decision: allow
