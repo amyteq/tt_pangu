@@ -3,6 +3,7 @@
 Each test invokes kca via subprocess so the CLI surface is what's exercised,
 not the internals. No network. Uses tmp_path for filesystem isolation.
 """
+
 from __future__ import annotations
 
 import json
@@ -24,7 +25,9 @@ requires_db = pytest.mark.skipif(
 )
 
 
-def _run(*argv: str, env: dict | None = None, cwd: Path | None = None) -> subprocess.CompletedProcess:
+def _run(
+    *argv: str, env: dict | None = None, cwd: Path | None = None
+) -> subprocess.CompletedProcess:
     full_env = os.environ.copy()
     if env is not None:
         for k, v in env.items():
@@ -55,7 +58,9 @@ def test_nb_to_ipynb_roundtrip(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     dst = tmp_path / "out.ipynb"
-    proc = _run("nb", "to-ipynb", str(src), "--output", str(dst), "--keep-markdown", "--json")
+    proc = _run(
+        "nb", "to-ipynb", str(src), "--output", str(dst), "--keep-markdown", "--json"
+    )
     assert proc.returncode == 0, proc.stderr
     payload = _parse_json(proc)
     assert payload["ok"] is True
@@ -68,7 +73,9 @@ def test_nb_to_py_roundtrip(tmp_path: Path) -> None:
     src = tmp_path / "src.py"
     src.write_text("# %% [markdown]\n# Hi\n\n# %%\nx = 2\n", encoding="utf-8")
     ipynb = tmp_path / "round.ipynb"
-    p1 = _run("nb", "to-ipynb", str(src), "--output", str(ipynb), "--keep-markdown", "--json")
+    p1 = _run(
+        "nb", "to-ipynb", str(src), "--output", str(ipynb), "--keep-markdown", "--json"
+    )
     assert p1.returncode == 0
 
     out_py = tmp_path / "round.py"
@@ -81,7 +88,9 @@ def test_nb_to_py_roundtrip(tmp_path: Path) -> None:
 
 
 @requires_db
-def test_run_init_creates_layout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_init_creates_layout(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # Use a temp HOME-like sandbox: invoke from a temp cwd-equivalent by patching RUNS_ROOT via cwd.
     # The kca run module resolves runs/ relative to REPO_ROOT, so we use a competition slug
     # specific to this test and clean it up after.
@@ -104,6 +113,7 @@ def test_run_init_creates_layout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     finally:
         if runs_path.exists():
             import shutil
+
             shutil.rmtree(runs_path)
 
 
@@ -115,31 +125,42 @@ def test_run_record_metric(tmp_path: Path) -> None:
         init = _parse_json(_run("run", "init", "--competition", competition, "--json"))
         run_dir = init["run_dir"]
         proc = _run(
-            "run", "record-metric",
-            "--run-dir", run_dir,
-            "--key", "cv_score",
-            "--value", "0.82",
+            "run",
+            "record-metric",
+            "--run-dir",
+            run_dir,
+            "--key",
+            "cv_score",
+            "--value",
+            "0.82",
             "--json",
         )
         assert proc.returncode == 0, proc.stderr
         payload = _parse_json(proc)
         assert payload["ok"] is True
         # M4 made metrics.json flat (key→value).
-        metrics = json.loads((REPO_ROOT / run_dir / "metrics.json").read_text(encoding="utf-8"))
+        metrics = json.loads(
+            (REPO_ROOT / run_dir / "metrics.json").read_text(encoding="utf-8")
+        )
         assert metrics["cv_score"] == 0.82
     finally:
         if runs_path.exists():
             import shutil
+
             shutil.rmtree(runs_path)
 
 
 def test_kaggle_submit_blocked_without_env(tmp_path: Path) -> None:
     # M4: missing Kaggle credentials short-circuit before any approval check.
     proc = _run(
-        "kaggle", "submit",
-        "--competition", "x",
-        "--file", "/dev/null",
-        "--message", "test",
+        "kaggle",
+        "submit",
+        "--competition",
+        "x",
+        "--file",
+        "/dev/null",
+        "--message",
+        "test",
         "--json",
         env={
             "KCA_ALLOW_REMOTE": None,
@@ -160,8 +181,10 @@ def test_kaggle_submit_stub_with_env(tmp_path: Path) -> None:
     # M4: kca kaggle push --dry-run replaces the M2 'stub' contract for
     # exercising the gated remote-write path without credentials.
     proc = _run(
-        "kaggle", "push",
-        "--kernel-dir", str(REPO_ROOT / "tests" / "fixtures" / "sample_kernel"),
+        "kaggle",
+        "push",
+        "--kernel-dir",
+        str(REPO_ROOT / "tests" / "fixtures" / "sample_kernel"),
         "--dry-run",
         "--json",
         env={

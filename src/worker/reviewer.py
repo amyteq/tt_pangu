@@ -6,6 +6,7 @@ When the primary worker is about to call a high-stakes operation
 plan, calls a reviewer model via LiteLLM, and returns a verdict
 (`approve` | `reject` | `abstain`). Sync-only for M6.
 """
+
 from __future__ import annotations
 
 import json
@@ -66,11 +67,13 @@ def _trim_event_trail(events: list[dict], max_events: int = 20) -> list[dict]:
         events = events[-max_events:]
     pruned: list[dict] = []
     for ev in events:
-        pruned.append({
-            "event_type": ev.get("event_type"),
-            "turn_number": ev.get("turn_number"),
-            "event_data": ev.get("event_data"),
-        })
+        pruned.append(
+            {
+                "event_type": ev.get("event_type"),
+                "turn_number": ev.get("turn_number"),
+                "event_data": ev.get("event_data"),
+            }
+        )
     return pruned
 
 
@@ -84,6 +87,7 @@ def _render_prompt(req: ReviewRequest) -> str:
     if len(trail_json) > _EVENT_TRAIL_TRIAGE_THRESHOLD:
         try:
             from src.worker import triage as _triage
+
             sresult = _triage.summarise_text(trail_json)
             if sresult.get("ok") and sresult.get("summary"):
                 summary_block = (
@@ -136,9 +140,7 @@ class Reviewer:
         dry_rationale: str = "dry-run reviewer auto-approve",
     ) -> None:
         self.model = (
-            model
-            or os.environ.get("KCA_REVIEWER_MODEL")
-            or DEFAULT_REVIEWER_MODEL
+            model or os.environ.get("KCA_REVIEWER_MODEL") or DEFAULT_REVIEWER_MODEL
         )
         try:
             self.max_tokens = int(os.environ.get("KCA_REVIEWER_MAX_TOKENS", max_tokens))
@@ -175,6 +177,7 @@ class Reviewer:
         started = time.monotonic()
         try:
             import litellm  # noqa: F401  (lazy import; only required when live)
+
             response = litellm.completion(
                 model=self.model,
                 messages=messages,

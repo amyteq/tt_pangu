@@ -3,13 +3,13 @@
 Run with:
     python -m pytest tests/test_m5_smoke.py -v
 """
+
 from __future__ import annotations
 
 import hashlib
 import http.server
 import json
 import os
-import socket
 import socketserver
 import subprocess
 import sys
@@ -25,9 +25,15 @@ RUN_JOB = [sys.executable, str(REPO_ROOT / "scripts" / "run_job.py")]
 
 def _env_clean(**overrides) -> dict:
     env = os.environ.copy()
-    for k in ("SUPABASE_DB_URL", "KCA_DB_TARGET", "KAGGLE_USERNAME",
-              "KAGGLE_KEY", "ANTHROPIC_API_KEY", "KCA_ALLOW_REMOTE",
-              "KCA_RESEARCH_ALLOW_DOMAINS"):
+    for k in (
+        "SUPABASE_DB_URL",
+        "KCA_DB_TARGET",
+        "KAGGLE_USERNAME",
+        "KAGGLE_KEY",
+        "ANTHROPIC_API_KEY",
+        "KCA_ALLOW_REMOTE",
+        "KCA_RESEARCH_ALLOW_DOMAINS",
+    ):
         env.pop(k, None)
     for k, v in overrides.items():
         if v is None:
@@ -52,9 +58,11 @@ def _run(argv, cwd=None, env=None) -> subprocess.CompletedProcess:
 # 1. research_fetch refuses localhost
 # ---------------------------------------------------------------------------
 
+
 def test_research_fetch_refuses_localhost(tmp_path):
     sys.path.insert(0, str(REPO_ROOT / "tools" / "kca"))
     from research_fetch import fetch_page
+
     r = fetch_page("http://127.0.0.1:1/", out_dir=tmp_path)
     assert r["ok"] is False
     assert "private-net" in r.get("policy_warnings", [])
@@ -63,6 +71,7 @@ def test_research_fetch_refuses_localhost(tmp_path):
 # ---------------------------------------------------------------------------
 # 2. research_fetch against a local HTTP server (allow private-net via allow-list)
 # ---------------------------------------------------------------------------
+
 
 class _Quiet(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -89,8 +98,12 @@ def test_research_fetch_against_local_server(tmp_path, monkeypatch):
         thread.start()
         try:
             monkeypatch.setattr(rf, "_is_private_host", lambda host: False)
-            r = rf.fetch_page(f"http://127.0.0.1:{port}/", out_dir=tmp_path,
-                              fetcher="http", timeout_s=5)
+            r = rf.fetch_page(
+                f"http://127.0.0.1:{port}/",
+                out_dir=tmp_path,
+                fetcher="http",
+                timeout_s=5,
+            )
         finally:
             srv.shutdown()
     assert r["ok"] is True, r
@@ -106,9 +119,22 @@ def test_research_fetch_against_local_server(tmp_path, monkeypatch):
 # 3. kca research add — graceful no-DB
 # ---------------------------------------------------------------------------
 
+
 def test_research_add_no_db(tmp_path):
-    proc = _run([*KCA, "research", "add", "--url", "https://example.com/x",
-                 "--title", "T", "--trust", "untrusted", "--json"])
+    proc = _run(
+        [
+            *KCA,
+            "research",
+            "add",
+            "--url",
+            "https://example.com/x",
+            "--title",
+            "T",
+            "--trust",
+            "untrusted",
+            "--json",
+        ]
+    )
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout.strip())
     assert payload["ok"] is True
@@ -119,6 +145,7 @@ def test_research_add_no_db(tmp_path):
 # ---------------------------------------------------------------------------
 # 4. kca research list — graceful no-DB
 # ---------------------------------------------------------------------------
+
 
 def test_research_list_no_db():
     proc = _run([*KCA, "research", "list", "--json"])
@@ -132,14 +159,20 @@ def test_research_list_no_db():
 # 5. kca kaggle download-equivalent + verify intact
 # ---------------------------------------------------------------------------
 
+
 def test_kaggle_download_verify_roundtrip(tmp_path):
     # Seed a manifest by hand (no actual kaggle CLI call).
     (tmp_path / "train.csv").write_bytes(b"hello\n")
     h = hashlib.sha256(b"hello\n").hexdigest()
-    (tmp_path / "manifest.json").write_text(json.dumps({
-        "competition": "x", "fetched_at": "x",
-        "files": [{"name": "train.csv", "sha256": h, "bytes": 6}],
-    }))
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "competition": "x",
+                "fetched_at": "x",
+                "files": [{"name": "train.csv", "sha256": h, "bytes": 6}],
+            }
+        )
+    )
     proc = _run([*KCA, "kaggle", "verify", "--path", str(tmp_path), "--json"])
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout.strip())
@@ -152,13 +185,19 @@ def test_kaggle_download_verify_roundtrip(tmp_path):
 # 6. kca kaggle verify detects tampered files
 # ---------------------------------------------------------------------------
 
+
 def test_kaggle_download_verify_mismatch(tmp_path):
     (tmp_path / "train.csv").write_bytes(b"hello\n")
     h = hashlib.sha256(b"hello\n").hexdigest()
-    (tmp_path / "manifest.json").write_text(json.dumps({
-        "competition": "x", "fetched_at": "x",
-        "files": [{"name": "train.csv", "sha256": h, "bytes": 6}],
-    }))
+    (tmp_path / "manifest.json").write_text(
+        json.dumps(
+            {
+                "competition": "x",
+                "fetched_at": "x",
+                "files": [{"name": "train.csv", "sha256": h, "bytes": 6}],
+            }
+        )
+    )
     # Tamper.
     (tmp_path / "train.csv").write_bytes(b"tampered\n")
     proc = _run([*KCA, "kaggle", "verify", "--path", str(tmp_path), "--json"])
@@ -171,9 +210,11 @@ def test_kaggle_download_verify_mismatch(tmp_path):
 # 7. model routing defaults
 # ---------------------------------------------------------------------------
 
+
 def test_model_routing_defaults():
     sys.path.insert(0, str(REPO_ROOT))
     from src.worker.routing import model_for
+
     assert model_for("eval") == "claude-opus-4-7"
     assert model_for("implement") == "claude-sonnet-4-6"
     assert model_for("research") == "claude-haiku-4-5"
@@ -184,9 +225,11 @@ def test_model_routing_defaults():
 # 8. model routing override precedence
 # ---------------------------------------------------------------------------
 
+
 def test_model_routing_override():
     sys.path.insert(0, str(REPO_ROOT))
     from src.worker.routing import model_for
+
     assert model_for("eval", override="claude-haiku-4-5") == "claude-haiku-4-5"
     assert model_for("research", override="x") == "x"
 
@@ -195,9 +238,11 @@ def test_model_routing_override():
 # 9. run_job --job-type analysis → Opus in --json
 # ---------------------------------------------------------------------------
 
+
 def test_run_job_job_type_flag():
-    proc = _run([*RUN_JOB, "--prompt", "p", "--dry-run", "--job-type",
-                 "analysis", "--json"])
+    proc = _run(
+        [*RUN_JOB, "--prompt", "p", "--dry-run", "--job-type", "analysis", "--json"]
+    )
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout.strip())
     assert "opus" in payload.get("model", "").lower(), payload
@@ -207,9 +252,11 @@ def test_run_job_job_type_flag():
 # 10. external_fetch gate blocks when policy requires approval
 # ---------------------------------------------------------------------------
 
+
 def test_external_fetch_gate_blocks():
     sys.path.insert(0, str(REPO_ROOT / "tools" / "kca"))
     from kg import _check_approval_gate, ApprovalRequired
+
     saved = os.environ.pop("KCA_ALLOW_REMOTE", None)
     try:
         with pytest.raises(ApprovalRequired):
@@ -226,13 +273,16 @@ def test_external_fetch_gate_blocks():
 # 11. external_fetch gate allows by default (False in OPERATION_DEFAULTS)
 # ---------------------------------------------------------------------------
 
+
 def test_external_fetch_gate_allows_default():
     sys.path.insert(0, str(REPO_ROOT))
     from src.worker._types import JobPolicy
+
     assert JobPolicy().approval_gates.get("external_fetch") is False
     # And the kg.OPERATION_DEFAULTS agrees.
     sys.path.insert(0, str(REPO_ROOT / "tools" / "kca"))
     from kg import OPERATION_DEFAULTS, _check_approval_gate
+
     assert OPERATION_DEFAULTS.get("external_fetch") is False
     saved = os.environ.pop("KCA_ALLOW_REMOTE", None)
     try:
@@ -247,6 +297,7 @@ def test_external_fetch_gate_allows_default():
 # 12. resume paused job (DB-dependent; skip cleanly when DB unavailable)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.skipif(
     not os.environ.get("SUPABASE_DB_URL"),
     reason="resume test requires SUPABASE_DB_URL",
@@ -256,6 +307,10 @@ def test_resume_paused_dry_run(tmp_path):
     # unknown ids with a KeyError (not a connection error masquerading).
     sys.path.insert(0, str(REPO_ROOT))
     from src.worker.worker import AgentWorker
+
     with pytest.raises((KeyError, Exception)):
-        AgentWorker.resume(job_id="00000000-0000-0000-0000-000000000000",
-                           workspace=tmp_path, dry_run=True)
+        AgentWorker.resume(
+            job_id="00000000-0000-0000-0000-000000000000",
+            workspace=tmp_path,
+            dry_run=True,
+        )

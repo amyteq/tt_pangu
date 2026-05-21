@@ -1,0 +1,37 @@
+# Competition runner: kaggle_submit allowed only in approved modes.
+- operation: kaggle_submit
+  default_decision: ask
+  reason: Default to ask; allow only in finalization or human-approved modes.
+  allowed_in_modes:
+    - competition-finalization
+    - human-approved
+  audit_required: true
+- operation: kaggle_push
+  default_decision: ask
+  reason: Kernel push remains gated outside finalization mode.
+  allowed_in_modes:
+    - competition-finalization
+  audit_required: true
+- operation: supabase_migrate
+  default_decision: ask
+  audit_required: true
+- operation: budget_exceeded
+  default_decision: deny
+  reason: Never allow execution once the job budget is exhausted.
+- operation: gh_pr_merge
+  default_decision: ask
+  audit_required: true
+- operation: bash
+  default_decision: ask
+- operation: read_file
+  default_decision: allow
+- operation: write_file
+  default_decision: allow
+- operation: edit_file
+  default_decision: allow
+- operation: create_artifact
+  default_decision: allow
+- operation: run_tests
+  default_decision: allow
+- operation: litellm_call
+  default_decision: allow

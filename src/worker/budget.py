@@ -5,16 +5,20 @@ import time
 from src.worker._types import JobPolicy
 
 MODEL_PRICING: dict[str, tuple[float, float]] = {
-    "claude-sonnet-4-6":         (3.0, 15.0),
-    "claude-opus-4-7":           (5.0, 25.0),
+    "claude-sonnet-4-6": (3.0, 15.0),
+    "claude-opus-4-7": (5.0, 25.0),
     "claude-haiku-4-5-20251001": (1.0, 5.0),
 }
 _DEFAULT_PRICING = (3.0, 15.0)
 
 
 class BudgetTracker:
-    def __init__(self, policy: JobPolicy, model: str = "claude-sonnet-4-6",
-                 started_at: float | None = None):
+    def __init__(
+        self,
+        policy: JobPolicy,
+        model: str = "claude-sonnet-4-6",
+        started_at: float | None = None,
+    ):
         self.policy = policy
         self.model = model
         self.started_at = started_at or time.monotonic()
@@ -46,6 +50,7 @@ class BudgetTracker:
             # Try litellm.completion_cost for accurate per-provider pricing.
             try:
                 import litellm
+
                 self.cost_usd += litellm.completion_cost(completion_response=resp)
                 self.turns += 1
                 self.input_tokens += in_tok

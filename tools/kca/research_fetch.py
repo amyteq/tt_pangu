@@ -12,6 +12,7 @@ Safety:
   - Optional allow-list via KCA_RESEARCH_ALLOW_DOMAINS (comma separated).
   - Byte cap via KCA_RESEARCH_MAX_BYTES (default 10 MB).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -172,16 +173,24 @@ def fetch_page(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     if fetcher == "playwright":
-        return _fetch_playwright(url, out_dir=out_dir, timeout_s=timeout_s,
-                                 user_agent=user_agent or DEFAULT_USER_AGENT)
+        return _fetch_playwright(
+            url,
+            out_dir=out_dir,
+            timeout_s=timeout_s,
+            user_agent=user_agent or DEFAULT_USER_AGENT,
+        )
     if fetcher != "http":
         return {
             "ok": False,
             "url": url,
             "error": f"unknown fetcher: {fetcher}",
         }
-    return _fetch_http(url, out_dir=out_dir, timeout_s=timeout_s,
-                      user_agent=user_agent or DEFAULT_USER_AGENT)
+    return _fetch_http(
+        url,
+        out_dir=out_dir,
+        timeout_s=timeout_s,
+        user_agent=user_agent or DEFAULT_USER_AGENT,
+    )
 
 
 def _fetch_http(
@@ -202,8 +211,9 @@ def _fetch_http(
     max_bytes = _max_bytes()
     headers = {"User-Agent": user_agent, "Accept": "text/html,*/*;q=0.5"}
     try:
-        resp = requests.get(url, timeout=timeout_s, headers=headers,
-                            stream=True, allow_redirects=True)
+        resp = requests.get(
+            url, timeout=timeout_s, headers=headers, stream=True, allow_redirects=True
+        )
     except Exception as e:
         return {"ok": False, "url": url, "error": f"fetch_error: {e}"}
 

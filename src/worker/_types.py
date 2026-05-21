@@ -15,28 +15,30 @@ class JobPolicy:
     temperature: float = 0.2
     top_p: float = 0.90
     min_p: float | None = None
-    approval_gates: dict = field(default_factory=lambda: {
-        "kaggle_submit":     False,
-        "kernel_push":       False,
-        "dataset_upload":    True,
-        "git_push":          False,
-        "git_force_push":    True,
-        "supabase_migrate":  True,
-        "delete_artifact":   True,
-        "external_fetch":    False,
-    })
+    approval_gates: dict = field(
+        default_factory=lambda: {
+            "kaggle_submit": False,
+            "kernel_push": False,
+            "dataset_upload": True,
+            "git_push": False,
+            "git_force_push": True,
+            "supabase_migrate": True,
+            "delete_artifact": True,
+            "external_fetch": False,
+        }
+    )
     max_side_effect: str = "SUBMISSION"
 
 
 @dataclass
 class WorkerResult:
-    status: str          # done | failed | paused | budget_stop
+    status: str  # done | failed | paused | budget_stop
     turns_used: int
     cost_usd: float
     duration_s: float
     final_message: str
-    stop_reason: str     # end_turn | max_turns | max_cost_usd | max_runtime_s
-                         # approval_required | tool_error | unexpected
+    stop_reason: str  # end_turn | max_turns | max_cost_usd | max_runtime_s
+    # approval_required | tool_error | unexpected
 
 
 @dataclass

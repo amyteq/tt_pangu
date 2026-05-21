@@ -5,6 +5,7 @@ A single DB-dependent test skips cleanly when no SUPABASE_DB_URL.
 Run with:
     python -m pytest tests/test_m6_smoke.py -v
 """
+
 from __future__ import annotations
 
 import json
@@ -23,10 +24,18 @@ RUN_JOB = [sys.executable, str(REPO_ROOT / "scripts" / "run_job.py")]
 def _env_clean(**overrides) -> dict:
     env = os.environ.copy()
     for k in (
-        "SUPABASE_DB_URL", "KCA_DB_TARGET", "KAGGLE_USERNAME", "KAGGLE_KEY",
-        "ANTHROPIC_API_KEY", "KCA_ALLOW_REMOTE", "KCA_RESEARCH_ALLOW_DOMAINS",
-        "KCA_OTEL_ENABLED", "KCA_OTEL_EXPORTERS", "KCA_OTEL_SQLITE_PATH",
-        "KCA_LOCAL_REQUIRE_LOCAL", "KCA_LOCAL_PRIORITY_ORDER",
+        "SUPABASE_DB_URL",
+        "KCA_DB_TARGET",
+        "KAGGLE_USERNAME",
+        "KAGGLE_KEY",
+        "ANTHROPIC_API_KEY",
+        "KCA_ALLOW_REMOTE",
+        "KCA_RESEARCH_ALLOW_DOMAINS",
+        "KCA_OTEL_ENABLED",
+        "KCA_OTEL_EXPORTERS",
+        "KCA_OTEL_SQLITE_PATH",
+        "KCA_LOCAL_REQUIRE_LOCAL",
+        "KCA_LOCAL_PRIORITY_ORDER",
     ):
         env.pop(k, None)
     for n in range(10):
@@ -42,7 +51,10 @@ def _env_clean(**overrides) -> dict:
 
 def _run(argv, env=None) -> subprocess.CompletedProcess:
     return subprocess.run(
-        argv, capture_output=True, text=True, check=False,
+        argv,
+        capture_output=True,
+        text=True,
+        check=False,
         env=env if env is not None else _env_clean(),
         cwd=str(REPO_ROOT),
     )
@@ -73,6 +85,7 @@ def test_load_endpoints_from_env(monkeypatch):
 
     sys.path.insert(0, str(REPO_ROOT))
     from src.worker.local_model import load_endpoints
+
     eps = load_endpoints()
     assert len(eps) == 2
     assert eps[0].name == "snorlax-vllm"
@@ -95,6 +108,7 @@ def test_load_endpoints_stops_at_gap(monkeypatch):
 
     sys.path.insert(0, str(REPO_ROOT))
     from src.worker.local_model import load_endpoints
+
     eps = load_endpoints()
     assert [e.name for e in eps] == ["only"]
 
@@ -105,13 +119,22 @@ def test_load_endpoints_stops_at_gap(monkeypatch):
 def test_probe_unreachable_returns_ok_false():
     sys.path.insert(0, str(REPO_ROOT))
     from src.worker.local_model import LocalEndpoint, probe
-    ep = LocalEndpoint(name="t", url="http://127.0.0.1:1/v1", model="x",
-                       backend="vllm", api_key="local")
+
+    ep = LocalEndpoint(
+        name="t",
+        url="http://127.0.0.1:1/v1",
+        model="x",
+        backend="vllm",
+        api_key="local",
+    )
     r = probe(ep, timeout_s=1.0)
     assert r["ok"] is False
     assert r["error"]
-    assert "connect" in r["error"].lower() or "refused" in r["error"].lower() \
+    assert (
+        "connect" in r["error"].lower()
+        or "refused" in r["error"].lower()
         or "timed out" in r["error"].lower()
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -126,10 +149,17 @@ def test_pick_endpoint_returns_none_when_all_down(monkeypatch):
 
     sys.path.insert(0, str(REPO_ROOT))
     from src.worker import local_model as lm
+
     monkeypatch.setattr(
-        lm, "probe",
-        lambda ep, timeout_s=None: {"ok": False, "name": ep.name, "models": [],
-                                    "latency_ms": 0, "error": "down"},
+        lm,
+        "probe",
+        lambda ep, timeout_s=None: {
+            "ok": False,
+            "name": ep.name,
+            "models": [],
+            "latency_ms": 0,
+            "error": "down",
+        },
     )
     assert lm.pick_endpoint() is None
 
@@ -142,6 +172,7 @@ def test_routing_fallback_when_local_down(monkeypatch):
     monkeypatch.setenv("KCA_LOCAL_FALLBACK_MODEL", "claude-haiku-4-5")
     sys.path.insert(0, str(REPO_ROOT))
     from src.worker import routing, local_model
+
     monkeypatch.setattr(local_model, "pick_endpoint", lambda: None)
     model, ep = routing.resolve_local_or_fallback("summarise")
     assert ep is None
@@ -154,11 +185,17 @@ def test_routing_fallback_when_local_down(monkeypatch):
 def test_reviewer_dry_run_approves():
     sys.path.insert(0, str(REPO_ROOT))
     from src.worker.reviewer import Reviewer, ReviewRequest
+
     r = Reviewer(dry_run=True)
-    v = r.review(ReviewRequest(
-        job_id="job", target_op="kaggle_submit", tool_name="kaggle_submit",
-        tool_input={}, event_trail=[],
-    ))
+    v = r.review(
+        ReviewRequest(
+            job_id="job",
+            target_op="kaggle_submit",
+            tool_name="kaggle_submit",
+            tool_input={},
+            event_trail=[],
+        )
+    )
     assert v.verdict == "approve"
 
 
@@ -168,23 +205,31 @@ def test_reviewer_dry_run_approves():
 def test_reviewer_prompt_truncates_long_trace(monkeypatch):
     sys.path.insert(0, str(REPO_ROOT))
     from src.worker import reviewer as rv
+
     # Force triage path off so we exercise the inline truncation only.
     monkeypatch.setattr(rv, "_EVENT_TRAIL_TRIAGE_THRESHOLD", 10**9)
     events = [
-        {"event_type": "tool_call", "turn_number": i,
-         "event_data": {"tool": "read_file", "input": {"path": f"f{i}.py"}}}
+        {
+            "event_type": "tool_call",
+            "turn_number": i,
+            "event_data": {"tool": "read_file", "input": {"path": f"f{i}.py"}},
+        }
         for i in range(50)
     ]
     req = rv.ReviewRequest(
-        job_id="job", target_op="kaggle_submit", tool_name="kaggle_submit",
-        tool_input={}, event_trail=events,
+        job_id="job",
+        target_op="kaggle_submit",
+        tool_name="kaggle_submit",
+        tool_input={},
+        event_trail=events,
     )
     rendered = rv._render_prompt(req)
     assert "REVIEW REQUEST" in rendered
     assert "Return STRICT JSON only" in rendered
     # Trail trimmed to last 20 events
-    parsed = json.loads(rendered.split("REVIEW REQUEST:\n", 1)[1].split(
-        "\n\nReturn", 1)[0])
+    parsed = json.loads(
+        rendered.split("REVIEW REQUEST:\n", 1)[1].split("\n\nReturn", 1)[0]
+    )
     assert len(parsed["event_trail"]) == 20
 
 
@@ -197,6 +242,7 @@ def test_otel_console_exporter_writes_to_stderr(monkeypatch, capsys):
     sys.path.insert(0, str(REPO_ROOT))
     # Force re-import so module-level cache picks up new env if any.
     from src.worker import telemetry as tel
+
     tracer = tel.Tracer()
     assert tracer.is_enabled()
     with tracer.span(kind="job", name="job.test"):
@@ -216,11 +262,13 @@ def test_otel_sqlite_exporter_persists(monkeypatch, tmp_path):
     monkeypatch.setenv("KCA_OTEL_SQLITE_PATH", str(db_path))
     sys.path.insert(0, str(REPO_ROOT))
     from src.worker import telemetry as tel
+
     tracer = tel.Tracer()
     with tracer.span(kind="turn", name="turn[1]"):
         pass
     assert db_path.exists()
     import sqlite3
+
     conn = sqlite3.connect(str(db_path))
     try:
         rows = list(conn.execute("SELECT kind, name FROM spans"))
@@ -240,6 +288,7 @@ def test_otel_disabled_writes_nothing(monkeypatch, tmp_path, capsys):
     monkeypatch.setenv("KCA_OTEL_SQLITE_PATH", str(db_path))
     sys.path.insert(0, str(REPO_ROOT))
     from src.worker import telemetry as tel
+
     tracer = tel.Tracer()
     assert not tracer.is_enabled()
     with tracer.span(kind="job", name="should-not-fire"):
@@ -285,12 +334,19 @@ def test_kca_review_list_no_db():
 # 13. kca review run --dry-run (no DB)
 # ---------------------------------------------------------------------------
 def test_kca_review_run_dry_run():
-    r = _run(KCA + [
-        "review", "run",
-        "--job-id", "00000000-0000-0000-0000-000000000000",
-        "--target-op", "kaggle_submit",
-        "--dry-run", "--json",
-    ])
+    r = _run(
+        KCA
+        + [
+            "review",
+            "run",
+            "--job-id",
+            "00000000-0000-0000-0000-000000000000",
+            "--target-op",
+            "kaggle_submit",
+            "--dry-run",
+            "--json",
+        ]
+    )
     assert r.returncode == 0, r.stderr
     payload = json.loads(r.stdout)
     assert payload["ok"] is True
@@ -309,6 +365,7 @@ def test_review_round_trip():
     import db as _db
     import psycopg
     from psycopg.rows import dict_row
+
     conn = psycopg.connect(db_url, row_factory=dict_row)
     try:
         with conn.cursor() as cur:
@@ -320,8 +377,11 @@ def test_review_round_trip():
             jid = cur.fetchone()["id"]
         conn.commit()
         rid = _db.create_review(
-            job_id=jid, reviewer_model="claude-opus-4-7", verdict="approve",
-            target_op="kaggle_submit", rationale="ok",
+            job_id=jid,
+            reviewer_model="claude-opus-4-7",
+            verdict="approve",
+            target_op="kaggle_submit",
+            rationale="ok",
         )
         got = _db.get_review(rid)
         assert got["verdict"] == "approve"

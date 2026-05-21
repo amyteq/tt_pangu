@@ -9,11 +9,11 @@ Cache write failures after a successful DB commit downgrade to a stderr
 warning + `cache_warning` field in the JSON envelope; the exit code stays 0
 since the canonical state (DB) is intact.
 """
+
 from __future__ import annotations
 
 import argparse
 import json
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -65,6 +65,7 @@ def _write_cache_files(run_dir: Path, meta: dict, metrics_snapshot: dict) -> str
 
 def cmd_init(args: argparse.Namespace) -> int:
     import os
+
     competition = (args.competition or "").strip()
     if not competition:
         _emit({"ok": False, "error": "competition slug is required"})
@@ -142,9 +143,15 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 def cmd_record_metric(args: argparse.Namespace) -> int:
     import os
+
     run_dir = Path(args.run_dir).expanduser() if args.run_dir else None
     if run_dir is None and not args.experiment_run_id:
-        _emit({"ok": False, "error": "either --run-dir or --experiment-run-id is required"})
+        _emit(
+            {
+                "ok": False,
+                "error": "either --run-dir or --experiment-run-id is required",
+            }
+        )
         return EXIT_RUNTIME
 
     # FS-first: load meta.json + read/merge metrics.json.
@@ -168,7 +175,8 @@ def cmd_record_metric(args: argparse.Namespace) -> int:
         try:
             metrics_path.parent.mkdir(parents=True, exist_ok=True)
             metrics_path.write_text(
-                json.dumps(metrics, indent=2, default=str), encoding="utf-8",
+                json.dumps(metrics, indent=2, default=str),
+                encoding="utf-8",
             )
         except OSError as e:
             cache_warning = f"metrics.json write failed: {e}"
@@ -202,6 +210,7 @@ def cmd_record_metric(args: argparse.Namespace) -> int:
 
 def cmd_list(args: argparse.Namespace) -> int:
     import os
+
     # FS-first: walk runs/<comp>/*/meta.json relative to cwd.
     out_rows: list[dict] = []
     runs_root = Path.cwd() / "runs"
@@ -228,7 +237,8 @@ def cmd_list(args: argparse.Namespace) -> int:
     if os.environ.get("SUPABASE_DB_URL"):
         try:
             db_rows = db.list_runs_m2(
-                competition_slug=args.competition, limit=args.limit,
+                competition_slug=args.competition,
+                limit=args.limit,
             )
             for r in db_rows:
                 rr = dict(r)
@@ -244,7 +254,9 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 
 def add_parsers(sub: argparse._SubParsersAction) -> None:
-    run = sub.add_parser("run", help="Manage runs/<competition>/<run_id>/ — DB-first (M2)")
+    run = sub.add_parser(
+        "run", help="Manage runs/<competition>/<run_id>/ — DB-first (M2)"
+    )
     run_sub = run.add_subparsers(dest="run_cmd", required=True)
 
     p_init = run_sub.add_parser(
@@ -263,16 +275,18 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
         help="Append a metric event in DB; refresh metrics.json cache (LOCAL_WRITE)",
     )
     p_metric.add_argument("--run-dir", default=None, help="runs/<comp>/<run_id>/ path")
-    p_metric.add_argument("--experiment-run-id", dest="experiment_run_id", default=None,
-                          help="UUID; alternative to --run-dir")
+    p_metric.add_argument(
+        "--experiment-run-id",
+        dest="experiment_run_id",
+        default=None,
+        help="UUID; alternative to --run-dir",
+    )
     p_metric.add_argument("--key", required=True)
     p_metric.add_argument("--value", required=True, type=float)
     p_metric.add_argument("--json", action="store_true")
     p_metric.set_defaults(func=cmd_record_metric)
 
-    p_list = run_sub.add_parser(
-        "list", help="List runs from the DB (READ_ONLY)"
-    )
+    p_list = run_sub.add_parser("list", help="List runs from the DB (READ_ONLY)")
     p_list.add_argument("--competition", default=None)
     p_list.add_argument("--limit", type=int, default=100)
     p_list.add_argument("--json", action="store_true")

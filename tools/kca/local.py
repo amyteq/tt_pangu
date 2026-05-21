@@ -1,4 +1,5 @@
 """kca local: inspect, probe, and pick from KCA_LOCAL_ENDPOINT_* slots."""
+
 from __future__ import annotations
 
 import argparse
@@ -27,6 +28,7 @@ def _emit_text(lines: list[str]) -> int:
 
 def _load_module():
     from src.worker import local_model as lm
+
     return lm
 
 
@@ -43,14 +45,18 @@ def cmd_list(args: argparse.Namespace) -> int:
         for ep in endpoints
     ]
     if args.json:
-        return _emit_json({
-            "ok": True,
-            "endpoints": rows,
-            "side_effect": SideEffect.READ_ONLY.value,
-        })
+        return _emit_json(
+            {
+                "ok": True,
+                "endpoints": rows,
+                "side_effect": SideEffect.READ_ONLY.value,
+            }
+        )
     if not rows:
         return _emit_text(["(no local endpoints configured)"])
-    lines = [f"{r['name']:24s} {r['backend']:7s} {r['model']:40s} {r['url']}" for r in rows]
+    lines = [
+        f"{r['name']:24s} {r['backend']:7s} {r['model']:40s} {r['url']}" for r in rows
+    ]
     return _emit_text(lines)
 
 
@@ -63,27 +69,30 @@ def cmd_probe(args: argparse.Namespace) -> int:
     ok_count = 0
     for ep in endpoints:
         r = lm.probe(ep)
-        results.append({
-            "name": ep.name,
-            "url": ep.url,
-            "backend": ep.backend,
-            "ok": r["ok"],
-            "models": r["models"],
-            "latency_ms": r["latency_ms"],
-            "error": r["error"],
-        })
+        results.append(
+            {
+                "name": ep.name,
+                "url": ep.url,
+                "backend": ep.backend,
+                "ok": r["ok"],
+                "models": r["models"],
+                "latency_ms": r["latency_ms"],
+                "error": r["error"],
+            }
+        )
         if r["ok"]:
             ok_count += 1
     if args.json:
-        return _emit_json({
-            "ok": True,
-            "ok_count": ok_count,
-            "endpoints": results,
-            "side_effect": SideEffect.READ_ONLY.value,
-        })
+        return _emit_json(
+            {
+                "ok": True,
+                "ok_count": ok_count,
+                "endpoints": results,
+                "side_effect": SideEffect.READ_ONLY.value,
+            }
+        )
     lines = [
-        f"{r['name']:24s} ok={r['ok']} latency_ms={r['latency_ms']} "
-        f"error={r['error']}"
+        f"{r['name']:24s} ok={r['ok']} latency_ms={r['latency_ms']} error={r['error']}"
         for r in results
     ]
     if not lines:
@@ -93,6 +102,7 @@ def cmd_probe(args: argparse.Namespace) -> int:
 
 def cmd_triage(args: argparse.Namespace) -> int:
     from src.worker import triage, local_model as lm
+
     endpoint = None
     if args.endpoint:
         for ep in lm.load_endpoints():
@@ -119,6 +129,7 @@ def cmd_triage(args: argparse.Namespace) -> int:
 
 def cmd_summarise(args: argparse.Namespace) -> int:
     from src.worker import triage, local_model as lm
+
     p = Path(args.file)
     if not p.exists():
         payload = {"ok": False, "error": f"file not found: {args.file}"}
@@ -187,17 +198,23 @@ def add_parsers(subparsers) -> None:
     p_probe.add_argument("--json", action="store_true")
     p_probe.set_defaults(func=cmd_probe)
 
-    p_pick = inner.add_parser("pick", help="Pick the highest-priority reachable endpoint.")
+    p_pick = inner.add_parser(
+        "pick", help="Pick the highest-priority reachable endpoint."
+    )
     p_pick.add_argument("--json", action="store_true")
     p_pick.set_defaults(func=cmd_pick)
 
-    p_triage = inner.add_parser("triage", help="Summarise a job's event trail with a local model.")
+    p_triage = inner.add_parser(
+        "triage", help="Summarise a job's event trail with a local model."
+    )
     p_triage.add_argument("--job-id", dest="job_id", required=True)
     p_triage.add_argument("--endpoint", default=None)
     p_triage.add_argument("--json", action="store_true")
     p_triage.set_defaults(func=cmd_triage)
 
-    p_sum = inner.add_parser("summarise", help="Summarise a text file with a local model.")
+    p_sum = inner.add_parser(
+        "summarise", help="Summarise a text file with a local model."
+    )
     p_sum.add_argument("--file", required=True)
     p_sum.add_argument("--endpoint", default=None)
     p_sum.add_argument("--json", action="store_true")

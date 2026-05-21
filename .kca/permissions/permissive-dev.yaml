@@ -1,0 +1,42 @@
+# Permissive dev profile: bash + filesystem allowed; submissions still gated.
+- operation: kaggle_submit
+  default_decision: ask
+  reason: Still gated even in dev — Kaggle is external.
+  audit_required: true
+- operation: kaggle_push
+  default_decision: ask
+  reason: Still gated even in dev.
+  audit_required: true
+- operation: supabase_migrate
+  default_decision: ask
+  reason: Remote DB writes always gated.
+  audit_required: true
+- operation: gh_pr_merge
+  default_decision: ask
+  reason: Merge is irreversible.
+  audit_required: true
+- operation: bash
+  default_decision: allow
+  reason: Dev profile permits shell.
+- operation: read_file
+  default_decision: allow
+- operation: write_file
+  default_decision: allow
+- operation: edit_file
+  default_decision: allow
+- operation: create_artifact
+  default_decision: allow
+- operation: run_tests
+  default_decision: allow
+- operation: web_fetch
+  default_decision: allow
+- operation: web_search
+  default_decision: allow
+- operation: litellm_call
+  default_decision: allow
+- operation: git_commit
+  default_decision: allow
+- operation: git_push
+  default_decision: allow
+- operation: gh_pr_create
+  default_decision: allow

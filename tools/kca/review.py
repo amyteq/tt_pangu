@@ -1,4 +1,5 @@
 """kca review: list, show, and run reviewer verdicts (M6-T007)."""
+
 from __future__ import annotations
 
 import argparse
@@ -20,6 +21,7 @@ def _emit(ok: bool, payload: dict, exit_code: int = EXIT_OK) -> int:
 
 def _load_db():
     import db as _db
+
     return _db
 
 
@@ -47,26 +49,35 @@ def cmd_list(args: argparse.Namespace) -> int:
             limit=args.limit,
         )
         reviews = [_shape_review(r) for r in rows]
-        return _emit(True, {
-            "reviews": reviews,
-            "side_effect": SideEffect.READ_ONLY.value,
-        })
+        return _emit(
+            True,
+            {
+                "reviews": reviews,
+                "side_effect": SideEffect.READ_ONLY.value,
+            },
+        )
     except Exception as exc:
-        return _emit(True, {
-            "reviews": [],
-            "db_warning": str(exc),
-            "side_effect": SideEffect.READ_ONLY.value,
-        })
+        return _emit(
+            True,
+            {
+                "reviews": [],
+                "db_warning": str(exc),
+                "side_effect": SideEffect.READ_ONLY.value,
+            },
+        )
 
 
 def cmd_show(args: argparse.Namespace) -> int:
     try:
         _db = _load_db()
         r = _db.get_review(args.id)
-        return _emit(True, {
-            "review": _shape_review(r),
-            "side_effect": SideEffect.READ_ONLY.value,
-        })
+        return _emit(
+            True,
+            {
+                "review": _shape_review(r),
+                "side_effect": SideEffect.READ_ONLY.value,
+            },
+        )
     except KeyError as exc:
         return _emit(False, {"error": str(exc)}, EXIT_RUNTIME)
     except Exception as exc:
@@ -86,6 +97,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         except Exception:
             job = {}
         from src.worker.reviewer import Reviewer, ReviewRequest
+
         req = ReviewRequest(
             job_id=job_id,
             target_op=args.target_op or "manual",
@@ -138,8 +150,9 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
 
     p_list = inner.add_parser("list", help="List reviewer rows (READ_ONLY).")
     p_list.add_argument("--job-id", dest="job_id", default=None)
-    p_list.add_argument("--verdict", default=None,
-                        choices=("approve", "reject", "abstain"))
+    p_list.add_argument(
+        "--verdict", default=None, choices=("approve", "reject", "abstain")
+    )
     p_list.add_argument("--limit", type=int, default=50)
     p_list.add_argument("--json", action="store_true")
     p_list.set_defaults(func=cmd_list)

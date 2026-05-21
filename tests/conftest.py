@@ -1,4 +1,5 @@
 """Shared pytest fixtures for kca tests."""
+
 from __future__ import annotations
 
 import os

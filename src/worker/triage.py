@@ -5,10 +5,10 @@ no local endpoint is reachable they fall back to the cloud
 `KCA_LOCAL_FALLBACK_MODEL` (default `claude-haiku-4-5`) unless
 `KCA_LOCAL_REQUIRE_LOCAL=1`.
 """
+
 from __future__ import annotations
 
 import json
-import os
 import time
 from typing import Any
 
@@ -41,16 +41,24 @@ def _format_events(events: list[dict]) -> str:
                 ed = json.loads(ed)
             except Exception:
                 ed = {"raw": ed}
-        lines.append(f"[turn={tn} type={et}] {json.dumps(ed, default=str, ensure_ascii=False)}")
+        lines.append(
+            f"[turn={tn} type={et}] {json.dumps(ed, default=str, ensure_ascii=False)}"
+        )
     return "\n".join(lines)
 
 
-def _call_local(model: str, api_base: str | None, api_key: str | None,
-                messages: list[dict], timeout_s: int = 60) -> tuple[str, dict]:
+def _call_local(
+    model: str,
+    api_base: str | None,
+    api_key: str | None,
+    messages: list[dict],
+    timeout_s: int = 60,
+) -> tuple[str, dict]:
     """Run a LiteLLM completion against a local or cloud model. Returns (text, meta)."""
     started = time.monotonic()
     try:
         import litellm
+
         kwargs: dict[str, Any] = {
             "model": model,
             "messages": messages,
@@ -112,7 +120,8 @@ def summarise_text(
     api_base = kwargs.get("api_base") if kwargs else None
     api_key = kwargs.get("api_key") if kwargs else None
     endpoint_name = (
-        endpoint.name if endpoint is not None
+        endpoint.name
+        if endpoint is not None
         else (local_model.pick_endpoint().name if api_base else f"fallback:{model}")
     )
     messages = [
@@ -160,7 +169,10 @@ def triage_job_events(
     try:
         import sys
         from pathlib import Path
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
+
+        sys.path.insert(
+            0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
+        )
         import db as _db
     except Exception as exc:
         return {
@@ -189,7 +201,8 @@ def triage_job_events(
             "model": None,
         }
     formatted = _format_events(events)
-    result = summarise_text(formatted, max_input_chars=max_input_chars,
-                            endpoint=endpoint)
+    result = summarise_text(
+        formatted, max_input_chars=max_input_chars, endpoint=endpoint
+    )
     result["event_count"] = len(events)
     return result

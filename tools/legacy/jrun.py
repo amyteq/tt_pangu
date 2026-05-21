@@ -5,14 +5,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shlex
 import shutil
 import subprocess
 import sys
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -34,15 +33,47 @@ _LOG_QUIET = False
 _LOG_VERBOSE = 0
 
 STATE_FIELDS = [
-    "run_id", "status", "host", "pid", "submitted_at", "started_at", "updated_at",
-    "last_heartbeat_at", "heartbeat_interval_sec", "finished_at", "notebook", "input_notebook",
-    "output_notebook", "stdout_log", "stderr_log", "returncode", "message", "phase",
+    "run_id",
+    "status",
+    "host",
+    "pid",
+    "submitted_at",
+    "started_at",
+    "updated_at",
+    "last_heartbeat_at",
+    "heartbeat_interval_sec",
+    "finished_at",
+    "notebook",
+    "input_notebook",
+    "output_notebook",
+    "stdout_log",
+    "stderr_log",
+    "returncode",
+    "message",
+    "phase",
 ]
 SUMMARY_FIELDS = (
-    "run_id", "status", "phase", "host", "pid", "submitted_at", "started_at",
-    "updated_at", "last_heartbeat_at", "heartbeat_interval_sec", "finished_at",
-    "duration_sec", "notebook", "input_notebook", "output_notebook", "stdout_log",
-    "stderr_log", "artifacts", "returncode", "message", "failure_reason",
+    "run_id",
+    "status",
+    "phase",
+    "host",
+    "pid",
+    "submitted_at",
+    "started_at",
+    "updated_at",
+    "last_heartbeat_at",
+    "heartbeat_interval_sec",
+    "finished_at",
+    "duration_sec",
+    "notebook",
+    "input_notebook",
+    "output_notebook",
+    "stdout_log",
+    "stderr_log",
+    "artifacts",
+    "returncode",
+    "message",
+    "failure_reason",
 )
 TERMINAL_STATUSES = {"succeeded", "failed", "cancelled", "timeout", "stalled"}
 
@@ -87,7 +118,14 @@ def _emit_ok(args: argparse.Namespace, **payload: Any) -> int:
     return EXIT_OK
 
 
-def _emit_fail(args: argparse.Namespace, message: str, *, error: str, exit_code: int, **payload: Any) -> int:
+def _emit_fail(
+    args: argparse.Namespace,
+    message: str,
+    *,
+    error: str,
+    exit_code: int,
+    **payload: Any,
+) -> int:
     data = {"ok": False, "error": error, "message": message, **payload}
     if getattr(args, "json", False):
         _print_json(data)
@@ -106,26 +144,36 @@ def _ensure_dir(path: Path) -> None:
 
 def _write_json(path: Path, data: dict[str, Any]) -> None:
     _ensure_dir(path.parent)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
 
 
 def _read_json(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _normalize_by_fields(data: dict[str, Any], fields: list[str], extra: dict[str, Any] | None = None) -> dict[str, Any]:
+def _normalize_by_fields(
+    data: dict[str, Any], fields: list[str], extra: dict[str, Any] | None = None
+) -> dict[str, Any]:
     out = {key: data.get(key) for key in fields}
     if extra:
         out.update(extra)
     return out
 
 
-def _normalize_state(data: dict[str, Any], *, remote_run_dir: str | None = None) -> dict[str, Any]:
+def _normalize_state(
+    data: dict[str, Any], *, remote_run_dir: str | None = None
+) -> dict[str, Any]:
     return _normalize_by_fields(data, STATE_FIELDS, {"remote_run_dir": remote_run_dir})
 
 
-def _normalize_summary(data: dict[str, Any], *, remote_run_dir: str | None = None) -> dict[str, Any]:
-    return _normalize_by_fields(data, SUMMARY_FIELDS, {"remote_run_dir": remote_run_dir})
+def _normalize_summary(
+    data: dict[str, Any], *, remote_run_dir: str | None = None
+) -> dict[str, Any]:
+    return _normalize_by_fields(
+        data, SUMMARY_FIELDS, {"remote_run_dir": remote_run_dir}
+    )
 
 
 def _ensure_dependency(exe: str) -> None:
@@ -147,7 +195,7 @@ def _remote_python_cmd(remote_python: str | None) -> str:
     if value == local_home:
         return "$HOME"
     if value.startswith(local_home + "/"):
-        return "$HOME/" + value[len(local_home) + 1:]
+        return "$HOME/" + value[len(local_home) + 1 :]
     if value.startswith("~/"):
         return "$HOME/" + value[2:]
     return value
@@ -171,35 +219,69 @@ def _scp_base_args(args: argparse.Namespace) -> list[str]:
     return cmd
 
 
-def _run_cmd(cmd: list[str], *, capture_output: bool = False, check: bool = True) -> subprocess.CompletedProcess[str]:
+def _run_cmd(
+    cmd: list[str], *, capture_output: bool = False, check: bool = True
+) -> subprocess.CompletedProcess[str]:
     if _LOG_VERBOSE:
         _log(" ".join(shlex.quote(str(part)) for part in cmd), "DEBUG")
     proc = subprocess.run(cmd, text=True, capture_output=capture_output)
     if check and proc.returncode != 0:
-        detail = (proc.stderr or "").strip() or (proc.stdout or "").strip() or f"command failed: {' '.join(map(str, cmd))}"
+        detail = (
+            (proc.stderr or "").strip()
+            or (proc.stdout or "").strip()
+            or f"command failed: {' '.join(map(str, cmd))}"
+        )
         _die(detail, EXIT_RUNTIME)
     return proc
 
 
-def _ssh_run(args: argparse.Namespace, remote_cmd: str, *, capture_output: bool = False, check: bool = True) -> subprocess.CompletedProcess[str]:
+def _ssh_run(
+    args: argparse.Namespace,
+    remote_cmd: str,
+    *,
+    capture_output: bool = False,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
     if not getattr(args, "target", None):
         _die("--target is required or run_id must exist in local registry", EXIT_INPUT)
-    cmd = _ssh_base_args(args) + [_remote_spec(args.target, getattr(args, "user", None)), remote_cmd]
+    cmd = _ssh_base_args(args) + [
+        _remote_spec(args.target, getattr(args, "user", None)),
+        remote_cmd,
+    ]
     return _run_cmd(cmd, capture_output=capture_output, check=check)
 
 
-def _ssh_bash(args: argparse.Namespace, script: str, *, capture_output: bool = False, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return _ssh_run(args, f"bash -lc {shlex.quote(script)}", capture_output=capture_output, check=check)
+def _ssh_bash(
+    args: argparse.Namespace,
+    script: str,
+    *,
+    capture_output: bool = False,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    return _ssh_run(
+        args,
+        f"bash -lc {shlex.quote(script)}",
+        capture_output=capture_output,
+        check=check,
+    )
 
 
 def _scp_to(args: argparse.Namespace, sources: list[Path], remote_dir: str) -> None:
-    cmd = _scp_base_args(args) + [str(path) for path in sources] + [f"{_remote_spec(args.target, getattr(args, 'user', None))}:{remote_dir}"]
+    cmd = (
+        _scp_base_args(args)
+        + [str(path) for path in sources]
+        + [f"{_remote_spec(args.target, getattr(args, 'user', None))}:{remote_dir}"]
+    )
     _run_cmd(cmd)
 
 
 def _scp_from(args: argparse.Namespace, remote_dir: str, local_parent: Path) -> None:
     _ensure_dir(local_parent)
-    cmd = _scp_base_args(args) + ["-r", f"{_remote_spec(args.target, getattr(args, 'user', None))}:{remote_dir}", str(local_parent)]
+    cmd = _scp_base_args(args) + [
+        "-r",
+        f"{_remote_spec(args.target, getattr(args, 'user', None))}:{remote_dir}",
+        str(local_parent),
+    ]
     _run_cmd(cmd)
 
 
@@ -207,7 +289,9 @@ def _remote_mkdirs(args: argparse.Namespace, *paths: str) -> None:
     wanted = [path for path in paths if path]
     if not wanted:
         _die("no remote paths specified for mkdir", EXIT_INPUT)
-    script = "set -e; " + " && ".join(f"mkdir -p -- {shlex.quote(path)}" for path in wanted)
+    script = "set -e; " + " && ".join(
+        f"mkdir -p -- {shlex.quote(path)}" for path in wanted
+    )
     _ssh_bash(args, script)
 
 
@@ -226,7 +310,9 @@ def _load_registry(run_id: str) -> dict[str, Any]:
     return _read_json(path)
 
 
-def _context_from_registry_or_args(args: argparse.Namespace, run_id: str) -> dict[str, Any]:
+def _context_from_registry_or_args(
+    args: argparse.Namespace, run_id: str
+) -> dict[str, Any]:
     if getattr(args, "target", None):
         remote_root = args.remote_root or DEFAULT_REMOTE_ROOT
         return {
@@ -244,7 +330,9 @@ def _context_from_registry_or_args(args: argparse.Namespace, run_id: str) -> dic
     return data
 
 
-def _ssh_args_from_ctx(args: argparse.Namespace, ctx: dict[str, Any]) -> argparse.Namespace:
+def _ssh_args_from_ctx(
+    args: argparse.Namespace, ctx: dict[str, Any]
+) -> argparse.Namespace:
     return argparse.Namespace(
         target=ctx.get("target"),
         user=ctx.get("user"),
@@ -260,11 +348,18 @@ def _ssh_args_from_ctx(args: argparse.Namespace, ctx: dict[str, Any]) -> argpars
 
 
 def _read_remote_text(ssh_args: argparse.Namespace, remote_path: str) -> str:
-    proc = _ssh_bash(ssh_args, f"if [ -f {shlex.quote(remote_path)} ]; then cat {shlex.quote(remote_path)}; fi", capture_output=True, check=True)
+    proc = _ssh_bash(
+        ssh_args,
+        f"if [ -f {shlex.quote(remote_path)} ]; then cat {shlex.quote(remote_path)}; fi",
+        capture_output=True,
+        check=True,
+    )
     return proc.stdout
 
 
-def _read_remote_json(ssh_args: argparse.Namespace, remote_path: str) -> dict[str, Any] | None:
+def _read_remote_json(
+    ssh_args: argparse.Namespace, remote_path: str
+) -> dict[str, Any] | None:
     text = _read_remote_text(ssh_args, remote_path).strip()
     if not text:
         return None
@@ -287,11 +382,18 @@ def _read_remote_launch_hint(ssh_args: argparse.Namespace, remote_run_dir: str) 
 def _remote_pid_alive(ssh_args: argparse.Namespace, pid: int | str | None) -> bool:
     if not pid:
         return False
-    proc = _ssh_bash(ssh_args, f"kill -0 {shlex.quote(str(pid))} >/dev/null 2>&1", capture_output=True, check=False)
+    proc = _ssh_bash(
+        ssh_args,
+        f"kill -0 {shlex.quote(str(pid))} >/dev/null 2>&1",
+        capture_output=True,
+        check=False,
+    )
     return proc.returncode == 0
 
 
-def _build_manifest(args: argparse.Namespace, notebook: Path, ctx: dict[str, Any]) -> dict[str, Any]:
+def _build_manifest(
+    args: argparse.Namespace, notebook: Path, ctx: dict[str, Any]
+) -> dict[str, Any]:
     return {
         "run_id": ctx["run_id"],
         "target": ctx["target"],
@@ -310,33 +412,37 @@ def _build_manifest(args: argparse.Namespace, notebook: Path, ctx: dict[str, Any
 
 
 def _build_submit_state(notebook: Path, run_id: str, target: str) -> dict[str, Any]:
-    return _normalize_state({
-        "run_id": run_id,
-        "status": "submitted",
-        "host": target,
-        "pid": None,
-        "submitted_at": _now_iso(),
-        "started_at": None,
-        "updated_at": _now_iso(),
-        "last_heartbeat_at": None,
-        "heartbeat_interval_sec": None,
-        "finished_at": None,
-        "notebook": notebook.name,
-        "input_notebook": f"input/{notebook.name}",
-        "output_notebook": f"work/{notebook.stem}.out.ipynb",
-        "stdout_log": "work/stdout.log",
-        "stderr_log": "work/stderr.log",
-        "returncode": None,
-        "message": "submitted",
-        "phase": "queued",
-    })
+    return _normalize_state(
+        {
+            "run_id": run_id,
+            "status": "submitted",
+            "host": target,
+            "pid": None,
+            "submitted_at": _now_iso(),
+            "started_at": None,
+            "updated_at": _now_iso(),
+            "last_heartbeat_at": None,
+            "heartbeat_interval_sec": None,
+            "finished_at": None,
+            "notebook": notebook.name,
+            "input_notebook": f"input/{notebook.name}",
+            "output_notebook": f"work/{notebook.stem}.out.ipynb",
+            "stdout_log": "work/stdout.log",
+            "stderr_log": "work/stderr.log",
+            "returncode": None,
+            "message": "submitted",
+            "phase": "queued",
+        }
+    )
 
 
 def _local_run_dir(run_id: str) -> Path:
     return DEFAULT_LOCAL_ROOT / run_id
 
 
-def _stage_submit_bundle(notebook: Path, manifest: dict[str, Any], state: dict[str, Any]) -> Path:
+def _stage_submit_bundle(
+    notebook: Path, manifest: dict[str, Any], state: dict[str, Any]
+) -> Path:
     run_root = _local_run_dir(manifest["run_id"])
     input_dir = run_root / "input"
     work_dir = run_root / "work"
@@ -354,7 +460,9 @@ def _stage_submit_bundle(notebook: Path, manifest: dict[str, Any], state: dict[s
     return run_root
 
 
-def _status_payload(ssh_args: argparse.Namespace, ctx: dict[str, Any]) -> dict[str, Any]:
+def _status_payload(
+    ssh_args: argparse.Namespace, ctx: dict[str, Any]
+) -> dict[str, Any]:
     remote_run_dir = ctx["remote_run_dir"]
     summary = _read_remote_json(ssh_args, f"{remote_run_dir}/summary.json")
     if summary:
@@ -364,15 +472,32 @@ def _status_payload(ssh_args: argparse.Namespace, ctx: dict[str, Any]) -> dict[s
     state = _read_remote_json(ssh_args, f"{remote_run_dir}/state.json")
     if state:
         return _normalize_state(state, remote_run_dir=remote_run_dir)
-    return _normalize_state({"run_id": ctx["run_id"], "status": "missing", "message": "remote state not found"}, remote_run_dir=remote_run_dir)
+    return _normalize_state(
+        {
+            "run_id": ctx["run_id"],
+            "status": "missing",
+            "message": "remote state not found",
+        },
+        remote_run_dir=remote_run_dir,
+    )
 
 
 def _submit(args: argparse.Namespace) -> int:
     notebook = Path(args.notebook).expanduser().resolve()
     if not notebook.exists() or notebook.suffix.lower() != ".ipynb":
-        return _emit_fail(args, "input notebook must exist and end with .ipynb", error="invalid_input", exit_code=EXIT_INPUT)
+        return _emit_fail(
+            args,
+            "input notebook must exist and end with .ipynb",
+            error="invalid_input",
+            exit_code=EXIT_INPUT,
+        )
     if not args.target:
-        return _emit_fail(args, "--target is required for submit", error="invalid_input", exit_code=EXIT_INPUT)
+        return _emit_fail(
+            args,
+            "--target is required for submit",
+            error="invalid_input",
+            exit_code=EXIT_INPUT,
+        )
 
     run_id = _make_run_id(notebook)
     ctx = _context_from_registry_or_args(args, run_id)
@@ -381,7 +506,18 @@ def _submit(args: argparse.Namespace) -> int:
     state = _build_submit_state(notebook, run_id, ctx["target"])
 
     if args.dry_run:
-        return _emit_ok(args, action="submit", run_id=run_id, target=ctx["target"], remote_run_dir=ctx["remote_run_dir"], remote_python=ctx["remote_python"], notebook=str(notebook), wait=bool(args.wait), dry_run=True, artifact_globs=manifest["artifact_globs"])
+        return _emit_ok(
+            args,
+            action="submit",
+            run_id=run_id,
+            target=ctx["target"],
+            remote_run_dir=ctx["remote_run_dir"],
+            remote_python=ctx["remote_python"],
+            notebook=str(notebook),
+            wait=bool(args.wait),
+            dry_run=True,
+            artifact_globs=manifest["artifact_globs"],
+        )
 
     _ensure_dependency("ssh")
     _ensure_dependency("scp")
@@ -389,13 +525,38 @@ def _submit(args: argparse.Namespace) -> int:
     run_root = _stage_submit_bundle(notebook, manifest, state)
     remote_run_dir = ctx["remote_run_dir"]
     remote_input_dir = f"{remote_run_dir}/input"
-    _remote_mkdirs(ssh_args, remote_run_dir, remote_input_dir, f"{remote_run_dir}/work", f"{remote_run_dir}/artifacts")
+    _remote_mkdirs(
+        ssh_args,
+        remote_run_dir,
+        remote_input_dir,
+        f"{remote_run_dir}/work",
+        f"{remote_run_dir}/artifacts",
+    )
     _scp_to(ssh_args, [run_root / "state.json"], remote_run_dir)
-    _scp_to(ssh_args, [run_root / "input" / notebook.name, run_root / "input" / "manifest.json", run_root / "input" / "jrun_worker.py"], remote_input_dir)
+    _scp_to(
+        ssh_args,
+        [
+            run_root / "input" / notebook.name,
+            run_root / "input" / "manifest.json",
+            run_root / "input" / "jrun_worker.py",
+        ],
+        remote_input_dir,
+    )
 
-    preflight = _ssh_bash(ssh_args, f"set -e; cd {shlex.quote(remote_run_dir)}; {ctx['remote_python']} -V >/dev/null 2>&1", check=False)
+    preflight = _ssh_bash(
+        ssh_args,
+        f"set -e; cd {shlex.quote(remote_run_dir)}; {ctx['remote_python']} -V >/dev/null 2>&1",
+        check=False,
+    )
     if preflight.returncode != 0:
-        return _emit_fail(args, f"remote python is not available: {ctx['remote_python']}", error="missing_dependency", exit_code=EXIT_DEP, run_id=run_id, target=ctx["target"])
+        return _emit_fail(
+            args,
+            f"remote python is not available: {ctx['remote_python']}",
+            error="missing_dependency",
+            exit_code=EXIT_DEP,
+            run_id=run_id,
+            target=ctx["target"],
+        )
 
     launch_script = (
         f"set -e; cd {shlex.quote(remote_run_dir)}; "
@@ -407,10 +568,19 @@ def _submit(args: argparse.Namespace) -> int:
     launched = _ssh_bash(ssh_args, launch_script, capture_output=True)
     launcher_pid = (launched.stdout or "").strip()
     _save_registry(ctx)
-    _log(f"submitted run_id={run_id} target={ctx['target']} launcher_pid={launcher_pid or 'unknown'}")
+    _log(
+        f"submitted run_id={run_id} target={ctx['target']} launcher_pid={launcher_pid or 'unknown'}"
+    )
 
     if not args.wait:
-        return _emit_ok(args, action="submit", run_id=run_id, status="submitted", target=ctx["target"], remote_run_dir=ctx["remote_run_dir"])
+        return _emit_ok(
+            args,
+            action="submit",
+            run_id=run_id,
+            status="submitted",
+            target=ctx["target"],
+            remote_run_dir=ctx["remote_run_dir"],
+        )
 
     rc = _watch(args, run_id=run_id, from_submit=True)
     if rc != EXIT_OK:
@@ -422,20 +592,51 @@ def _status(args: argparse.Namespace) -> int:
     ctx = _context_from_registry_or_args(args, args.run_id)
     ssh_args = _ssh_args_from_ctx(args, ctx)
     payload = _status_payload(ssh_args, ctx)
-    launch_hint = _read_remote_launch_hint(ssh_args, ctx["remote_run_dir"]) if payload.get("status") == "submitted" else None
+    launch_hint = (
+        _read_remote_launch_hint(ssh_args, ctx["remote_run_dir"])
+        if payload.get("status") == "submitted"
+        else None
+    )
     if args.json:
-        return _emit_ok(args, action="status", run_id=ctx["run_id"], status=payload.get("status", "unknown"), remote_run_dir=ctx["remote_run_dir"], summary=payload, launch_hint=launch_hint or None)
-    return _emit_ok(args, action="status", run_id=ctx["run_id"], status=payload.get("status", "unknown"), remote_run_dir=ctx["remote_run_dir"])
+        return _emit_ok(
+            args,
+            action="status",
+            run_id=ctx["run_id"],
+            status=payload.get("status", "unknown"),
+            remote_run_dir=ctx["remote_run_dir"],
+            summary=payload,
+            launch_hint=launch_hint or None,
+        )
+    return _emit_ok(
+        args,
+        action="status",
+        run_id=ctx["run_id"],
+        status=payload.get("status", "unknown"),
+        remote_run_dir=ctx["remote_run_dir"],
+    )
 
 
-def _watch(args: argparse.Namespace, *, run_id: str | None = None, from_submit: bool = False) -> int:
+def _watch(
+    args: argparse.Namespace, *, run_id: str | None = None, from_submit: bool = False
+) -> int:
     actual_run_id = run_id or args.run_id
     ctx = _context_from_registry_or_args(args, actual_run_id)
     ssh_args = _ssh_args_from_ctx(args, ctx)
     if args.dry_run and not from_submit:
-        return _emit_ok(args, action="watch", run_id=ctx["run_id"], status="planned", remote_run_dir=ctx["remote_run_dir"], dry_run=True)
+        return _emit_ok(
+            args,
+            action="watch",
+            run_id=ctx["run_id"],
+            status="planned",
+            remote_run_dir=ctx["remote_run_dir"],
+            dry_run=True,
+        )
 
-    deadline = None if args.timeout is None or args.timeout <= 0 else time.time() + args.timeout
+    deadline = (
+        None
+        if args.timeout is None or args.timeout <= 0
+        else time.time() + args.timeout
+    )
     submitted_since = None
     running_since = None
     last_status = None
@@ -451,18 +652,54 @@ def _watch(args: argparse.Namespace, *, run_id: str | None = None, from_submit: 
 
         if status in TERMINAL_STATUSES:
             if status == "succeeded":
-                return _emit_ok(args, action="watch", run_id=ctx["run_id"], status=status, remote_run_dir=ctx["remote_run_dir"])
-            return _emit_fail(args, str(payload.get("message") or f"remote status={status}"), error="remote_failed", exit_code=EXIT_RUNTIME, run_id=ctx["run_id"], status=status)
+                return _emit_ok(
+                    args,
+                    action="watch",
+                    run_id=ctx["run_id"],
+                    status=status,
+                    remote_run_dir=ctx["remote_run_dir"],
+                )
+            return _emit_fail(
+                args,
+                str(payload.get("message") or f"remote status={status}"),
+                error="remote_failed",
+                exit_code=EXIT_RUNTIME,
+                run_id=ctx["run_id"],
+                status=status,
+            )
 
         if status == "submitted":
             submitted_since = submitted_since or now
             if now - submitted_since >= max(1, int(args.bootstrap_timeout)):
                 launch_hint = _read_remote_launch_hint(ssh_args, ctx["remote_run_dir"])
                 if not launch_hint:
-                    return _emit_fail(args, "remote worker did not bootstrap; launch.log is still missing", error="remote_bootstrap_failed", exit_code=EXIT_RUNTIME, run_id=ctx["run_id"], status=status)
+                    return _emit_fail(
+                        args,
+                        "remote worker did not bootstrap; launch.log is still missing",
+                        error="remote_bootstrap_failed",
+                        exit_code=EXIT_RUNTIME,
+                        run_id=ctx["run_id"],
+                        status=status,
+                    )
                 lower = launch_hint.lower()
-                if any(token in lower for token in ("no such file", "not found", "traceback", "permission denied", "command not found")):
-                    return _emit_fail(args, f"remote worker bootstrap failed; launch.log tail:\n{launch_hint}", error="remote_bootstrap_failed", exit_code=EXIT_RUNTIME, run_id=ctx["run_id"], status=status)
+                if any(
+                    token in lower
+                    for token in (
+                        "no such file",
+                        "not found",
+                        "traceback",
+                        "permission denied",
+                        "command not found",
+                    )
+                ):
+                    return _emit_fail(
+                        args,
+                        f"remote worker bootstrap failed; launch.log tail:\n{launch_hint}",
+                        error="remote_bootstrap_failed",
+                        exit_code=EXIT_RUNTIME,
+                        run_id=ctx["run_id"],
+                        status=status,
+                    )
         else:
             submitted_since = None
 
@@ -481,37 +718,88 @@ def _watch(args: argparse.Namespace, *, run_id: str | None = None, from_submit: 
                 pid_alive = _remote_pid_alive(ssh_args, payload.get("pid"))
                 if not pid_alive:
                     hint = _read_remote_launch_hint(ssh_args, ctx["remote_run_dir"])
-                    return _emit_fail(args, f"remote worker stopped sending heartbeats and pid is not alive; launch.log tail:\n{hint}" if hint else "remote worker stopped sending heartbeats and pid is not alive", error="heartbeat_timeout", exit_code=EXIT_RUNTIME, run_id=ctx["run_id"], status=status)
+                    return _emit_fail(
+                        args,
+                        f"remote worker stopped sending heartbeats and pid is not alive; launch.log tail:\n{hint}"
+                        if hint
+                        else "remote worker stopped sending heartbeats and pid is not alive",
+                        error="heartbeat_timeout",
+                        exit_code=EXIT_RUNTIME,
+                        run_id=ctx["run_id"],
+                        status=status,
+                    )
         else:
             running_since = None
 
         if deadline is not None and now >= deadline:
             hint = _read_remote_launch_hint(ssh_args, ctx["remote_run_dir"])
-            message = f"watch timed out; launch.log tail:\n{hint}" if hint else "watch timed out"
-            return _emit_fail(args, message, error="timeout", exit_code=EXIT_RUNTIME, run_id=ctx["run_id"])
+            message = (
+                f"watch timed out; launch.log tail:\n{hint}"
+                if hint
+                else "watch timed out"
+            )
+            return _emit_fail(
+                args,
+                message,
+                error="timeout",
+                exit_code=EXIT_RUNTIME,
+                run_id=ctx["run_id"],
+            )
         time.sleep(max(1, int(args.interval)))
 
 
-def _fetch(args: argparse.Namespace, *, run_id: str | None = None, from_submit: bool = False) -> int:
+def _fetch(
+    args: argparse.Namespace, *, run_id: str | None = None, from_submit: bool = False
+) -> int:
     actual_run_id = run_id or args.run_id
     ctx = _context_from_registry_or_args(args, actual_run_id)
     ssh_args = _ssh_args_from_ctx(args, ctx)
-    base = Path(args.output_dir).expanduser().resolve() if args.output_dir else DEFAULT_LOCAL_ROOT.resolve()
+    base = (
+        Path(args.output_dir).expanduser().resolve()
+        if args.output_dir
+        else DEFAULT_LOCAL_ROOT.resolve()
+    )
     local_parent = base if base.name != ctx["run_id"] else base.parent
     fetched_to = local_parent / ctx["run_id"]
     if args.dry_run and not from_submit:
-        return _emit_ok(args, action="fetch", run_id=ctx["run_id"], remote_run_dir=ctx["remote_run_dir"], fetched_to=str(fetched_to), dry_run=True)
+        return _emit_ok(
+            args,
+            action="fetch",
+            run_id=ctx["run_id"],
+            remote_run_dir=ctx["remote_run_dir"],
+            fetched_to=str(fetched_to),
+            dry_run=True,
+        )
     _ensure_dependency("scp")
     _scp_from(ssh_args, ctx["remote_run_dir"], local_parent)
-    return _emit_ok(args, action="fetch", run_id=ctx["run_id"], fetched_to=str(fetched_to), remote_run_dir=ctx["remote_run_dir"])
+    return _emit_ok(
+        args,
+        action="fetch",
+        run_id=ctx["run_id"],
+        fetched_to=str(fetched_to),
+        remote_run_dir=ctx["remote_run_dir"],
+    )
 
 
 def _add_common_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--json", action="store_true", help="Print minimal JSON to stdout")
-    parser.add_argument("--dry-run", action="store_true", help="Show planned side effects without executing them")
+    parser.add_argument(
+        "--json", action="store_true", help="Print minimal JSON to stdout"
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show planned side effects without executing them",
+    )
     group = parser.add_mutually_exclusive_group()
-    group.add_argument("--quiet", action="store_true", help="Suppress non-error stderr logs")
-    group.add_argument("--verbose", action="count", default=0, help="Increase stderr log detail; repeat for more detail")
+    group.add_argument(
+        "--quiet", action="store_true", help="Suppress non-error stderr logs"
+    )
+    group.add_argument(
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase stderr log detail; repeat for more detail",
+    )
 
 
 def _add_ssh_args(parser: argparse.ArgumentParser) -> None:
@@ -519,42 +807,119 @@ def _add_ssh_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--user", help="Remote SSH user")
     parser.add_argument("--port", type=int, help="Remote SSH port")
     parser.add_argument("--identity", help="SSH private key path")
-    parser.add_argument("--remote-root", default=None, help="Remote root directory for run folders")
-    parser.add_argument("--remote-python", default=None, help=f"Remote Python used to launch the worker; default: {DEFAULT_REMOTE_PYTHON}")
+    parser.add_argument(
+        "--remote-root", default=None, help="Remote root directory for run folders"
+    )
+    parser.add_argument(
+        "--remote-python",
+        default=None,
+        help=f"Remote Python used to launch the worker; default: {DEFAULT_REMOTE_PYTHON}",
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="jrun.py", description="Run notebooks on a remote host via SSH with polling.")
+    parser = argparse.ArgumentParser(
+        prog="jrun.py",
+        description="Run notebooks on a remote host via SSH with polling.",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    submit = sub.add_parser("submit", prog="jrun.py submit", help="Upload a notebook and start a remote run")
+    submit = sub.add_parser(
+        "submit", prog="jrun.py submit", help="Upload a notebook and start a remote run"
+    )
     _add_common_args(submit)
     submit.add_argument("notebook", help="Local .ipynb file")
     _add_ssh_args(submit)
-    submit.add_argument("--wait", action=argparse.BooleanOptionalAction, default=False, help="Wait for completion and fetch artifacts")
-    submit.add_argument("--interval", type=int, default=DEFAULT_INTERVAL, help="Polling interval in seconds when waiting")
-    submit.add_argument("--timeout", type=int, default=0, help="Overall max seconds for local watch mode when --wait is enabled; 0 disables")
-    submit.add_argument("--bootstrap-timeout", type=int, default=DEFAULT_BOOTSTRAP_TIMEOUT, help="Max seconds to wait for worker bootstrap")
-    submit.add_argument("--heartbeat-timeout", type=int, default=DEFAULT_HEARTBEAT_TIMEOUT, help="Max seconds without heartbeat while running")
-    submit.add_argument("--execute-timeout", type=int, default=-1, help="Remote ExecutePreprocessor timeout; -1 disables per-cell timeout")
-    submit.add_argument("--output-dir", help="Local destination root used when --wait fetches artifacts")
-    submit.add_argument("--artifact-glob", action="append", default=[], help="Extra remote glob to copy into artifacts/ after execution; repeatable")
+    submit.add_argument(
+        "--wait",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Wait for completion and fetch artifacts",
+    )
+    submit.add_argument(
+        "--interval",
+        type=int,
+        default=DEFAULT_INTERVAL,
+        help="Polling interval in seconds when waiting",
+    )
+    submit.add_argument(
+        "--timeout",
+        type=int,
+        default=0,
+        help="Overall max seconds for local watch mode when --wait is enabled; 0 disables",
+    )
+    submit.add_argument(
+        "--bootstrap-timeout",
+        type=int,
+        default=DEFAULT_BOOTSTRAP_TIMEOUT,
+        help="Max seconds to wait for worker bootstrap",
+    )
+    submit.add_argument(
+        "--heartbeat-timeout",
+        type=int,
+        default=DEFAULT_HEARTBEAT_TIMEOUT,
+        help="Max seconds without heartbeat while running",
+    )
+    submit.add_argument(
+        "--execute-timeout",
+        type=int,
+        default=-1,
+        help="Remote ExecutePreprocessor timeout; -1 disables per-cell timeout",
+    )
+    submit.add_argument(
+        "--output-dir", help="Local destination root used when --wait fetches artifacts"
+    )
+    submit.add_argument(
+        "--artifact-glob",
+        action="append",
+        default=[],
+        help="Extra remote glob to copy into artifacts/ after execution; repeatable",
+    )
 
-    status = sub.add_parser("status", prog="jrun.py status", help="Read state.json or summary.json for a run")
+    status = sub.add_parser(
+        "status",
+        prog="jrun.py status",
+        help="Read state.json or summary.json for a run",
+    )
     _add_common_args(status)
     status.add_argument("run_id", help="Run id returned by submit")
     _add_ssh_args(status)
 
-    watch = sub.add_parser("watch", prog="jrun.py watch", help="Poll a run until it reaches a terminal state")
+    watch = sub.add_parser(
+        "watch",
+        prog="jrun.py watch",
+        help="Poll a run until it reaches a terminal state",
+    )
     _add_common_args(watch)
     watch.add_argument("run_id", help="Run id returned by submit")
     _add_ssh_args(watch)
-    watch.add_argument("--interval", type=int, default=DEFAULT_INTERVAL, help="Polling interval in seconds")
-    watch.add_argument("--bootstrap-timeout", type=int, default=DEFAULT_BOOTSTRAP_TIMEOUT, help="Max seconds to wait for worker bootstrap")
-    watch.add_argument("--heartbeat-timeout", type=int, default=DEFAULT_HEARTBEAT_TIMEOUT, help="Max seconds without heartbeat while running")
-    watch.add_argument("--timeout", type=int, default=0, help="Overall max seconds to wait; 0 disables")
+    watch.add_argument(
+        "--interval",
+        type=int,
+        default=DEFAULT_INTERVAL,
+        help="Polling interval in seconds",
+    )
+    watch.add_argument(
+        "--bootstrap-timeout",
+        type=int,
+        default=DEFAULT_BOOTSTRAP_TIMEOUT,
+        help="Max seconds to wait for worker bootstrap",
+    )
+    watch.add_argument(
+        "--heartbeat-timeout",
+        type=int,
+        default=DEFAULT_HEARTBEAT_TIMEOUT,
+        help="Max seconds without heartbeat while running",
+    )
+    watch.add_argument(
+        "--timeout", type=int, default=0, help="Overall max seconds to wait; 0 disables"
+    )
 
-    fetch = sub.add_parser("fetch", prog="jrun.py fetch", help="Copy a remote run directory to local output")
+    fetch = sub.add_parser(
+        "fetch",
+        prog="jrun.py fetch",
+        help="Copy a remote run directory to local output",
+    )
     _add_common_args(fetch)
     fetch.add_argument("run_id", help="Run id returned by submit")
     _add_ssh_args(fetch)
@@ -587,14 +952,27 @@ def main(argv: list[str]) -> int:
             return _watch(args)
         if args.command == "fetch":
             return _fetch(args)
-        return _emit_fail(args, f"unsupported command: {args.command}", error="invalid_input", exit_code=EXIT_INPUT)
+        return _emit_fail(
+            args,
+            f"unsupported command: {args.command}",
+            error="invalid_input",
+            exit_code=EXIT_INPUT,
+        )
     except SystemExit as exc:
-        if len(exc.args) == 2 and isinstance(exc.args[0], str) and isinstance(exc.args[1], int):
+        if (
+            len(exc.args) == 2
+            and isinstance(exc.args[0], str)
+            and isinstance(exc.args[1], int)
+        ):
             message, exit_code = exc.args
-            return _emit_fail(args, message, error=_error_name(exit_code), exit_code=exit_code)
+            return _emit_fail(
+                args, message, error=_error_name(exit_code), exit_code=exit_code
+            )
         raise
     except KeyboardInterrupt:
-        return _emit_fail(args, "interrupted", error="interrupted", exit_code=EXIT_RUNTIME)
+        return _emit_fail(
+            args, "interrupted", error="interrupted", exit_code=EXIT_RUNTIME
+        )
 
 
 if __name__ == "__main__":
