@@ -124,6 +124,37 @@ class AgentWorker:
         self._mock_client: MockLiteLLMClient | None = None
 
     def run(self) -> WorkerResult:
+        from src.worker import telemetry as _otel
+        # Only tag spans with a job_id when we know that row exists in the DB
+        # (otherwise the Supabase exporter trips on the agent_jobs FK).
+        tracer_job_id = self.job_id if self.db_url else None
+        tracer = _otel.build_tracer(job_id=tracer_job_id)
+        if tracer.is_enabled():
+            job_span = _otel.start_job_span(tracer, self.job_id, self.prompt)
+            try:
+                if self.db_url and self.job_id:
+                    self._safe_set_job_trace(tracer.trace_id, job_span.span_id)
+            except Exception:
+                pass
+        else:
+            job_span = None
+        try:
+            return self._run_inner(tracer)
+        finally:
+            if job_span is not None:
+                job_span.end()
+
+    def _safe_set_job_trace(self, trace_id: str, root_span_id: str) -> None:
+        try:
+            import sys as _sys
+            _sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
+            import db as _db
+            _db.set_job_trace(self.job_id, trace_id, root_span_id)
+        except Exception:
+            pass
+
+    def _run_inner(self, tracer) -> WorkerResult:
+        from src.worker import telemetry as _otel
         if self._mock_client is not None:
             client = self._mock_client
         elif self.dry_run:
@@ -157,27 +188,38 @@ class AgentWorker:
 
             # 2. LiteLLM call (OpenAI format for all providers)
             extra: dict = {} if self.policy.min_p is None else {"min_p": self.policy.min_p}
-            if client is not None:
-                response = client.completion(
-                    model=self.policy.model,
-                    max_tokens=8192,
-                    tools=TOOL_SCHEMAS,
-                    messages=messages,
-                    temperature=self.policy.temperature,
-                    top_p=self.policy.top_p,
-                    **extra,
-                )
-            else:
-                import litellm
-                response = litellm.completion(
-                    model=self.policy.model,
-                    max_tokens=8192,
-                    tools=TOOL_SCHEMAS,
-                    messages=messages,
-                    temperature=self.policy.temperature,
-                    top_p=self.policy.top_p,
-                    **extra,
-                )
+            with _otel.with_turn_span(tracer, budget.turns + 1) as _turn_span:
+                if client is not None:
+                    response = client.completion(
+                        model=self.policy.model,
+                        max_tokens=8192,
+                        tools=TOOL_SCHEMAS,
+                        messages=messages,
+                        temperature=self.policy.temperature,
+                        top_p=self.policy.top_p,
+                        **extra,
+                    )
+                else:
+                    import litellm
+                    response = litellm.completion(
+                        model=self.policy.model,
+                        max_tokens=8192,
+                        tools=TOOL_SCHEMAS,
+                        messages=messages,
+                        temperature=self.policy.temperature,
+                        top_p=self.policy.top_p,
+                        **extra,
+                    )
+                if _turn_span is not None:
+                    _turn_span.set_attribute("model", self.policy.model)
+                    usage = getattr(response, "usage", None)
+                    if usage is not None:
+                        _turn_span.set_attribute(
+                            "prompt_tokens", getattr(usage, "prompt_tokens", 0),
+                        )
+                        _turn_span.set_attribute(
+                            "completion_tokens", getattr(usage, "completion_tokens", 0),
+                        )
 
             # 3. Record turn cost
             budget.record_turn(response)
@@ -231,7 +273,8 @@ class AgentWorker:
                         event_data={"tool": tc.function.name, "input": tool_input},
                     )
                     try:
-                        result_content = executor.execute(tc.function.name, tool_input)
+                        with _otel.with_tool_span(tracer, tc.function.name, tool_input):
+                            result_content = executor.execute(tc.function.name, tool_input)
                     except ApprovalRequired as exc:
                         # One-shot resume allowance: bypass the matching gate
                         # exactly once after `kca decisions approve`.
@@ -287,7 +330,42 @@ class AgentWorker:
     def _handle_approval_required(
         self, exc: ApprovalRequired, budget: BudgetTracker, start: float
     ) -> WorkerResult:
-        """Pause the job and record a decision request."""
+        """Pause the job and record a decision request.
+
+        M6: when the gating operation is one of KCA_REVIEWER_TRIGGER_OPS,
+        first consult the sync reviewer. Reviewer.approve auto-resumes,
+        reviewer.reject either escalates to humans (default) or fails the
+        job (when KCA_REVIEWER_ESCALATE_REJECT=0), and reviewer.abstain
+        falls through to the existing human-decisions path.
+        """
+        # ------------------------------------------------------------------
+        # M6 reviewer pre-check
+        # ------------------------------------------------------------------
+        reviewer_outcome = self._maybe_consult_reviewer(exc, budget)
+        if reviewer_outcome == "approve":
+            # Re-execute the gated tool with one-shot bypass.
+            return WorkerResult(
+                status="reviewer_approved",
+                turns_used=budget.turns,
+                cost_usd=budget.cost_usd,
+                duration_s=time.monotonic() - start,
+                final_message="reviewer approved",
+                stop_reason="reviewer_approve",
+            )
+        if reviewer_outcome == "reject_fail":
+            self._update_status(
+                "failed", error="reviewer rejected high-stakes operation", budget=budget,
+            )
+            return WorkerResult(
+                status="failed",
+                turns_used=budget.turns,
+                cost_usd=budget.cost_usd,
+                duration_s=time.monotonic() - start,
+                final_message="",
+                stop_reason="reviewer_reject",
+            )
+        # reviewer_outcome in {None, "reject_escalate", "abstain"} — fall
+        # through to human-decisions flow.
         decision_id = None
         if self.db_url:
             try:
@@ -394,6 +472,112 @@ class AgentWorker:
             },
         )
         return worker
+
+    def _maybe_consult_reviewer(
+        self, exc: ApprovalRequired, budget: BudgetTracker
+    ) -> str | None:
+        """Run the sync reviewer for trigger ops; return outcome tag.
+
+        Returns one of:
+          None             — reviewer not consulted (op not in trigger set or
+                              already reviewed)
+          "approve"        — reviewer approved; caller resumes the tool
+          "reject_fail"    — reviewer rejected and ESCALATE_REJECT=0
+          "reject_escalate"— reviewer rejected, caller should page humans
+          "abstain"        — reviewer abstained, caller should page humans
+        """
+        from src.worker.reviewer import (
+            Reviewer, ReviewRequest, should_consult_reviewer, escalate_reject,
+        )
+
+        target_op = exc.tool_name
+        if not should_consult_reviewer(target_op):
+            return None
+        if not self.db_url:
+            # No DB → no event trail and no place to record the verdict.
+            # The dry-run worker still records the reviewer span via OTEL when
+            # T005 wires it up; for now just skip silently.
+            return None
+        try:
+            import sys as _sys
+            _sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
+            import db as _db
+            # Skip if reviewer already ran for (job_id, target_op).
+            try:
+                existing = _db.find_review_for_op(self.job_id, target_op)
+            except Exception:
+                existing = None
+            if existing is not None:
+                return None
+            events = []
+            try:
+                events = _db.list_job_events(self.job_id)
+            except Exception:
+                events = []
+            req = ReviewRequest(
+                job_id=self.job_id,
+                target_op=target_op,
+                tool_name=exc.tool_name,
+                tool_input=exc.tool_input,
+                final_message=None,
+                event_trail=events,
+            )
+            reviewer = Reviewer(dry_run=self.dry_run)
+            verdict = reviewer.review(req)
+            try:
+                _db.create_review(
+                    job_id=self.job_id,
+                    reviewer_model=verdict.reviewer_model,
+                    verdict=verdict.verdict,
+                    target_op=target_op,
+                    rationale=verdict.rationale,
+                    evidence=verdict.evidence,
+                    cost_usd=verdict.cost_usd,
+                )
+            except Exception:
+                pass
+            if verdict.verdict == "approve":
+                self._append_event(
+                    "approval_resume", budget.turns,
+                    event_data={
+                        "source": "reviewer",
+                        "verdict": "approve",
+                        "target_op": target_op,
+                        "rationale": verdict.rationale[:200],
+                    },
+                )
+                return "approve"
+            if verdict.verdict == "reject":
+                if escalate_reject():
+                    self._append_event(
+                        "reviewer_reject", budget.turns,
+                        event_data={
+                            "target_op": target_op,
+                            "rationale": verdict.rationale[:200],
+                            "escalated": True,
+                        },
+                    )
+                    return "reject_escalate"
+                self._append_event(
+                    "reviewer_reject", budget.turns,
+                    event_data={
+                        "target_op": target_op,
+                        "rationale": verdict.rationale[:200],
+                        "escalated": False,
+                    },
+                )
+                return "reject_fail"
+            # abstain → fall through
+            self._append_event(
+                "reviewer_abstain", budget.turns,
+                event_data={
+                    "target_op": target_op,
+                    "rationale": verdict.rationale[:200],
+                },
+            )
+            return "abstain"
+        except Exception:
+            return None
 
     def _append_event(
         self, event_type: str, turn_number: int, *,

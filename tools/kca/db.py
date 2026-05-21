@@ -89,6 +89,14 @@ __all__ = [
     "attach_artifact",
     "cite_research",
     "list_citations",
+    # M6 reviews + telemetry (0006 schema)
+    "create_review",
+    "get_review",
+    "list_reviews",
+    "find_review_for_op",
+    "record_span",
+    "list_spans",
+    "set_job_trace",
 ]
 
 
@@ -1486,6 +1494,333 @@ def _list_citations(
         cur.execute(query, params)
         rows = cur.fetchall()
     return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# M6: reviews + telemetry (schema in 0006)
+# ---------------------------------------------------------------------------
+
+_VALID_VERDICTS = {"approve", "reject", "abstain"}
+
+
+def create_review(
+    *,
+    job_id: str,
+    reviewer_model: str,
+    verdict: str,
+    reviewer_kind: str = "sync",
+    target_op: str | None = None,
+    rationale: str | None = None,
+    evidence: dict | None = None,
+    run_id: str | None = None,
+    cost_usd: float = 0.0,
+    decision_id: str | None = None,
+    otel_span_id: str | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> str:
+    """Insert a row into agent_reviews. Returns the new review id."""
+    if verdict not in _VALID_VERDICTS:
+        raise ValueError(
+            f"verdict must be one of {sorted(_VALID_VERDICTS)}, got {verdict!r}"
+        )
+    return _with_conn(
+        conn,
+        _create_review,
+        job_id,
+        reviewer_model,
+        verdict,
+        reviewer_kind,
+        target_op,
+        rationale,
+        evidence or {},
+        run_id,
+        float(cost_usd),
+        decision_id,
+        otel_span_id,
+    )
+
+
+def _create_review(
+    conn: "psycopg.Connection",
+    job_id: str,
+    reviewer_model: str,
+    verdict: str,
+    reviewer_kind: str,
+    target_op: str | None,
+    rationale: str | None,
+    evidence: dict,
+    run_id: str | None,
+    cost_usd: float,
+    decision_id: str | None,
+    otel_span_id: str | None,
+) -> str:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO agent_reviews
+              (job_id, run_id, reviewer_model, reviewer_kind, target_op,
+               verdict, rationale, evidence, cost_usd, decision_id, otel_span_id)
+            VALUES
+              (%s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s::jsonb, %s, %s::uuid, %s)
+            RETURNING id::text
+            """,
+            (
+                job_id,
+                run_id,
+                reviewer_model,
+                reviewer_kind,
+                target_op,
+                verdict,
+                rationale,
+                json.dumps(evidence),
+                cost_usd,
+                decision_id,
+                otel_span_id,
+            ),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    assert row is not None
+    return row["id"]
+
+
+def get_review(
+    review_id: str,
+    conn: "psycopg.Connection | None" = None,
+) -> dict:
+    """Fetch one agent_reviews row. Raises KeyError if not found."""
+    return _with_conn(conn, _get_review, review_id)
+
+
+def _get_review(conn: "psycopg.Connection", review_id: str) -> dict:
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM agent_reviews WHERE id = %s::uuid", (review_id,))
+        row = cur.fetchone()
+    if row is None:
+        raise KeyError(f"agent_reviews row not found: {review_id}")
+    return dict(row)
+
+
+def list_reviews(
+    job_id: str | None = None,
+    verdict: str | None = None,
+    limit: int = 50,
+    conn: "psycopg.Connection | None" = None,
+) -> list[dict]:
+    """List agent_reviews rows, newest first."""
+    return _with_conn(conn, _list_reviews, job_id, verdict, limit)
+
+
+def _list_reviews(
+    conn: "psycopg.Connection",
+    job_id: str | None,
+    verdict: str | None,
+    limit: int,
+) -> list[dict]:
+    clauses: list[str] = []
+    params: list[Any] = []
+    if job_id is not None:
+        clauses.append("job_id = %s::uuid")
+        params.append(job_id)
+    if verdict is not None:
+        clauses.append("verdict = %s")
+        params.append(verdict)
+    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+    params.append(limit)
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT * FROM agent_reviews {where} ORDER BY created_at DESC LIMIT %s",
+            params,
+        )
+        rows = cur.fetchall()
+    return [dict(r) for r in rows]
+
+
+def find_review_for_op(
+    job_id: str,
+    target_op: str,
+    conn: "psycopg.Connection | None" = None,
+) -> dict | None:
+    """Return the newest review row for (job_id, target_op), or None."""
+    return _with_conn(conn, _find_review_for_op, job_id, target_op)
+
+
+def _find_review_for_op(
+    conn: "psycopg.Connection",
+    job_id: str,
+    target_op: str,
+) -> dict | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT * FROM agent_reviews
+             WHERE job_id = %s::uuid AND target_op = %s
+             ORDER BY created_at DESC
+             LIMIT 1
+            """,
+            (job_id, target_op),
+        )
+        row = cur.fetchone()
+    return dict(row) if row else None
+
+
+def record_span(
+    *,
+    trace_id: str,
+    span_id: str,
+    parent_span_id: str | None = None,
+    job_id: str | None = None,
+    kind: str,
+    name: str,
+    started_at,
+    ended_at=None,
+    duration_ms: int | None = None,
+    attributes: dict | None = None,
+    status: str = "ok",
+    error: str | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> int:
+    """Insert one agent_telemetry_spans row. Best-effort: never raises.
+
+    Returns the new span row id, or -1 if the DB is unreachable.
+    """
+    try:
+        return _with_conn(
+            conn,
+            _record_span,
+            trace_id,
+            span_id,
+            parent_span_id,
+            job_id,
+            kind,
+            name,
+            started_at,
+            ended_at,
+            duration_ms,
+            attributes or {},
+            status,
+            error,
+        )
+    except Exception as exc:  # pragma: no cover - best-effort exporter
+        import sys
+        print(f"[record_span] DB unavailable: {exc}", file=sys.stderr)
+        return -1
+
+
+def _record_span(
+    conn: "psycopg.Connection",
+    trace_id: str,
+    span_id: str,
+    parent_span_id: str | None,
+    job_id: str | None,
+    kind: str,
+    name: str,
+    started_at,
+    ended_at,
+    duration_ms: int | None,
+    attributes: dict,
+    status: str,
+    error: str | None,
+) -> int:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO agent_telemetry_spans
+              (trace_id, span_id, parent_span_id, job_id, kind, name,
+               started_at, ended_at, duration_ms, attributes, status, error)
+            VALUES
+              (%s, %s, %s, %s::uuid, %s, %s, %s, %s, %s, %s::jsonb, %s, %s)
+            RETURNING id
+            """,
+            (
+                trace_id,
+                span_id,
+                parent_span_id,
+                job_id,
+                kind,
+                name,
+                started_at,
+                ended_at,
+                duration_ms,
+                json.dumps(attributes),
+                status,
+                error,
+            ),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    assert row is not None
+    return row["id"]
+
+
+def list_spans(
+    trace_id: str | None = None,
+    job_id: str | None = None,
+    kind: str | None = None,
+    limit: int = 200,
+    conn: "psycopg.Connection | None" = None,
+) -> list[dict]:
+    """List agent_telemetry_spans rows."""
+    return _with_conn(conn, _list_spans, trace_id, job_id, kind, limit)
+
+
+def _list_spans(
+    conn: "psycopg.Connection",
+    trace_id: str | None,
+    job_id: str | None,
+    kind: str | None,
+    limit: int,
+) -> list[dict]:
+    clauses: list[str] = []
+    params: list[Any] = []
+    if trace_id is not None:
+        clauses.append("trace_id = %s")
+        params.append(trace_id)
+    if job_id is not None:
+        clauses.append("job_id = %s::uuid")
+        params.append(job_id)
+    if kind is not None:
+        clauses.append("kind = %s")
+        params.append(kind)
+    where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+    params.append(limit)
+    with conn.cursor() as cur:
+        cur.execute(
+            f"SELECT * FROM agent_telemetry_spans {where} "
+            f"ORDER BY started_at DESC LIMIT %s",
+            params,
+        )
+        rows = cur.fetchall()
+    return [dict(r) for r in rows]
+
+
+def set_job_trace(
+    job_id: str,
+    trace_id: str,
+    root_span_id: str,
+    conn: "psycopg.Connection | None" = None,
+) -> None:
+    """Set agent_jobs.otel_trace_id and otel_root_span_id."""
+    _with_conn(conn, _set_job_trace, job_id, trace_id, root_span_id)
+
+
+def _set_job_trace(
+    conn: "psycopg.Connection",
+    job_id: str,
+    trace_id: str,
+    root_span_id: str,
+) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE agent_jobs
+               SET otel_trace_id = %s,
+                   otel_root_span_id = %s
+             WHERE id = %s::uuid
+            """,
+            (trace_id, root_span_id, job_id),
+        )
+    conn.commit()
 
 
 # ---------------------------------------------------------------------------

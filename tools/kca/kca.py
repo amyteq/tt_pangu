@@ -20,6 +20,8 @@ import workspace as workspace_mod
 import decisions as decisions_mod
 import competition as competition_mod
 import research as research_mod
+import local as local_mod
+import review as review_mod
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -36,6 +38,8 @@ def build_parser() -> argparse.ArgumentParser:
     decisions_mod.add_parsers(sub)
     competition_mod.add_parsers(sub)
     research_mod.add_parsers(sub)
+    local_mod.add_parsers(sub)
+    review_mod.add_parsers(sub)
     return parser
 
 

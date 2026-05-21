@@ -727,3 +727,33 @@ For DB validation use SUPABASE_DB_URL=postgresql://postgres:s3cr3t@supabase-db:5
 Report PASS/FAIL for each prompt's verification step inline.
 "
 ```
+
+### closeout
+vLLM/Ollama:
+我有2个本地算力资源:
+1. RTX 4090 on Void Linux
+- hostname: snorlax
+- IP: 192.168.18.66
+- service: vllm-coder (active)
+  - MODEL="Qwen/Qwen2.5-Coder-14B-Instruct-AWQ"
+  - SERVED_MODEL_NAME="rtx4090"
+  - HOST="0.0.0.0"
+  - PORT="8000"
+- service: ollama (installed but inactive)
+  - MODEL="qwen3:30b-a3b-instruct-2507-q4_K_M"
+  - HOST="0.0.0.0"
+  - PORT="11434"
+2. RTX 3090 on Windows (WSL Debian)
+- hostname: may (currently shutdown)
+- IP: 192.168.18.77
+- service: vllm (inactive due to some glitches)
+  - MODEL="openai/gpt-oss-20b"
+  - SERVED_MODEL_NAME="rtx4090"
+  - HOST="0.0.0.0"
+  - PORT="8000"
+- service: ollama (installed but inactive)
+  - MODEL="qwen3:1.7b" # or qwen25-7b
+  - HOST="0.0.0.0"
+  - PORT="11434"
+
+对unreachable 的 host/LLM service, 请也将相应配置包含到 env.example 中, 建议相应job 执行前可以先快速检查这些 service 的 availability, 其他还有什么需要补充的请告知, 请继续完成 M6 的计划规划之后, commit 并 push

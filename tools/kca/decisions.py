@@ -35,7 +35,22 @@ def cmd_list(args: argparse.Namespace) -> int:
             }
             for r in rows
         ]
-        return _emit(True, {"decisions": decisions, "side_effect": SideEffect.READ_ONLY.value})
+        payload: dict = {"decisions": decisions, "side_effect": SideEffect.READ_ONLY.value}
+        if getattr(args, "include_reviews", False):
+            review_rows = _db.list_reviews(job_id=job_id, limit=50)
+            payload["reviews"] = [
+                {
+                    "id": str(r.get("id", "")),
+                    "job_id": str(r.get("job_id", "")) if r.get("job_id") else None,
+                    "verdict": r.get("verdict", ""),
+                    "target_op": r.get("target_op", ""),
+                    "reviewer_model": r.get("reviewer_model", ""),
+                    "rationale": (r.get("rationale") or "")[:200],
+                    "created_at": str(r.get("created_at", "")),
+                }
+                for r in review_rows
+            ]
+        return _emit(True, payload)
     except Exception as exc:
         # Exit 0 with ok=false for graceful DB-unavailable degradation.
         return _emit(False, {"error": str(exc), "decisions": []})
@@ -97,6 +112,9 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_list.add_argument("--job-id", dest="job_id", default=None,
                         help="Filter to a specific job")
     p_list.add_argument("--limit", type=int, default=20)
+    p_list.add_argument("--include-reviews", dest="include_reviews",
+                        action="store_true",
+                        help="Also surface reviewer verdict rows (M6)")
     p_list.add_argument("--json", action="store_true")
     p_list.set_defaults(func=cmd_list)
 
