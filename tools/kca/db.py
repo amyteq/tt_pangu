@@ -15,6 +15,7 @@ See env.example in the repo root for the full template.
 
 Module is importable without a live DB — connections happen lazily.
 """
+
 from __future__ import annotations
 
 import json
@@ -26,13 +27,14 @@ from typing import Any, Iterable
 # This is a no-op when .env doesn't exist or dotenv isn't installed.
 try:
     from dotenv import load_dotenv as _load_dotenv
+
     _load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env", override=False)
 except ImportError:
     pass
 
 try:
     import psycopg
-    from psycopg import sql
+    from psycopg import sql  # noqa: F401  # re-exported for callers
     from psycopg.rows import dict_row
 except ImportError as e:  # pragma: no cover
     psycopg = None  # type: ignore
@@ -155,6 +157,7 @@ def get_conn() -> "psycopg.Connection":
 # ---------------------------------------------------------------------------
 # Schema operations
 # ---------------------------------------------------------------------------
+
 
 def ensure_default_project(conn: "psycopg.Connection | None" = None) -> str:
     """Return the bootstrap project id; create the row if absent.
@@ -493,8 +496,7 @@ def get_decision(
 
 def _get_decision(conn: "psycopg.Connection", decision_id: str) -> dict:
     with conn.cursor() as cur:
-        cur.execute("SELECT * FROM human_decisions WHERE id = %s::uuid",
-                    (decision_id,))
+        cur.execute("SELECT * FROM human_decisions WHERE id = %s::uuid", (decision_id,))
         row = cur.fetchone()
     if row is None:
         raise KeyError(f"decision not found: {decision_id}")
@@ -527,6 +529,7 @@ def _list_job_events(conn: "psycopg.Connection", job_id: str) -> list[dict]:
 # M3 job lifecycle
 # ---------------------------------------------------------------------------
 
+
 def create_job(
     project_id: str,
     prompt: str,
@@ -537,8 +540,16 @@ def create_job(
     conn: "psycopg.Connection | None" = None,
 ) -> str:
     """Insert a new queued agent_jobs row. Returns job_id (uuid str)."""
-    return _with_conn(conn, _create_job, project_id, prompt, policy, model,
-                      competition_slug, session_id)
+    return _with_conn(
+        conn,
+        _create_job,
+        project_id,
+        prompt,
+        policy,
+        model,
+        competition_slug,
+        session_id,
+    )
 
 
 def _create_job(
@@ -709,9 +720,17 @@ def append_job_event(
     conn: "psycopg.Connection | None" = None,
 ) -> int:
     """Insert one agent_job_events row. Returns the new event id."""
-    return _with_conn(conn, _append_job_event, job_id, event_type,
-                      turn_number, input_tokens, output_tokens, cost_usd,
-                      event_data or {})
+    return _with_conn(
+        conn,
+        _append_job_event,
+        job_id,
+        event_type,
+        turn_number,
+        input_tokens,
+        output_tokens,
+        cost_usd,
+        event_data or {},
+    )
 
 
 def _append_job_event(
@@ -734,8 +753,15 @@ def _append_job_event(
               (%s::uuid, %s, %s, %s, %s, %s, %s::jsonb)
             RETURNING id
             """,
-            (job_id, event_type, turn_number, input_tokens, output_tokens,
-             cost_usd, json.dumps(event_data)),
+            (
+                job_id,
+                event_type,
+                turn_number,
+                input_tokens,
+                output_tokens,
+                cost_usd,
+                json.dumps(event_data),
+            ),
         )
         row = cur.fetchone()
     conn.commit()
@@ -758,8 +784,10 @@ def _list_jobs(
     limit: int,
 ) -> list[dict]:
     if status is not None:
-        query = ("SELECT * FROM agent_jobs WHERE status = %s::job_status "
-                 "ORDER BY created_at DESC LIMIT %s")
+        query = (
+            "SELECT * FROM agent_jobs WHERE status = %s::job_status "
+            "ORDER BY created_at DESC LIMIT %s"
+        )
         params: list[Any] = [status, limit]
     else:
         query = "SELECT * FROM agent_jobs ORDER BY created_at DESC LIMIT %s"
@@ -783,12 +811,16 @@ def _list_pending_decisions(
     job_id: str | None,
 ) -> list[dict]:
     if job_id is not None:
-        query = ("SELECT * FROM human_decisions WHERE status = 'pending' "
-                 "AND job_id = %s::uuid ORDER BY created_at DESC")
+        query = (
+            "SELECT * FROM human_decisions WHERE status = 'pending' "
+            "AND job_id = %s::uuid ORDER BY created_at DESC"
+        )
         params: list[Any] = [job_id]
     else:
-        query = ("SELECT * FROM human_decisions WHERE status = 'pending' "
-                 "ORDER BY created_at DESC")
+        query = (
+            "SELECT * FROM human_decisions WHERE status = 'pending' "
+            "ORDER BY created_at DESC"
+        )
         params = []
     with conn.cursor() as cur:
         cur.execute(query, params)
@@ -829,6 +861,7 @@ def _resolve_decision(
 # ---------------------------------------------------------------------------
 # M4: competition / experiment / run / submission (schema in 0004)
 # ---------------------------------------------------------------------------
+
 
 def get_competition_by_slug(
     slug: str,
@@ -921,7 +954,12 @@ def create_experiment(
 ) -> str:
     """Insert an experiments row (M4 schema). Returns experiment_id."""
     return _with_conn(
-        conn, _create_experiment_m4, competition_id, hypothesis, job_id, branch,
+        conn,
+        _create_experiment_m4,
+        competition_id,
+        hypothesis,
+        job_id,
+        branch,
         config or {},
     )
 
@@ -952,8 +990,15 @@ def _create_experiment_m4(
               (%s::uuid, %s, %s::uuid, %s::uuid, %s, %s, %s::jsonb)
             RETURNING id::text
             """,
-            (project_id, synth_name, competition_id, job_id, hypothesis,
-             branch, json.dumps(config)),
+            (
+                project_id,
+                synth_name,
+                competition_id,
+                job_id,
+                hypothesis,
+                branch,
+                json.dumps(config),
+            ),
         )
         row = cur.fetchone()
     conn.commit()
@@ -993,12 +1038,16 @@ def _list_experiments(
     status: str | None,
 ) -> list[dict]:
     if status is not None:
-        query = ("SELECT * FROM experiments WHERE competition_id = %s::uuid "
-                 "AND status = %s ORDER BY created_at DESC")
+        query = (
+            "SELECT * FROM experiments WHERE competition_id = %s::uuid "
+            "AND status = %s ORDER BY created_at DESC"
+        )
         params: list[Any] = [competition_id, status]
     else:
-        query = ("SELECT * FROM experiments WHERE competition_id = %s::uuid "
-                 "ORDER BY created_at DESC")
+        query = (
+            "SELECT * FROM experiments WHERE competition_id = %s::uuid "
+            "ORDER BY created_at DESC"
+        )
         params = [competition_id]
     with conn.cursor() as cur:
         cur.execute(query, params)
@@ -1016,7 +1065,12 @@ def create_run(
 ) -> str:
     """Insert a new experiment_runs row (M4 schema) with status='running'."""
     return _with_conn(
-        conn, _create_run_m4, experiment_id, job_id, run_dir, command,
+        conn,
+        _create_run_m4,
+        experiment_id,
+        job_id,
+        run_dir,
+        command,
     )
 
 
@@ -1139,14 +1193,18 @@ def _list_runs_m4(
     limit: int,
 ) -> list[dict]:
     if experiment_id is not None:
-        query = ("SELECT * FROM experiment_runs WHERE experiment_id = %s::uuid "
-                 "ORDER BY created_at DESC LIMIT %s")
+        query = (
+            "SELECT * FROM experiment_runs WHERE experiment_id = %s::uuid "
+            "ORDER BY created_at DESC LIMIT %s"
+        )
         params: list[Any] = [experiment_id, limit]
     elif competition_id is not None:
-        query = ("SELECT er.* FROM experiment_runs er "
-                 "JOIN experiments e ON e.id = er.experiment_id "
-                 "WHERE e.competition_id = %s::uuid "
-                 "ORDER BY er.created_at DESC LIMIT %s")
+        query = (
+            "SELECT er.* FROM experiment_runs er "
+            "JOIN experiments e ON e.id = er.experiment_id "
+            "WHERE e.competition_id = %s::uuid "
+            "ORDER BY er.created_at DESC LIMIT %s"
+        )
         params = [competition_id, limit]
     else:
         query = "SELECT * FROM experiment_runs ORDER BY created_at DESC LIMIT %s"
@@ -1169,8 +1227,14 @@ def create_submission(
 ) -> str:
     """Insert a prepared submissions row (M4 schema)."""
     return _with_conn(
-        conn, _create_submission_m4, competition_id, file_path,
-        run_id, job_id, cv_score, note,
+        conn,
+        _create_submission_m4,
+        competition_id,
+        file_path,
+        run_id,
+        job_id,
+        cv_score,
+        note,
     )
 
 
@@ -1245,6 +1309,7 @@ def _update_submission_m4(
 # M5: research items / artifacts / citations (schema in 0005)
 # ---------------------------------------------------------------------------
 
+
 def attach_artifact(
     kind: str,
     storage_path: str,
@@ -1258,8 +1323,14 @@ def attach_artifact(
     """Insert an artifacts row. Returns artifact_id."""
     project_id = project_id or DEFAULT_PROJECT_ID
     return _with_conn(
-        conn, _attach_artifact, kind, storage_path, content_hash,
-        byte_size, metadata or {}, project_id,
+        conn,
+        _attach_artifact,
+        kind,
+        storage_path,
+        content_hash,
+        byte_size,
+        metadata or {},
+        project_id,
     )
 
 
@@ -1281,8 +1352,14 @@ def _attach_artifact(
               (%s::uuid, %s, %s, %s, %s, %s::jsonb)
             RETURNING id::text
             """,
-            (project_id, kind, storage_path, content_hash, byte_size,
-             json.dumps(metadata)),
+            (
+                project_id,
+                kind,
+                storage_path,
+                content_hash,
+                byte_size,
+                json.dumps(metadata),
+            ),
         )
         row = cur.fetchone()
     conn.commit()
@@ -1310,9 +1387,21 @@ def create_research_item(
     """Insert a research_items row (M5 fields). Returns item id."""
     project_id = project_id or DEFAULT_PROJECT_ID
     return _with_conn(
-        conn, _create_research_item, url, title, source_kind, trust, summary,
-        competition_id, fetcher, http_status, content_hash, html_artifact_id,
-        text_artifact_id, source_policy or {}, project_id,
+        conn,
+        _create_research_item,
+        url,
+        title,
+        source_kind,
+        trust,
+        summary,
+        competition_id,
+        fetcher,
+        http_status,
+        content_hash,
+        html_artifact_id,
+        text_artifact_id,
+        source_policy or {},
+        project_id,
     )
 
 
@@ -1345,9 +1434,21 @@ def _create_research_item(
                %s::uuid, %s::uuid, %s::jsonb, now())
             RETURNING id::text
             """,
-            (project_id, url, title, source_kind, trust, summary,
-             competition_id, fetcher, http_status, content_hash,
-             html_artifact_id, text_artifact_id, json.dumps(source_policy)),
+            (
+                project_id,
+                url,
+                title,
+                source_kind,
+                trust,
+                summary,
+                competition_id,
+                fetcher,
+                http_status,
+                content_hash,
+                html_artifact_id,
+                text_artifact_id,
+                json.dumps(source_policy),
+            ),
         )
         row = cur.fetchone()
     conn.commit()
@@ -1387,8 +1488,10 @@ def _list_research_items(
     limit: int,
 ) -> list[dict]:
     if competition_id is not None:
-        query = ("SELECT * FROM research_items WHERE competition_id = %s::uuid "
-                 "ORDER BY created_at DESC LIMIT %s")
+        query = (
+            "SELECT * FROM research_items WHERE competition_id = %s::uuid "
+            "ORDER BY created_at DESC LIMIT %s"
+        )
         params: list[Any] = [competition_id, limit]
     else:
         query = "SELECT * FROM research_items ORDER BY created_at DESC LIMIT %s"
@@ -1434,8 +1537,14 @@ def cite_research(
 ) -> str:
     """Insert a research_citations row. Returns citation id."""
     return _with_conn(
-        conn, _cite_research, research_item_id, run_id, experiment_id,
-        job_id, quote, page_anchor,
+        conn,
+        _cite_research,
+        research_item_id,
+        run_id,
+        experiment_id,
+        job_id,
+        quote,
+        page_anchor,
     )
 
 
@@ -1480,12 +1589,16 @@ def _list_citations(
     experiment_id: str | None,
 ) -> list[dict]:
     if run_id is not None:
-        query = ("SELECT * FROM research_citations WHERE run_id = %s::uuid "
-                 "ORDER BY created_at DESC")
+        query = (
+            "SELECT * FROM research_citations WHERE run_id = %s::uuid "
+            "ORDER BY created_at DESC"
+        )
         params: list[Any] = [run_id]
     elif experiment_id is not None:
-        query = ("SELECT * FROM research_citations WHERE experiment_id = %s::uuid "
-                 "ORDER BY created_at DESC")
+        query = (
+            "SELECT * FROM research_citations WHERE experiment_id = %s::uuid "
+            "ORDER BY created_at DESC"
+        )
         params = [experiment_id]
     else:
         query = "SELECT * FROM research_citations ORDER BY created_at DESC LIMIT 100"
@@ -1703,6 +1816,7 @@ def record_span(
         )
     except Exception as exc:  # pragma: no cover - best-effort exporter
         import sys
+
         print(f"[record_span] DB unavailable: {exc}", file=sys.stderr)
         return -1
 
@@ -1826,6 +1940,7 @@ def _set_job_trace(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _with_conn(conn, fn, *args, **kwargs):
     """Call fn(conn, *args) using the provided conn or a freshly opened one.

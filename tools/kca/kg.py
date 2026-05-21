@@ -19,14 +19,14 @@ _GATE_ENV = "KCA_ALLOW_REMOTE"
 
 # ADR-0006 default policy: True = require approval, False = allow.
 OPERATION_DEFAULTS = {
-    "kaggle_submit":    False,
-    "kernel_push":      False,
-    "dataset_upload":   True,
-    "git_push":         False,
-    "git_force_push":   True,
+    "kaggle_submit": False,
+    "kernel_push": False,
+    "dataset_upload": True,
+    "git_push": False,
+    "git_force_push": True,
     "supabase_migrate": True,
-    "delete_artifact":  True,
-    "external_fetch":   False,
+    "delete_artifact": True,
+    "external_fetch": False,
 }
 
 
@@ -105,7 +105,9 @@ def _emit_blocked(
     return EXIT_BLOCKED
 
 
-def _emit_stub(command_name: str, side_effect: SideEffect, extra: dict | None = None) -> int:
+def _emit_stub(
+    command_name: str, side_effect: SideEffect, extra: dict | None = None
+) -> int:
     out = {
         "ok": True,
         "stub": True,
@@ -141,40 +143,59 @@ def cmd_submit(args: argparse.Namespace) -> int:
     message = args.message or "kca agent submission"
 
     if not os.environ.get("KAGGLE_USERNAME"):
-        return _emit_json({
-            "ok": False,
-            "error": "KAGGLE_USERNAME not set; cannot submit",
-            "competition": competition,
-            "side_effect": se.value,
-        })
+        return _emit_json(
+            {
+                "ok": False,
+                "error": "KAGGLE_USERNAME not set; cannot submit",
+                "competition": competition,
+                "side_effect": se.value,
+            }
+        )
     if not os.environ.get("KAGGLE_KEY"):
-        return _emit_json({
-            "ok": False,
-            "error": "KAGGLE_KEY not set; cannot submit",
-            "competition": competition,
-            "side_effect": se.value,
-        })
+        return _emit_json(
+            {
+                "ok": False,
+                "error": "KAGGLE_KEY not set; cannot submit",
+                "competition": competition,
+                "side_effect": se.value,
+            }
+        )
 
     try:
         _check_approval_gate("kaggle_submit", _policy_from_env())
     except ApprovalRequired:
-        return _emit_blocked("submit", se, f"ApprovalRequired: kaggle_submit",
-                             options={"competition": competition, "file": file_path,
-                                      "message": message})
+        return _emit_blocked(
+            "submit",
+            se,
+            "ApprovalRequired: kaggle_submit",
+            options={"competition": competition, "file": file_path, "message": message},
+        )
 
     proc = subprocess.run(
-        ["kaggle", "competitions", "submit", "-c", competition,
-         "-f", file_path, "-m", message],
-        capture_output=True, text=True,
+        [
+            "kaggle",
+            "competitions",
+            "submit",
+            "-c",
+            competition,
+            "-f",
+            file_path,
+            "-m",
+            message,
+        ],
+        capture_output=True,
+        text=True,
     )
-    return _emit_json({
-        "ok": proc.returncode == 0,
-        "competition": competition,
-        "file": file_path,
-        "side_effect": se.value,
-        "stdout": proc.stdout,
-        "stderr": proc.stderr,
-    })
+    return _emit_json(
+        {
+            "ok": proc.returncode == 0,
+            "competition": competition,
+            "file": file_path,
+            "side_effect": se.value,
+            "stdout": proc.stdout,
+            "stderr": proc.stderr,
+        }
+    )
 
 
 def cmd_push(args: argparse.Namespace) -> int:
@@ -184,37 +205,48 @@ def cmd_push(args: argparse.Namespace) -> int:
     try:
         _check_approval_gate("kernel_push", _policy_from_env())
     except ApprovalRequired:
-        return _emit_blocked("push", se, "ApprovalRequired: kernel_push",
-                             options={"kernel_dir": kernel_dir})
+        return _emit_blocked(
+            "push",
+            se,
+            "ApprovalRequired: kernel_push",
+            options={"kernel_dir": kernel_dir},
+        )
 
     if args.dry_run:
         meta = Path(kernel_dir) / "kernel-metadata.json"
         if not meta.exists():
-            return _emit_json({
-                "ok": False,
-                "error": f"kernel-metadata.json not found in {kernel_dir}",
+            return _emit_json(
+                {
+                    "ok": False,
+                    "error": f"kernel-metadata.json not found in {kernel_dir}",
+                    "kernel_dir": kernel_dir,
+                    "side_effect": SideEffect.READ_ONLY.value,
+                    "dry_run": True,
+                }
+            )
+        return _emit_json(
+            {
+                "ok": True,
+                "dry_run": True,
                 "kernel_dir": kernel_dir,
                 "side_effect": SideEffect.READ_ONLY.value,
-                "dry_run": True,
-            })
-        return _emit_json({
-            "ok": True,
-            "dry_run": True,
-            "kernel_dir": kernel_dir,
-            "side_effect": SideEffect.READ_ONLY.value,
-        })
+            }
+        )
 
     proc = subprocess.run(
         ["kaggle", "kernels", "push", "-p", kernel_dir],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
-    return _emit_json({
-        "ok": proc.returncode == 0,
-        "kernel_dir": kernel_dir,
-        "side_effect": se.value,
-        "stdout": proc.stdout,
-        "stderr": proc.stderr,
-    })
+    return _emit_json(
+        {
+            "ok": proc.returncode == 0,
+            "kernel_dir": kernel_dir,
+            "side_effect": se.value,
+            "stdout": proc.stdout,
+            "stderr": proc.stderr,
+        }
+    )
 
 
 def cmd_upload(args: argparse.Namespace) -> int:
@@ -223,19 +255,23 @@ def cmd_upload(args: argparse.Namespace) -> int:
     try:
         _check_approval_gate("dataset_upload", _policy_from_env())
     except ApprovalRequired:
-        return _emit_blocked("upload", se, "ApprovalRequired: dataset_upload",
-                             options=options)
+        return _emit_blocked(
+            "upload", se, "ApprovalRequired: dataset_upload", options=options
+        )
     proc = subprocess.run(
         ["kaggle", "datasets", "version", "-p", args.path, "-m", "kca upload"],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
-    return _emit_json({
-        "ok": proc.returncode == 0,
-        "path": args.path,
-        "side_effect": se.value,
-        "stdout": proc.stdout,
-        "stderr": proc.stderr,
-    })
+    return _emit_json(
+        {
+            "ok": proc.returncode == 0,
+            "path": args.path,
+            "side_effect": se.value,
+            "stdout": proc.stdout,
+            "stderr": proc.stderr,
+        }
+    )
 
 
 def _sha256_file(p: Path) -> str:
@@ -287,10 +323,15 @@ def cmd_download(args: argparse.Namespace) -> int:
         if all_matched and skipped > 0:
             # Nothing left to fetch; just refresh manifest and return.
             return _refresh_manifest_and_emit(
-                competition=competition, path=path,
+                competition=competition,
+                path=path,
                 manifest_path=manifest_path,
-                skipped=skipped, rc=0, stdout="", stderr="",
-                ran_kaggle=False, side_effect=se,
+                skipped=skipped,
+                rc=0,
+                stdout="",
+                stderr="",
+                ran_kaggle=False,
+                side_effect=se,
             )
 
     # Run kaggle CLI; if it isn't installed or creds missing, surface a
@@ -302,7 +343,8 @@ def cmd_download(args: argparse.Namespace) -> int:
     try:
         proc = subprocess.run(
             ["kaggle", "competitions", "download", "-c", competition, "-p", str(path)],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         rc = proc.returncode
         stdout = proc.stdout or ""
@@ -312,10 +354,15 @@ def cmd_download(args: argparse.Namespace) -> int:
         stderr = f"kaggle CLI not found: {e}"
 
     return _refresh_manifest_and_emit(
-        competition=competition, path=path,
+        competition=competition,
+        path=path,
         manifest_path=manifest_path,
-        skipped=skipped, rc=rc, stdout=stdout, stderr=stderr,
-        ran_kaggle=True, side_effect=se,
+        skipped=skipped,
+        rc=rc,
+        stdout=stdout,
+        stderr=stderr,
+        ran_kaggle=True,
+        side_effect=se,
     )
 
 
@@ -335,11 +382,13 @@ def _refresh_manifest_and_emit(
     entries = []
     for f in files:
         rel = f.relative_to(path).as_posix()
-        entries.append({
-            "name": rel,
-            "sha256": _sha256_file(f),
-            "bytes": f.stat().st_size,
-        })
+        entries.append(
+            {
+                "name": rel,
+                "sha256": _sha256_file(f),
+                "bytes": f.stat().st_size,
+            }
+        )
     manifest = {
         "competition": competition,
         "fetched_at": _dt.datetime.utcnow().isoformat() + "Z",
@@ -369,21 +418,25 @@ def cmd_verify(args: argparse.Namespace) -> int:
     path = Path(args.path)
     manifest_path = path / "manifest.json"
     if not manifest_path.exists():
-        return _emit_json({
-            "ok": False,
-            "error": f"manifest not found: {manifest_path}",
-            "path": str(path),
-            "side_effect": se.value,
-        })
+        return _emit_json(
+            {
+                "ok": False,
+                "error": f"manifest not found: {manifest_path}",
+                "path": str(path),
+                "side_effect": se.value,
+            }
+        )
     try:
         manifest = json.loads(manifest_path.read_text())
     except json.JSONDecodeError as e:
-        return _emit_json({
-            "ok": False,
-            "error": f"manifest parse error: {e}",
-            "path": str(path),
-            "side_effect": se.value,
-        })
+        return _emit_json(
+            {
+                "ok": False,
+                "error": f"manifest parse error: {e}",
+                "path": str(path),
+                "side_effect": se.value,
+            }
+        )
     ok_count = 0
     missing: list[str] = []
     mismatched: list[str] = []
@@ -397,14 +450,16 @@ def cmd_verify(args: argparse.Namespace) -> int:
             mismatched.append(name)
             continue
         ok_count += 1
-    return _emit_json({
-        "ok": (not missing) and (not mismatched),
-        "ok_count": ok_count,
-        "missing": missing,
-        "mismatched": mismatched,
-        "path": str(path),
-        "side_effect": se.value,
-    })
+    return _emit_json(
+        {
+            "ok": (not missing) and (not mismatched),
+            "ok_count": ok_count,
+            "missing": missing,
+            "mismatched": mismatched,
+            "path": str(path),
+            "side_effect": se.value,
+        }
+    )
 
 
 def cmd_watch(args: argparse.Namespace) -> int:
@@ -416,7 +471,8 @@ def cmd_watch(args: argparse.Namespace) -> int:
     for _ in range(max_iterations):
         proc = subprocess.run(
             ["kaggle", "kernels", "status", kernel_ref],
-            capture_output=True, text=True,
+            capture_output=True,
+            text=True,
         )
         last_stdout = proc.stdout
         text = (proc.stdout or "").lower()
@@ -428,13 +484,15 @@ def cmd_watch(args: argparse.Namespace) -> int:
             break
         if max_iterations > 1:
             time.sleep(poll_seconds)
-    return _emit_json({
-        "ok": final_status == "complete",
-        "kernel": kernel_ref,
-        "status": final_status,
-        "side_effect": SideEffect.READ_ONLY.value,
-        "stdout": last_stdout,
-    })
+    return _emit_json(
+        {
+            "ok": final_status == "complete",
+            "kernel": kernel_ref,
+            "status": final_status,
+            "side_effect": SideEffect.READ_ONLY.value,
+            "stdout": last_stdout,
+        }
+    )
 
 
 def cmd_fetch(args: argparse.Namespace) -> int:
@@ -457,10 +515,17 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_submit.set_defaults(func=cmd_submit)
 
     p_push = kg_sub.add_parser("push", help="Push a kernel (REMOTE_WRITE)")
-    p_push.add_argument("--kernel-dir", dest="kernel_dir", required=True,
-                        help="Directory containing kernel-metadata.json")
-    p_push.add_argument("--dry-run", action="store_true",
-                        help="Validate kernel-metadata.json without uploading")
+    p_push.add_argument(
+        "--kernel-dir",
+        dest="kernel_dir",
+        required=True,
+        help="Directory containing kernel-metadata.json",
+    )
+    p_push.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate kernel-metadata.json without uploading",
+    )
     p_push.add_argument("--json", action="store_true")
     p_push.set_defaults(func=cmd_push)
 
@@ -469,30 +534,37 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_upload.add_argument("--json", action="store_true")
     p_upload.set_defaults(func=cmd_upload)
 
-    p_download = kg_sub.add_parser("download",
-                                   help="Download competition data (LOCAL_WRITE)")
+    p_download = kg_sub.add_parser(
+        "download", help="Download competition data (LOCAL_WRITE)"
+    )
     p_download.add_argument("--competition", required=True)
-    p_download.add_argument("--path", default=None,
-                            help="Destination dir (default ./data/<competition>)")
-    p_download.add_argument("--resume", action="store_true",
-                            help="Skip files whose sha256 matches manifest entry")
+    p_download.add_argument(
+        "--path", default=None, help="Destination dir (default ./data/<competition>)"
+    )
+    p_download.add_argument(
+        "--resume",
+        action="store_true",
+        help="Skip files whose sha256 matches manifest entry",
+    )
     p_download.add_argument("--json", action="store_true")
     p_download.set_defaults(func=cmd_download)
 
-    p_verify = kg_sub.add_parser("verify",
-                                 help="Verify a downloaded dataset against manifest.json")
-    p_verify.add_argument("--path", required=True,
-                          help="Directory holding manifest.json")
+    p_verify = kg_sub.add_parser(
+        "verify", help="Verify a downloaded dataset against manifest.json"
+    )
+    p_verify.add_argument(
+        "--path", required=True, help="Directory holding manifest.json"
+    )
     p_verify.add_argument("--json", action="store_true")
     p_verify.set_defaults(func=cmd_verify)
 
     p_watch = kg_sub.add_parser("watch", help="Watch a kernel run (READ_ONLY)")
     p_watch.add_argument("--run", default=None, help="Legacy alias for --kernel")
-    p_watch.add_argument("--kernel", default=None,
-                        help="Kernel ref (user/slug) to poll status for")
+    p_watch.add_argument(
+        "--kernel", default=None, help="Kernel ref (user/slug) to poll status for"
+    )
     p_watch.add_argument("--poll-seconds", dest="poll_seconds", type=int, default=30)
-    p_watch.add_argument("--max-iterations", dest="max_iterations", type=int,
-                         default=1)
+    p_watch.add_argument("--max-iterations", dest="max_iterations", type=int, default=1)
     p_watch.add_argument("--json", action="store_true")
     p_watch.set_defaults(func=cmd_watch)
 

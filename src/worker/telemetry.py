@@ -12,6 +12,7 @@ The full opentelemetry SDK is a heavy install for what we need today and
 isn't on the env image; switching to it later is a drop-in because the
 exporter contract is identical (kind/name/attrs/started_at/ended_at).
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -23,7 +24,7 @@ import sqlite3
 import sys
 import time
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 
 # ---------------------------------------------------------------------------
@@ -65,7 +66,7 @@ def _trace_id() -> str:
 
 
 def _span_id() -> str:
-    return secrets.token_hex(8)   # 16 hex chars
+    return secrets.token_hex(8)  # 16 hex chars
 
 
 def _now() -> _dt.datetime:
@@ -75,6 +76,7 @@ def _now() -> _dt.datetime:
 # ---------------------------------------------------------------------------
 # Span
 # ---------------------------------------------------------------------------
+
 
 class Span:
     """Minimal mutable span object."""
@@ -127,6 +129,7 @@ class Span:
 # ---------------------------------------------------------------------------
 # Tracer
 # ---------------------------------------------------------------------------
+
 
 class Tracer:
     def __init__(self, job_id: str | None = None, trace_id: str | None = None) -> None:
@@ -196,6 +199,7 @@ class Tracer:
 # Exporters
 # ---------------------------------------------------------------------------
 
+
 def _export_console(span: Span) -> None:
     attrs = json.dumps(span.attributes, default=str, ensure_ascii=False)
     print(
@@ -263,7 +267,9 @@ def _export_sqlite(span: Span) -> None:
 
 def _export_supabase(span: Span) -> None:
     try:
-        sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
+        sys.path.insert(
+            0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
+        )
         import db as _db
     except Exception as exc:
         print(f"[telemetry.supabase] db import failed: {exc}", file=sys.stderr)
@@ -287,6 +293,7 @@ def _export_supabase(span: Span) -> None:
 # ---------------------------------------------------------------------------
 # Convenience helpers
 # ---------------------------------------------------------------------------
+
 
 def start_job_span(tracer: Tracer, job_id: str, prompt: str) -> Span:
     span = tracer.start_span(kind="job", name="agent_worker.run")

@@ -1,9 +1,9 @@
 """kca decisions: list, approve, and deny human approval requests."""
+
 from __future__ import annotations
 
 import argparse
 import json
-import sys
 
 from _types import EXIT_OK, EXIT_RUNTIME, SideEffect
 
@@ -16,6 +16,7 @@ def _emit(ok: bool, payload: dict, exit_code: int = EXIT_OK) -> int:
 def _load_db():
     """Import db module; raise ImportError or DBNotConfigured if unavailable."""
     import db as _db
+
     return _db
 
 
@@ -35,7 +36,10 @@ def cmd_list(args: argparse.Namespace) -> int:
             }
             for r in rows
         ]
-        payload: dict = {"decisions": decisions, "side_effect": SideEffect.READ_ONLY.value}
+        payload: dict = {
+            "decisions": decisions,
+            "side_effect": SideEffect.READ_ONLY.value,
+        }
         if getattr(args, "include_reviews", False):
             review_rows = _db.list_reviews(job_id=job_id, limit=50)
             payload["reviews"] = [
@@ -73,17 +77,21 @@ def cmd_approve(args: argparse.Namespace) -> int:
         if job_id:
             try:
                 _db.append_job_event(
-                    str(job_id), "approval_resume",
+                    str(job_id),
+                    "approval_resume",
                     event_data={"decision_id": args.id},
                 )
             except Exception:
                 pass
-        return _emit(True, {
-            "decision_id": args.id,
-            "resolution": "approved",
-            "job_id": str(job_id) if job_id else None,
-            "side_effect": SideEffect.LOCAL_WRITE.value,
-        })
+        return _emit(
+            True,
+            {
+                "decision_id": args.id,
+                "resolution": "approved",
+                "job_id": str(job_id) if job_id else None,
+                "side_effect": SideEffect.LOCAL_WRITE.value,
+            },
+        )
     except Exception as exc:
         return _emit(False, {"error": str(exc)}, EXIT_RUNTIME)
 
@@ -93,11 +101,14 @@ def cmd_deny(args: argparse.Namespace) -> int:
         _db = _load_db()
         notes = getattr(args, "notes", None)
         _db.resolve_decision(args.id, "rejected", notes=notes)
-        return _emit(True, {
-            "decision_id": args.id,
-            "resolution": "rejected",
-            "side_effect": SideEffect.LOCAL_WRITE.value,
-        })
+        return _emit(
+            True,
+            {
+                "decision_id": args.id,
+                "resolution": "rejected",
+                "side_effect": SideEffect.LOCAL_WRITE.value,
+            },
+        )
     except Exception as exc:
         return _emit(False, {"error": str(exc)}, EXIT_RUNTIME)
 
@@ -107,18 +118,27 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     dec_sub = dec.add_subparsers(dest="decisions_cmd", required=True)
 
     p_list = dec_sub.add_parser("list", help="List pending decisions (READ_ONLY)")
-    p_list.add_argument("--pending", action="store_true",
-                        help="Filter to pending status only (default behaviour)")
-    p_list.add_argument("--job-id", dest="job_id", default=None,
-                        help="Filter to a specific job")
+    p_list.add_argument(
+        "--pending",
+        action="store_true",
+        help="Filter to pending status only (default behaviour)",
+    )
+    p_list.add_argument(
+        "--job-id", dest="job_id", default=None, help="Filter to a specific job"
+    )
     p_list.add_argument("--limit", type=int, default=20)
-    p_list.add_argument("--include-reviews", dest="include_reviews",
-                        action="store_true",
-                        help="Also surface reviewer verdict rows (M6)")
+    p_list.add_argument(
+        "--include-reviews",
+        dest="include_reviews",
+        action="store_true",
+        help="Also surface reviewer verdict rows (M6)",
+    )
     p_list.add_argument("--json", action="store_true")
     p_list.set_defaults(func=cmd_list)
 
-    p_approve = dec_sub.add_parser("approve", help="Approve a pending decision (LOCAL_WRITE)")
+    p_approve = dec_sub.add_parser(
+        "approve", help="Approve a pending decision (LOCAL_WRITE)"
+    )
     p_approve.add_argument("--id", required=True, help="decision_id to approve")
     p_approve.add_argument("--notes", default=None)
     p_approve.add_argument("--json", action="store_true")

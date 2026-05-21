@@ -6,24 +6,28 @@ Policy:
 - Deny secret access and host-destructive operations.
 - Ask only for irreversible or decision-level operations.
 """
+
 from __future__ import annotations
 
 import json
 import os
 import re
-import shlex
 import sys
 from pathlib import Path
 
 
 def emit(decision: str, reason: str) -> None:
-    print(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": "PreToolUse",
-            "permissionDecision": decision,
-            "permissionDecisionReason": reason,
-        }
-    }))
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": decision,
+                    "permissionDecisionReason": reason,
+                }
+            }
+        )
+    )
 
 
 def normalize_path(value: str) -> str:
@@ -59,7 +63,9 @@ def path_is_protected(path: str) -> bool:
         "hosts.yml",
     }
     name = Path(p).name
-    return name in protected_names or any(fragment in p for fragment in protected_fragments)
+    return name in protected_names or any(
+        fragment in p for fragment in protected_fragments
+    )
 
 
 def compact(command: str) -> str:
@@ -75,18 +81,36 @@ def bash_decision(command: str) -> tuple[str | None, str | None]:
         (r"\bsudo\b", "Refusing sudo from the agent."),
         (r"\bsu\s+", "Refusing su from the agent."),
         (r"\bdoas\b", "Refusing doas from the agent."),
-        (r"\brm\s+-rf\s+(/|~|\$HOME)(\s|$)", "Refusing recursive deletion of root/home."),
-        (r"\brm\s+-rf\s+/\S+", "Refusing recursive deletion of absolute filesystem paths."),
+        (
+            r"\brm\s+-rf\s+(/|~|\$HOME)(\s|$)",
+            "Refusing recursive deletion of root/home.",
+        ),
+        (
+            r"\brm\s+-rf\s+/\S+",
+            "Refusing recursive deletion of absolute filesystem paths.",
+        ),
         (r"\bchmod\s+777\b", "Refusing chmod 777."),
         (r"\bchown\s+.*\s+(/|~|\$HOME)\b", "Refusing ownership change on broad paths."),
         (r"\bdd\s+.*\bof=/dev/", "Refusing raw disk write."),
         (r"\bmkfs(\.|\s|$)", "Refusing filesystem formatting command."),
         (r"\bshutdown\b|\breboot\b|\bhalt\b", "Refusing host power command."),
         (r"\bgit\s+push\s+(-f|--force|--force-with-lease)", "Refusing force push."),
-        (r"\bdocker\s+run\b.*\s--privileged\b", "Refusing privileged Docker container."),
-        (r"\b(cat|less|more|head|tail|grep|rg)\b.*(\.env|kaggle\.json|id_rsa|id_ed25519|\.aws|\.ssh|hosts\.yml)", "Refusing shell read of protected secrets."),
-        (r"\b(curl|wget)\b.*(\.env|kaggle\.json|id_rsa|id_ed25519|metadata\.google|169\.254\.169\.254)", "Refusing shell exfiltration/metadata access pattern."),
-        (r"\b(psql|sqlite3)\b.*\b(drop\s+database|drop\s+schema)\b", "Refusing database/schema drop from the agent."),
+        (
+            r"\bdocker\s+run\b.*\s--privileged\b",
+            "Refusing privileged Docker container.",
+        ),
+        (
+            r"\b(cat|less|more|head|tail|grep|rg)\b.*(\.env|kaggle\.json|id_rsa|id_ed25519|\.aws|\.ssh|hosts\.yml)",
+            "Refusing shell read of protected secrets.",
+        ),
+        (
+            r"\b(curl|wget)\b.*(\.env|kaggle\.json|id_rsa|id_ed25519|metadata\.google|169\.254\.169\.254)",
+            "Refusing shell exfiltration/metadata access pattern.",
+        ),
+        (
+            r"\b(psql|sqlite3)\b.*\b(drop\s+database|drop\s+schema)\b",
+            "Refusing database/schema drop from the agent.",
+        ),
     ]
     for pattern, reason in deny_patterns:
         if re.search(pattern, lc, flags=re.IGNORECASE):
@@ -94,18 +118,39 @@ def bash_decision(command: str) -> tuple[str | None, str | None]:
 
     # Ask: irreversible or product/competition decision gates.
     ask_patterns = [
-        (r"\brm\b", "File deletion requires approval unless implemented through an approved cleanup command."),
+        (
+            r"\brm\b",
+            "File deletion requires approval unless implemented through an approved cleanup command.",
+        ),
         (r"\brmdir\b", "Directory deletion requires approval."),
         (r"\bfind\b.*\s-delete\b", "find -delete requires approval."),
         (r"\bgit\s+clean\b", "git clean requires approval."),
         (r"\bgh\s+pr\s+merge\b", "Merging a PR is a decision gate."),
-        (r"\bkaggle\s+competitions\s+submit\b", "Kaggle submission requires human approval."),
+        (
+            r"\bkaggle\s+competitions\s+submit\b",
+            "Kaggle submission requires human approval.",
+        ),
         (r"\bkaggle\s+kernels\s+push\b", "Kaggle kernel push requires human approval."),
-        (r"\bkaggle\s+datasets\s+(create|version)\b", "Kaggle dataset publication requires human approval."),
-        (r"\bpython\s+tools/kca/kca\.py\s+kaggle\s+(submit|push|upload)\b", "KCA Kaggle publication requires human approval."),
-        (r"\bsupabase\s+db\s+(push|reset)\b", "Remote/destructive Supabase database operation requires approval."),
-        (r"\b(psql|sqlite3)\b.*\b(truncate|delete\s+from)\b", "Destructive SQL requires approval."),
-        (r"\bdocker\s+compose\s+down\b.*\s-v\b", "Docker volume deletion requires approval."),
+        (
+            r"\bkaggle\s+datasets\s+(create|version)\b",
+            "Kaggle dataset publication requires human approval.",
+        ),
+        (
+            r"\bpython\s+tools/kca/kca\.py\s+kaggle\s+(submit|push|upload)\b",
+            "KCA Kaggle publication requires human approval.",
+        ),
+        (
+            r"\bsupabase\s+db\s+(push|reset)\b",
+            "Remote/destructive Supabase database operation requires approval.",
+        ),
+        (
+            r"\b(psql|sqlite3)\b.*\b(truncate|delete\s+from)\b",
+            "Destructive SQL requires approval.",
+        ),
+        (
+            r"\bdocker\s+compose\s+down\b.*\s-v\b",
+            "Docker volume deletion requires approval.",
+        ),
     ]
     for pattern, reason in ask_patterns:
         if re.search(pattern, lc, flags=re.IGNORECASE):

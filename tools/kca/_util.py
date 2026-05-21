@@ -12,7 +12,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 LEGACY_DIR = REPO_ROOT / "tools" / "legacy"
 
 
-def emit_json(ok: bool, side_effect: SideEffect, payload: dict[str, Any] | None = None) -> None:
+def emit_json(
+    ok: bool, side_effect: SideEffect, payload: dict[str, Any] | None = None
+) -> None:
     out = {"ok": bool(ok), "side_effect": side_effect.value}
     if payload:
         out.update(payload)
@@ -25,12 +27,17 @@ def warn(msg: str) -> None:
 
 def stub_emit(command: str, side_effect: SideEffect) -> int:
     warn(f"NOT-IMPLEMENTED: {command} (stub)")
-    print(json.dumps({
-        "ok": True,
-        "stub": True,
-        "command": command,
-        "side_effect": side_effect.value,
-    }, ensure_ascii=False))
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "stub": True,
+                "command": command,
+                "side_effect": side_effect.value,
+            },
+            ensure_ascii=False,
+        )
+    )
     return 0
 
 

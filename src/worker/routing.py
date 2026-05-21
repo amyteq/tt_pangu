@@ -2,19 +2,20 @@
 
 Override precedence: explicit ``override`` > MODEL_ROUTES table > default Sonnet.
 """
+
 from __future__ import annotations
 
 
 MODEL_ROUTES: dict[str, str] = {
-    "research":   "claude-haiku-4-5",
-    "implement":  "claude-sonnet-4-6",
+    "research": "claude-haiku-4-5",
+    "implement": "claude-sonnet-4-6",
     "experiment": "claude-sonnet-4-6",
-    "eval":       "claude-opus-4-7",
-    "analysis":   "claude-opus-4-7",
-    "review":     "claude-opus-4-7",
+    "eval": "claude-opus-4-7",
+    "analysis": "claude-opus-4-7",
+    "review": "claude-opus-4-7",
     # M6: local-model job types resolve to the LAN endpoints layer at call site.
     "log_triage": "local",
-    "summarise":  "local",
+    "summarise": "local",
 }
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
@@ -53,6 +54,7 @@ def resolve_local_or_fallback(
     if model != LOCAL_SENTINEL:
         return model, None
     from . import local_model
+
     ep = local_model.pick_endpoint()
     if ep is not None:
         return ep.model, ep

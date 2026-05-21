@@ -3,11 +3,10 @@
 Run with:
     python -m pytest tests/test_worker_smoke.py -v
 """
+
 from __future__ import annotations
 
 import json
-
-import pytest
 
 
 def test_budget_tracker_max_turns():

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Append Claude Code hook events to a local JSONL audit log."""
+
 from __future__ import annotations
 
 import json

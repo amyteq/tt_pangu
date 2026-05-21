@@ -9,7 +9,12 @@ from typing import Any
 
 import nbformat
 
-from percent_nb import MagicFormatError, PercentFormatError, notebook_to_percent_cells, percent_cells_to_text
+from percent_nb import (
+    MagicFormatError,
+    PercentFormatError,
+    notebook_to_percent_cells,
+    percent_cells_to_text,
+)
 
 EXIT_OK = 0
 EXIT_RUNTIME = 1
@@ -17,7 +22,9 @@ EXIT_INPUT = 2
 EXIT_FORMAT = 3
 
 
-def _emit(args: argparse.Namespace, ok: bool, payload: dict[str, Any], exit_code: int) -> int:
+def _emit(
+    args: argparse.Namespace, ok: bool, payload: dict[str, Any], exit_code: int
+) -> int:
     if args.json:
         print(json.dumps({"ok": ok, **payload}, ensure_ascii=False))
     elif ok:
@@ -61,7 +68,9 @@ def main(argv: list[str] | None = None) -> int:
         description="Convert a Jupyter notebook into a percent-v1 Python script.",
     )
     parser.add_argument("src", help="source notebook file")
-    parser.add_argument("dst", nargs="?", help="destination python path; default: <src>.py")
+    parser.add_argument(
+        "dst", nargs="?", help="destination python path; default: <src>.py"
+    )
     parser.add_argument(
         "--keep-markdown",
         type=_parse_bool_arg,
@@ -69,15 +78,33 @@ def main(argv: list[str] | None = None) -> int:
         metavar="BOOL",
         help="keep markdown cells in the generated python script (default: true)",
     )
-    parser.add_argument("--check", action="store_true", help="do not write, only report whether output would change")
-    parser.add_argument("--json", action="store_true", help="print machine-readable JSON to stdout")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="do not write, only report whether output would change",
+    )
+    parser.add_argument(
+        "--json", action="store_true", help="print machine-readable JSON to stdout"
+    )
     args = parser.parse_args(argv)
 
     try:
         src = Path(args.src).expanduser().resolve()
         if not src.exists() or src.suffix.lower() != ".ipynb":
-            return _emit(args, False, {"error": "invalid_input", "message": f"source notebook file not found: {src}"}, EXIT_INPUT)
-        dst = Path(args.dst).expanduser().resolve() if args.dst else src.with_suffix(".py")
+            return _emit(
+                args,
+                False,
+                {
+                    "error": "invalid_input",
+                    "message": f"source notebook file not found: {src}",
+                },
+                EXIT_INPUT,
+            )
+        dst = (
+            Path(args.dst).expanduser().resolve()
+            if args.dst
+            else src.with_suffix(".py")
+        )
         payload, summary = build_script(src, keep_markdown=bool(args.keep_markdown))
         changed = True
         if dst.exists():
@@ -97,9 +124,13 @@ def main(argv: list[str] | None = None) -> int:
         }
         return _emit(args, True, result, EXIT_OK)
     except (PercentFormatError, MagicFormatError) as exc:
-        return _emit(args, False, {"error": "format_error", "message": str(exc)}, EXIT_FORMAT)
+        return _emit(
+            args, False, {"error": "format_error", "message": str(exc)}, EXIT_FORMAT
+        )
     except Exception as exc:
-        return _emit(args, False, {"error": "runtime_error", "message": str(exc)}, EXIT_RUNTIME)
+        return _emit(
+            args, False, {"error": "runtime_error", "message": str(exc)}, EXIT_RUNTIME
+        )
 
 
 if __name__ == "__main__":

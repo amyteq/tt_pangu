@@ -1,6 +1,6 @@
 # Kaggle Code Agent — Project State
 
-_Last updated: 2026-05-21_
+_Last updated: 2026-05-21 (M7 exit)_
 
 ## Product intent
 Build a hybrid human + AI competition engineering workbench. The first target is Kaggle-style competitions, with future support for authorized CTF/lab challenges. The system should research, discuss ideas with humans, edit code, run tests/evaluations, analyze results, iterate, and prepare submissions under human-approved guardrails.
@@ -39,29 +39,13 @@ Require approval for:
 - **M4**: Kaggle competition workflow v0 ✓
 - **M5**: research and browser workflow ✓
 - **M6**: multi-agent review + OTEL telemetry + local-model layer ✓
+- **M7**: KCA CLI architecture (command / skill / tool / permission policy) ✓
 
-See `docs/m6-final-review.md` for M6 validation results (19/19 checks PASS).
+See `docs/m7-final-review.md` for M7 validation results (28/28 checks PASS).
 
-## Current milestone: M7 — KCA CLI architecture
+## Current milestone: M8 — product UI shell
 
-Status: in planning.
-
-Goal: implement the full KCA command/skill/tool/job architecture — a stable, inspectable CLI with structured permission policy, skill loader, tool registry, and audit logging. Also fixes failing GitHub Actions CI.
-
-Key deliverables:
-- `.kca/skills/<name>/SKILL.md` loader with YAML frontmatter.
-- Command registry and tool registry with approval policy labels.
-- Permission policy layer (allow/ask/deny as structured data, not just prompts).
-- Slash-style invocation: `kca skill run <name> --dry-run`.
-- Seed skills: `run-milestone`, `triage-log`, `prepare-submission`, `review-pr`.
-- Fixed GitHub Actions CI (no-db + lint at minimum).
-- `tests/test_m7_smoke.py` passing without credentials.
-
-See `docs/milestones.md` M7 for the full task sequence.
-
-## Next milestone: M8 — product UI shell
-
-Goal: expose the control plane through a React/TypeScript UI (Next.js or Vite) built in Claude Code. Approval inbox, run timeline, experiment table, artifact browser.
+Status: planned. Expose the control plane through a React/TypeScript UI (Next.js or Vite) built in Claude Code: approval inbox, run timeline, experiment table, artifact browser. M7 follow-ups (skill → worker wiring, DB audit table, tool executor integration) tracked in `docs/m7-final-review.md` § M8 follow-ups.
 
 ## Open decisions
 - TypeScript-only platform service vs TypeScript API + Python worker from day one (M8 concern).

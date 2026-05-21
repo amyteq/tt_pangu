@@ -10,6 +10,7 @@ Subcommands:
 Untrusted-data principle: fetched bytes are saved verbatim and never
 executed; we extract structural text only.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -19,7 +20,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from _types import EXIT_OK, EXIT_BLOCKED, EXIT_RUNTIME, SideEffect
+from _types import EXIT_OK, EXIT_RUNTIME, SideEffect
 from _util import REPO_ROOT
 
 
@@ -36,11 +37,13 @@ def _db_or_warn():
     connection info / driver isn't available; callers may still degrade."""
     try:
         import db as _db
+
         _db.get_conn().close()
         return _db, None
     except Exception as e:
         try:
             import db as _db
+
             return _db, f"db_unavailable: {type(e).__name__}: {e}"
         except Exception as e2:
             return None, f"db_import_failed: {e2}"
@@ -67,6 +70,7 @@ def _resolve_competition_id(slug: str | None):
         return None, None
     try:
         import db as _db
+
         row = _db.get_competition_by_slug(slug)
         return row.get("id"), None
     except Exception as e:
@@ -81,11 +85,13 @@ def cmd_fetch(args: argparse.Namespace) -> int:
     url = args.url
     trust = args.trust or "untrusted"
     if trust not in VALID_TRUSTS:
-        return _emit({"ok": False, "error": f"invalid trust: {trust}",
-                      "side_effect": se.value})
+        return _emit(
+            {"ok": False, "error": f"invalid trust: {trust}", "side_effect": se.value}
+        )
 
     # SSRF / scheme check first (independent of approval gate).
     from research_fetch import _check_policy
+
     policy_err = _check_policy(url)
     if policy_err is not None:
         payload = dict(policy_err)
@@ -97,24 +103,28 @@ def cmd_fetch(args: argparse.Namespace) -> int:
     # Approval gate when domain isn't in allow-list.
     policy_gates = {"external_fetch": True} if not _domain_allowed(url) else {}
     try:
-        _check_approval_gate("external_fetch",
-                             {"approval_gates": policy_gates})
+        _check_approval_gate("external_fetch", {"approval_gates": policy_gates})
     except ApprovalRequired:
-        return _emit({
-            "ok": False,
-            "error": "ApprovalRequired: external_fetch",
-            "operation": "external_fetch",
-            "url": url,
-            "side_effect": se.value,
-        })
+        return _emit(
+            {
+                "ok": False,
+                "error": "ApprovalRequired: external_fetch",
+                "operation": "external_fetch",
+                "url": url,
+                "side_effect": se.value,
+            }
+        )
 
     # Stage artifact dir under repo: artifacts/research/<hash[:12]>/ -- but
     # we don't know the hash yet, so use a tmp staging dir and move.
     staging = REPO_ROOT / "artifacts" / "research" / "_staging"
     staging.mkdir(parents=True, exist_ok=True)
-    result = fetch_page(url, out_dir=staging,
-                        fetcher=args.fetcher or "http",
-                        timeout_s=args.timeout or 20)
+    result = fetch_page(
+        url,
+        out_dir=staging,
+        fetcher=args.fetcher or "http",
+        timeout_s=args.timeout or 20,
+    )
     if not result.get("ok"):
         # Surface policy_warnings as part of the response.
         payload = dict(result)
@@ -158,12 +168,14 @@ def cmd_fetch(args: argparse.Namespace) -> int:
     try:
         comp_id, comp_warn = _resolve_competition_id(args.competition)
         html_art = _db.attach_artifact(
-            "research_html", str(raw_final),
+            "research_html",
+            str(raw_final),
             content_hash=content_hash,
             byte_size=result.get("bytes"),
         )
         text_art = _db.attach_artifact(
-            "research_text", str(text_final),
+            "research_text",
+            str(text_final),
             content_hash=content_hash,
         )
         item_id = _db.create_research_item(
@@ -195,8 +207,9 @@ def cmd_add(args: argparse.Namespace) -> int:
     se = SideEffect.LOCAL_WRITE
     trust = args.trust or "unknown"
     if trust not in VALID_TRUSTS:
-        return _emit({"ok": False, "error": f"invalid trust: {trust}",
-                      "side_effect": se.value})
+        return _emit(
+            {"ok": False, "error": f"invalid trust: {trust}", "side_effect": se.value}
+        )
 
     _db, warn_msg = _db_or_warn()
     payload: dict[str, Any] = {
@@ -234,46 +247,53 @@ def cmd_list(args: argparse.Namespace) -> int:
     se = SideEffect.READ_ONLY
     _db, warn_msg = _db_or_warn()
     if _db is None or warn_msg:
-        return _emit({
-            "ok": True,
-            "items": [],
-            "db_warning": warn_msg or "no db module",
-            "side_effect": se.value,
-        })
+        return _emit(
+            {
+                "ok": True,
+                "items": [],
+                "db_warning": warn_msg or "no db module",
+                "side_effect": se.value,
+            }
+        )
     try:
         comp_id, _ = _resolve_competition_id(args.competition)
         items = _db.list_research_items(competition_id=comp_id, limit=args.limit)
-        return _emit({
-            "ok": True,
-            "items": [_jsonable(r) for r in items],
-            "side_effect": se.value,
-        })
+        return _emit(
+            {
+                "ok": True,
+                "items": [_jsonable(r) for r in items],
+                "side_effect": se.value,
+            }
+        )
     except Exception as e:
-        return _emit({"ok": False, "error": f"{type(e).__name__}: {e}",
-                      "side_effect": se.value})
+        return _emit(
+            {"ok": False, "error": f"{type(e).__name__}: {e}", "side_effect": se.value}
+        )
 
 
 def cmd_show(args: argparse.Namespace) -> int:
     se = SideEffect.READ_ONLY
     _db, warn_msg = _db_or_warn()
     if _db is None or warn_msg:
-        return _emit({"ok": False, "error": warn_msg or "no db",
-                      "side_effect": se.value})
+        return _emit(
+            {"ok": False, "error": warn_msg or "no db", "side_effect": se.value}
+        )
     try:
         item = _db.get_research_item(args.id)
-        return _emit({"ok": True, "item": _jsonable(item),
-                      "side_effect": se.value})
+        return _emit({"ok": True, "item": _jsonable(item), "side_effect": se.value})
     except Exception as e:
-        return _emit({"ok": False, "error": f"{type(e).__name__}: {e}",
-                      "side_effect": se.value})
+        return _emit(
+            {"ok": False, "error": f"{type(e).__name__}: {e}", "side_effect": se.value}
+        )
 
 
 def cmd_cite(args: argparse.Namespace) -> int:
     se = SideEffect.LOCAL_WRITE
     _db, warn_msg = _db_or_warn()
     if _db is None or warn_msg:
-        return _emit({"ok": False, "error": warn_msg or "no db",
-                      "side_effect": se.value})
+        return _emit(
+            {"ok": False, "error": warn_msg or "no db", "side_effect": se.value}
+        )
     try:
         cid = _db.cite_research(
             args.id,
@@ -281,11 +301,11 @@ def cmd_cite(args: argparse.Namespace) -> int:
             experiment_id=args.experiment_id,
             quote=args.quote,
         )
-        return _emit({"ok": True, "citation_id": cid,
-                      "side_effect": se.value})
+        return _emit({"ok": True, "citation_id": cid, "side_effect": se.value})
     except Exception as e:
-        return _emit({"ok": False, "error": f"{type(e).__name__}: {e}",
-                      "side_effect": se.value})
+        return _emit(
+            {"ok": False, "error": f"{type(e).__name__}: {e}", "side_effect": se.value}
+        )
 
 
 def _jsonable(v):
@@ -301,18 +321,16 @@ def _jsonable(v):
 
 
 def add_parsers(sub: argparse._SubParsersAction) -> None:
-    rs = sub.add_parser("research",
-                        help="Cited, trust-labeled web research items")
+    rs = sub.add_parser("research", help="Cited, trust-labeled web research items")
     rs_sub = rs.add_subparsers(dest="research_cmd", required=True)
 
-    p_fetch = rs_sub.add_parser("fetch",
-                                help="Fetch a URL and record a research_items row")
+    p_fetch = rs_sub.add_parser(
+        "fetch", help="Fetch a URL and record a research_items row"
+    )
     p_fetch.add_argument("--url", required=True)
     p_fetch.add_argument("--competition", default=None)
-    p_fetch.add_argument("--fetcher", choices=("http", "playwright"),
-                         default="http")
-    p_fetch.add_argument("--trust", choices=sorted(VALID_TRUSTS),
-                         default="untrusted")
+    p_fetch.add_argument("--fetcher", choices=("http", "playwright"), default="http")
+    p_fetch.add_argument("--trust", choices=sorted(VALID_TRUSTS), default="untrusted")
     p_fetch.add_argument("--title", default=None)
     p_fetch.add_argument("--summary", default=None)
     p_fetch.add_argument("--source-kind", dest="source_kind", default="page")
@@ -324,8 +342,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_add.add_argument("--url", required=True)
     p_add.add_argument("--title", default=None)
     p_add.add_argument("--summary", default=None)
-    p_add.add_argument("--trust", choices=sorted(VALID_TRUSTS),
-                       default="unknown")
+    p_add.add_argument("--trust", choices=sorted(VALID_TRUSTS), default="unknown")
     p_add.add_argument("--competition", default=None)
     p_add.add_argument("--json", action="store_true")
     p_add.set_defaults(func=cmd_add)

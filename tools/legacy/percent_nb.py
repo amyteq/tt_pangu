@@ -86,7 +86,9 @@ def parse_percent_script(text: str) -> list[PercentCell]:
             return
         source = "\n".join(current_lines).rstrip("\n")
         if source.strip() or current_kind != "code" or current_tags or saw_header:
-            cells.append(PercentCell(kind=current_kind, source=source, tags=list(current_tags)))
+            cells.append(
+                PercentCell(kind=current_kind, source=source, tags=list(current_tags))
+            )
         current_kind = "code"
         current_tags = []
         current_lines = []
@@ -111,7 +113,9 @@ def _ensure_supported_magic_line(line: str, *, context: str) -> None:
     if raw_match and raw_match.group("magic"):
         indent = raw_match.group("indent") or ""
         if indent:
-            raise MagicFormatError(f"indented magic is not supported in {context}: {line!r}")
+            raise MagicFormatError(
+                f"indented magic is not supported in {context}: {line!r}"
+            )
         raise MagicFormatError(
             f"raw top-level magic is not allowed in percent-v1 source; use comment-magic '# %...' or '# !...': {line!r}"
         )
@@ -137,7 +141,9 @@ def code_nb_to_py_source(source: str) -> str:
             indent = raw_match.group("indent") or ""
             magic = raw_match.group("magic")
             if indent:
-                raise MagicFormatError(f"indented notebook magic is not supported in percent-v1: {line!r}")
+                raise MagicFormatError(
+                    f"indented notebook magic is not supported in percent-v1: {line!r}"
+                )
             out.append(f"# {magic}")
         else:
             out.append(line)
@@ -187,7 +193,9 @@ def make_header(kind: str, tags: list[str] | None = None) -> str:
     return " ".join(parts)
 
 
-def notebook_to_percent_cells(nb: Any, *, delete_markdown: bool = False) -> list[PercentCell]:
+def notebook_to_percent_cells(
+    nb: Any, *, delete_markdown: bool = False
+) -> list[PercentCell]:
     cells: list[PercentCell] = []
     for cell in list(getattr(nb, "cells", [])):
         kind = getattr(cell, "cell_type", None)
@@ -197,22 +205,38 @@ def notebook_to_percent_cells(nb: Any, *, delete_markdown: bool = False) -> list
             if delete_markdown:
                 continue
             source = markdown_nb_to_py_source(str(getattr(cell, "source", "") or ""))
-            cells.append(PercentCell(kind="markdown", source=source, tags=_normalize_tags(cell.metadata.get("tags", []))))
+            cells.append(
+                PercentCell(
+                    kind="markdown",
+                    source=source,
+                    tags=_normalize_tags(cell.metadata.get("tags", [])),
+                )
+            )
             continue
         if kind == "code":
             source = code_nb_to_py_source(str(getattr(cell, "source", "") or ""))
-            cells.append(PercentCell(kind="code", source=source, tags=_normalize_tags(cell.metadata.get("tags", []))))
+            cells.append(
+                PercentCell(
+                    kind="code",
+                    source=source,
+                    tags=_normalize_tags(cell.metadata.get("tags", [])),
+                )
+            )
             continue
         raise PercentFormatError(f"unsupported notebook cell type: {kind}")
     return cells
 
 
 def _cell_id(cell: PercentCell, index: int) -> str:
-    seed = f"{index}|{cell.kind}|{cell.tags}|{cell.source}".encode("utf-8", errors="ignore")
+    seed = f"{index}|{cell.kind}|{cell.tags}|{cell.source}".encode(
+        "utf-8", errors="ignore"
+    )
     return hashlib.blake2s(seed, digest_size=6).hexdigest()
 
 
-def percent_cells_to_notebook_cells(cells: list[PercentCell], *, delete_markdown: bool = False) -> list[dict[str, Any]]:
+def percent_cells_to_notebook_cells(
+    cells: list[PercentCell], *, delete_markdown: bool = False
+) -> list[dict[str, Any]]:
     nb_cells: list[dict[str, Any]] = []
     out_index = 0
     for cell in cells:
