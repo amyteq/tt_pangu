@@ -1041,6 +1041,18 @@ Also update, in order:
      clear M7 open decisions.
   2. README.md — update "Current milestone" section from M7 to M8.
   3. docs/milestones.md — mark M7 ✓ done with one-line summary.
+  4. docs/handoffs/m7-handoff.md — write a per-milestone handoff prompt for the
+     next AI tool / session that will start M8. Use docs/handoff-prompt.md as
+     the canonical template and populate:
+       - Read-first list (PROJECT_STATE.md, AGENTS.md, CLAUDE.md, the M8 section
+         of docs/milestones.md, this docs/m7-final-review.md, latest ADRs,
+         docs/architecture/kca-cli-architecture.md).
+       - "State at M7 exit" (1–3 lines summarising what landed + the 28-check
+         exit matrix outcome + the M8 follow-ups list).
+       - "Current task" stub for the first M8 task (typically Prompt 0 of
+         docs/m8-loop-prompts.md once that file exists).
+     This step is required by docs/milestones.md § Milestone final-review
+     protocol; do not skip it.
 
 Do NOT git add or commit unless the human explicitly requests it.
 Report: full matrix, final status.
