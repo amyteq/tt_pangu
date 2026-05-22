@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
-    "defaultMode": "dontAsk",
+    "defaultMode": "default",
     "allow": [
       "Read",
       "Edit",
@@ -112,7 +112,6 @@
       "Read(~/.aws/**)",
       "Read(~/.config/gcloud/**)",
       "Read(~/.config/gh/hosts.yml)",
-      "Read(./.git/**)",
 
       "Edit(./.env)",
       "Edit(./.env.local)",
