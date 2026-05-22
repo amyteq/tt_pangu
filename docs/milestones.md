@@ -111,6 +111,7 @@ After every milestone final review, before marking done:
 1. Update `PROJECT_STATE.md` — set current milestone, summarize open decisions, and record any new known blockers.
 2. Update `README.md` current milestone section to name the new active milestone and goal.
 3. Update `docs/milestones.md` — mark the finished milestone `✓ done`, add a one-line summary of what landed, and note any follow-ups carried forward.
+4. Write `docs/handoffs/m{x}-handoff.md` — a per-milestone, ready-to-paste context prompt for the next AI tool / session that will start M{x+1}. Use `docs/handoff-prompt.md` as the canonical template; populate the "State at handoff", "Read these files first", and "Current task" sections from the M{x} final review and the M{x+1} entry in this file. The generic `docs/handoff-prompt.md` stays as the template; the per-milestone instances live under `docs/handoffs/`.
 
 ---
 
