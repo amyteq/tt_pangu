@@ -76,9 +76,11 @@ runs/                        Run outputs — do not commit
 5. Never read `.env`, `kaggle.json`, `secrets/`, or private keys.
 6. Never submit to Kaggle, push kernels, or perform any remote write without explicit human approval.
 
-## Current milestone: M9 — live Kaggle regression test
+## Current milestone: M10 — authorized CTF/lab workflow
 
-Status: planned (M8.5-T003 planning docs landed 2026-05-23). Scope: drive the M8 surface end-to-end against a real Kaggle competition (Spaceship Titanic) under the approval gates — baseline training, CV scoring, submission preparation, human-approved submit, leaderboard ingest.
+Status: planned (M9 exited 2026-05-24). Scope: support CTF-style challenges only inside explicit authorization boundaries — challenge scope + authorization metadata; local container/lab-only execution; solver script generation and testing; writeup generation; hard policy blocks for external scanning, real targets, credential theft, persistence, or unsafe actions.
+
+M9 (live end-to-end Kaggle regression — Spaceship Titanic) shipped on 2026-05-24: LR baseline CV **0.79144 ±0.0086**, HGB + FE CV **0.81192 ±0.00753** (+0.02048), one approved real Kaggle submission (public LB **0.78676**), two new test files (`tests/test_m9_smoke.py`, `tests/test_m9_e2e.py`). See `docs/m9-final-review.md` for the 30-check validation matrix and `docs/handoffs/m9-handoff.md` for the M9 → M10 handoff (including five cross-cutting follow-ups A–E).
 
 M8.5 (pre-M9 hardening) shipped on 2026-05-23 as three PRs (#4 CI repair, #5 engineering-practice + GitHub Issues/PR/labels interface, #6 M9 planning docs); see `docs/m8_5-final-review.md` for the 26-check roll-up. M8 (product UI shell + M7 follow-ups) shipped earlier on 2026-05-23; see `docs/m8-final-review.md` for the 28-check validation matrix. The UI shell is documented in `docs/architecture/m8-ui-shell.md`; the underlying KCA CLI architecture in `docs/architecture/kca-cli-architecture.md`. The collaboration model (label routing, AI pickup rule, PR closeout) is in `docs/engineering-practice.md`. See `docs/milestones.md` for the full product plan (M0–M12).
 
