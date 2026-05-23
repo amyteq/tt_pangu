@@ -1,0 +1,41 @@
+PassengerId,HomePlanet,CryoSleep,Cabin,Destination,Age,VIP,RoomService,FoodCourt,ShoppingMall,Spa,VRDeck,Name
+0013_01,Earth,True,G/3/S,TRAPPIST-1e,27.0,False,0.0,0.0,0.0,0.0,0.0,Nelly Carsoning
+0018_01,Earth,False,F/4/S,TRAPPIST-1e,19.0,False,0.0,9.0,0.0,2823.0,0.0,Lerome Peckers
+0019_01,Europa,True,C/0/S,55 Cancri e,31.0,False,0.0,0.0,0.0,0.0,0.0,Sabih Unhearfus
+0021_01,Europa,False,C/1/S,TRAPPIST-1e,38.0,False,0.0,6652.0,0.0,181.0,585.0,Meratz Caltilter
+0023_01,Earth,False,F/5/S,TRAPPIST-1e,20.0,False,10.0,0.0,635.0,0.0,0.0,Brence Harperez
+0027_01,Earth,False,F/7/P,TRAPPIST-1e,31.0,False,0.0,1615.0,263.0,113.0,60.0,Karlen Ricks
+0029_01,Europa,True,B/2/P,55 Cancri e,21.0,False,0.0,,0.0,0.0,0.0,Aldah Ainserfle
+0032_01,Europa,True,D/0/S,TRAPPIST-1e,20.0,False,0.0,0.0,0.0,0.0,0.0,Acrabi Pringry
+0032_02,Europa,True,D/0/S,55 Cancri e,23.0,False,0.0,0.0,0.0,0.0,0.0,Dhena Pringry
+0033_01,Earth,False,F/7/S,55 Cancri e,24.0,False,0.0,639.0,0.0,0.0,0.0,Eliana Delazarson
+0037_01,Earth,False,F/9/S,TRAPPIST-1e,19.0,False,339.0,3.0,136.0,237.0,0.0,Vivia Rickson
+0040_01,Europa,False,D/2/P,TRAPPIST-1e,45.0,False,932.0,74.0,,7.0,1010.0,Antino Pinoffent
+0040_02,Europa,False,D/2/P,TRAPPIST-1e,44.0,False,0.0,1561.0,0.0,14.0,224.0,Jihda Pinoffent
+0042_01,Mars,True,E/0/P,TRAPPIST-1e,46.0,False,0.0,0.0,0.0,0.0,0.0,Hamus Frité
+0046_01,Earth,False,G/4/P,TRAPPIST-1e,21.0,False,0.0,0.0,0.0,1687.0,92.0,Neilda Powery
+0046_02,Earth,False,F/11/P,TRAPPIST-1e,27.0,False,0.0,0.0,0.0,903.0,,Glene Powery
+0046_03,Earth,False,F/11/P,TRAPPIST-1e,20.0,False,2.0,12.0,253.0,457.0,690.0,Joanny Powery
+0047_01,Europa,True,B/0/S,TRAPPIST-1e,44.0,False,0.0,0.0,0.0,0.0,0.0,Winonon Prucerod
+0047_02,Europa,False,,TRAPPIST-1e,29.0,False,0.0,7708.0,243.0,569.0,343.0,Muons Prucerod
+0047_03,Europa,False,B/0/S,TRAPPIST-1e,40.0,False,26.0,1925.0,8.0,3144.0,63.0,
+0048_01,Earth,False,G/5/S,TRAPPIST-1e,30.0,False,0.0,878.0,26.0,3.0,0.0,Tyle Deckerry
+0049_01,Earth,False,E/1/P,TRAPPIST-1e,14.0,False,,0.0,0.0,1609.0,0.0,Doria Flynney
+0054_01,Europa,True,B/4/P,55 Cancri e,31.0,False,0.0,0.0,0.0,0.0,0.0,Algedia Viouster
+0054_02,Europa,False,B/4/P,55 Cancri e,27.0,False,0.0,6977.0,0.0,4.0,1235.0,Alteron Viouster
+0054_03,Europa,False,B/4/P,55 Cancri e,66.0,False,39.0,6452.0,0.0,1409.0,155.0,Winon Viouster
+0055_01,Earth,False,G/5/P,TRAPPIST-1e,24.0,False,1784.0,8.0,18.0,18.0,0.0,Brence Frederry
+0057_01,Europa,False,C/1/P,55 Cancri e,19.0,False,293.0,3495.0,5273.0,118.0,422.0,Gatrin Windend
+0059_01,Earth,True,E/2/P,TRAPPIST-1e,36.0,False,0.0,0.0,0.0,0.0,0.0,Janne Carvis
+0060_01,Earth,False,F/12/P,TRAPPIST-1e,21.0,False,0.0,619.0,12.0,3.0,0.0,Fanna Ashipeck
+0063_01,Earth,True,G/8/S,55 Cancri e,18.0,False,0.0,0.0,0.0,0.0,0.0,Elene Daughessey
+0065_01,Earth,True,G/9/S,TRAPPIST-1e,26.0,False,0.0,0.0,0.0,0.0,0.0,Monald Rushorney
+0075_01,Earth,False,G/11/S,TRAPPIST-1e,19.0,False,598.0,0.0,30.0,0.0,0.0,Shally Jimes
+0079_01,Earth,True,G/12/S,TRAPPIST-1e,48.0,False,0.0,0.0,0.0,0.0,0.0,Verney Sullones
+0080_01,Earth,False,G/7/P,TRAPPIST-1e,23.0,False,14.0,870.0,0.0,0.0,23.0,Wandy Llobsoney
+0083_01,Earth,False,G/8/P,TRAPPIST-1e,24.0,False,483.0,0.0,87.0,214.0,0.0,Lilasa Barris
+0087_01,Earth,False,E/3/P,TRAPPIST-1e,19.0,False,0.0,20.0,135.0,265.0,367.0,Meremy Jarvey
+0089_01,Mars,True,F/19/S,TRAPPIST-1e,24.0,False,0.0,0.0,0.0,0.0,0.0,Ors Cha
+0093_01,Earth,False,G/10/P,TRAPPIST-1e,27.0,False,66.0,1736.0,0.0,0.0,15.0,Krisa Dukertyler
+0094_01,Earth,True,G/17/S,TRAPPIST-1e,6.0,False,,0.0,0.0,0.0,0.0,Jaye Santantines
+0094_02,Earth,False,F/21/S,TRAPPIST-1e,33.0,False,0.0,0.0,0.0,866.0,0.0,Terta Santantines
