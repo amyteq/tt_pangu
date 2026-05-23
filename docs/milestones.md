@@ -504,6 +504,35 @@ Exit criteria:
 
 ---
 
+## M8.5: pre-M9 hardening ✓ done
+
+Goal: get CI back to green, give humans and Claude Code a shared GitHub
+Issues / PR / labels interface, and draft M9 — all before any M9 code
+runs.
+
+### M8.5 task sequence
+
+| Task | Description | Result |
+|---|---|---|
+| M8.5-T001 | CI repair — Python deps + `kca skill` registration + pnpm workspace | PR #4 (`2d4f0cc`) |
+| M8.5-T002 | Engineering practice docs + GitHub labels / issue forms / PR template + agents/skills + sandbox / hook revision | PR #5 (`5497b9b`) |
+| M8.5-T003 | M9 planning only — `docs/m9-loop-prompts.md` + nine `docs/tasks/M9-T*.md` specs | PR #6 (`cade09f`) |
+
+Exit criteria:
+
+- CI green on `no-db pytest`, `live-db pytest`, `ruff`, `ui build + lint
+  + typecheck + test` for all three M8.5 PRs.
+- `.github/labels.yml` synced to `origin` (33 labels visible).
+- `docs/engineering-practice.md`, `AGENTS.md`, `CLAUDE.md` describe the
+  AI pickup rule + remote-write approval requirement.
+- `docs/m9-loop-prompts.md` covers the 10 M9 planning topics; each
+  non-trivial Loop Prompt has a matching task spec.
+- No M9 code implemented.
+
+See `docs/m8_5-final-review.md` for the full validation roll-up.
+
+---
+
 ## M9: live end-to-end regression test — Spaceship Titanic
 
 Goal: validate the full platform loop with a real Kaggle submission for
