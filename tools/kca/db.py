@@ -99,6 +99,8 @@ __all__ = [
     "record_span",
     "list_spans",
     "set_job_trace",
+    # M8 tool audit (0007 schema)
+    "insert_tool_audit",
 ]
 
 
@@ -1940,6 +1942,74 @@ def _set_job_trace(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# M8: agent_tool_audit (schema in 0007)
+# ---------------------------------------------------------------------------
+
+
+def insert_tool_audit(
+    rec: dict,
+    conn: "psycopg.Connection | None" = None,
+) -> int:
+    """Insert one agent_tool_audit row from an audit record dict.
+
+    Best-effort: if the DB is unreachable, returns -1 and prints a warning
+    to stderr instead of raising. Caller is responsible for keeping the
+    JSONL file backend in sync.
+
+    Expected ``rec`` shape (matches ``AuditRecord.to_dict()``):
+      timestamp, session_id, skill_name, tool_name, operation, decision,
+      mode, policy_profile, audit_required, args_hash[, job_id, extra].
+
+    Note: ``append_job_event(event_type="tool_audit", ...)`` is the M7-era
+    audit path and is preserved for the offline-only mode. Prefer this
+    function for new callers — it gives a typed table and indexes for
+    operator queries.
+    """
+    try:
+        return _with_conn(conn, _insert_tool_audit, rec)
+    except Exception as exc:
+        import sys
+
+        sys.stderr.write(f"[insert_tool_audit warn] {exc}\n")
+        return -1
+
+
+def _insert_tool_audit(conn: "psycopg.Connection", rec: dict) -> int:
+    extra = rec.get("extra") or {}
+    job_id = rec.get("job_id")
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO agent_tool_audit
+              (ts, session_id, job_id, skill_name, tool_name, operation,
+               decision, mode, policy_profile, audit_required, args_hash, extra)
+            VALUES
+              (%s, %s::uuid, %s::uuid, %s, %s, %s,
+               %s, %s, %s, %s, %s, %s::jsonb)
+            RETURNING id
+            """,
+            (
+                rec.get("timestamp"),
+                rec.get("session_id"),
+                job_id,
+                rec.get("skill_name"),
+                rec.get("tool_name"),
+                rec.get("operation"),
+                rec.get("decision"),
+                rec.get("mode", "default"),
+                rec.get("policy_profile", "default"),
+                bool(rec.get("audit_required", False)),
+                rec.get("args_hash", ""),
+                json.dumps(extra),
+            ),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    assert row is not None
+    return row["id"]
 
 
 def _with_conn(conn, fn, *args, **kwargs):

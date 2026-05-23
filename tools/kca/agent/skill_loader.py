@@ -8,6 +8,12 @@ from pathlib import Path
 
 import yaml
 
+from .skill_schema import (  # noqa: F401  (re-exported for callers)
+    SkillValidationError,
+    validate_allowed_tools,
+    validate_frontmatter,
+)
+
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[3]
@@ -101,7 +107,18 @@ def load_skill(name: str, *, skills_root: Path | None = None) -> Skill:
         raise FileNotFoundError(f"skill {name!r} not found at {skill_md}")
     text = skill_md.read_text(encoding="utf-8")
     data, body = _parse_frontmatter(text)
+    try:
+        validate_frontmatter(data)
+    except SkillValidationError as exc:
+        raise SkillValidationError(f"{skill_md}: {exc}") from exc
     meta = _build_meta(data, fallback_name=name)
+    # Cross-check allowed-tools against TOOL_REGISTRY so a typo fails loudly.
+    try:
+        from .tool_registry import TOOL_REGISTRY
+
+        validate_allowed_tools(meta.allowed_tools, set(TOOL_REGISTRY.keys()))
+    except SkillValidationError as exc:
+        raise SkillValidationError(f"{skill_md}: {exc}") from exc
     meta.body = body
     return Skill(meta=meta, path=skill_md.resolve(), rendered_body=body)
 
