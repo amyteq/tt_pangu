@@ -109,3 +109,13 @@ When committing:
 - Do not commit secrets, datasets, model checkpoints, local logs, or generated bulk artifacts.
 - Use concise messages, e.g. `exp: add xgboost baseline` or `agent: add run audit hooks`.
 - Do not push without human approval.
+
+## GitHub collaboration
+
+Full model: `docs/engineering-practice.md`. Routing rules binding on every Claude Code session:
+
+- Only pick up issues with `ai:ready` and (when needed) `decision:confirmed`. Unresolved work gets `decision:needed` and `ai:blocked` instead.
+- Triage and drift agents may propose label / comment changes deterministically; do not infer decisions from ambiguous comments.
+- All remote writes — `gh issue edit/comment/close`, `gh pr create/edit/comment/merge`, `gh label create/edit/delete`, `git push`, `scripts/sync_labels.py --apply` — require explicit human approval, even when the local CI checks are green.
+- Every PR uses `.github/pull_request_template.md`. The tests/docs/evidence/schema/remote checklist is load-bearing.
+- When writing issue or PR comments, cite the exact evidence (issue URL, doc anchor, `file:line`, test run) and the acceptance criterion you are referring to.

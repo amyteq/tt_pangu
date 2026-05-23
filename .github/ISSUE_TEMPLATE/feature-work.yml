@@ -1,0 +1,120 @@
+name: Feature work
+description: New capability, milestone task, or scoped improvement.
+title: "[feature] "
+labels: ["type:feature", "ai:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this for new capability work or scoped improvements. The issue is the
+        AI's work order — without crisp acceptance criteria and confirmed decisions
+        the triage agent will not promote it to `ai:ready`.
+
+  - type: textarea
+    id: mission
+    attributes:
+      label: Mission
+      description: One sentence — what should be true after this is done.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context / source of truth
+      description: Links to milestone, ADR, related issues, design notes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Bulleted, allowed work.
+    validations:
+      required: true
+
+  - type: textarea
+    id: nongoals
+    attributes:
+      label: Non-goals
+      description: Bulleted, explicitly out of scope.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: |
+        Required for `ai:ready`. Must be verifiable.
+      placeholder: |
+        - `pytest tests/...` covers the new path.
+        - `kca skill list` includes the new skill.
+        - docs/<x>.md describes the new behaviour and links to the test.
+    validations:
+      required: true
+
+  - type: textarea
+    id: tests
+    attributes:
+      label: Tests required
+      description: Which test tiers must pass before merge.
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence required
+      description: What artifacts must the PR link? (test run, screenshots, audit row, etc.)
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - area:agent-sdk
+        - area:auth
+        - area:ci
+        - area:config
+        - area:ctf
+        - area:docs
+        - area:frontend
+        - area:github-ops
+        - area:inventory
+        - area:kaggle
+        - area:release
+        - area:security
+        - area:supabase
+        - area:testing
+        - area:ui
+        - area:worker
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - priority:P0
+        - priority:P1
+        - priority:P2
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety classification
+      description: Anything checked here adds `policy:approval-required` and may require `decision:confirmed` before implementation.
+      options:
+        - label: Touches secrets, credentials, or auth surface
+        - label: Schema / RLS / migration changes
+        - label: Kaggle live submission / kernel push / dataset upload
+        - label: CTF tooling that could be dual-use
+        - label: Customer-visible side effect or production write

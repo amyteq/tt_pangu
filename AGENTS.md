@@ -60,3 +60,31 @@ Existing Kaggle scripts should be wrapped behind stable commands or typed tools.
 - Side effects.
 - Safety class: read-only, local-write, remote-write, or submission.
 - Required approval policy.
+
+## GitHub collaboration interface
+GitHub Issues, labels, PR reviews, and comments are the shared interface
+between humans and AI agents working on this repo. The full model lives
+in `docs/engineering-practice.md`; the routing rules below are binding.
+
+- **AI implementation is gated by labels.** An agent may pick up an issue
+  only when all are true: open, has `ai:ready`, has clear acceptance
+  criteria, has an owner/reviewer, and (if `type:decision` ever applied)
+  the decision is `decision:confirmed`. If any of these is missing, the
+  issue stays `ai:blocked` or `decision:needed`.
+- **Triage is read-write on labels and comments only**, and only when the
+  rule is deterministic. Triage agents must not infer decisions from
+  ambiguous comments — file `decision:needed` instead.
+- **Remote writes require explicit human approval.** This covers
+  `gh issue edit/comment/close`, `gh pr edit/comment/merge/create`,
+  `gh label create/edit/delete`, `gh release *`, `git push`, and any
+  mass label/issue mutation. `scripts/sync_labels.py` defaults to
+  dry-run; live writes need `--apply --i-mean-it` plus a human approval
+  recorded on the originating issue.
+- **PRs must use `.github/pull_request_template.md`.** Tests, docs,
+  evidence, schema/secrets, and remote-side-effect checklist sections
+  are load-bearing — PRs without them are sent back for revision.
+- **Issue-comment writes from agents must cite evidence** (issue URL,
+  doc anchor, file:line, test run) and the acceptance criterion they
+  refer to.
+- Labels are defined in `.github/labels.yml`. New labels need a PR; do
+  not create labels directly on GitHub.
