@@ -52,11 +52,24 @@ See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP checks 
 
 ## Current milestone: M9 — live Kaggle regression test
 
-Status: planned. Drive the M8 surface end-to-end against a real
-Kaggle competition (Spaceship Titanic) under the approval gates: baseline
-training, CV scoring, submission preparation, human-approved submit,
-leaderboard ingest. Reuse the worker + decision_api + UI shell. See
-`docs/handoffs/m8-handoff.md` for the read-first list.
+Status: planned (M8.5-T003 planning docs landed 2026-05-23). Drive the M8
+surface end-to-end against a real Kaggle competition (Spaceship Titanic)
+under the approval gates: baseline training, CV scoring, submission
+preparation, human-approved submit, leaderboard ingest. Reuse the worker
++ decision_api + UI shell.
+
+Planning artifacts:
+- `docs/m9-loop-prompts.md` — 9 Loop Prompts (M9-T000 → M9-T008) with
+  the GitHub issue / label workflow and approval-gate map.
+- `docs/tasks/M9-T000-…` through `docs/tasks/M9-T008-…` — one task
+  spec per Loop Prompt.
+
+First M9 task: **M9-T000 — Kaggle credentials + competition registration**
+(`docs/tasks/M9-T000-kaggle-credentials.md`). Pre-condition: the four
+human decisions in `docs/m9-loop-prompts.md#human-decisions-needed-before-starting-m9`
+recorded as `decision:confirmed` GitHub issues.
+
+See `docs/handoffs/m8-handoff.md` for the M8→M9 read-first list.
 
 ## Open decisions
 - Decision API multi-user auth (per-user JWT via Supabase auth vs continued
