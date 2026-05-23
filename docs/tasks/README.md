@@ -99,9 +99,18 @@ Example: `M0-T001-project-baseline.md`
 | `M8-T012-smoke-tests-playwright.md` | M8 | backfilled | `tests/test_m8_smoke.py` + minimal Playwright smoke |
 | `M8-T013-m8-architecture-doc.md` | M8 | backfilled | `docs/architecture/m8-ui-shell.md` — data flow, auth, gate semantics |
 | `M8-T014-m8-exit-criteria.md` | M8 | backfilled | M8 exit criteria + `docs/m8-final-review.md` + `docs/handoffs/m8-handoff.md` |
-| `M8.5-T001-ci-repair.md` | M8.5 | proposed | CI repair — Python deps + `kca skill` registration + pnpm workspace |
-| `M8.5-T002-engineering-practice-github-interface.md` | M8.5 | proposed | Engineering practice docs + GitHub Issues/PR/labels collaboration + agents/skills |
-| `M8.5-T003-m9-planning-only.md` | M8.5 | proposed | M9 planning only — draft `docs/m9-loop-prompts.md` (no implementation) |
+| `M8.5-T001-ci-repair.md` | M8.5 | done | CI repair — Python deps + `kca skill` registration + pnpm workspace (PR #4) |
+| `M8.5-T002-engineering-practice-github-interface.md` | M8.5 | done | Engineering practice docs + GitHub Issues/PR/labels collaboration + agents/skills (PR #5) |
+| `M8.5-T003-m9-planning-only.md` | M8.5 | done | M9 planning only — drafted `docs/m9-loop-prompts.md` + 9 M9 task specs (PR #6) |
+| `M9-T000-kaggle-credentials.md` | M9 | proposed | Kaggle credentials + competition registration (no real submit, no secret print) |
+| `M9-T001-data-download.md` | M9 | proposed | Download Spaceship Titanic data, verify sha256 manifest, commit `manifest.json` only |
+| `M9-T002-baseline-loop.md` | M9 | proposed | Worker baseline LR loop → CV score + staged `submission.csv` (no submit) |
+| `M9-T003-reviewer-approval-gate.md` | M9 | proposed | Reviewer gate fires; decision_api / UI Approval Inbox surface the pending submit |
+| `M9-T004-real-submission.md` | M9 | proposed | **ONE** real Kaggle submit under explicit human approval; record LB score |
+| `M9-T005-second-experiment.md` | M9 | proposed | HGB + feature engineering — local only; no second real submission |
+| `M9-T006-regression-assertions.md` | M9 | proposed | CV ≥ 0.78 (LR), ≥ 0.80 (HGB); LB recorded; HGB > LR |
+| `M9-T007-e2e-dryrun-test.md` | M9 | proposed | `tests/test_m9_e2e.py` dry-run path (no credentials, no network, no DB) |
+| `M9-T008-m9-exit-criteria.md` | M9 | proposed | M9 exit criteria + `docs/m9-final-review.md` + M9 PR |
 
 > **Convention (M0–M6, M8.5 onward):** Every milestone uses the
 > **double-layer** pattern — `docs/m{N}-loop-prompts.md` for the per-loop
