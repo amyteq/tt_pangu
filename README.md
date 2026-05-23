@@ -78,9 +78,9 @@ runs/                        Run outputs — do not commit
 
 ## Current milestone: M9 — live Kaggle regression test
 
-Status: planned. Scope: drive the M8 surface end-to-end against a real Kaggle competition (Spaceship Titanic) under the approval gates — baseline training, CV scoring, submission preparation, human-approved submit, leaderboard ingest.
+Status: planned (M8.5-T003 planning docs landed 2026-05-23). Scope: drive the M8 surface end-to-end against a real Kaggle competition (Spaceship Titanic) under the approval gates — baseline training, CV scoring, submission preparation, human-approved submit, leaderboard ingest.
 
-M8 (product UI shell + M7 follow-ups) shipped on 2026-05-23; see `docs/m8-final-review.md` for the 28-check validation matrix and M9 follow-ups. The UI shell is documented in `docs/architecture/m8-ui-shell.md`; the underlying KCA CLI architecture in `docs/architecture/kca-cli-architecture.md`. See `docs/milestones.md` for the full product plan (M0–M12).
+M8.5 (pre-M9 hardening) shipped on 2026-05-23 as three PRs (#4 CI repair, #5 engineering-practice + GitHub Issues/PR/labels interface, #6 M9 planning docs); see `docs/m8_5-final-review.md` for the 26-check roll-up. M8 (product UI shell + M7 follow-ups) shipped earlier on 2026-05-23; see `docs/m8-final-review.md` for the 28-check validation matrix. The UI shell is documented in `docs/architecture/m8-ui-shell.md`; the underlying KCA CLI architecture in `docs/architecture/kca-cli-architecture.md`. The collaboration model (label routing, AI pickup rule, PR closeout) is in `docs/engineering-practice.md`. See `docs/milestones.md` for the full product plan (M0–M12).
 
 ## Install and configure
 

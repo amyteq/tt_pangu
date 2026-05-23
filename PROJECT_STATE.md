@@ -1,6 +1,6 @@
 # Kaggle Code Agent — Project State
 
-_Last updated: 2026-05-23 (M8 exit)_
+_Last updated: 2026-05-23 (M8.5 exit)_
 
 ## Product intent
 Build a hybrid human + AI competition engineering workbench. The first target is Kaggle-style competitions, with future support for authorized CTF/lab challenges. The system should research, discuss ideas with humans, edit code, run tests/evaluations, analyze results, iterate, and prepare submissions under human-approved guardrails.
@@ -47,8 +47,11 @@ authoritative.
 - **M6**: multi-agent review + OTEL telemetry + local-model layer ✓
 - **M7**: KCA CLI architecture (command / skill / tool / permission policy) ✓
 - **M8**: product UI shell + M7 follow-ups (audit table, schema gate, ToolSpec enforcement, decision_api) ✓
+- **M8.5**: pre-M9 hardening — CI repair + GitHub Issues/PR/labels interface + M9 planning ✓
 
-See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP checks PASS).
+See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP
+checks PASS) and `docs/m8_5-final-review.md` for the M8.5 roll-up (all
+26 non-SKIP checks PASS; three PRs landed on `main` as #4, #5, #6).
 
 ## Current milestone: M9 — live Kaggle regression test
 
@@ -69,7 +72,8 @@ First M9 task: **M9-T000 — Kaggle credentials + competition registration**
 human decisions in `docs/m9-loop-prompts.md#human-decisions-needed-before-starting-m9`
 recorded as `decision:confirmed` GitHub issues.
 
-See `docs/handoffs/m8-handoff.md` for the M8→M9 read-first list.
+See `docs/handoffs/m8_5-handoff.md` for the M8.5→M9 read-first list
+(`docs/handoffs/m8-handoff.md` is preserved for historical reference).
 
 ## Open decisions
 - Decision API multi-user auth (per-user JWT via Supabase auth vs continued
