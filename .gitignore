@@ -68,6 +68,7 @@ events
 memory
 outbox/
 preflight_snapshots/*
+trash/*
 temp/*
 wiki/*
 **/logs/*
