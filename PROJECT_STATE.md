@@ -1,6 +1,6 @@
 # Kaggle Code Agent — Project State
 
-_Last updated: 2026-05-23 (M8.5 exit)_
+_Last updated: 2026-05-24 (M9 exit)_
 
 ## Product intent
 Build a hybrid human + AI competition engineering workbench. The first target is Kaggle-style competitions, with future support for authorized CTF/lab challenges. The system should research, discuss ideas with humans, edit code, run tests/evaluations, analyze results, iterate, and prepare submissions under human-approved guardrails.
@@ -48,32 +48,53 @@ authoritative.
 - **M7**: KCA CLI architecture (command / skill / tool / permission policy) ✓
 - **M8**: product UI shell + M7 follow-ups (audit table, schema gate, ToolSpec enforcement, decision_api) ✓
 - **M8.5**: pre-M9 hardening — CI repair + GitHub Issues/PR/labels interface + M9 planning ✓
+- **M9**: live end-to-end Kaggle regression test — Spaceship Titanic ✓
 
 See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP
-checks PASS) and `docs/m8_5-final-review.md` for the M8.5 roll-up (all
-26 non-SKIP checks PASS; three PRs landed on `main` as #4, #5, #6).
+checks PASS), `docs/m8_5-final-review.md` for the M8.5 roll-up (all 26
+non-SKIP checks PASS; three PRs landed on `main` as #4, #5, #6), and
+`docs/m9-final-review.md` for the M9 roll-up (30 PASS / 1 SKIP / 0 FAIL;
+the SKIP is UI pnpm gates — M9 did not modify UI).
 
-## Current milestone: M9 — live Kaggle regression test
+M9 metrics snapshot:
+- LR baseline (M9-T002): CV accuracy **0.79144 ±0.0086** (5-fold stratified, seed=42).
+- HGB + FE (M9-T005): CV accuracy **0.81192 ±0.00753** (delta **+0.02048** vs LR).
+- One approved real Kaggle submission (M9-T004): public LB **0.78676**
+  (`external_submission_id=52955657`,
+  `submissions.id=b4607ada-c78a-4d78-80b3-2a5887582472`).
+- New tests: `tests/test_m9_smoke.py` (4 DB-gated assertions),
+  `tests/test_m9_e2e.py` (5 dry-run tests, 0 net / 0 DB / 0 creds).
 
-Status: planned (M8.5-T003 planning docs landed 2026-05-23). Drive the M8
-surface end-to-end against a real Kaggle competition (Spaceship Titanic)
-under the approval gates: baseline training, CV scoring, submission
-preparation, human-approved submit, leaderboard ingest. Reuse the worker
-+ decision_api + UI shell.
+## Current milestone: M10 — authorized CTF/lab workflow
 
-Planning artifacts:
-- `docs/m9-loop-prompts.md` — 9 Loop Prompts (M9-T000 → M9-T008) with
-  the GitHub issue / label workflow and approval-gate map.
-- `docs/tasks/M9-T000-…` through `docs/tasks/M9-T008-…` — one task
-  spec per Loop Prompt.
+Status: planned (M9 exited 2026-05-24). Support CTF-style challenges
+only inside explicit authorization boundaries: challenge scope +
+authorization metadata; local container/lab-only execution; solver
+script generation and testing; writeup generation; hard policy blocks
+for external scanning, real targets, credential theft, persistence, or
+unsafe actions.
 
-First M9 task: **M9-T000 — Kaggle credentials + competition registration**
-(`docs/tasks/M9-T000-kaggle-credentials.md`). Pre-condition: the four
-human decisions in `docs/m9-loop-prompts.md#human-decisions-needed-before-starting-m9`
-recorded as `decision:confirmed` GitHub issues.
+Entry-point note: five cross-cutting follow-ups (A–E) surfaced during
+M9 and are recorded in `docs/handoffs/m9-handoff.md`. Each should be
+filed as a GitHub issue under `.github/ISSUE_TEMPLATE/` before the
+matching M10 (or earlier) work begins. Summary:
 
-See `docs/handoffs/m8_5-handoff.md` for the M8.5→M9 read-first list
-(`docs/handoffs/m8-handoff.md` is preserved for historical reference).
+- **A** — `competitions.repo_url` schema drift (`area:kaggle`, `type:bug`).
+- **B** — `.env` hygiene in pytest subprocess; live-DB run on a host
+  with populated `.env` leaks Kaggle creds via
+  `tools/kca/db.py::load_dotenv` (M8.5 carry-over;
+  `type:test-gap`, `area:testing`).
+- **C** — `decision_api`: no `GET /decisions` endpoint
+  (`area:supabase`, `type:feature`).
+- **D** — `reviewer_decision` literal event_type not emitted
+  (`area:worker`, `type:docs`).
+- **E** — Migration 0004 optional columns
+  (`submissions.public_lb_score`, `submissions.run_id`) not applied to
+  the local DB (`area:supabase`, `type:bug`).
+
+See `docs/handoffs/m9-handoff.md` for the M9→M10 read-first list
+(`docs/handoffs/m8_5-handoff.md` and `docs/handoffs/m8-handoff.md`
+preserved for historical reference).
 
 ## Open decisions
 - Decision API multi-user auth (per-user JWT via Supabase auth vs continued

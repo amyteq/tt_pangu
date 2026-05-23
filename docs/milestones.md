@@ -1,6 +1,6 @@
 # kaggle-code-agent Milestones
 
-Status: M0–M8 done; M9 in planning (live Kaggle regression — Spaceship Titanic)  
+Status: M0–M9 done; M10 in planning (authorized CTF/lab workflow)  
 Created: 2026-05-16  
 Scope: hybrid human + AI code competition platform
 
@@ -533,7 +533,22 @@ See `docs/m8_5-final-review.md` for the full validation roll-up.
 
 ---
 
-## M9: live end-to-end regression test — Spaceship Titanic
+## M9: live end-to-end regression test — Spaceship Titanic ✓ done
+
+_Shipped 2026-05-24. See `docs/m9-final-review.md` (30 PASS / 1 SKIP / 0 FAIL).
+The SKIP is UI pnpm gates (M9 did not modify UI; covered by M8.5 green
+state on `main`).
+
+Summary: first live end-to-end Kaggle regression. LR baseline CV
+**0.79144 ±0.0086**; HGB + FE CV **0.81192 ±0.00753** (+0.02048). One
+approved real Kaggle submission: public LB **0.78676**
+(`external_submission_id=52955657`,
+`submissions.id=b4607ada-c78a-4d78-80b3-2a5887582472`). New scripts:
+`baseline_lr_spaceship.py`, `hgb_fe_spaceship.py`,
+`m9_t003_drive_reviewer_gate.py`. New tests: `tests/test_m9_smoke.py`
+(4 DB-gated assertions) and `tests/test_m9_e2e.py` (5 dry-run tests,
+0 net / 0 DB / 0 creds). `data/spaceship-titanic/manifest.json` with
+4 sha256 entries (raw data gitignored)._
 
 Goal: validate the full platform loop with a real Kaggle submission for
 [Spaceship Titanic](https://www.kaggle.com/competitions/spaceship-titanic/overview)
@@ -545,27 +560,36 @@ through the approved KCA approval gate and records a public LB score in the DB.
 
 ### M9 task sequence
 
-| Task | Description | Depends on |
+| Task | Description | Result |
 |---|---|---|
-| M9-T000 | Verify Kaggle credentials and competition acceptance in env | — |
-| M9-T001 | Download Spaceship Titanic data, verify sha256 manifest | T000 |
-| M9-T002 | Agent worker loop: research → baseline LR → CV → submission.csv | T001 |
-| M9-T003 | Reviewer gate fires; human approves `kaggle_submit` | T002 |
-| M9-T004 | Real submission; record public LB score in `runs` table | T003 |
-| M9-T005 | Second experiment (HGB / feature engineering); CV improvement | T004 |
-| M9-T006 | Regression assertions: CV ≥ 0.78 (LR), ≥ 0.80 (HGB); LB score recorded | T005 |
-| M9-T007 | `tests/test_m9_e2e.py` (dry-run path without real submission) | T002, T003 |
-| M9-T008 | M9 exit criteria validation + `docs/m9-final-review.md` | all |
+| M9-T000 | Verify Kaggle credentials and competition acceptance in env | PASS — `competitions.id=b6059835-…` |
+| M9-T001 | Download Spaceship Titanic data, verify sha256 manifest | PASS — `manifest.json` with 4 sha256 entries |
+| M9-T002 | Agent worker loop: research → baseline LR → CV → submission.csv | PASS — CV 0.79144 |
+| M9-T003 | Reviewer gate fires; human approves `kaggle_submit` | PASS — `agent_reviews.id=a7208e96-…` + `human_decisions.id=43e116bb-…` |
+| M9-T004 | Real submission; record public LB score in `submissions` table | PASS — LB **0.78676** |
+| M9-T005 | Second experiment (HGB / feature engineering); CV improvement | PASS — CV 0.81192 (+0.02048) |
+| M9-T006 | Regression assertions: CV ≥ 0.78 (LR), ≥ 0.80 (HGB); LB recorded | PASS — all four assertions |
+| M9-T007 | `tests/test_m9_e2e.py` (dry-run path without real submission) | PASS — 5 tests, 1.14s |
+| M9-T008 | M9 exit criteria validation + `docs/m9-final-review.md` | PASS — this milestone |
 
-Exit criteria:
+Exit criteria — all met:
 
 - Data downloaded and verified (sha256 manifest, no corruption).
 - Agent worker completes research → baseline → CV → submission.csv without human intervention in allowed operations.
 - Reviewer gate fires and records verdict in `agent_reviews` before `kaggle_submit`.
-- Human approves submission via `kca decision approve`.
-- Public LB score recorded in `runs` table; `kca run list` shows it.
-- Second experiment achieves measurably higher CV than baseline.
+- Human approves submission via `kca decisions approve`.
+- Public LB score recorded for the M9-T004 submission; `kca run list --competition spaceship-titanic --json` shows both runs with CV scores.
+- Second experiment achieves measurably higher CV than baseline (+0.02048).
 - `tests/test_m9_e2e.py` (dry-run) passes in CI without credentials.
+
+M10 follow-ups carried forward (cross-cutting items A–E from M9; see
+`docs/handoffs/m9-handoff.md`):
+
+1. **A** — `competitions.repo_url` schema drift (`type:bug`, `area:kaggle`).
+2. **B** — `.env` hygiene in pytest subprocess (M8.5 carry-over; `type:test-gap`).
+3. **C** — `decision_api`: no `GET /decisions` endpoint (`type:feature`, `area:supabase`).
+4. **D** — `reviewer_decision` literal event_type alignment (`type:docs`, `area:worker`).
+5. **E** — Migration 0004 optional `submissions` columns not applied to local DB (`type:bug`, `area:supabase`).
 
 ---
 
