@@ -73,6 +73,47 @@ Example: `M0-T001-project-baseline.md`
 | `M6-T008-tc3-spaceship-titanic.md` | M6 | proposed | TC-3 Spaceship Titanic end-to-end with reviewer-gate |
 | `M6-T009-m6-smoke-tests.md` | M6 | proposed | `tests/test_m6_smoke.py` (12–14 tests) |
 | `M6-T010-m6-exit-criteria.md` | M6 | proposed | M6 exit criteria + `docs/m6-final-review.md` |
+| `M7-T000-ci-workflows-repair.md` | M7 | backfilled | CI repair — audit `.github/workflows/` and make `no-db` + `lint` jobs green |
+| `M7-T001-skill-loader.md` | M7 | backfilled | Skill loader — `.kca/skills/<name>/SKILL.md` + YAML frontmatter + `$arg` substitution |
+| `M7-T002-command-registry.md` | M7 | backfilled | Command registry — declarative subcommand registration |
+| `M7-T003-tool-registry.md` | M7 | backfilled | Tool registry — tool metadata, approval labels, sandbox metadata |
+| `M7-T004-permission-policy.md` | M7 | backfilled | Permission policy layer — allow/ask/deny from YAML/JSON policy records |
+| `M7-T005-kca-skill-cli.md` | M7 | backfilled | `kca skill list / show / run [--dry-run]` CLI |
+| `M7-T006-audit-logging.md` | M7 | backfilled | Audit logging — record every tool execution + policy decision |
+| `M7-T007-seed-skills.md` | M7 | backfilled | Seed `.kca/skills/` with 4 workflow recipes |
+| `M7-T008-m7-smoke-tests.md` | M7 | backfilled | `tests/test_m7_smoke.py` (12–15 tests, no credentials) |
+| `M7-T009-architecture-doc.md` | M7 | backfilled | Architecture doc `docs/architecture/kca-cli-architecture.md` |
+| `M7-T010-m7-exit-criteria.md` | M7 | backfilled | M7 exit criteria + `docs/m7-final-review.md` |
+| `M8-T000-ui-stack-adr-scaffold.md` | M8 | backfilled | UI stack ADR + scaffold (Vite + React + TS + Tailwind) |
+| `M8-T001-agent-tool-audit-migration.md` | M8 | backfilled | Migration 0007 — `agent_tool_audit` table + view; dual-write JSONL/DB |
+| `M8-T002-skill-schema-gate.md` | M8 | backfilled | JSON-Schema gate on SKILL.md frontmatter; retire `_test_fixture` skill |
+| `M8-T003-skill-worker-wiring.md` | M8 | backfilled | Skill → worker wiring; `ToolSpec` enforcement in `worker._tool_call` |
+| `M8-T004-ui-app-shell.md` | M8 | backfilled | UI app shell — layout, nav, theming, read-only Supabase client |
+| `M8-T005-ui-dashboard.md` | M8 | backfilled | Dashboard page — projects / competitions / in-flight runs / recent decisions |
+| `M8-T006-ui-run-timeline.md` | M8 | backfilled | Run Timeline page — OTEL span swim-lane + event log |
+| `M8-T007-ui-experiments-runs.md` | M8 | backfilled | Experiments / Runs page — sortable table, metric drill-down |
+| `M8-T008-ui-research.md` | M8 | backfilled | Research page — citations, trust labels, source links |
+| `M8-T009-ui-approval-inbox.md` | M8 | backfilled | Approval Inbox + Decision Gate — Approve / Reject / Ask-improve |
+| `M8-T010-ui-artifact-browser.md` | M8 | backfilled | Artifact Browser — listing + small-file preview (read-only) |
+| `M8-T011-ci-ui-build.md` | M8 | backfilled | CI — UI build / lint / typecheck job; gate `live-db` on forks |
+| `M8-T012-smoke-tests-playwright.md` | M8 | backfilled | `tests/test_m8_smoke.py` + minimal Playwright smoke |
+| `M8-T013-m8-architecture-doc.md` | M8 | backfilled | `docs/architecture/m8-ui-shell.md` — data flow, auth, gate semantics |
+| `M8-T014-m8-exit-criteria.md` | M8 | backfilled | M8 exit criteria + `docs/m8-final-review.md` + `docs/handoffs/m8-handoff.md` |
+| `M8.5-T001-ci-repair.md` | M8.5 | proposed | CI repair — Python deps + `kca skill` registration + pnpm workspace |
+| `M8.5-T002-engineering-practice-github-interface.md` | M8.5 | proposed | Engineering practice docs + GitHub Issues/PR/labels collaboration + agents/skills |
+| `M8.5-T003-m9-planning-only.md` | M8.5 | proposed | M9 planning only — draft `docs/m9-loop-prompts.md` (no implementation) |
+
+> **Convention (M0–M6, M8.5 onward):** Every milestone uses the
+> **double-layer** pattern — `docs/m{N}-loop-prompts.md` for the per-loop
+> wrappers and `docs/tasks/M{N}-T*-*.md` for each task's full spec
+> (goal, read list, acceptance criteria, stop condition). Loop prompts
+> reference the shared `docs/milestone-loop-protocol.md` for boilerplate
+> instead of inlining it.
+>
+> **M7 / M8 are being backfilled** — original convention inlined the
+> task spec into the Loop Prompt block. Task specs in this directory
+> with the `backfilled` status were extracted from the corresponding
+> Loop Prompt; the loop prompts file remains the historical record.
 
 ## How to use these files
 
