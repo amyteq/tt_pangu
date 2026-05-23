@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Engineering practice
+    url: https://github.com/amyteq/tt_pangu/blob/main/docs/engineering-practice.md
+    about: How issues, labels, AI pickup, and PR closeout work in this repo.

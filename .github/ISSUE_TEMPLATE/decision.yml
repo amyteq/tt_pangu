@@ -1,0 +1,80 @@
+name: Decision needed
+description: A human decision is required before any AI implementation can proceed.
+title: "[decision] "
+labels: ["type:decision", "decision:needed", "ai:blocked"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this when implementation is blocked on a judgement call — architectural
+        choice, scope cut, policy question, or risk acceptance. AI agents must not
+        infer the answer from comments; they must wait for `decision:confirmed`.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: The question
+      description: One sentence, unambiguous.
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why this needs a decision now. Links to related issues, PRs, ADRs.
+    validations:
+      required: true
+
+  - type: textarea
+    id: options
+    attributes:
+      label: Options considered
+      description: Each option with a one-line tradeoff. Include "do nothing" if applicable.
+      placeholder: |
+        A. ... — pro / con
+        B. ... — pro / con
+    validations:
+      required: true
+
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Recommendation (optional)
+      description: Author's preferred option, with a one-line reason.
+
+  - type: textarea
+    id: closure
+    attributes:
+      label: How this issue closes
+      description: |
+        What needs to be recorded for `decision:confirmed`? (e.g. ADR commit hash,
+        comment from owner, follow-up issue link.)
+      placeholder: |
+        - Add ADR docs/adr/0007-... with chosen option.
+        - Follow-up implementation issue gets `ai:ready`.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - area:agent-sdk
+        - area:auth
+        - area:ci
+        - area:config
+        - area:ctf
+        - area:docs
+        - area:frontend
+        - area:github-ops
+        - area:inventory
+        - area:kaggle
+        - area:release
+        - area:security
+        - area:supabase
+        - area:testing
+        - area:ui
+        - area:worker

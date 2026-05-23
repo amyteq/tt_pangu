@@ -100,11 +100,11 @@ def bash_decision(command: str) -> tuple[str | None, str | None]:
             "Refusing privileged Docker container.",
         ),
         (
-            r"\b(cat|less|more|head|tail|grep|rg)\b.*(\.env|kaggle\.json|id_rsa|id_ed25519|\.aws|\.ssh|hosts\.yml)",
+            r"\b(cat|less|more|head|tail|grep|rg|awk|sed|xxd|od|strings)\b.*(\.env|kaggle\.json|id_rsa|id_ed25519|\.aws|\.ssh|\.config/gcloud|secrets/|hosts\.yml|\.netrc)",
             "Refusing shell read of protected secrets.",
         ),
         (
-            r"\b(curl|wget)\b.*(\.env|kaggle\.json|id_rsa|id_ed25519|metadata\.google|169\.254\.169\.254)",
+            r"\b(curl|wget|scp|rsync)\b.*(\.env|kaggle\.json|id_rsa|id_ed25519|\.aws|\.ssh|secrets/|metadata\.google|169\.254\.169\.254)",
             "Refusing shell exfiltration/metadata access pattern.",
         ),
         (

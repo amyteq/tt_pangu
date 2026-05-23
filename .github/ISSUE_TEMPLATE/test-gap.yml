@@ -1,0 +1,81 @@
+name: Test gap
+description: Missing or weak test coverage that should be filled.
+title: "[test-gap] "
+labels: ["type:test-gap", "ai:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this to file a test-coverage gap. The test-coverage agent may
+        propose a test PR, but human approval is required before merge.
+
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: Behaviour that is not covered
+      description: What can break today without a test catching it?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: tier
+    attributes:
+      label: Test tier needed
+      multiple: true
+      options:
+        - unit
+        - integration
+        - smoke
+        - regression
+        - e2e
+    validations:
+      required: true
+
+  - type: textarea
+    id: surface
+    attributes:
+      label: Code / module surface
+      description: File paths or test files where the new coverage should land.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scenarios
+    attributes:
+      label: Scenarios / acceptance criteria
+      description: |
+        Happy path, edge cases, error cases. Required for `ai:ready`.
+      placeholder: |
+        - When ..., ... succeeds.
+        - When ..., ... returns a typed error.
+        - When ..., audit row is written.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - area:agent-sdk
+        - area:ci
+        - area:config
+        - area:frontend
+        - area:github-ops
+        - area:inventory
+        - area:kaggle
+        - area:release
+        - area:security
+        - area:supabase
+        - area:testing
+        - area:ui
+        - area:worker
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety classification
+      options:
+        - label: New test would require a real Kaggle / external API call → `policy:approval-required`
+        - label: New test would require a destructive DB / migration setup → `policy:approval-required`
