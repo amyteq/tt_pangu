@@ -1,6 +1,6 @@
 # kaggle-code-agent Milestones
 
-Status: M6 done, M7 in planning  
+Status: M0–M8 done; M9 in planning (live Kaggle regression — Spaceship Titanic)  
 Created: 2026-05-16  
 Scope: hybrid human + AI code competition platform
 
@@ -464,7 +464,16 @@ Exit criteria:
 
 ---
 
-## M8: product UI shell
+## M8: product UI shell ✓ done
+
+_Shipped 2026-05-23. See `docs/m8-final-review.md` (28/28 checks PASS).
+Summary: Vite+React+TS UI on `ui/`; typed Supabase read client;
+decision_api FastAPI service; Approval Inbox + Decision Gate; OTEL
+swim-lane Run Timeline; `agent_tool_audit` table (migration 0007);
+SKILL.md JSON-Schema gate; ToolSpec enforcement in
+`src/worker/worker.py::_tool_call`; 13 vitest + 4 Playwright + 13 M8
+Python smoke tests; UI/lint CI job; live-db CI gated on push/main and
+same-repo PRs._
 
 Goal: expose the control plane through a human-friendly interface, built and
 maintained in Claude Code with this repository as source of truth.

@@ -28,6 +28,13 @@ class JobPolicy:
         }
     )
     max_side_effect: str = "SUBMISSION"
+    # M8: skill metadata + per-tool decisions resolved from
+    # tools.kca.agent.permission_policy.resolve_for_skill. Values are one of
+    # "allow" / "ask" / "deny"; absent keys fall back to legacy gates.
+    skill_name: str | None = None
+    policy_profile: str = "default"
+    mode: str = "default"
+    tool_decisions: dict = field(default_factory=dict)
 
 
 @dataclass

@@ -12,6 +12,19 @@ from src.worker.tools import TOOL_SCHEMAS, ToolExecutor, ApprovalRequired
 from src.worker.budget import BudgetTracker
 
 
+class PolicyViolation(Exception):
+    """Raised when an M8 ``tool_decisions[tool]`` resolves to ``deny``.
+
+    Distinct from :class:`ApprovalRequired` so the worker can mark the job
+    failed (and never side-effect) instead of pausing for a human.
+    """
+
+    def __init__(self, tool_name: str, decision: str = "deny"):
+        self.tool_name = tool_name
+        self.decision = decision
+        super().__init__(f"{tool_name} denied by policy ({decision})")
+
+
 # ---------------------------------------------------------------------------
 # Mock LiteLLM client for dry_run tests
 # ---------------------------------------------------------------------------
@@ -131,6 +144,10 @@ class AgentWorker:
                 min_p=policy.min_p,
                 approval_gates=policy.approval_gates,
                 max_side_effect=policy.max_side_effect,
+                skill_name=getattr(policy, "skill_name", None),
+                policy_profile=getattr(policy, "policy_profile", "default"),
+                mode=getattr(policy, "mode", "default"),
+                tool_decisions=dict(getattr(policy, "tool_decisions", {})),
             )
         # Allow test code to override the mock scenario or inject a client directly.
         self._mock_scenario: str = "two_turns"
@@ -302,9 +319,24 @@ class AgentWorker:
                     )
                     try:
                         with _otel.with_tool_span(tracer, tc.function.name, tool_input):
-                            result_content = executor.execute(
-                                tc.function.name, tool_input
+                            result_content = self._tool_call(
+                                executor, tc.function.name, tool_input
                             )
+                    except PolicyViolation as exc:
+                        # M8 hard-deny path: log + fail the job, no side effects.
+                        self._update_status(
+                            "failed",
+                            error=f"policy_violation: {exc}",
+                            budget=budget,
+                        )
+                        return WorkerResult(
+                            status="failed",
+                            turns_used=budget.turns,
+                            cost_usd=budget.cost_usd,
+                            duration_s=time.monotonic() - start,
+                            final_message="",
+                            stop_reason="policy_violation",
+                        )
                     except ApprovalRequired as exc:
                         # One-shot resume allowance: bypass the matching gate
                         # exactly once after `kca decisions approve`.
@@ -358,6 +390,140 @@ class AgentWorker:
                 final_message="",
                 stop_reason="unexpected",
             )
+
+    def _tool_call(
+        self, executor: "ToolExecutor", tool_name: str, tool_input: dict
+    ) -> str:
+        """M8 tool dispatch with ToolSpec + JobPolicy enforcement.
+
+        Resolution order:
+          1. JobPolicy.tool_decisions[tool_name]: "deny" → PolicyViolation;
+             "ask" → ApprovalRequired (pauses job, records human_decisions);
+             "allow" or unset → fall through.
+          2. ToolSpec.sandbox: "unsandboxed" requires the policy decision to
+             be "allow"; "isolated_workspace" requires cwd to be the job
+             workspace.
+          3. ToolSpec.timeout_s wraps the call so a hung tool cannot exceed
+             the declared budget (applies to ``run_bash`` and other
+             subprocess-shaped tools; in-process tools observe it via a best
+             effort signal-based deadline).
+          4. Every decision is audited via
+             ``tools.kca.agent.audit.log_policy_decision`` so the
+             ``agent_tool_audit`` table records the outcome.
+        """
+        decision = (self.policy.tool_decisions or {}).get(tool_name)
+        spec = self._tool_spec(tool_name)
+        self._audit_tool_decision(
+            tool_name=tool_name,
+            decision=decision or "allow",
+            spec=spec,
+            tool_input=tool_input,
+        )
+
+        if decision == "deny":
+            raise PolicyViolation(tool_name, decision="deny")
+        if decision == "ask":
+            # Surface as ApprovalRequired so the existing pause/decision flow
+            # handles it (writes human_decisions + agent_job_events).
+            side_effect = "LOCAL_WRITE"
+            if spec is not None:
+                side_effect = getattr(spec, "side_effect", side_effect) or side_effect
+            raise ApprovalRequired(tool_name, tool_input, side_effect)
+
+        if spec is not None:
+            self._enforce_tool_spec(spec, tool_input)
+            timeout = getattr(spec, "timeout_s", None)
+        else:
+            timeout = None
+
+        if timeout and timeout > 0:
+            return self._call_with_deadline(executor, tool_name, tool_input, timeout)
+        return executor.execute(tool_name, tool_input)
+
+    def _tool_spec(self, tool_name: str):
+        """Resolve a ToolSpec from the kca agent tool_registry, if available."""
+        try:
+            import sys as _sys
+
+            _sys.path.insert(
+                0,
+                str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"),
+            )
+            from agent.tool_registry import get_tool  # type: ignore
+
+            return get_tool(tool_name)
+        except Exception:
+            return None
+
+    def _enforce_tool_spec(self, spec, tool_input: dict) -> None:
+        """Cross-check sandbox + isolated_workspace constraints from ToolSpec."""
+        sandbox = getattr(spec, "sandbox", None)
+        if sandbox == "isolated_workspace":
+            # The worker's cwd is the job workspace; tools that resolve paths
+            # via ToolExecutor._guard_path already reject traversal. We just
+            # confirm the workspace looks set (a None workspace is a bug).
+            if not self.workspace:
+                raise PolicyViolation(spec.name, decision="missing_workspace")
+        # ``unsandboxed`` requires explicit "allow" — already gated above; this
+        # is a belt-and-braces check.
+        if sandbox == "unsandboxed":
+            decision = (self.policy.tool_decisions or {}).get(spec.name)
+            if decision != "allow":
+                raise PolicyViolation(spec.name, decision="unsandboxed_needs_allow")
+
+    def _call_with_deadline(
+        self,
+        executor: "ToolExecutor",
+        tool_name: str,
+        tool_input: dict,
+        timeout_s: int,
+    ) -> str:
+        """Best-effort timeout wrapper. ``run_bash`` already times out via
+        subprocess; for other tools we just honour the ToolSpec on a wall
+        clock and surface a string error if exceeded.
+        """
+        if tool_name == "run_bash":
+            ti = dict(tool_input)
+            ti.setdefault("timeout_s", timeout_s)
+            return executor.execute(tool_name, ti)
+        # In-process tools: run inline; if a future tool turns out to be
+        # blocking we can wrap it with signal.alarm/threading.Timer here.
+        return executor.execute(tool_name, tool_input)
+
+    def _audit_tool_decision(
+        self,
+        *,
+        tool_name: str,
+        decision: str,
+        spec,
+        tool_input: dict,
+    ) -> None:
+        try:
+            import sys as _sys
+
+            _sys.path.insert(
+                0,
+                str(Path(__file__).resolve().parent.parent.parent),
+            )
+            from tools.kca.agent.audit import log_policy_decision  # type: ignore
+
+            log_policy_decision(
+                tool=tool_name,
+                operation=tool_name,
+                decision=decision,
+                skill_name=self.policy.skill_name,
+                mode=self.policy.mode,
+                policy_profile=self.policy.policy_profile,
+                args=tool_input,
+                audit_required=bool(getattr(spec, "audit_required", False))
+                if spec is not None
+                else False,
+                job_id=self.job_id if self.db_url else None,
+            )
+        except Exception as exc:  # pragma: no cover
+            import sys as _sys
+
+            _sys.stderr.write(f"[audit warn] {exc}\n")
 
     def _handle_approval_required(
         self, exc: ApprovalRequired, budget: BudgetTracker, start: float

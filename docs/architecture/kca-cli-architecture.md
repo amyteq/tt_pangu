@@ -139,9 +139,16 @@ via `tools/kca/agent/audit.py`. An `AuditRecord` contains:
 - `args_hash` — SHA-256 of serialised args, **not the args themselves**, so
   sensitive values never enter the log.
 
-When a DB is configured, the audit log also flows into `agent_job_events`
-with `event_type = "tool_audit"`, joining the per-job event timeline used by
-the M6 OTEL exporter.
+When a DB is configured, the audit log also flows into the dedicated
+`agent_tool_audit` table (migration `0007_m8_tool_audit.sql`, M8). The
+view `v_agent_tool_audit_recent` returns the most recent 200 rows joined
+against `agent_jobs` for operator queries. The M7-era best-effort write to
+`agent_job_events` with `event_type="tool_audit"` is preserved for legacy
+readers but is now deprecated — prefer the typed table.
+
+Offline → DB backfill: `scripts/backfill_tool_audit.py` reads
+`.agent/audit.jsonl` and inserts missing rows into `agent_tool_audit`,
+de-duplicating by `(session_id, ts, tool_name)`. Idempotent.
 
 ## Decision gate
 

@@ -19,6 +19,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 KCA = [sys.executable, str(REPO_ROOT / "tools" / "kca" / "kca.py")]
+FIXTURE_SKILLS_ROOT = REPO_ROOT / "tests" / "fixtures" / "skills"
 
 # Ensure imports work for the agent package.
 sys.path.insert(0, str(REPO_ROOT))
@@ -53,7 +54,7 @@ def _write_skill(
 def test_skill_load_fixture():
     from tools.kca.agent.skill_loader import load_skill
 
-    s = load_skill("_test_fixture")
+    s = load_skill("_test_fixture", skills_root=FIXTURE_SKILLS_ROOT)
     assert s.meta.name == "_test_fixture"
     assert "task_path" in s.meta.arguments
     assert "read_file" in s.meta.allowed_tools
@@ -103,9 +104,13 @@ def test_skill_list_includes_seeds():
         "triage-log",
         "prepare-submission",
         "review-pr",
-        "_test_fixture",
     ):
         assert required in names, f"missing seed skill: {required}"
+    # The test fixture lives outside .kca/skills/ as of M8.
+    assert "_test_fixture" not in names
+
+    fixture_names = {m.name for m in list_skills(skills_root=FIXTURE_SKILLS_ROOT)}
+    assert "_test_fixture" in fixture_names
 
 
 def test_command_registry_all_registered():
@@ -182,6 +187,8 @@ def test_kca_skill_run_dry_run_json(tmp_path):
             "skill",
             "run",
             "_test_fixture",
+            "--skills-root",
+            str(FIXTURE_SKILLS_ROOT),
             "--arg",
             "task_path=x",
             "--dry-run",

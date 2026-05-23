@@ -14,6 +14,7 @@ from _types import EXIT_OK, EXIT_RUNTIME, SideEffect  # noqa: E402
 
 from agent.permission_policy import resolve_for_skill  # noqa: E402
 from agent.skill_loader import list_skills, load_skill, render_skill  # noqa: E402
+from agent.skill_loader import SkillValidationError  # noqa: E402
 
 
 def _emit(ok: bool, payload: dict, exit_code: int = EXIT_OK) -> int:
@@ -39,8 +40,14 @@ def _parse_args(arg_list: list[str] | None) -> dict[str, str]:
     return out
 
 
+def _skills_root_arg(args: argparse.Namespace) -> Path | None:
+    """Resolve the optional ``--skills-root`` flag to a Path or None."""
+    raw = getattr(args, "skills_root", None)
+    return Path(raw).resolve() if raw else None
+
+
 def cmd_list(args: argparse.Namespace) -> int:
-    metas = list_skills()
+    metas = list_skills(skills_root=_skills_root_arg(args))
     if getattr(args, "tag", None):
         metas = [m for m in metas if args.tag in (m.tags or [])]
 
@@ -75,8 +82,10 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 def cmd_show(args: argparse.Namespace) -> int:
     try:
-        skill = load_skill(args.name)
+        skill = load_skill(args.name, skills_root=_skills_root_arg(args))
     except FileNotFoundError as exc:
+        return _emit(False, {"error": str(exc)}, EXIT_RUNTIME)
+    except SkillValidationError as exc:
         return _emit(False, {"error": str(exc)}, EXIT_RUNTIME)
     meta_dict = _meta_to_dict(skill.meta)
     if getattr(args, "json", False):
@@ -96,10 +105,100 @@ def cmd_show(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _run_via_worker(
+    *,
+    skill,
+    arg_dict: dict[str, str],
+    rendered: str,
+    mode: str,
+    tool_perms: list[dict],
+    json_out: bool,
+) -> int:
+    """M8: drive an AgentWorker from a rendered skill body.
+
+    Persists an ``agent_jobs`` row when a DB is configured. Without a DB the
+    job is constructed in-memory and executed in dry-run mode so the
+    permission resolution + audit trail still produce rows in
+    ``.agent/audit.jsonl``.
+    """
+    import os
+    import sys as _sys
+    import uuid as _uuid
+
+    # Make sibling packages importable.
+    REPO = Path(__file__).resolve().parents[2]
+    if str(REPO) not in _sys.path:
+        _sys.path.insert(0, str(REPO))
+
+    decisions = {entry["tool"]: entry["decision"] for entry in tool_perms}
+
+    db_url = os.environ.get("SUPABASE_DB_URL")
+    workspace = REPO
+
+    try:
+        from src.worker._types import JobPolicy
+        from src.worker.worker import AgentWorker
+
+        policy = JobPolicy(
+            skill_name=skill.meta.name,
+            policy_profile=skill.meta.approval_policy,
+            mode=mode,
+            tool_decisions=decisions,
+        )
+        job_id = str(_uuid.uuid4())
+        if db_url:
+            try:
+                import db as _db  # type: ignore
+
+                # Create a queued agent_jobs row so the worker has a real id.
+                job_id = _db.create_job(
+                    project_id=_db.DEFAULT_PROJECT_ID,
+                    prompt=rendered,
+                    policy={
+                        "skill_name": skill.meta.name,
+                        "policy_profile": skill.meta.approval_policy,
+                        "mode": mode,
+                        "tool_decisions": decisions,
+                    },
+                )
+            except Exception as exc:
+                _sys.stderr.write(f"[skill run warn] create_job failed: {exc}\n")
+        worker = AgentWorker(
+            job_id=job_id,
+            prompt=rendered,
+            policy=policy,
+            workspace=workspace,
+            db_url=db_url,
+            dry_run=True,  # never call real LLM from this CLI surface
+        )
+        result = worker.run()
+        payload = {
+            "skill": skill.meta.name,
+            "mode": mode,
+            "args": arg_dict,
+            "job_id": job_id,
+            "status": result.status,
+            "turns_used": result.turns_used,
+            "cost_usd": result.cost_usd,
+            "stop_reason": result.stop_reason,
+            "tool_permissions": tool_perms,
+            "side_effect": SideEffect.LOCAL_WRITE.value,
+        }
+        if json_out:
+            return _emit(True, payload)
+        for k, v in payload.items():
+            print(f"{k}: {v}")
+        return EXIT_OK
+    except Exception as exc:
+        return _emit(False, {"error": f"worker failure: {exc}"}, EXIT_RUNTIME)
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     try:
-        skill = load_skill(args.name)
+        skill = load_skill(args.name, skills_root=_skills_root_arg(args))
     except FileNotFoundError as exc:
+        return _emit(False, {"error": str(exc)}, EXIT_RUNTIME)
+    except SkillValidationError as exc:
         return _emit(False, {"error": str(exc)}, EXIT_RUNTIME)
     try:
         arg_dict = _parse_args(args.arg)
@@ -140,6 +239,16 @@ def cmd_run(args: argparse.Namespace) -> int:
             "side_effect": SideEffect.READ_ONLY.value,
         }
         return _emit(True, payload)
+
+    if getattr(args, "execute", False):
+        return _run_via_worker(
+            skill=skill,
+            arg_dict=arg_dict,
+            rendered=rendered,
+            mode=mode,
+            tool_perms=tool_perms,
+            json_out=getattr(args, "json", False),
+        )
 
     # Non-dry-run path: emit audit records, then note that execution is M8 scope.
     try:
@@ -188,6 +297,11 @@ def cmd_run(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _add_skills_root(parser: argparse.ArgumentParser) -> None:
+    # Hidden flag used by the test suite to point at tests/fixtures/skills.
+    parser.add_argument("--skills-root", default=None, help=argparse.SUPPRESS)
+
+
 def add_parsers(sub) -> None:
     p = sub.add_parser("skill", help="Skill loader CLI (list / show / run).")
     sp = p.add_subparsers(dest="action", required=True)
@@ -195,11 +309,13 @@ def add_parsers(sub) -> None:
     p_list = sp.add_parser("list", help="List available skills.")
     p_list.add_argument("--json", action="store_true")
     p_list.add_argument("--tag")
+    _add_skills_root(p_list)
     p_list.set_defaults(func=cmd_list)
 
     p_show = sp.add_parser("show", help="Show a skill's parsed metadata.")
     p_show.add_argument("name")
     p_show.add_argument("--json", action="store_true")
+    _add_skills_root(p_show)
     p_show.set_defaults(func=cmd_show)
 
     p_run = sp.add_parser("run", help="Render a skill and resolve tool permissions.")
@@ -212,5 +328,11 @@ def add_parsers(sub) -> None:
     )
     p_run.add_argument("--mode", default=None)
     p_run.add_argument("--dry-run", action="store_true")
+    p_run.add_argument(
+        "--execute",
+        action="store_true",
+        help="Run via the worker (M8). Mutually exclusive with --dry-run.",
+    )
     p_run.add_argument("--json", action="store_true")
+    _add_skills_root(p_run)
     p_run.set_defaults(func=cmd_run)
