@@ -25,7 +25,7 @@ Key files:
 - `AGENTS.md` — cross-tool instructions for ChatGPT, Codex, Cursor, and other agents
 - `CLAUDE.md` — Claude Code-specific instructions and safety boundaries
 - `docs/adr/` — architecture decision records
-- `docs/milestones.md` — product plan from M0 through M12
+- `docs/milestones.md` — product plan from M0 through M13
 
 ## Repository layout
 
@@ -46,7 +46,7 @@ INSTALL.md                   Local install, configure, and run guide
   permissions/               Policy profiles (default, permissive-dev, competition-runner)
 
 docs/
-  milestones.md              Product plan M0–M12
+  milestones.md              Product plan M0–M13
   architecture.md            Component architecture overview
   architecture/
     kca-cli-architecture.md  Commands vs Skills vs Tools vs Jobs (M7)
@@ -76,13 +76,13 @@ runs/                        Run outputs — do not commit
 5. Never read `.env`, `kaggle.json`, `secrets/`, or private keys.
 6. Never submit to Kaggle, push kernels, or perform any remote write without explicit human approval.
 
-## Current milestone: M10 — authorized CTF/lab workflow
+## Current milestone: M10 — notebook-submission regression (Petals to the Metal)
 
-Status: planned (M9 exited 2026-05-24). Scope: support CTF-style challenges only inside explicit authorization boundaries — challenge scope + authorization metadata; local container/lab-only execution; solver script generation and testing; writeup generation; hard policy blocks for external scanning, real targets, credential theft, persistence, or unsafe actions.
+Status: planned + `ai:ready` (M9 exited 2026-05-24; M10 decisions confirmed on issue #12 the same day; the old M10 CTF/lab workflow is renumbered to M11). Scope: mirror M9's eight-Loop-Prompt structure against [Petals to the Metal — Flower Classification on TPU](https://www.kaggle.com/competitions/tpu-getting-started) to validate the **notebook-submission / kernel-push** end-to-end path. Single approved real `kca kaggle push` (mirroring M9-T004's single-submission policy); per-milestone worktree per `docs/milestone-loop-protocol.md` §5.
 
-M9 (live end-to-end Kaggle regression — Spaceship Titanic) shipped on 2026-05-24: LR baseline CV **0.79144 ±0.0086**, HGB + FE CV **0.81192 ±0.00753** (+0.02048), one approved real Kaggle submission (public LB **0.78676**), two new test files (`tests/test_m9_smoke.py`, `tests/test_m9_e2e.py`). See `docs/m9-final-review.md` for the 30-check validation matrix and `docs/handoffs/m9-handoff.md` for the M9 → M10 handoff (including five cross-cutting follow-ups A–E).
+M9 (live end-to-end Kaggle regression — Spaceship Titanic) shipped on 2026-05-24: LR baseline CV **0.79144 ±0.0086**, HGB + FE CV **0.81192 ±0.00753** (+0.02048), one approved real Kaggle submission (public LB **0.78676**), two new test files (`tests/test_m9_smoke.py`, `tests/test_m9_e2e.py`). See `docs/m9-final-review.md` for the 30-check validation matrix and `docs/handoffs/m9-handoff.md` for the M9 → M10 handoff (including five cross-cutting follow-ups A–E; item B is now tracked as issue #11 and is a hard pre-req for M10-T007).
 
-M8.5 (pre-M9 hardening) shipped on 2026-05-23 as three PRs (#4 CI repair, #5 engineering-practice + GitHub Issues/PR/labels interface, #6 M9 planning docs); see `docs/m8_5-final-review.md` for the 26-check roll-up. M8 (product UI shell + M7 follow-ups) shipped earlier on 2026-05-23; see `docs/m8-final-review.md` for the 28-check validation matrix. The UI shell is documented in `docs/architecture/m8-ui-shell.md`; the underlying KCA CLI architecture in `docs/architecture/kca-cli-architecture.md`. The collaboration model (label routing, AI pickup rule, PR closeout) is in `docs/engineering-practice.md`. See `docs/milestones.md` for the full product plan (M0–M12).
+M8.5 (pre-M9 hardening) shipped on 2026-05-23 as three PRs (#4 CI repair, #5 engineering-practice + GitHub Issues/PR/labels interface, #6 M9 planning docs); see `docs/m8_5-final-review.md` for the 26-check roll-up. M8 (product UI shell + M7 follow-ups) shipped earlier on 2026-05-23; see `docs/m8-final-review.md` for the 28-check validation matrix. The UI shell is documented in `docs/architecture/m8-ui-shell.md`; the underlying KCA CLI architecture in `docs/architecture/kca-cli-architecture.md`. The collaboration model (label routing, AI pickup rule, PR closeout) is in `docs/engineering-practice.md`. See `docs/milestones.md` for the full product plan (M0–M13).
 
 ## Install and configure
 
