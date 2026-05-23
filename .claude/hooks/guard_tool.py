@@ -37,26 +37,23 @@ def normalize_path(value: str) -> str:
 
 
 def path_is_protected(path: str) -> bool:
+    """Dev-phase carve-out: project .env files and ~/.kaggle/kaggle.json
+    are readable so kca / Claude Code can pick up the local DSN and
+    Kaggle test credentials without manual handoffs. SSH / AWS / gcloud
+    / gh OAuth token / generic secrets/ dir stay protected.
+    """
     p = normalize_path(path)
     protected_fragments = [
-        "/.env",
         "/secrets/",
         "/.ssh/",
         "/.aws/",
         "/.config/gcloud/",
         "/.config/gh/hosts.yml",
-        "/kaggle.json",
         "/.netrc",
         "/id_rsa",
         "/id_ed25519",
     ]
     protected_names = {
-        ".env",
-        ".env.local",
-        ".env.development",
-        ".env.production",
-        ".env.test",
-        "kaggle.json",
         ".netrc",
         "id_rsa",
         "id_ed25519",
@@ -76,7 +73,10 @@ def bash_decision(command: str) -> tuple[str | None, str | None]:
     c = compact(command)
     lc = c.lower()
 
-    # Hard deny: host-destructive, privilege escalation, secret exfiltration.
+    # Hard deny: host-destructive, privilege escalation, secret
+    # exfiltration, and permanent-deletion remote writes. Project .env
+    # and ~/.kaggle/kaggle.json are intentionally not in the secret list
+    # (dev-phase carve-out — see path_is_protected docstring).
     deny_patterns = [
         (r"\bsudo\b", "Refusing sudo from the agent."),
         (r"\bsu\s+", "Refusing su from the agent."),
@@ -96,15 +96,27 @@ def bash_decision(command: str) -> tuple[str | None, str | None]:
         (r"\bshutdown\b|\breboot\b|\bhalt\b", "Refusing host power command."),
         (r"\bgit\s+push\s+(-f|--force|--force-with-lease)", "Refusing force push."),
         (
+            r"\bgit\s+push\b[^|]*?(--delete\b|\s:\S)",
+            "Refusing remote branch deletion (preserve GitHub branch history).",
+        ),
+        (
+            r"\bgh\s+(issue|label|release|repo|secret|webhook|ssh-key|gpg-key|cache|run)\s+delete\b",
+            "Refusing permanent GitHub deletion (issues / labels / releases / repo / secrets / webhooks / keys / caches / runs).",
+        ),
+        (
+            r"\bgh\s+extension\s+remove\b",
+            "Refusing gh extension removal.",
+        ),
+        (
             r"\bdocker\s+run\b.*\s--privileged\b",
             "Refusing privileged Docker container.",
         ),
         (
-            r"\b(cat|less|more|head|tail|grep|rg|awk|sed|xxd|od|strings)\b.*(\.env|kaggle\.json|id_rsa|id_ed25519|\.aws|\.ssh|\.config/gcloud|secrets/|hosts\.yml|\.netrc)",
+            r"\b(cat|less|more|head|tail|grep|rg|awk|sed|xxd|od|strings)\b.*(id_rsa|id_ed25519|\.aws|\.ssh|\.config/gcloud|secrets/|hosts\.yml|\.netrc)",
             "Refusing shell read of protected secrets.",
         ),
         (
-            r"\b(curl|wget|scp|rsync)\b.*(\.env|kaggle\.json|id_rsa|id_ed25519|\.aws|\.ssh|secrets/|metadata\.google|169\.254\.169\.254)",
+            r"\b(curl|wget|scp|rsync)\b.*(id_rsa|id_ed25519|\.aws|\.ssh|secrets/|metadata\.google|169\.254\.169\.254)",
             "Refusing shell exfiltration/metadata access pattern.",
         ),
         (
@@ -125,7 +137,6 @@ def bash_decision(command: str) -> tuple[str | None, str | None]:
         (r"\brmdir\b", "Directory deletion requires approval."),
         (r"\bfind\b.*\s-delete\b", "find -delete requires approval."),
         (r"\bgit\s+clean\b", "git clean requires approval."),
-        (r"\bgh\s+pr\s+merge\b", "Merging a PR is a decision gate."),
         (
             r"\bkaggle\s+competitions\s+submit\b",
             "Kaggle submission requires human approval.",
