@@ -1,0 +1,82 @@
+name: Drift
+description: Inconsistency between docs / code / tests / config / schema / inventory.
+title: "[drift] "
+labels: ["type:drift", "ai:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        File a drift finding. The drift auditor / triage agent will not act
+        beyond labelling and commenting until a human or a deterministic rule
+        promotes the issue to `ai:ready`.
+
+  - type: textarea
+    id: where
+    attributes:
+      label: Where is the drift
+      description: Specific file paths, doc sections, schema objects, or test names.
+      placeholder: |
+        - docs/architecture/foo.md §2 claims X
+        - src/foo.py implements Y
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Quote the two (or more) statements that conflict, with paths and line numbers.
+      render: markdown
+    validations:
+      required: true
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Drift type
+      options:
+        - docs vs code
+        - docs vs docs
+        - tests vs behaviour
+        - config vs runtime
+        - schema vs DB layer
+        - inventory vs repo state
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed resolution (optional)
+      description: Which side is the source of truth and what should change.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - area:agent-sdk
+        - area:ci
+        - area:config
+        - area:docs
+        - area:frontend
+        - area:github-ops
+        - area:inventory
+        - area:kaggle
+        - area:release
+        - area:security
+        - area:supabase
+        - area:testing
+        - area:ui
+        - area:worker
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: decision
+    attributes:
+      label: Decision status
+      options:
+        - label: A human decision is required to pick the source of truth → add `decision:needed` + `ai:blocked`
+        - label: Resolution is deterministic / mechanical → triage may promote to `ai:ready`

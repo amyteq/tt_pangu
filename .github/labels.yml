@@ -1,0 +1,117 @@
+# Source of truth for repository labels.
+# Apply with: python scripts/sync_labels.py --dry-run        (preview)
+# Apply with: python scripts/sync_labels.py --apply           (requires approval)
+#
+# Schema: list of {name, color (hex without #), description}.
+# Keep this file sorted by section, alphabetical within a section.
+
+# --- type:* — what the issue is about ----------------------------------
+- name: type:bug
+  color: d73a4a
+  description: Defect in runtime, UI, data, or developer experience.
+- name: type:cleanup
+  color: cfd3d7
+  description: Refactor, dead-code removal, or hygiene change with no behaviour change.
+- name: type:decision
+  color: 8a2be2
+  description: Requires a human decision before any implementation can proceed.
+- name: type:docs
+  color: 0075ca
+  description: Documentation, ADR, README, or in-repo notes work.
+- name: type:drift
+  color: ffb86c
+  description: Inconsistency between docs / code / tests / config / schema.
+- name: type:feature
+  color: 1f883d
+  description: New capability or milestone task.
+- name: type:test-gap
+  color: fbca04
+  description: Missing or weak test coverage.
+
+# --- decision:* — gates AI implementation ------------------------------
+- name: decision:confirmed
+  color: 0e8a16
+  description: Decision recorded; AI implementation may proceed.
+- name: decision:needed
+  color: b60205
+  description: Human decision required before any AI implementation.
+
+# --- ai:* — agent state ------------------------------------------------
+- name: ai:blocked
+  color: e11d21
+  description: AI must not work on this issue (missing decision, unsafe scope, or unclear AC).
+- name: ai:implementing
+  color: 5319e7
+  description: An AI agent has picked up the issue and is implementing.
+- name: ai:ready
+  color: 0e8a16
+  description: AI may pick up — clear AC, decisions confirmed, no blockers.
+- name: ai:triage
+  color: ededed
+  description: Newly filed; needs human or triage-agent classification.
+
+# --- priority:* --------------------------------------------------------
+- name: priority:P0
+  color: b60205
+  description: Critical / blocking / customer-visible regression.
+- name: priority:P1
+  color: d93f0b
+  description: Important; planned in the current milestone.
+- name: priority:P2
+  color: fbca04
+  description: Nice-to-have; can wait for a later milestone.
+
+# --- area:* — surface routing -----------------------------------------
+- name: area:agent-sdk
+  color: 5319e7
+  description: Claude Agent SDK worker, policy, audit, or wiring.
+- name: area:auth
+  color: 1d76db
+  description: Auth, identity, or session handling.
+- name: area:ci
+  color: 0e8a16
+  description: GitHub Actions, CI scripts, or CI workflow definitions.
+- name: area:config
+  color: c2e0c6
+  description: Environment, settings, .env, secrets templates, or config files.
+- name: area:ctf
+  color: 5319e7
+  description: Authorized CTF challenges, sandboxed exploit work, or CTF tooling.
+- name: area:docs
+  color: 0075ca
+  description: docs/ directory content or repo READMEs.
+- name: area:frontend
+  color: 1d76db
+  description: ui/ React/Vite app surface.
+- name: area:github-ops
+  color: 0366d6
+  description: Issue forms, labels, PR templates, GitHub workflows, or gh CLI wrappers.
+- name: area:inventory
+  color: bfd4f2
+  description: Inventory map, drift audit, or status-map sync.
+- name: area:kaggle
+  color: 20bffe
+  description: Kaggle tooling — submit, kernel push, dataset upload, leaderboard.
+- name: area:release
+  color: c5def5
+  description: Release readiness, version bumps, or rollout artifacts.
+- name: area:security
+  color: b60205
+  description: Secret handling, sandbox/hook policy, permission model, or threat surface.
+- name: area:supabase
+  color: 3fcf8e
+  description: Supabase migrations, RLS, types, or DB layer.
+- name: area:testing
+  color: fbca04
+  description: Test harness, fixtures, or test infrastructure.
+- name: area:ui
+  color: 1d76db
+  description: Cross-cutting UI concerns (synonym group with area:frontend).
+- name: area:worker
+  color: 5319e7
+  description: Agent worker runtime, budget, tool execution, or job lifecycle.
+
+# --- policy:* — explicit policy gates ----------------------------------
+- name: policy:approval-required
+  color: b60205
+  description: Touches remote writes / Kaggle live / production infra — human approval required before execution.

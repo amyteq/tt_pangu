@@ -1,0 +1,109 @@
+name: Bug
+description: Defect in runtime, UI, data, or developer experience.
+title: "[bug] "
+labels: ["type:bug", "ai:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        File a defect. The triage agent will only mark `ai:ready` after acceptance
+        criteria are clear and any required decisions are `decision:confirmed`.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What is broken, in one or two sentences.
+      placeholder: e.g. `kca skill list` exits 0 but prints nothing when no skills are present.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: How to reproduce
+      description: Exact commands, inputs, environment, and the observed output.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Log excerpts (no secrets), screenshots, CI artifact URLs, test run links.
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: |
+        What does "fixed" look like? Required for `ai:ready`.
+      placeholder: |
+        - `kca skill list` with no skills returns a non-zero exit and prints a clear empty-state message.
+        - Smoke test in tests/test_kca_smoke.py covers the empty case.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - area:agent-sdk
+        - area:auth
+        - area:ci
+        - area:config
+        - area:ctf
+        - area:docs
+        - area:frontend
+        - area:github-ops
+        - area:inventory
+        - area:kaggle
+        - area:release
+        - area:security
+        - area:supabase
+        - area:testing
+        - area:ui
+        - area:worker
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - priority:P0
+        - priority:P1
+        - priority:P2
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety classification
+      description: Check each that applies — escalates to `policy:approval-required`.
+      options:
+        - label: Touches secrets, credentials, or auth surface
+        - label: Requires a destructive migration or production write
+        - label: Customer-visible side effect
+        - label: Kaggle live submission / kernel push / dataset upload
