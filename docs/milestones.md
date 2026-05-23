@@ -582,18 +582,85 @@ Exit criteria — all met:
 - Second experiment achieves measurably higher CV than baseline (+0.02048).
 - `tests/test_m9_e2e.py` (dry-run) passes in CI without credentials.
 
-M10 follow-ups carried forward (cross-cutting items A–E from M9; see
-`docs/handoffs/m9-handoff.md`):
+Post-M9 follow-ups (cross-cutting items A–E; see
+`docs/handoffs/m9-handoff.md`). These are tracked as their own issues
+and may land in parallel with M10. Issue #11 (item B) is a **hard
+pre-req for M10-T007**; the rest are soft pre-reqs.
 
 1. **A** — `competitions.repo_url` schema drift (`type:bug`, `area:kaggle`).
-2. **B** — `.env` hygiene in pytest subprocess (M8.5 carry-over; `type:test-gap`).
+2. **B** — Secrets-file hygiene in pytest subprocess (issue #11, P0; M10-T007 blocker).
 3. **C** — `decision_api`: no `GET /decisions` endpoint (`type:feature`, `area:supabase`).
 4. **D** — `reviewer_decision` literal event_type alignment (`type:docs`, `area:worker`).
 5. **E** — Migration 0004 optional `submissions` columns not applied to local DB (`type:bug`, `area:supabase`).
 
 ---
 
-## M10: authorized CTF/lab workflow
+## M10: notebook-submission regression — Petals to the Metal
+
+_Promoted to `ai:ready` 2026-05-24 (issue #12). Decisions confirmed:
+target competition `tpu-getting-started`; ONE real kernel push under
+human approval; sequenced after issue #11 (dotenv leak) for the
+dry-run leg; per-milestone worktree per `docs/milestone-loop-protocol.md` §5._
+
+Goal: validate the full platform loop with a real Kaggle **kernel push**
+(notebook submission) for
+[Petals to the Metal — Flower Classification on TPU](https://www.kaggle.com/competitions/tpu-getting-started)
+(multi-class image classification, public leaderboard, no cash prize,
+safe for repeated dry-run + 1 real kernel push under human approval).
+
+M9 validated the **CSV-submission** path (`kca kaggle submit` →
+`kaggle competitions submit`). M10 validates the **notebook-submission**
+path (`kca kaggle push` → `kaggle kernels push` + kernel-run wait + LB
+record) end-to-end against a real competition. The `kernel_push`
+reviewer-gate / approval-inbox round-trip gets the same regression
+treatment that `kaggle_submit` got in M9-T003.
+
+### M10 task sequence (proposed)
+
+| Task | Description |
+|---|---|
+| M10-T000 | Verify Kaggle credentials + register `tpu-getting-started` in the local control plane. READ_ONLY Kaggle calls. |
+| M10-T001 | Data discovery + manifest for a non-CSV competition. Record `kaggle competitions files` output; document the TFRecord-style data the kernel will read at runtime. |
+| M10-T002 | Author baseline notebook (transfer learning from a pretrained ImageNet backbone); local CV / holdout score recorded via `kca run`. No kernel push yet. |
+| M10-T003 | Reviewer gate fires for the `kernel_push` target_op; human approves via `kca decisions approve` (NOT via real Kaggle kernel push). |
+| M10-T004 | **ONE** real `kca kaggle push` under explicit human approval. Wait for the kernel run to complete; record the resulting public LB score in the `submissions` table. |
+| M10-T005 | Second experiment (different backbone or augmentation policy); local only. Second real kernel push is out of scope unless explicitly re-decided. |
+| M10-T006 | Regression assertions: local CV thresholds (TBD), LB recorded, kernel-push round-trip recorded in `submissions` / `runs`. |
+| M10-T007 | `tests/test_m10_e2e.py` mirroring `tests/test_m9_e2e.py`: notebook ↔ percent-format round-trip via `kg-nb`, kernel-push refusal without credentials, decision_api approval round-trip — all without real Kaggle calls. **Hard pre-req: issue #11 (dotenv leak) merged.** |
+| M10-T008 | M10 exit criteria validation + `docs/m10-final-review.md`. |
+
+Exit criteria (proposed — final list lands in `docs/m10-loop-prompts.md`):
+
+- `tpu-getting-started` registered; data manifest recorded; baseline notebook
+  authored and runs locally to a recorded CV/holdout score.
+- Reviewer gate fires for `kernel_push` and records `agent_reviews` +
+  `human_decisions` rows before the kernel push.
+- Exactly ONE real `kca kaggle push` runs under human approval; the
+  resulting kernel run completes; public LB score recorded.
+- Second experiment achieves measurably higher local CV than baseline,
+  or surfaces a documented reason why not.
+- `tests/test_m10_e2e.py` (dry-run, no credentials) passes in CI; the
+  dotenv leak from issue #11 is no longer reachable from the test
+  subprocess.
+- `docs/m10-final-review.md` PASS, mirroring the M8 / M8.5 / M9 layout.
+
+Gaps this milestone is expected to close (or scope to a follow-up):
+
+- `kca kaggle push` plumbing parity with `cmd_submit` (credentials gate,
+  policy-from-env gate, refusal path).
+- `kg-nb` skill notebook ↔ percent-format round-trip exercised both
+  directions.
+- `kernel_push` reviewer-gate wiring in `src/worker/reviewer.py`.
+- Submission-format detection (related: issue #7) — natural to design
+  inside M10's T001 / T002 scope if the user wants it bundled.
+- Daily-limit guardrails for kernel push (related: issue #8).
+
+---
+
+## M11: authorized CTF/lab workflow
+
+_Renumbered from old M10 on 2026-05-24 to make room for the
+notebook-submission regression milestone (new M10)._
 
 Goal: support CTF-style challenges only inside explicit authorization boundaries.
 
@@ -611,7 +678,9 @@ Exit criteria:
 
 ---
 
-## M11: Devpost/hackathon workflow
+## M12: Devpost/hackathon workflow
+
+_Renumbered from old M11 on 2026-05-24._
 
 Goal: generalize competition policy modules beyond Kaggle and CTF.
 
@@ -629,7 +698,9 @@ Exit criteria:
 
 ---
 
-## M12: evaluation, reliability, and regression suite
+## M13: evaluation, reliability, and regression suite
+
+_Renumbered from old M12 on 2026-05-24._
 
 Goal: measure whether the platform improves over time.
 

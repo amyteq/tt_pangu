@@ -1,9 +1,13 @@
 # M9 → M10 Handoff Prompt
 
 _Generated 2026-05-24 from `docs/m9-final-review.md` and `docs/milestones.md` § M10._
+_Amended 2026-05-24 post-merge: M10 is now the **notebook-submission regression
+on Petals to the Metal** (issue #12, decisions confirmed, `ai:ready`).
+The old M10 (authorized CTF/lab) is renumbered to M11._
 
-Paste this into a fresh session that is starting **M10 (authorized
-CTF/lab workflow)** or any of the M9 follow-up issues listed below.
+Paste this into a fresh session that is starting **M10
+(notebook-submission regression — Petals to the Metal)** or any of the
+M9 follow-up issues listed below.
 
 ---
 
@@ -11,14 +15,19 @@ CTF/lab workflow)** or any of the M9 follow-up issues listed below.
 
 You are working on the `tt_pangu` / `kaggle-code-agent` repository.
 **M0–M9 are complete.** Your job is to start **M10** (or one of the
-M9-surfaced cross-cutting follow-ups before M10 begins).
+M9-surfaced cross-cutting follow-ups before M10 begins; issue #11 is a
+hard pre-req for M10-T007).
 
 M9 shipped the first live end-to-end Kaggle regression test — Spaceship
-Titanic (binary classification) — with one approved real submission,
+Titanic (binary classification) — with one approved real CSV submission,
 two local CV runs (LR baseline + HGB-FE), regression assertions, and a
 dry-run e2e test path. The decision_api + UI shell + worker + reviewer
-gate + audit table all fired correctly under the approval flow. M10 is
-the next product axis: authorized CTF / lab workflow.
+gate + audit table all fired correctly under the approval flow. **M10
+extends that pattern to the notebook-submission / kernel-push path**
+against Petals to the Metal — Flower Classification on TPU
+(`tpu-getting-started`). Single approved real `kca kaggle push`
+(mirroring M9-T004's single-submission policy); per-milestone worktree
+per `docs/milestone-loop-protocol.md` §5.
 
 ## Read these files first
 
@@ -178,8 +187,8 @@ M8.5's `.github/labels.yml`, and triaged into M10 (or later) by the
   submit needs a fresh `decision:confirmed` issue and an in-session
   approval recorded on the closing issue.
 - Keep CTF work inside explicitly authorized local/sandbox challenge
-  environments (this is M10's whole point — no third-party scanning,
-  no real targets, no credential theft).
+  environments (M11's domain after renumbering — no third-party
+  scanning, no real targets, no credential theft).
 - DB calls require `dangerouslyDisableSandbox=true` against the local
   Supabase container
   (`postgresql://postgres:s3cr3t@172.21.0.4:5432/postgres`; refresh
@@ -197,21 +206,32 @@ Either:
 suggested label sets above and add `ai:triage`. Promote to `ai:ready`
 only after acceptance criteria are clear and a human picks them up.
 
-(b) **Start M10 (authorized CTF/lab workflow).** Draft
-`docs/m10-loop-prompts.md` mirroring the M9 layout (Loop Prompt 0 → N
-+ exit prompt), then write `docs/tasks/M10-T00N-*.md` per non-trivial
-loop prompt. Use `docs/m9-loop-prompts.md` as the template.
+(b) **Start M10 (notebook-submission regression — Petals to the
+Metal).** Issue #12 is `ai:ready` with all four planning decisions
+confirmed. Draft `docs/m10-loop-prompts.md` mirroring the M9 layout
+(Loop Prompt 0 → 8 + exit prompt), then write
+`docs/tasks/M10-T00N-*.md` per non-trivial loop prompt. Use
+`docs/m9-loop-prompts.md` as the template.
 
-The first M10 task (per `docs/milestones.md § M10`):
+The first M10 task (per `docs/milestones.md § M10` + issue #12):
 
-> Support CTF-style challenges only inside explicit authorization
-> boundaries: challenge scope + authorization metadata; local
-> container/lab-only execution; solver script generation and testing;
-> writeup generation; hard policy blocks for external scanning, real
-> targets, credential theft, persistence, or unsafe actions.
+> Validate the full platform loop with a real Kaggle **kernel push**
+> (notebook submission) for Petals to the Metal — Flower Classification
+> on TPU. Mirror M9's eight-Loop-Prompt structure: credentials +
+> register, data discovery, baseline notebook, reviewer-gate for
+> `kernel_push`, ONE approved real `kca kaggle push`, second
+> experiment (local only), regression assertions, dry-run e2e test,
+> exit + final review. Hard pre-req for M10-T007: issue #11 (dotenv
+> leak) must be merged so the new e2e test cannot pollute the
+> `tpu-getting-started` leaderboard.
 
 When `docs/m10-loop-prompts.md` does not yet exist, the first M10 task
 is to **write it** using `docs/m9-loop-prompts.md` as a template.
+
+The CTF/lab workflow (the previous M10 topic) is renumbered to M11;
+the Devpost/hackathon topic moves to M12; the evaluation /
+reliability / regression suite moves to M13. See
+`docs/milestones.md` for the updated numbering.
 
 Return:
 - Summary of intended change.
