@@ -65,25 +65,27 @@ M9 metrics snapshot:
 - New tests: `tests/test_m9_smoke.py` (4 DB-gated assertions),
   `tests/test_m9_e2e.py` (5 dry-run tests, 0 net / 0 DB / 0 creds).
 
-## Current milestone: M10 — authorized CTF/lab workflow
+## Current milestone: M10 — notebook-submission regression (Petals to the Metal)
 
-Status: planned (M9 exited 2026-05-24). Support CTF-style challenges
-only inside explicit authorization boundaries: challenge scope +
-authorization metadata; local container/lab-only execution; solver
-script generation and testing; writeup generation; hard policy blocks
-for external scanning, real targets, credential theft, persistence, or
-unsafe actions.
+_Renumbered 2026-05-24: the old M10 (authorized CTF/lab) is now M11._
+_Promoted to `ai:ready` on issue #12._
 
-Entry-point note: five cross-cutting follow-ups (A–E) surfaced during
-M9 and are recorded in `docs/handoffs/m9-handoff.md`. Each should be
-filed as a GitHub issue under `.github/ISSUE_TEMPLATE/` before the
-matching M10 (or earlier) work begins. Summary:
+Status: planned (M9 exited 2026-05-24). Mirror M9's eight-Loop-Prompt
+structure against [Petals to the Metal — Flower Classification on TPU](https://www.kaggle.com/competitions/tpu-getting-started)
+to validate the **notebook-submission / kernel-push** end-to-end path,
+the same way M9 validated the CSV-submission path on Spaceship Titanic.
+Single approved real `kca kaggle push` (mirroring M9-T004's single-
+submission policy); per-milestone worktree per
+`docs/milestone-loop-protocol.md` §5; CV thresholds finalised in
+`docs/m10-loop-prompts.md` at planning time.
+
+Cross-cutting follow-ups carried forward from M9 (recorded in
+`docs/handoffs/m9-handoff.md`), tracked as their own issues:
 
 - **A** — `competitions.repo_url` schema drift (`area:kaggle`, `type:bug`).
-- **B** — `.env` hygiene in pytest subprocess; live-DB run on a host
-  with populated `.env` leaks Kaggle creds via
-  `tools/kca/db.py::load_dotenv` (M8.5 carry-over;
-  `type:test-gap`, `area:testing`).
+- **B** — Secrets-file hygiene in pytest subprocess (issue #11, P0).
+  Filed as a GitHub issue; **hard pre-req for M10-T007** so the new
+  dry-run test cannot pollute the `tpu-getting-started` leaderboard.
 - **C** — `decision_api`: no `GET /decisions` endpoint
   (`area:supabase`, `type:feature`).
 - **D** — `reviewer_decision` literal event_type not emitted
@@ -102,6 +104,6 @@ preserved for historical reference).
 - Artifact storage signed-URL strategy (Supabase storage vs local artifact
   service).
 - Supabase queue/job mechanism for first use (SQS-style or Supabase Queues).
-- First cloud deployment target: AWS vs GCP (still local-first until M10+).
+- First cloud deployment target: AWS vs GCP (still local-first until M11+).
 - Model routing policy thresholds: Sonnet for implement, Opus for eval/analysis,
   Haiku/local for triage.
