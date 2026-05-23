@@ -23,6 +23,26 @@ This task assumes **M9-T000 and M9-T001 closeouts are PASS**.
    `supabase/migrations/0006_m6_reviews_spans.sql`
 7. `docs/architecture/kca-cli-architecture.md`
 
+## Submission-format note
+
+**Spaceship Titanic accepts CSV submissions only** (`PassengerId,Transported`).
+The current `tools/kca/kg.py::cmd_submit` is format-agnostic — it shells
+out to `kaggle competitions submit -c <slug> -f <file> -m <msg>` with the
+file path verbatim, and lets the Kaggle server validate the format. KCA
+does **not** read competition rules at runtime to confirm the expected
+submission format or pick between `submit` (CSV / zip) and `push` (kernel
+notebook).
+
+For M9 this is acceptable because Spaceship Titanic is a CSV competition.
+For other competitions (code competitions → kernels via `kca kaggle push`;
+some CV competitions → `submission.zip`; some structured competitions →
+JSON), the executor must know the format up front; KCA will not auto-detect.
+
+A follow-up issue tracks adding runtime format awareness to KCA
+(see `area:kaggle` / `type:feature` issues filed alongside this milestone).
+That work is **not** in scope for M9-T002 or any other M9 task — M9 uses
+the existing `submit` surface and assumes CSV for Spaceship Titanic.
+
 ## Scope
 
 1. `kca run init --competition spaceship-titanic --name baseline-lr` to

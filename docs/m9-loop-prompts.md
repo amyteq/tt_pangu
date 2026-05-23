@@ -58,6 +58,14 @@ Direct entry into M9 is blocked until **all** are true:
 - Adding new CLI subcommands. M9 uses the existing `kca` surface
   (`competition`, `kaggle`, `run`, `research`, `review`, `decisions`,
   `skill`) without inventing new ones.
+- Runtime submission-format detection. KCA's `kca kaggle submit` is
+  format-agnostic: it passes `--file` straight to `kaggle competitions
+  submit`, and Kaggle validates server-side. **M9 assumes
+  `submission.csv` because Spaceship Titanic is a CSV competition.** Other
+  competition shapes (code-competition notebooks → `kca kaggle push`;
+  `submission.zip`; JSON; etc.) need different paths that KCA does not
+  yet auto-select. Tracked as a separate `area:kaggle` / `type:feature`
+  follow-up — see M9-T002's "Submission-format note" for context.
 
 DB / sandbox details: see `docs/milestone-loop-protocol.md` §3 — the local
 `supabase-db` container (`postgresql://postgres:s3cr3t@172.21.0.4:5432/postgres`)
