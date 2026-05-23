@@ -76,11 +76,11 @@ runs/                        Run outputs — do not commit
 5. Never read `.env`, `kaggle.json`, `secrets/`, or private keys.
 6. Never submit to Kaggle, push kernels, or perform any remote write without explicit human approval.
 
-## Current milestone: M8 — product UI shell
+## Current milestone: M9 — live Kaggle regression test
 
-Status: planned. Scope: expose the control plane through a React/TypeScript UI built in Claude Code — approval inbox, run timeline, experiment table, artifact browser.
+Status: planned. Scope: drive the M8 surface end-to-end against a real Kaggle competition (Spaceship Titanic) under the approval gates — baseline training, CV scoring, submission preparation, human-approved submit, leaderboard ingest.
 
-M7 (KCA CLI architecture — command / skill / tool / permission policy) shipped on 2026-05-21; see `docs/m7-final-review.md` for the 28-check validation matrix and M8 follow-ups. The architecture itself is documented in `docs/architecture/kca-cli-architecture.md`. See `docs/milestones.md` for the full product plan (M0–M12).
+M8 (product UI shell + M7 follow-ups) shipped on 2026-05-23; see `docs/m8-final-review.md` for the 28-check validation matrix and M9 follow-ups. The UI shell is documented in `docs/architecture/m8-ui-shell.md`; the underlying KCA CLI architecture in `docs/architecture/kca-cli-architecture.md`. See `docs/milestones.md` for the full product plan (M0–M12).
 
 ## Install and configure
 
