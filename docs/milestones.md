@@ -1,6 +1,6 @@
 # kaggle-code-agent Milestones
 
-Status: M0–M9 done; M9.2 planned (/save-log operator-tooling milestone); M10 in planning (notebook-submission regression — Petals to the Metal)  
+Status: M0–M9 done; M9.2 ✓ done (/save-log operator-tooling skill); M10 in planning (notebook-submission regression — Petals to the Metal)  
 Created: 2026-05-16  
 Scope: hybrid human + AI code competition platform
 
@@ -595,10 +595,23 @@ pre-req for M10-T007**; the rest are soft pre-reqs.
 
 ---
 
-## M9.2: `/save-log` skill — Claude Code session transcript export
+## M9.2: `/save-log` skill — Claude Code session transcript export ✓ done
 
-_Planned 2026-05-26. Operator-tooling milestone; sits between M9 (done)
-and M10 (in planning). Does not renumber M10–M13._
+_Shipped 2026-05-26. See `docs/m9_2-final-review.md` (26 PASS / 0 SKIP / 0 FAIL)._
+_`/save-log <name|id>` Claude Code project skill landed at `.claude/skills/save-log/SKILL.md`
+backed by `scripts/save_claude_session_log.py` (16 KB, chmod +x). Skill is
+operator-only (`disable-model-invocation: true`). Renders Claude Code transcript
+JSONL into Markdown via `uvx claude-code-log@latest --detail low --format md
+--compact` and refuses to write if any of ten secret-like patterns match
+(Anthropic / OpenAI / GitHub / Kaggle / Supabase / private-key / generic
+assignment). Positive smoke wrote `docs/logs/M9.md` (103 KB, 1284 lines, 0 ANSI);
+three negative paths (running session, ambiguous selector, secret pattern) all
+refused as designed; `--allow-secret-like` override works. `docs/logs/`
+trackability secured by a `!docs/logs/**` carve-out after the existing
+`**/logs/*` rule._
+
+_Operator-tooling milestone; sat between M9 (done) and M10 (in planning).
+Did not renumber M10–M13._
 
 Goal: add a `/save-log <name|id>` Claude Code project skill that exports
 a stopped or completed background-session transcript to
