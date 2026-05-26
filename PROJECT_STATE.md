@@ -1,6 +1,6 @@
 # Kaggle Code Agent — Project State
 
-_Last updated: 2026-05-26 (M9.2 exit)_
+_Last updated: 2026-05-26 (M9.4 close)_
 
 ## Product intent
 Build a hybrid human + AI competition engineering workbench. The first target is Kaggle-style competitions, with future support for authorized CTF/lab challenges. The system should research, discuss ideas with humans, edit code, run tests/evaluations, analyze results, iterate, and prepare submissions under human-approved guardrails.
@@ -51,12 +51,16 @@ authoritative.
 - **M9**: live end-to-end Kaggle regression test — Spaceship Titanic ✓
 - **M9.2**: `/save-log` Claude Code session-transcript skill ✓ — operator-tooling milestone; ran in parallel to M10 planning.
 - **M9.3**: `memory-promotion` + `design-archaeology` skills (replaces unbuilt M9.1; retires `docs/m9_1-loop-prompts.md` with deferred-scope notice) ✓
+- **M9.4**: Discovery / Debate Gate agents (planning + scaffolding) ✓
 
 See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP
 checks PASS), `docs/m8_5-final-review.md` for the M8.5 roll-up (all 26
-non-SKIP checks PASS; three PRs landed on `main` as #4, #5, #6), and
+non-SKIP checks PASS; three PRs landed on `main` as #4, #5, #6),
 `docs/m9-final-review.md` for the M9 roll-up (30 PASS / 1 SKIP / 0 FAIL;
-the SKIP is UI pnpm gates — M9 did not modify UI).
+the SKIP is UI pnpm gates — M9 did not modify UI), and
+`docs/m9_4-final-review.md` for the M9.4 roll-up (17 PASS / 1 SKIP /
+0 FAIL; the SKIP is the `design-archaeology` skill loader, deferred to
+M9.3-T001 by design).
 
 M9 metrics snapshot:
 - LR baseline (M9-T002): CV accuracy **0.79144 ±0.0086** (5-fold stratified, seed=42).
