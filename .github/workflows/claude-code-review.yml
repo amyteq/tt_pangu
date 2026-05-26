@@ -17,6 +17,8 @@ jobs:
     #   github.event.pull_request.user.login == 'external-contributor' ||
     #   github.event.pull_request.user.login == 'new-developer' ||
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+    if: |
+      github.event.pull_request.user.login != 'claude'
 
     runs-on: ubuntu-latest
     permissions:
@@ -26,6 +28,12 @@ jobs:
       id-token: write
 
     steps:
+      - name: Debug PR actor
+        run: |
+          echo "github.actor=${{ github.actor }}"
+          echo "pr.user.login=${{ github.event.pull_request.user.login }}"
+          echo "pr.user.type=${{ github.event.pull_request.user.type }}"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -35,6 +43,7 @@ jobs:
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
+          allowed_bots: "claude"
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
           plugins: 'code-review@claude-code-plugins'
