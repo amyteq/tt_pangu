@@ -108,3 +108,48 @@ A milestone's `docs/m{N}-loop-prompts.md` should still spell out:
 - per-Loop-Prompt read lists, scope, acceptance criteria;
 - any **override** of a default in this file (e.g. a planning-only
   milestone overriding the worktree commit/push behavior).
+
+---
+
+## 7. Discovery / Debate Gate
+
+_Added by M9.4. Additive only — §1–§6 above are unchanged._
+
+Some tasks are large enough that "implement first, debate later"
+loses load-bearing requirements (the canonical failure: `tools/legacy/kkr.py`
+migration missing multi-Kaggle-account / owner / env semantics; see
+`docs/meeting-notes/2026-05-24-r3.md` §6). The Discovery / Debate Gate
+runs three role-isolated subagents — `legacy-archaeologist`,
+`requirements-skeptic`, `design-red-team` — **before** any
+implementation work begins.
+
+The gate is **mandatory** for any task whose spec is tagged `arch:`
+(introduces / revises an architectural primitive) or
+`legacy-migration:` (migrates / rewrites / replaces a legacy artefact).
+Routine tasks (bug fixes, doc edits, dependency bumps, small
+refactors) do not trigger the gate.
+
+When the gate fires, the executing session MUST:
+
+1. Invoke `legacy-archaeologist` first if the task touches any
+   legacy artefact (skip allowed only for greenfield `arch:` tasks,
+   with explicit note in the closeout).
+2. Invoke `requirements-skeptic` next.
+3. Invoke `design-red-team` last.
+4. Attach all three reports to the task closeout under
+   `docs/evidence/<milestone>/<task>/discovery/`.
+5. Verify all three canonical acceptance lines (defined in
+   `docs/architecture/discovery-debate-gate.md`) byte-for-byte
+   against the reports. A missing acceptance line is a task FAIL.
+
+Full template, tag-placement options, and the verbatim acceptance
+lines live in `docs/architecture/discovery-debate-gate.md`. The
+orchestration skill `.claude/skills/design-archaeology/SKILL.md`
+(owned by M9.3) is the inline alternative when the task is small
+enough not to warrant separate subagents; the agent path and the
+skill path emit compatible output shapes by design.
+
+M9.4 enforces the gate via task-spec acceptance criteria and this
+section's wording, **not** via hook-level denials. Hook-based
+enforcement is a deferred follow-up; file a separate issue if you
+want it built.
