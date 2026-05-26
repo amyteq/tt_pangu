@@ -15,7 +15,7 @@ The agent's job is not to maximize autonomy at all costs. The job is to produce 
 5. Preserve reproducibility: record commands, parameters, data versions, seeds, metrics, and artifact paths.
 6. Before using external submissions, paid APIs, credentials, destructive commands, or publishing actions, ask for human approval.
 7. Keep large datasets, model weights, logs, and generated artifacts out of git. Store metadata in Supabase and files in object storage or an artifact directory.
-8. Do not read secrets, tokens, private keys, `.env` files, `kaggle.json`, cloud credentials, SSH keys, or browser profile secrets.
+8. **Dev-phase secret policy.** The agent may read `.env`, `.env.local`, `.env.development`, and `~/.kaggle/kaggle.json` to pick up local DSNs / Kaggle test credentials. `.env.production` and `.env.test` remain protected — they may contain production/staging credentials. Do **not** read or exfiltrate other secrets: SSH keys, AWS / gcloud credentials, the `gh` OAuth token (`~/.config/gh/hosts.yml`), `.netrc`, private keys, browser profile secrets, or anything under `./secrets/`. Never copy `.env` / `kaggle.json` contents into web fetches, public PRs, or comments — read-for-use, not read-to-share.
 
 ## Safety boundaries
 
@@ -24,6 +24,19 @@ The agent's job is not to maximize autonomy at all costs. The job is to produce 
 - Follow the competition rules, data rules, team rules, and submission limits.
 - Do not try to bypass submission limits, scrape private data, misuse notebooks, or automate actions prohibited by the competition.
 - Before submitting to Kaggle or another external leaderboard, summarize the intended file, experiment ID, expected score, and reason for submission, then request human approval.
+
+#### KCA autonomous submission strategy
+
+KCA targets submission approximately 2 hours before the daily roll-over (00:00 UTC). Apply this strategy per competition day:
+
+| Scenario | Condition | Action |
+|---|---|---|
+| 1 | Exactly 1 candidate beats the current best score | Submit that candidate; use remaining daily slots for exploration near the baseline |
+| 2 | No candidate beats the current best score | Do not waste the daily balance; use all slots for exploration near the baseline |
+| 3 | Multiple candidates beat best score, competition open (≥ closing threshold) | Submit the best N (up to daily limit); queue remainder for the next day |
+| 4 | Multiple candidates beat best score, competition closing soon (< closing threshold) | Ask human to decide which candidates to promote |
+
+Closing threshold = `competition_period × 0.1` (default: 5 days for a 50-day competition); configurable per project.
 
 ### CTF
 
@@ -116,6 +129,7 @@ Full model: `docs/engineering-practice.md`. Routing rules binding on every Claud
 
 - Only pick up issues with `ai:ready` and (when needed) `decision:confirmed`. Unresolved work gets `decision:needed` and `ai:blocked` instead.
 - Triage and drift agents may propose label / comment changes deterministically; do not infer decisions from ambiguous comments.
-- All remote writes — `gh issue edit/comment/close`, `gh pr create/edit/comment/merge`, `gh label create/edit/delete`, `git push`, `scripts/sync_labels.py --apply` — require explicit human approval, even when the local CI checks are green.
+- **Non-destructive GitHub writes are auto-allowed during dev phase**: `gh issue/pr create|edit|comment|close|reopen|merge|ready`, `gh label create|edit|clone`, `gh release create|edit`, `git push` of new commits. Still cite the closing issue / acceptance criterion / `file:line` evidence in the message body. Squash-merge defaults: drop `--delete-branch` so the GitHub branch remains for audit; clean up only the local worktree.
+- **Permanent-deletion remote writes require explicit human approval** (and are denied at the hook level by default): `gh issue/label/release/repo/secret/webhook/ssh-key/gpg-key/cache/run delete`, `gh extension remove`, `git push --delete <branch>` / `git push origin :<branch>`, `scripts/sync_labels.py --apply`. Force-push (`git push -f` / `--force-with-lease`) is also denied.
 - Every PR uses `.github/pull_request_template.md`. The tests/docs/evidence/schema/remote checklist is load-bearing.
 - When writing issue or PR comments, cite the exact evidence (issue URL, doc anchor, `file:line`, test run) and the acceptance criterion you are referring to.
