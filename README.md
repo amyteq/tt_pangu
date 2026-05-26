@@ -160,6 +160,12 @@ kca decision list                     # list pending approval gates
 kca local probe                       # check local GPU endpoint status
 ```
 
+### Claude Code project skills
+
+- `/save-log <name|id>` — export a stopped or completed Claude Code background
+  session transcript to `docs/logs/<name>.md` via `claude-code-log`. See
+  `.claude/skills/save-log/SKILL.md`.
+
 ### Cloud deployment (placeholder — not yet implemented)
 
 The platform is designed to run locally first. Cloud deployment will be added in a future milestone. Planned targets:
