@@ -1,51 +1,21 @@
-## Plan M9.1 GitHub event + session memory hardening.
-Do not implement until you present a plan.
+# M9.1 — Retired (superseded by M9.3)
 
-Read first:
-- PROJECT_STATE.md
-- AGENTS.md
-- CLAUDE.md
-- docs/milestones.md
-- docs/engineering-practice.md
-- docs/github-collaboration.md if present
-- .github/workflows/claude.yml
-- .github/workflows/claude-code-review.yml
-- .claude/settings.json
-- .claude/hooks/audit_event.py
-- .claude/hooks/guard_tool.py
-- tools/legacy/kkr.py
-- tools/legacy/kkr.yaml
-- tools/kca/
-- src/worker/
+**Status: Retired 2026-05-26. Superseded by M9.3.**
 
-Mission:
-Design a safe GitHub event and session-memory hardening layer for KCA development and future KCA runtime dogfooding.
+The original M9.1 was a broad "GitHub event + session memory hardening" plan
+that bundled session-transcript mirroring, channels-bridge integration,
+agent-pack migration, several bespoke agents, *and* the two skills below.
+It was never implemented as one unit.
 
-Questions to answer before implementation:
-1. How should Claude Code session transcripts/tool events be mirrored or summarized into project logs without committing secrets?
-2. How should GitHub issue/PR comments, reviews, and labels become a human/AI collaboration interface?
-3. Which comments can become core memory, and which require human confirmation?
-4. Which new agents/skills are needed?
-5. How should legacy tools like kkr.py/kkr.yaml be analyzed so hidden requirements such as multi-Kaggle-account support are not missed?
+The two highest-leverage pieces have shipped under M9.3:
 
-Required plan sections:
-- Scope
-- Non-goals
-- Proposed files
-- Security model
-- Memory promotion workflow
-- GitHub event workflow
-- Agent/skill list with responsibilities and Must Not rules
-- Tests/smoke checks
-- Rollout order
-- Risks and approval gates
+- `design-archaeology` skill — see [`docs/m9_3-loop-prompts.md`](m9_3-loop-prompts.md) and [`docs/architecture/design-archaeology.md`](architecture/design-archaeology.md).
+- `memory-promotion` skill — see [`docs/m9_3-loop-prompts.md`](m9_3-loop-prompts.md), [`docs/adr/0015-memory-promotion-model.md`](adr/0015-memory-promotion-model.md), and [`docs/architecture/memory-promotion.md`](architecture/memory-promotion.md).
 
-Important rules:
-- Do not read or print secrets.
-- Do not run real Kaggle submit/kernel push/upload.
-- Do not make GitHub write operations without approval.
-- Do not modify production Supabase.
-- Do not commit raw Claude transcripts by default.
-- Treat GitHub repo files as the source of truth, not hidden AI memory.
+Deferred residual scope (tentatively M9.4 or later — no commitment scheduled here):
 
-Stop after the plan and wait for human approval before editing.
+- `session-closeout` skill — emit a Tier-2 session summary at end-of-session.
+- `scripts/claude_export_session.py` — sanitised transcript mirror to `logs/claude-sessions/`.
+- GitHub webhook → Claude Code Channels bridge (research preview).
+- `kca-agent-pack` migration packaging — way to copy reusable agents/skills/hooks between projects.
+- Bespoke agent wrappers: `requirements-skeptic`, `legacy-archaeologist`, `design-red-team`, `github-decision-extractor`. (The *skills* exist via M9.3; agent wrappers can wait.)
