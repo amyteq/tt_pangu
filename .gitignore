@@ -72,8 +72,8 @@ trash/*
 temp/*
 wiki/*
 **/logs/*
-!docs/logs/
-!docs/logs/**
+!logs/
+!logs/**
 **/run/*
 notebooks/generated/*
 

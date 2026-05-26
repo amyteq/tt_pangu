@@ -1,6 +1,6 @@
 ---
 name: save-log
-description: Export a stopped or completed Claude Code background session transcript to docs/logs/<session-name>.md using claude-code-log.
+description: Export a stopped or completed Claude Code background session transcript to logs/<session-name>.md using claude-code-log.
 argument-hint: "<name|id>"
 arguments:
   - session
@@ -13,11 +13,11 @@ tags:
   - claude-code
 ---
 
-# save-log — export Claude Code session transcript to docs/logs/
+# save-log — export Claude Code session transcript to logs/
 
 Use this skill to turn a **stopped** or **completed** Claude Code
 background-session transcript into a clean Markdown file under
-`docs/logs/<session-name>.md`, ready for handoff packs or milestone
+`logs/<session-name>.md`, ready for handoff packs or milestone
 evidence.
 
 ## Usage
@@ -57,12 +57,12 @@ The skill shells out to `python scripts/save_claude_session_log.py
 6. Runs a nine-pattern secret scan on the rendered output and refuses
    to write if any pattern matches, unless `--allow-secret-like` is
    set.
-7. Writes atomically to `docs/logs/<safe-name>.md` (overwrites any
+7. Writes atomically to `logs/<safe-name>.md` (overwrites any
    previous export with the same name).
 
 ## Output
 
-`docs/logs/<safe-name>.md` with a small header block (Exported at,
+`logs/<safe-name>.md` with a small header block (Exported at,
 Session name, Job id, Session id, Status, Source transcript, Output)
 followed by the `claude-code-log --detail low --compact` body.
 
@@ -71,7 +71,7 @@ The script also prints a JSON closeout to stdout:
 ```json
 {
   "ok": true,
-  "output": "docs/logs/m9_2-impl.md",
+  "output": "logs/m9_2-impl.md",
   "matched": {
     "name": "m9_2-impl",
     "job_id": "...",
@@ -100,7 +100,7 @@ The script also prints a JSON closeout to stdout:
 
 ## Out of scope
 
-- No commit of `docs/logs/<name>.md`. The human decides per-export
+- No commit of `logs/<name>.md`. The human decides per-export
   whether to commit (default: don't, unless evidentially load-bearing).
 - No `claude logs` ANSI-strip fallback. If the transcript JSONL can't
   be located, the script fails loudly with the exact `find` hint.

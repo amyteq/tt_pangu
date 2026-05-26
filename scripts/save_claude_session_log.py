@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export a stopped/completed Claude Code background session to docs/logs/<name>.md.
+"""Export a stopped/completed Claude Code background session to logs/<name>.md.
 
 This script intentionally exports from Claude Code transcript JSONL via
 `claude-code-log`, rather than from `claude logs`, because terminal output can
@@ -448,7 +448,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--output-dir",
-        default="docs/logs",
+        default="logs",
         help="output directory, relative to repo root",
     )
     args = parser.parse_args()

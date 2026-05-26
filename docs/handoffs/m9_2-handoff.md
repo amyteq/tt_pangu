@@ -19,7 +19,7 @@ start **M10** (notebook-submission regression on Petals to the Metal,
 
 M9.2 shipped a `/save-log <name|id>` Claude Code project skill that
 exports stopped/completed background-session transcripts to
-`docs/logs/<name>.md` via `claude-code-log` (`uvx`). The skill is
+`logs/<name>.md` via `claude-code-log` (`uvx`). The skill is
 operator-only (`disable-model-invocation: true`) and refuses to write
 when any of ten secret-like patterns appear in the rendered output.
 This is your tool for producing milestone-handoff artifacts going
@@ -37,7 +37,7 @@ capture the transcript before opening the milestone PR.
 5. `docs/m9-final-review.md` — M9 ship summary + the five
    cross-cutting follow-ups (A–E) that landed as issues.
 6. `docs/m9_2-final-review.md` — what landed in M9.2 (26-check
-   matrix) including the `docs/logs/` `.gitignore` carve-out and
+   matrix) including the `logs/` `.gitignore` carve-out and
    the secret-pattern refusal design.
 7. `docs/m10-loop-prompts.md` — M10's full Loop Prompt set
    (T000–T008).
@@ -56,9 +56,9 @@ capture the transcript before opening the milestone PR.
   Non-destructive `gh` writes auto-allow; permanent deletions deny.
   Squash-merge defaults: drop `--delete-branch` so the GitHub branch
   remains for audit.
-- `docs/logs/` is now a tracked directory (post-M9.2). The existing
-  `**/logs/*` rule is preserved; M9.2 added a `!docs/logs/` +
-  `!docs/logs/**` carve-out after it.
+- `logs/` is now a tracked directory (post-M9.2). The existing
+  `**/logs/*` rule is preserved; M9.2 added a `!logs/` +
+  `!logs/**` carve-out after it.
 - `claude-code-log v1.3.0` is the version `uvx` resolved at M9.2
   smoke time. The script doesn't pin a version; `uvx` picks the
   latest on each run.
