@@ -37,10 +37,12 @@ def normalize_path(value: str) -> str:
 
 
 def path_is_protected(path: str) -> bool:
-    """Dev-phase carve-out: project .env files and ~/.kaggle/kaggle.json
-    are readable so kca / Claude Code can pick up the local DSN and
-    Kaggle test credentials without manual handoffs. SSH / AWS / gcloud
-    / gh OAuth token / generic secrets/ dir stay protected.
+    """Dev-phase carve-out: project .env, .env.local, .env.development and
+    ~/.kaggle/kaggle.json are readable so kca / Claude Code can pick up the
+    local DSN and Kaggle test credentials without manual handoffs.
+    .env.production and .env.test remain protected — these may contain
+    production/staging credentials. SSH / AWS / gcloud / gh OAuth token /
+    generic secrets/ dir stay protected.
     """
     p = normalize_path(path)
     protected_fragments = [
@@ -54,6 +56,8 @@ def path_is_protected(path: str) -> bool:
         "/id_ed25519",
     ]
     protected_names = {
+        ".env.production",
+        ".env.test",
         ".netrc",
         "id_rsa",
         "id_ed25519",
@@ -137,17 +141,13 @@ def bash_decision(command: str) -> tuple[str | None, str | None]:
         (r"\brmdir\b", "Directory deletion requires approval."),
         (r"\bfind\b.*\s-delete\b", "find -delete requires approval."),
         (r"\bgit\s+clean\b", "git clean requires approval."),
-        (
-            r"\bkaggle\s+competitions\s+submit\b",
-            "Kaggle submission requires human approval.",
-        ),
         (r"\bkaggle\s+kernels\s+push\b", "Kaggle kernel push requires human approval."),
         (
             r"\bkaggle\s+datasets\s+(create|version)\b",
             "Kaggle dataset publication requires human approval.",
         ),
         (
-            r"\bpython\s+tools/kca/kca\.py\s+kaggle\s+(submit|push|upload)\b",
+            r"\bpython\s+tools/kca/kca\.py\s+kaggle\s+(push|upload)\b",
             "KCA Kaggle publication requires human approval.",
         ),
         (

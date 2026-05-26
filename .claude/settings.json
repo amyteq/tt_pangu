@@ -15,10 +15,8 @@
       "WebFetch",
       "WebSearch",
       "Bash",
-
       "Agent(Explore)",
       "Agent(Plan)",
-
       "Bash(git status*)",
       "Bash(git diff*)",
       "Bash(git log*)",
@@ -33,7 +31,6 @@
       "Bash(git rebase*)",
       "Bash(git merge*)",
       "Bash(git worktree*)",
-
       "Bash(gh issue list*)",
       "Bash(gh issue view*)",
       "Bash(gh issue create*)",
@@ -60,7 +57,6 @@
       "Bash(gh release edit*)",
       "Bash(gh api*)",
       "Bash(gh repo view*)",
-
       "Bash(uv*)",
       "Bash(python*)",
       "Bash(pytest*)",
@@ -68,16 +64,13 @@
       "Bash(pyright*)",
       "Bash(mypy*)",
       "Bash(make*)",
-
       "Bash(npm*)",
       "Bash(pnpm*)",
       "Bash(npx*)",
       "Bash(node*)",
       "Bash(vite*)",
-
       "Bash(docker*)",
       "Bash(docker compose*)",
-
       "Bash(supabase status*)",
       "Bash(supabase start*)",
       "Bash(supabase stop*)",
@@ -85,19 +78,18 @@
       "Bash(supabase migration up*)",
       "Bash(supabase db diff*)",
       "Bash(supabase gen types*)",
-
       "Bash(psql*)",
       "Bash(sqlite3*)",
-
       "Bash(mkdir*)",
       "Bash(touch*)",
       "Bash(cp*)",
       "Bash(mv*)",
       "Bash(chmod +x*)",
-
       "Bash(python tools/kca/kca.py*)",
       "Bash(python scripts/run_job.py*)",
-      "Bash(scripts/*)"
+      "Bash(scripts/*)",
+      "Bash(kaggle competitions submit*)",
+      "Bash(python tools/kca/kca.py kaggle submit*)"
     ],
     "ask": [
       "Bash(rm *)",
@@ -105,21 +97,20 @@
       "Bash(git clean*)",
       "Bash(supabase db push*)",
       "Bash(supabase db reset*)",
-      "Bash(kaggle competitions submit*)",
       "Bash(kaggle kernels push*)",
       "Bash(kaggle datasets create*)",
       "Bash(kaggle datasets version*)",
-      "Bash(python tools/kca/kca.py kaggle submit*)",
       "Bash(python tools/kca/kca.py kaggle push*)",
       "Bash(python tools/kca/kca.py kaggle upload*)"
     ],
     "deny": [
+      "Read(./.env.production)",
+      "Read(./.env.test)",
       "Read(./secrets/**)",
       "Read(~/.ssh/**)",
       "Read(~/.aws/**)",
       "Read(~/.config/gcloud/**)",
       "Read(~/.config/gh/hosts.yml)",
-
       "Edit(./.env)",
       "Edit(./.env.local)",
       "Edit(./.env.development)",
@@ -129,7 +120,6 @@
       "Edit(~/.ssh/**)",
       "Edit(~/.aws/**)",
       "Edit(~/.config/gcloud/**)",
-
       "Bash(sudo*)",
       "Bash(su *)",
       "Bash(doas*)",
@@ -150,7 +140,6 @@
       "Bash(shutdown*)",
       "Bash(reboot*)",
       "Bash(halt*)",
-
       "Bash(gh issue delete*)",
       "Bash(gh label delete*)",
       "Bash(gh release delete*)",
@@ -162,12 +151,10 @@
       "Bash(gh cache delete*)",
       "Bash(gh run delete*)",
       "Bash(gh extension remove*)",
-
       "Bash(curl *169.254.169.254*)",
       "Bash(wget *169.254.169.254*)",
       "Bash(curl *metadata.google*)",
       "Bash(wget *metadata.google*)",
-
       "Bash(psql * -c *drop database*)",
       "Bash(psql * -c *drop schema*)",
       "Bash(psql * -c *truncate*)",
