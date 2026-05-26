@@ -1,6 +1,6 @@
 # Kaggle Code Agent — Project State
 
-_Last updated: 2026-05-24 (M9 exit)_
+_Last updated: 2026-05-26 (M9.2 exit)_
 
 ## Product intent
 Build a hybrid human + AI competition engineering workbench. The first target is Kaggle-style competitions, with future support for authorized CTF/lab challenges. The system should research, discuss ideas with humans, edit code, run tests/evaluations, analyze results, iterate, and prepare submissions under human-approved guardrails.
@@ -49,6 +49,7 @@ authoritative.
 - **M8**: product UI shell + M7 follow-ups (audit table, schema gate, ToolSpec enforcement, decision_api) ✓
 - **M8.5**: pre-M9 hardening — CI repair + GitHub Issues/PR/labels interface + M9 planning ✓
 - **M9**: live end-to-end Kaggle regression test — Spaceship Titanic ✓
+- **M9.2**: `/save-log` Claude Code session-transcript skill ✓ — operator-tooling milestone; ran in parallel to M10 planning.
 
 See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP
 checks PASS), `docs/m8_5-final-review.md` for the M8.5 roll-up (all 26
