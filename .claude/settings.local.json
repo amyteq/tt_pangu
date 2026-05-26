@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "WebFetch(domain:ndownloader.figshare.com)",
-      "WebFetch(domain:supabase-db)"
+      "WebFetch(domain:supabase-db)",
+      "Bash(echo \"EXIT $?\")"
     ]
   },
   "worktree": {
