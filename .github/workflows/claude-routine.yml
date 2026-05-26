@@ -1,0 +1,74 @@
+name: Claude Routine
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Task for Claude"
+        required: true
+        type: string
+      max_turns:
+        description: "Max Claude turns"
+        required: false
+        default: "30"
+        type: string
+  schedule:
+    # 每天 Melbourne 时间约 06:00；UTC 19:00 可能受 DST 影响，按需调整
+    - cron: "0 16 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: read
+
+concurrency:
+  group: claude-routine-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  routine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
+          # This is an optional setting that allows Claude to read CI results on PRs
+          additional_permissions: |
+            actions: read
+
+          claude_args: |
+            --model claude-opus-4-7
+            --max-turns ${{ inputs.max_turns || '30' }}
+
+          prompt: |
+            Read CLAUDE.md and docs/milestones.md.
+
+            If this run was manually triggered, execute this task:
+            ${{ inputs.task }}
+
+            If this run is scheduled:
+            - inspect open issues labeled ai:ready
+            - choose at most one small, well-scoped issue
+            - do not work on issues labeled ai:blocked or decision:needed
+            - create a branch and PR if code/docs changed
+            - run relevant tests
+            - do not merge
+            - do not read secrets
+            - do not perform Kaggle submissions, remote kernel pushes, production Supabase migrations, or destructive operations
+
+            Always summarize:
+            - selected issue/task
+            - changed files
+            - tests run
+            - PR link or reason no PR was created
