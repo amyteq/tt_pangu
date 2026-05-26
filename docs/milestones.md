@@ -653,6 +653,62 @@ Out-of-scope follow-ups (file as issues if surfaced):
 
 ---
 
+## M9.4: Discovery / Debate Gate agents ✓ done
+
+_Shipped 2026-05-26. Planning + scaffolding milestone. Sits in parallel
+with M10 and M9.2 / M9.3; does not renumber M10–M13._
+
+Goal: add three role-isolated subagents — `requirements-skeptic`,
+`legacy-archaeologist`, `design-red-team` — that run before
+implementation work on `arch:` or `legacy-migration:` tasks. Each
+agent has a canonical, byte-checkable acceptance line; the union of
+the three lines is the gate. Origin: the `tools/legacy/kkr.py`
+migration missed multi-Kaggle-account / owner / env semantics because
+no agent role was responsible for asking
+(`docs/meeting-notes/2026-05-24-r3.md` §6).
+
+### M9.4 task sequence
+
+| Task | Description | Result |
+|---|---|---|
+| M9.4-T001 | Scaffold `.claude/agents/requirements-skeptic.md` (question-only; ≥5 questions across ≥3 categories + explicit_unknowns) | PASS |
+| M9.4-T002 | Scaffold `.claude/agents/legacy-archaeologist.md` (10-section report; multi-account/owner/env named explicitly) | PASS |
+| M9.4-T003 | Scaffold `.claude/agents/design-red-team.md` (≥3 alternatives; ≥1 dropped capability with file:line evidence; 4 cost axes; actionable open_disagreements) | PASS |
+| M9.4-T004 | `docs/architecture/discovery-debate-gate.md` + additive §7 of `docs/milestone-loop-protocol.md`. Deviation: skill + design-archaeology architecture doc deferred to M9.3 (which owns them). | PASS (with deviation) |
+| M9.4-T005 | Replay kkr.py / kkr.yaml through the gate; 3 evidence transcripts under `docs/evidence/m9_4-kkr-replay/`; `tests/test_m9_4_agents.py` (10 passed, 1 skipped) | PASS |
+| M9.4-T006 | `docs/m9_4-final-review.md`; PROJECT_STATE / milestones updates; one commit per Loop Prompt; PR against main | PASS |
+
+Exit criteria — all met:
+
+- Three new agents exist under `.claude/agents/`; YAML front-matter
+  parses; each carries its canonical acceptance line verbatim.
+- `docs/architecture/discovery-debate-gate.md` contains the union of
+  all three acceptance lines, the `arch:` / `legacy-migration:` tag
+  convention, and the closeout-evidence path convention.
+- `docs/milestone-loop-protocol.md` has a new §7 with §1–§6
+  byte-identical to the pre-M9.4 version.
+- The kkr.py replay surfaces multi-account / owner / env mapping
+  (the load-bearing gate) — `harrysun2006`, `firefly2006`,
+  `.env.{owner}`, `_load_env_for_owner` all named with file:line
+  evidence.
+- `tests/test_m9_4_agents.py` passes with no DB / no creds / no
+  network (10 PASS, 1 SKIP — the SKIP is the
+  `design-archaeology` skill loader, deferred to M9.3-T001 by
+  design).
+
+See `docs/m9_4-final-review.md` for the full validation matrix.
+
+Out-of-scope follow-ups (file as issues if wanted):
+
+- Hook-based enforcement of the gate (a PreToolUse hook refusing
+  `Edit` on `src/**` for `arch:` tasks without `discovery/` evidence).
+- Runtime / SDK version of the three agents inside `src/worker/`.
+- Replace the soft-skip in `tests/test_m9_4_agents.py` with a hard
+  assertion once `.claude/skills/design-archaeology/SKILL.md` lands
+  via M9.3-T001.
+
+---
+
 ## M10: notebook-submission regression — Petals to the Metal
 
 _Promoted to `ai:ready` 2026-05-24 (issue #12). Decisions confirmed:
