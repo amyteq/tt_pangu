@@ -1,6 +1,6 @@
 # kaggle-code-agent Milestones
 
-Status: M0–M9 done; M9.2 planned (/save-log operator-tooling milestone); M10 in planning (notebook-submission regression — Petals to the Metal)  
+Status: M0–M9 done; M9.2 ✓ done (/save-log operator-tooling skill); M10 in planning (notebook-submission regression — Petals to the Metal)  
 Created: 2026-05-16  
 Scope: hybrid human + AI code competition platform
 
@@ -595,10 +595,23 @@ pre-req for M10-T007**; the rest are soft pre-reqs.
 
 ---
 
-## M9.2: `/save-log` skill — Claude Code session transcript export
+## M9.2: `/save-log` skill — Claude Code session transcript export ✓ done
 
-_Planned 2026-05-26. Operator-tooling milestone; sits between M9 (done)
-and M10 (in planning). Does not renumber M10–M13._
+_Shipped 2026-05-26. See `docs/m9_2-final-review.md` (26 PASS / 0 SKIP / 0 FAIL)._
+_`/save-log <name|id>` Claude Code project skill landed at `.claude/skills/save-log/SKILL.md`
+backed by `scripts/save_claude_session_log.py` (16 KB, chmod +x). Skill is
+operator-only (`disable-model-invocation: true`). Renders Claude Code transcript
+JSONL into Markdown via `uvx claude-code-log@latest --detail low --format md
+--compact` and refuses to write if any of ten secret-like patterns match
+(Anthropic / OpenAI / GitHub / Kaggle / Supabase / private-key / generic
+assignment). Positive smoke wrote `docs/logs/M9.md` (103 KB, 1284 lines, 0 ANSI);
+three negative paths (running session, ambiguous selector, secret pattern) all
+refused as designed; `--allow-secret-like` override works. `docs/logs/`
+trackability secured by a `!docs/logs/**` carve-out after the existing
+`**/logs/*` rule._
+
+_Operator-tooling milestone; sat between M9 (done) and M10 (in planning).
+Did not renumber M10–M13._
 
 Goal: add a `/save-log <name|id>` Claude Code project skill that exports
 a stopped or completed background-session transcript to
@@ -650,6 +663,73 @@ Out-of-scope follow-ups (file as issues if surfaced):
   `agent_run_artifacts` (would need a migration; out of scope here).
 - A `claude-code-log` Markdown post-processor that strips tool-call
   noise or redacts file paths above an opt-in threshold.
+
+---
+
+## M9.3: memory-promotion + design-archaeology skills ✓ done
+
+_Sub-milestone shipped 2026-05-26. Replaces the broader M9.1 plan
+(unbuilt) and retires `docs/m9_1-loop-prompts.md` with a pointer
+notice. Loop prompts: `docs/m9_3-loop-prompts.md`._
+
+Goal: ship two project skills that harden the discipline around legacy
+migrations and canonical-memory updates — both surfaced as recurring
+gaps from M7–M9.
+
+- `design-archaeology` — forces a structured 10-section pre-implementation
+  report for legacy migrations (workflows, hidden assumptions, owners,
+  state files, config dimensions, side effects, preserve/change/drop,
+  open questions, parity test sketch, evidence). Read-only on the
+  legacy artifact tree; blocks code work until `§8` is acknowledged.
+  Canonical worked example: `docs/archaeology/kkr.md` (kkr.py + kkr.yaml).
+- `memory-promotion` — distils GitHub issue/PR/review/meeting-notes
+  content into propose-only patches against canonical memory
+  (`PROJECT_STATE.md`, `docs/milestones.md`, `docs/handoffs/`,
+  `docs/adr/`). Writes proposals under `docs/proposals/` with an
+  unchecked human-approval checkbox; never auto-applies.
+
+Codified by:
+
+- [`docs/adr/0015-memory-promotion-model.md`](adr/0015-memory-promotion-model.md) — canonical memory list (the four files above), propose-only rule, boundary with `memory/` (user auto-memory; out of scope).
+- [`docs/architecture/memory-promotion.md`](architecture/memory-promotion.md) — data-flow (evidence → extraction → proposal → human gate → canonical) with ASCII diagram.
+- [`docs/architecture/design-archaeology.md`](architecture/design-archaeology.md) — rationale, asymmetric-cost argument, worked-example pointer.
+
+Dogfooded in T003:
+
+- `docs/archaeology/kkr.md` — real archaeology of `tools/legacy/kkr.py` + `kkr.yaml`; surfaces multi-owner support (`harrysun2006` / `firefly2006`) and the `_load_env_for_owner` three-step resolution as preserve-candidates; `§8` Q1 is "should KCA M10+ re-introduce multi-account quota pooling as a first-class feature?".
+- `docs/proposals/memory-2026-05-26-m10-pr18.md` — memory-promotion proposal derived from PR #18 (M10 planning); confirms the new `## Related issues` per-task-spec convention; one proposed PROJECT_STATE.md patch (unchecked).
+
+Deferred to M9.4+ (not scheduled): session-closeout skill, claude_export_session.py, channels bridge, kca-agent-pack migration, bespoke agent wrappers. See the retirement notice in `docs/m9_1-loop-prompts.md`.
+
+### M9.3 task sequence
+
+| Task | Description |
+|---|---|
+| M9.3-T001 | Ship `.claude/skills/design-archaeology/SKILL.md` (10-section template, 7 Must / Must-not rules, worked-example pointer). |
+| M9.3-T002 | Ship `.claude/skills/memory-promotion/SKILL.md` (4-phase workflow, 7 extraction keys, 7 Must / Must-not rules) + ADR-0015 + `docs/architecture/memory-promotion.md` + `docs/proposals/` staging. |
+| M9.3-T003 | Dogfood — write `docs/archaeology/kkr.md` + `docs/proposals/memory-2026-05-26-m10-pr18.md` + `docs/architecture/design-archaeology.md`; retire `docs/m9_1-loop-prompts.md`; milestone close. |
+
+---
+
+## M10: notebook-submission regression — Petals to the Metal
+
+_Promoted to `ai:ready` 2026-05-24 (issue #12). Decisions confirmed:
+target competition `tpu-getting-started`; ONE real kernel push under
+human approval; sequenced after issue #11 (dotenv leak) for the
+dry-run leg; per-milestone worktree per `docs/milestone-loop-protocol.md` §5._
+
+Goal: validate the full platform loop with a real Kaggle **kernel push**
+(notebook submission) for
+[Petals to the Metal — Flower Classification on TPU](https://www.kaggle.com/competitions/tpu-getting-started)
+(multi-class image classification, public leaderboard, no cash prize,
+safe for repeated dry-run + 1 real kernel push under human approval).
+
+M9 validated the **CSV-submission** path (`kca kaggle submit` →
+`kaggle competitions submit`). M10 validates the **notebook-submission**
+path (`kca kaggle push` → `kaggle kernels push` + kernel-run wait + LB
+record) end-to-end against a real competition. The `kernel_push`
+reviewer-gate / approval-inbox round-trip gets the same regression
+treatment that `kaggle_submit` got in M9-T003.
 
 ---
 
@@ -708,26 +788,6 @@ Out-of-scope follow-ups (file as issues if wanted):
   via M9.3-T001.
 
 ---
-
-## M10: notebook-submission regression — Petals to the Metal
-
-_Promoted to `ai:ready` 2026-05-24 (issue #12). Decisions confirmed:
-target competition `tpu-getting-started`; ONE real kernel push under
-human approval; sequenced after issue #11 (dotenv leak) for the
-dry-run leg; per-milestone worktree per `docs/milestone-loop-protocol.md` §5._
-
-Goal: validate the full platform loop with a real Kaggle **kernel push**
-(notebook submission) for
-[Petals to the Metal — Flower Classification on TPU](https://www.kaggle.com/competitions/tpu-getting-started)
-(multi-class image classification, public leaderboard, no cash prize,
-safe for repeated dry-run + 1 real kernel push under human approval).
-
-M9 validated the **CSV-submission** path (`kca kaggle submit` →
-`kaggle competitions submit`). M10 validates the **notebook-submission**
-path (`kca kaggle push` → `kaggle kernels push` + kernel-run wait + LB
-record) end-to-end against a real competition. The `kernel_push`
-reviewer-gate / approval-inbox round-trip gets the same regression
-treatment that `kaggle_submit` got in M9-T003.
 
 ### M10 task sequence (proposed)
 

@@ -49,6 +49,8 @@ authoritative.
 - **M8**: product UI shell + M7 follow-ups (audit table, schema gate, ToolSpec enforcement, decision_api) ✓
 - **M8.5**: pre-M9 hardening — CI repair + GitHub Issues/PR/labels interface + M9 planning ✓
 - **M9**: live end-to-end Kaggle regression test — Spaceship Titanic ✓
+- **M9.2**: `/save-log` Claude Code session-transcript skill ✓ — operator-tooling milestone; ran in parallel to M10 planning.
+- **M9.3**: `memory-promotion` + `design-archaeology` skills (replaces unbuilt M9.1; retires `docs/m9_1-loop-prompts.md` with deferred-scope notice) ✓
 - **M9.4**: Discovery / Debate Gate agents (planning + scaffolding) ✓
 
 See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP
