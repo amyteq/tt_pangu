@@ -1,6 +1,6 @@
 # kaggle-code-agent Milestones
 
-Status: M0–M9 done; M10 in planning (authorized CTF/lab workflow)  
+Status: M0–M9 done; M9.2 planned (/save-log operator-tooling milestone); M10 in planning (notebook-submission regression — Petals to the Metal)  
 Created: 2026-05-16  
 Scope: hybrid human + AI code competition platform
 
@@ -592,6 +592,64 @@ pre-req for M10-T007**; the rest are soft pre-reqs.
 3. **C** — `decision_api`: no `GET /decisions` endpoint (`type:feature`, `area:supabase`).
 4. **D** — `reviewer_decision` literal event_type alignment (`type:docs`, `area:worker`).
 5. **E** — Migration 0004 optional `submissions` columns not applied to local DB (`type:bug`, `area:supabase`).
+
+---
+
+## M9.2: `/save-log` skill — Claude Code session transcript export
+
+_Planned 2026-05-26. Operator-tooling milestone; sits between M9 (done)
+and M10 (in planning). Does not renumber M10–M13._
+
+Goal: add a `/save-log <name|id>` Claude Code project skill that exports
+a stopped or completed background-session transcript to
+`docs/logs/<session-name>.md` via `claude-code-log` (run through
+`uvx`). Canonical spec: `docs/meeting-notes/2026-05-26-r1.md`.
+
+The motivation is recorded in the meeting notes: `claude logs
+<session-id>` only emits terminal output with ANSI cursor/control
+sequences; clean Markdown for handoff packs must come from the
+transcript JSONL under `~/.claude/projects/`. The skill is operator-
+local (`disable-model-invocation: true`), backed by a Python script
+with a nine-pattern secret-scan refusal, terminal-state gate, and
+atomic overwrite.
+
+### M9.2 task sequence
+
+| Task | Description |
+|---|---|
+| M9.2-T000 | Create `.claude/skills/save-log/SKILL.md`, `scripts/save_claude_session_log.py`, `docs/logs/.gitkeep`. Implement the script verbatim from meeting-notes §3. Confirm `--help` parses, `ruff` clean, `uvx claude-code-log@latest --help` reachable. No real export. |
+| M9.2-T001 | Smoke against a real stopped/completed session + three negative paths (running session refusal, ambiguous-selector refusal, secret-pattern refusal with `--allow-secret-like` override). Add `/save-log` mention to `README.md`. Confirm `docs/logs/` is **not** gitignored. |
+| M9.2-T002 | M9.2 exit criteria + `docs/m9_2-final-review.md` + milestones / PROJECT_STATE / README updates + `docs/handoffs/m9_2-handoff.md`. Run `worktree-milestone-pr` to commit per-Loop-Prompt, push, open PR. |
+
+Each task's full scope, acceptance criteria, allowed/forbidden paths,
+and closeout format live in the matching `docs/tasks/M9_2-T00N-*.md`
+spec. Loop Prompts: `docs/m9_2-loop-prompts.md`.
+
+Exit criteria (full list in `docs/m9_2-loop-prompts.md`):
+
+- `.claude/skills/save-log/SKILL.md`, `scripts/save_claude_session_log.py`,
+  `docs/logs/.gitkeep` exist; `ruff` clean; `--help` prints the four
+  flags.
+- A real `/save-log <name|id>` export against a stopped/completed
+  session writes `docs/logs/<name>.md` with the header block and an
+  ANSI-free Markdown body.
+- Running-session, ambiguous-selector, and secret-pattern refusals
+  all exit non-zero with the expected messages; `--allow-secret-like`
+  override works.
+- `docs/logs/` is not in `.gitignore`.
+- `docs/m9_2-final-review.md` exists and follows the M9 / M8.5
+  layout.
+- `python -m pytest tests/ -q` still passes (no new tests required;
+  M9.2 is operator tooling).
+
+Out-of-scope follow-ups (file as issues if surfaced):
+
+- A `/save-log --all` mode that exports every terminal-state project
+  session in one shot.
+- Promoting `docs/logs/<name>.md` exports into Supabase
+  `agent_run_artifacts` (would need a migration; out of scope here).
+- A `claude-code-log` Markdown post-processor that strips tool-call
+  noise or redacts file paths above an opt-in threshold.
 
 ---
 
