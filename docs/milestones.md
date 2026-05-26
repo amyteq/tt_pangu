@@ -653,6 +653,51 @@ Out-of-scope follow-ups (file as issues if surfaced):
 
 ---
 
+## M9.3: memory-promotion + design-archaeology skills ✓ done
+
+_Sub-milestone shipped 2026-05-26. Replaces the broader M9.1 plan
+(unbuilt) and retires `docs/m9_1-loop-prompts.md` with a pointer
+notice. Loop prompts: `docs/m9_3-loop-prompts.md`._
+
+Goal: ship two project skills that harden the discipline around legacy
+migrations and canonical-memory updates — both surfaced as recurring
+gaps from M7–M9.
+
+- `design-archaeology` — forces a structured 10-section pre-implementation
+  report for legacy migrations (workflows, hidden assumptions, owners,
+  state files, config dimensions, side effects, preserve/change/drop,
+  open questions, parity test sketch, evidence). Read-only on the
+  legacy artifact tree; blocks code work until `§8` is acknowledged.
+  Canonical worked example: `docs/archaeology/kkr.md` (kkr.py + kkr.yaml).
+- `memory-promotion` — distils GitHub issue/PR/review/meeting-notes
+  content into propose-only patches against canonical memory
+  (`PROJECT_STATE.md`, `docs/milestones.md`, `docs/handoffs/`,
+  `docs/adr/`). Writes proposals under `docs/proposals/` with an
+  unchecked human-approval checkbox; never auto-applies.
+
+Codified by:
+
+- [`docs/adr/0015-memory-promotion-model.md`](adr/0015-memory-promotion-model.md) — canonical memory list (the four files above), propose-only rule, boundary with `memory/` (user auto-memory; out of scope).
+- [`docs/architecture/memory-promotion.md`](architecture/memory-promotion.md) — data-flow (evidence → extraction → proposal → human gate → canonical) with ASCII diagram.
+- [`docs/architecture/design-archaeology.md`](architecture/design-archaeology.md) — rationale, asymmetric-cost argument, worked-example pointer.
+
+Dogfooded in T003:
+
+- `docs/archaeology/kkr.md` — real archaeology of `tools/legacy/kkr.py` + `kkr.yaml`; surfaces multi-owner support (`harrysun2006` / `firefly2006`) and the `_load_env_for_owner` three-step resolution as preserve-candidates; `§8` Q1 is "should KCA M10+ re-introduce multi-account quota pooling as a first-class feature?".
+- `docs/proposals/memory-2026-05-26-m10-pr18.md` — memory-promotion proposal derived from PR #18 (M10 planning); confirms the new `## Related issues` per-task-spec convention; one proposed PROJECT_STATE.md patch (unchecked).
+
+Deferred to M9.4+ (not scheduled): session-closeout skill, claude_export_session.py, channels bridge, kca-agent-pack migration, bespoke agent wrappers. See the retirement notice in `docs/m9_1-loop-prompts.md`.
+
+### M9.3 task sequence
+
+| Task | Description |
+|---|---|
+| M9.3-T001 | Ship `.claude/skills/design-archaeology/SKILL.md` (10-section template, 7 Must / Must-not rules, worked-example pointer). |
+| M9.3-T002 | Ship `.claude/skills/memory-promotion/SKILL.md` (4-phase workflow, 7 extraction keys, 7 Must / Must-not rules) + ADR-0015 + `docs/architecture/memory-promotion.md` + `docs/proposals/` staging. |
+| M9.3-T003 | Dogfood — write `docs/archaeology/kkr.md` + `docs/proposals/memory-2026-05-26-m10-pr18.md` + `docs/architecture/design-archaeology.md`; retire `docs/m9_1-loop-prompts.md`; milestone close. |
+
+---
+
 ## M10: notebook-submission regression — Petals to the Metal
 
 _Promoted to `ai:ready` 2026-05-24 (issue #12). Decisions confirmed:
