@@ -86,9 +86,7 @@ def _normalise_blockquote(text: str) -> str:
 def test_agent_has_canonical_acceptance_line(path: Path, key: str) -> None:
     expected = ACCEPTANCE_LINES[key]
     haystack = _normalise_blockquote(path.read_text())
-    assert expected in haystack, (
-        f"{path.name} is missing its canonical acceptance line"
-    )
+    assert expected in haystack, f"{path.name} is missing its canonical acceptance line"
 
 
 def test_discovery_debate_gate_doc_present() -> None:
@@ -96,9 +94,7 @@ def test_discovery_debate_gate_doc_present() -> None:
     assert doc.exists(), "missing docs/architecture/discovery-debate-gate.md"
     text = _normalise_blockquote(doc.read_text())
     for key, line in ACCEPTANCE_LINES.items():
-        assert line in text, (
-            f"discovery-debate-gate.md missing {key}'s acceptance line"
-        )
+        assert line in text, f"discovery-debate-gate.md missing {key}'s acceptance line"
     assert "arch:" in text and "legacy-migration:" in text, (
         "discovery-debate-gate.md must document both task tags"
     )
@@ -116,7 +112,11 @@ def test_protocol_section_7_present() -> None:
 
 
 def test_kkr_replay_evidence_present() -> None:
-    for name in ("legacy-archaeologist.md", "requirements-skeptic.md", "design-red-team.md"):
+    for name in (
+        "legacy-archaeologist.md",
+        "requirements-skeptic.md",
+        "design-red-team.md",
+    ):
         p = EVIDENCE_DIR / name
         assert p.exists(), f"missing M9.4-T005 replay evidence: {p}"
         assert "Source:" in p.read_text().splitlines()[2] or any(
