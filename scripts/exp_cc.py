@@ -658,10 +658,7 @@ def build_parser() -> argparse.ArgumentParser:
 def emit_human(result: dict[str, Any]) -> None:
     matched = result.get("matched", {})
     label = (
-        matched.get("name")
-        or matched.get("job_id")
-        or matched.get("session_id")
-        or "?"
+        matched.get("name") or matched.get("job_id") or matched.get("session_id") or "?"
     )
     locations: list[dict[str, Any]] = result.get("secret_locations") or []
 
