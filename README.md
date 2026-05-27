@@ -76,9 +76,11 @@ runs/                        Run outputs — do not commit
 5. Never read `.env`, `kaggle.json`, `secrets/`, or private keys.
 6. Never submit to Kaggle, push kernels, or perform any remote write without explicit human approval.
 
-## Current milestone: M10 — notebook-submission regression (Petals to the Metal)
+## Current milestone: M11 — authorized CTF/lab workflow (planned)
 
-Status: planned + `ai:ready` (M9 exited 2026-05-24; M10 decisions confirmed on issue #12 the same day; the old M10 CTF/lab workflow is renumbered to M11). Scope: mirror M9's eight-Loop-Prompt structure against [Petals to the Metal — Flower Classification on TPU](https://www.kaggle.com/competitions/tpu-getting-started) to validate the **notebook-submission / kernel-push** end-to-end path. Single approved real `kca kaggle push` (mirroring M9-T004's single-submission policy); per-milestone worktree per `docs/milestone-loop-protocol.md` §5.
+Status: planned (M10 exited 2026-05-28). M11 brings the platform's authorized CTF/lab challenge workflow online (challenge metadata + container lab + writeup), inside explicitly authorized sandbox environments only — no third-party scanning, no real targets, no credential theft. See `docs/milestones.md §M11` and `docs/handoffs/m10-handoff.md`.
+
+M10 (notebook-submission Kaggle regression — Petals to the Metal) shipped on 2026-05-28: validation matrix **26 PASS / 1 SKIP / 0 FAIL**. The kernel-push loop ran end-to-end correctly under the approval gates (baseline MobileNetV2 local-slice holdout **0.4310**; alt EfficientNetB0 **0.3966**, −3.4pp within the 10pp guard). **One material deviation: no public LB score was recorded** — the single approved real `kaggle kernels push` stalled QUEUED ~66 min (push #1) and the approved re-push #2 errored on a now-fixed missing `metadata.kernelspec`; per the single-push policy the human chose "accept and continue" (`submissions=03b5d080-…`, `public_score` NULL; re-push tracked by issues #34 / #35; notebook is push-ready). Issue #11 (dotenv-leak / Kaggle LB pollution) was fixed and CLOSED during M10. See `docs/m10-final-review.md` and `docs/handoffs/m10-handoff.md`.
 
 M9 (live end-to-end Kaggle regression — Spaceship Titanic) shipped on 2026-05-24: LR baseline CV **0.79144 ±0.0086**, HGB + FE CV **0.81192 ±0.00753** (+0.02048), one approved real Kaggle submission (public LB **0.78676**), two new test files (`tests/test_m9_smoke.py`, `tests/test_m9_e2e.py`). See `docs/m9-final-review.md` for the 30-check validation matrix and `docs/handoffs/m9-handoff.md` for the M9 → M10 handoff (including five cross-cutting follow-ups A–E; item B is now tracked as issue #11 and is a hard pre-req for M10-T007).
 
