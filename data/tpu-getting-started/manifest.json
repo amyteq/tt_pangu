@@ -1,0 +1,1366 @@
+{
+  "competition": "tpu-getting-started",
+  "format": "kernel-input",
+  "discovered_at": "2026-05-26T12:25:12Z",
+  "discovery_method": "kaggle competitions files -c tpu-getting-started --csv",
+  "files": [
+    {
+      "name": "sample_submission.csv",
+      "size": 88593,
+      "creationDate": "2020-06-04 00:39:05.933000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/00-192x192-462.tfrec",
+      "size": 11444835,
+      "creationDate": "2020-06-04 00:39:15.022000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/01-192x192-462.tfrec",
+      "size": 11581760,
+      "creationDate": "2020-06-04 00:39:15.313000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/02-192x192-462.tfrec",
+      "size": 11556532,
+      "creationDate": "2020-06-04 00:39:15.200000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/03-192x192-462.tfrec",
+      "size": 11625327,
+      "creationDate": "2020-06-04 00:39:14.820000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/04-192x192-462.tfrec",
+      "size": 11666582,
+      "creationDate": "2020-06-04 00:39:14.545000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/05-192x192-462.tfrec",
+      "size": 11602793,
+      "creationDate": "2020-06-04 00:39:14.752000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/06-192x192-462.tfrec",
+      "size": 11693859,
+      "creationDate": "2020-06-04 00:39:14.234000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/07-192x192-462.tfrec",
+      "size": 11355879,
+      "creationDate": "2020-06-04 00:39:15.043000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/08-192x192-462.tfrec",
+      "size": 11554479,
+      "creationDate": "2020-06-04 00:39:15.684000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/09-192x192-462.tfrec",
+      "size": 11376457,
+      "creationDate": "2020-06-04 00:39:14.397000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/10-192x192-462.tfrec",
+      "size": 11552380,
+      "creationDate": "2020-06-04 00:39:14.116000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/11-192x192-462.tfrec",
+      "size": 11616975,
+      "creationDate": "2020-06-04 00:39:15.524000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/12-192x192-462.tfrec",
+      "size": 11429067,
+      "creationDate": "2020-06-04 00:39:15.708000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/13-192x192-462.tfrec",
+      "size": 11416069,
+      "creationDate": "2020-06-04 00:39:14.442000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/14-192x192-462.tfrec",
+      "size": 11506154,
+      "creationDate": "2020-06-04 00:39:14.023000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/test/15-192x192-452.tfrec",
+      "size": 11219145,
+      "creationDate": "2020-06-04 00:39:15.606000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/00-192x192-798.tfrec",
+      "size": 20295003,
+      "creationDate": "2020-06-04 00:39:14.724000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/01-192x192-798.tfrec",
+      "size": 19784193,
+      "creationDate": "2020-06-04 00:39:15.479000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/02-192x192-798.tfrec",
+      "size": 20086871,
+      "creationDate": "2020-06-04 00:39:17.202000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/03-192x192-798.tfrec",
+      "size": 19961378,
+      "creationDate": "2020-06-04 00:39:15.642000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/04-192x192-798.tfrec",
+      "size": 19655728,
+      "creationDate": "2020-06-04 00:39:14.695000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/05-192x192-798.tfrec",
+      "size": 20038536,
+      "creationDate": "2020-06-04 00:39:16.939000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/06-192x192-798.tfrec",
+      "size": 19920343,
+      "creationDate": "2020-06-04 00:39:15.292000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/07-192x192-798.tfrec",
+      "size": 20099077,
+      "creationDate": "2020-06-04 00:39:15.836000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/08-192x192-798.tfrec",
+      "size": 19996441,
+      "creationDate": "2020-06-04 00:39:16.214000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/09-192x192-798.tfrec",
+      "size": 20028133,
+      "creationDate": "2020-06-04 00:39:14.894000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/10-192x192-798.tfrec",
+      "size": 20013603,
+      "creationDate": "2020-06-04 00:39:14.158000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/11-192x192-798.tfrec",
+      "size": 19763862,
+      "creationDate": "2020-06-04 00:39:15.074000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/12-192x192-798.tfrec",
+      "size": 19800891,
+      "creationDate": "2020-06-04 00:39:16.580000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/13-192x192-798.tfrec",
+      "size": 19680792,
+      "creationDate": "2020-06-04 00:39:16.528000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/14-192x192-798.tfrec",
+      "size": 19884165,
+      "creationDate": "2020-06-04 00:39:16.113000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/train/15-192x192-783.tfrec",
+      "size": 19415577,
+      "creationDate": "2020-06-04 00:39:14.677000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/00-192x192-232.tfrec",
+      "size": 5959324,
+      "creationDate": "2020-06-04 00:39:14.026000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/01-192x192-232.tfrec",
+      "size": 5651866,
+      "creationDate": "2020-06-04 00:39:14.351000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/02-192x192-232.tfrec",
+      "size": 5792626,
+      "creationDate": "2020-06-04 00:39:14.315000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/03-192x192-232.tfrec",
+      "size": 5831717,
+      "creationDate": "2020-06-04 00:39:13.877000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/04-192x192-232.tfrec",
+      "size": 5861304,
+      "creationDate": "2020-06-04 00:39:14.184000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/05-192x192-232.tfrec",
+      "size": 5821014,
+      "creationDate": "2020-06-04 00:39:14.693000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/06-192x192-232.tfrec",
+      "size": 5640029,
+      "creationDate": "2020-06-04 00:39:14.567000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/07-192x192-232.tfrec",
+      "size": 5815843,
+      "creationDate": "2020-06-04 00:39:13.828000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/08-192x192-232.tfrec",
+      "size": 5655903,
+      "creationDate": "2020-06-04 00:39:14.610000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/09-192x192-232.tfrec",
+      "size": 5863968,
+      "creationDate": "2020-06-04 00:39:13.990000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/10-192x192-232.tfrec",
+      "size": 5867137,
+      "creationDate": "2020-06-04 00:39:14.100000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/11-192x192-232.tfrec",
+      "size": 5809433,
+      "creationDate": "2020-06-04 00:39:14.506000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/12-192x192-232.tfrec",
+      "size": 5760638,
+      "creationDate": "2020-06-04 00:39:14.067000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/13-192x192-232.tfrec",
+      "size": 5882217,
+      "creationDate": "2020-06-04 00:39:13.791000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/14-192x192-232.tfrec",
+      "size": 5857133,
+      "creationDate": "2020-06-04 00:39:14.222000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-192x192/val/15-192x192-232.tfrec",
+      "size": 5766205,
+      "creationDate": "2020-06-04 00:39:14.571000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/00-224x224-462.tfrec",
+      "size": 14370648,
+      "creationDate": "2020-06-04 00:39:19.060000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/01-224x224-462.tfrec",
+      "size": 14533997,
+      "creationDate": "2020-06-04 00:39:17.708000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/02-224x224-462.tfrec",
+      "size": 14494697,
+      "creationDate": "2020-06-04 00:39:17.561000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/03-224x224-462.tfrec",
+      "size": 14585925,
+      "creationDate": "2020-06-04 00:39:17.746000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/04-224x224-462.tfrec",
+      "size": 14627099,
+      "creationDate": "2020-06-04 00:39:18.300000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/05-224x224-462.tfrec",
+      "size": 14552824,
+      "creationDate": "2020-06-04 00:39:17.895000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/06-224x224-462.tfrec",
+      "size": 14672472,
+      "creationDate": "2020-06-04 00:39:17.696000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/07-224x224-462.tfrec",
+      "size": 14225845,
+      "creationDate": "2020-06-04 00:39:18.560000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/08-224x224-462.tfrec",
+      "size": 14512254,
+      "creationDate": "2020-06-04 00:39:18.710000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/09-224x224-462.tfrec",
+      "size": 14278854,
+      "creationDate": "2020-06-04 00:39:18.122000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/10-224x224-462.tfrec",
+      "size": 14488251,
+      "creationDate": "2020-06-04 00:39:18.405000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/11-224x224-462.tfrec",
+      "size": 14577750,
+      "creationDate": "2020-06-04 00:39:17.257000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/12-224x224-462.tfrec",
+      "size": 14342886,
+      "creationDate": "2020-06-04 00:39:18.021000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/13-224x224-462.tfrec",
+      "size": 14324023,
+      "creationDate": "2020-06-04 00:39:17.160000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/14-224x224-462.tfrec",
+      "size": 14448021,
+      "creationDate": "2020-06-04 00:39:17.253000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/test/15-224x224-452.tfrec",
+      "size": 14067152,
+      "creationDate": "2020-06-04 00:39:18.808000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/00-224x224-798.tfrec",
+      "size": 25470999,
+      "creationDate": "2020-06-04 00:39:19.218000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/01-224x224-798.tfrec",
+      "size": 24812782,
+      "creationDate": "2020-06-04 00:39:17.794000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/02-224x224-798.tfrec",
+      "size": 25186295,
+      "creationDate": "2020-06-04 00:39:19.625000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/03-224x224-798.tfrec",
+      "size": 25025139,
+      "creationDate": "2020-06-04 00:39:18.395000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/04-224x224-798.tfrec",
+      "size": 24672646,
+      "creationDate": "2020-06-04 00:39:17.546000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/05-224x224-798.tfrec",
+      "size": 25102312,
+      "creationDate": "2020-06-04 00:39:19.116000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/06-224x224-798.tfrec",
+      "size": 25014806,
+      "creationDate": "2020-06-04 00:39:18.467000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/07-224x224-798.tfrec",
+      "size": 25209415,
+      "creationDate": "2020-06-04 00:39:20.450000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/08-224x224-798.tfrec",
+      "size": 25086332,
+      "creationDate": "2020-06-04 00:39:20.504000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/09-224x224-798.tfrec",
+      "size": 25137699,
+      "creationDate": "2020-06-04 00:39:20.132000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/10-224x224-798.tfrec",
+      "size": 25111668,
+      "creationDate": "2020-06-04 00:39:18.585000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/11-224x224-798.tfrec",
+      "size": 24801176,
+      "creationDate": "2020-06-04 00:39:19.446000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/12-224x224-798.tfrec",
+      "size": 24854006,
+      "creationDate": "2020-06-04 00:39:18.343000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/13-224x224-798.tfrec",
+      "size": 24683528,
+      "creationDate": "2020-06-04 00:39:17.952000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/14-224x224-798.tfrec",
+      "size": 24954599,
+      "creationDate": "2020-06-04 00:39:19.755000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/train/15-224x224-783.tfrec",
+      "size": 24353482,
+      "creationDate": "2020-06-04 00:39:19.948000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/00-224x224-232.tfrec",
+      "size": 7486529,
+      "creationDate": "2020-06-04 00:39:17.513000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/01-224x224-232.tfrec",
+      "size": 7066055,
+      "creationDate": "2020-06-04 00:39:17.181000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/02-224x224-232.tfrec",
+      "size": 7262562,
+      "creationDate": "2020-06-04 00:39:17.428000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/03-224x224-232.tfrec",
+      "size": 7340017,
+      "creationDate": "2020-06-04 00:39:17.766000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/04-224x224-232.tfrec",
+      "size": 7342095,
+      "creationDate": "2020-06-04 00:39:17.664000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/05-224x224-232.tfrec",
+      "size": 7304601,
+      "creationDate": "2020-06-04 00:39:17.205000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/06-224x224-232.tfrec",
+      "size": 7070173,
+      "creationDate": "2020-06-04 00:39:17.248000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/07-224x224-232.tfrec",
+      "size": 7301433,
+      "creationDate": "2020-06-04 00:39:16.926000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/08-224x224-232.tfrec",
+      "size": 7094113,
+      "creationDate": "2020-06-04 00:39:16.852000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/09-224x224-232.tfrec",
+      "size": 7359447,
+      "creationDate": "2020-06-04 00:39:17.390000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/10-224x224-232.tfrec",
+      "size": 7348244,
+      "creationDate": "2020-06-04 00:39:17.695000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/11-224x224-232.tfrec",
+      "size": 7304860,
+      "creationDate": "2020-06-04 00:39:17.520000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/12-224x224-232.tfrec",
+      "size": 7216523,
+      "creationDate": "2020-06-04 00:39:17.542000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/13-224x224-232.tfrec",
+      "size": 7379966,
+      "creationDate": "2020-06-04 00:39:17.098000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/14-224x224-232.tfrec",
+      "size": 7342916,
+      "creationDate": "2020-06-04 00:39:16.997000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-224x224/val/15-224x224-232.tfrec",
+      "size": 7231264,
+      "creationDate": "2020-06-04 00:39:16.877000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/00-331x331-462.tfrec",
+      "size": 25946327,
+      "creationDate": "2020-06-04 00:39:28.822000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/01-331x331-462.tfrec",
+      "size": 26241272,
+      "creationDate": "2020-06-04 00:39:27.472000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/02-331x331-462.tfrec",
+      "size": 26198367,
+      "creationDate": "2020-06-04 00:39:26.485000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/03-331x331-462.tfrec",
+      "size": 26332591,
+      "creationDate": "2020-06-04 00:39:29.051000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/04-331x331-462.tfrec",
+      "size": 26391149,
+      "creationDate": "2020-06-04 00:39:28.577000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/05-331x331-462.tfrec",
+      "size": 26299729,
+      "creationDate": "2020-06-04 00:39:29.205000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/06-331x331-462.tfrec",
+      "size": 26486219,
+      "creationDate": "2020-06-04 00:39:26.927000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/07-331x331-462.tfrec",
+      "size": 25567348,
+      "creationDate": "2020-06-04 00:39:27.619000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/08-331x331-462.tfrec",
+      "size": 26204100,
+      "creationDate": "2020-06-04 00:39:28.146000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/09-331x331-462.tfrec",
+      "size": 25769777,
+      "creationDate": "2020-06-04 00:39:27.941000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/10-331x331-462.tfrec",
+      "size": 26203510,
+      "creationDate": "2020-06-04 00:39:26.421000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/11-331x331-462.tfrec",
+      "size": 26303714,
+      "creationDate": "2020-06-04 00:39:27.092000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/12-331x331-462.tfrec",
+      "size": 25894531,
+      "creationDate": "2020-06-04 00:39:27.859000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/13-331x331-462.tfrec",
+      "size": 25870015,
+      "creationDate": "2020-06-04 00:39:26.752000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/14-331x331-462.tfrec",
+      "size": 26070291,
+      "creationDate": "2020-06-04 00:39:28.448000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/test/15-331x331-452.tfrec",
+      "size": 25393425,
+      "creationDate": "2020-06-04 00:39:27.197000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/00-331x331-798.tfrec",
+      "size": 45943097,
+      "creationDate": "2020-06-04 00:39:26.950000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/01-331x331-798.tfrec",
+      "size": 44724478,
+      "creationDate": "2020-06-04 00:39:29.054000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/02-331x331-798.tfrec",
+      "size": 45388396,
+      "creationDate": "2020-06-04 00:39:29.767000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/03-331x331-798.tfrec",
+      "size": 45106267,
+      "creationDate": "2020-06-04 00:39:30.209000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/04-331x331-798.tfrec",
+      "size": 44516021,
+      "creationDate": "2020-06-04 00:39:28.811000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/05-331x331-798.tfrec",
+      "size": 45339687,
+      "creationDate": "2020-06-04 00:39:29.548000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/06-331x331-798.tfrec",
+      "size": 45220010,
+      "creationDate": "2020-06-04 00:39:27.557000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/07-331x331-798.tfrec",
+      "size": 45465082,
+      "creationDate": "2020-06-04 00:39:31.249000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/08-331x331-798.tfrec",
+      "size": 45274963,
+      "creationDate": "2020-06-04 00:39:28.661000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/09-331x331-798.tfrec",
+      "size": 45386704,
+      "creationDate": "2020-06-04 00:39:31.648000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/10-331x331-798.tfrec",
+      "size": 45288449,
+      "creationDate": "2020-06-04 00:39:27.887000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/11-331x331-798.tfrec",
+      "size": 44758846,
+      "creationDate": "2020-06-04 00:39:28.198000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/12-331x331-798.tfrec",
+      "size": 44907718,
+      "creationDate": "2020-06-04 00:39:27.379000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/13-331x331-798.tfrec",
+      "size": 44517433,
+      "creationDate": "2020-06-04 00:39:30.519000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/14-331x331-798.tfrec",
+      "size": 44975967,
+      "creationDate": "2020-06-04 00:39:31.790000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/train/15-331x331-783.tfrec",
+      "size": 43955600,
+      "creationDate": "2020-06-04 00:39:30.914000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/00-331x331-232.tfrec",
+      "size": 13552049,
+      "creationDate": "2020-06-04 00:39:26.067000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/01-331x331-232.tfrec",
+      "size": 12708343,
+      "creationDate": "2020-06-04 00:39:26.988000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/02-331x331-232.tfrec",
+      "size": 13059482,
+      "creationDate": "2020-06-04 00:39:27.097000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/03-331x331-232.tfrec",
+      "size": 13328421,
+      "creationDate": "2020-06-04 00:39:26.370000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/04-331x331-232.tfrec",
+      "size": 13247625,
+      "creationDate": "2020-06-04 00:39:26.635000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/05-331x331-232.tfrec",
+      "size": 13175539,
+      "creationDate": "2020-06-04 00:39:26.308000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/06-331x331-232.tfrec",
+      "size": 12713409,
+      "creationDate": "2020-06-04 00:39:26.736000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/07-331x331-232.tfrec",
+      "size": 13196880,
+      "creationDate": "2020-06-04 00:39:27.327000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/08-331x331-232.tfrec",
+      "size": 12806229,
+      "creationDate": "2020-06-04 00:39:26.208000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/09-331x331-232.tfrec",
+      "size": 13302633,
+      "creationDate": "2020-06-04 00:39:26.483000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/10-331x331-232.tfrec",
+      "size": 13272123,
+      "creationDate": "2020-06-04 00:39:26.969000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/11-331x331-232.tfrec",
+      "size": 13189481,
+      "creationDate": "2020-06-04 00:39:26.589000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/12-331x331-232.tfrec",
+      "size": 12954839,
+      "creationDate": "2020-06-04 00:39:27.409000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/13-331x331-232.tfrec",
+      "size": 13315498,
+      "creationDate": "2020-06-04 00:39:27.316000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/14-331x331-232.tfrec",
+      "size": 13206301,
+      "creationDate": "2020-06-04 00:39:26.930000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-331x331/val/15-331x331-232.tfrec",
+      "size": 13046854,
+      "creationDate": "2020-06-04 00:39:25.969000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/00-512x512-462.tfrec",
+      "size": 47511291,
+      "creationDate": "2020-06-04 00:39:49.268000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/01-512x512-462.tfrec",
+      "size": 47951186,
+      "creationDate": "2020-06-04 00:39:48.840000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/02-512x512-462.tfrec",
+      "size": 47934801,
+      "creationDate": "2020-06-04 00:39:47.546000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/03-512x512-462.tfrec",
+      "size": 48106137,
+      "creationDate": "2020-06-04 00:39:49.095000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/04-512x512-462.tfrec",
+      "size": 48223367,
+      "creationDate": "2020-06-04 00:39:48.184000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/05-512x512-462.tfrec",
+      "size": 48112812,
+      "creationDate": "2020-06-04 00:39:47.884000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/06-512x512-462.tfrec",
+      "size": 48323867,
+      "creationDate": "2020-06-04 00:39:48.902000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/07-512x512-462.tfrec",
+      "size": 46591431,
+      "creationDate": "2020-06-04 00:39:46.894000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/08-512x512-462.tfrec",
+      "size": 47952968,
+      "creationDate": "2020-06-04 00:39:46.113000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/09-512x512-462.tfrec",
+      "size": 47123932,
+      "creationDate": "2020-06-04 00:39:47.255000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/10-512x512-462.tfrec",
+      "size": 47833397,
+      "creationDate": "2020-06-04 00:39:46.355000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/11-512x512-462.tfrec",
+      "size": 48025272,
+      "creationDate": "2020-06-04 00:39:45.823000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/12-512x512-462.tfrec",
+      "size": 47319209,
+      "creationDate": "2020-06-04 00:39:46.058000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/13-512x512-462.tfrec",
+      "size": 47222140,
+      "creationDate": "2020-06-04 00:39:46.694000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/14-512x512-462.tfrec",
+      "size": 47642338,
+      "creationDate": "2020-06-04 00:39:48.417000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/test/15-512x512-452.tfrec",
+      "size": 46388228,
+      "creationDate": "2020-06-04 00:39:45.221000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/00-512x512-798.tfrec",
+      "size": 83875943,
+      "creationDate": "2020-06-04 00:39:51.492000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/01-512x512-798.tfrec",
+      "size": 81692637,
+      "creationDate": "2020-06-04 00:39:53.163000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/02-512x512-798.tfrec",
+      "size": 82680260,
+      "creationDate": "2020-06-04 00:39:48.146000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/03-512x512-798.tfrec",
+      "size": 82330618,
+      "creationDate": "2020-06-04 00:39:50.473000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/04-512x512-798.tfrec",
+      "size": 81343794,
+      "creationDate": "2020-06-04 00:39:46.292000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/05-512x512-798.tfrec",
+      "size": 82687890,
+      "creationDate": "2020-06-04 00:39:50.881000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/06-512x512-798.tfrec",
+      "size": 82512299,
+      "creationDate": "2020-06-04 00:39:53.312000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/07-512x512-798.tfrec",
+      "size": 82988472,
+      "creationDate": "2020-06-04 00:39:49.145000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/08-512x512-798.tfrec",
+      "size": 82735184,
+      "creationDate": "2020-06-04 00:39:49.854000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/09-512x512-798.tfrec",
+      "size": 82949247,
+      "creationDate": "2020-06-04 00:39:47.813000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/10-512x512-798.tfrec",
+      "size": 82677042,
+      "creationDate": "2020-06-04 00:39:49.575000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/11-512x512-798.tfrec",
+      "size": 81804547,
+      "creationDate": "2020-06-04 00:39:52.435000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/12-512x512-798.tfrec",
+      "size": 82022903,
+      "creationDate": "2020-06-04 00:39:48.455000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/13-512x512-798.tfrec",
+      "size": 81155557,
+      "creationDate": "2020-06-04 00:39:47.405000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/14-512x512-798.tfrec",
+      "size": 81974876,
+      "creationDate": "2020-06-04 00:39:51.734000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/train/15-512x512-783.tfrec",
+      "size": 80288957,
+      "creationDate": "2020-06-04 00:39:46.504000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/00-512x512-232.tfrec",
+      "size": 24755539,
+      "creationDate": "2020-06-04 00:39:45.907000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/01-512x512-232.tfrec",
+      "size": 23185605,
+      "creationDate": "2020-06-04 00:39:46.446000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/02-512x512-232.tfrec",
+      "size": 23814580,
+      "creationDate": "2020-06-04 00:39:46.345000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/03-512x512-232.tfrec",
+      "size": 24444729,
+      "creationDate": "2020-06-04 00:39:45.784000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/04-512x512-232.tfrec",
+      "size": 24192665,
+      "creationDate": "2020-06-04 00:39:44.711000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/05-512x512-232.tfrec",
+      "size": 23984305,
+      "creationDate": "2020-06-04 00:39:45.041000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/06-512x512-232.tfrec",
+      "size": 23204360,
+      "creationDate": "2020-06-04 00:39:45.431000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/07-512x512-232.tfrec",
+      "size": 24129806,
+      "creationDate": "2020-06-04 00:39:45.222000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/08-512x512-232.tfrec",
+      "size": 23395642,
+      "creationDate": "2020-06-04 00:39:45.550000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/09-512x512-232.tfrec",
+      "size": 24278579,
+      "creationDate": "2020-06-04 00:39:46.839000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/10-512x512-232.tfrec",
+      "size": 24232449,
+      "creationDate": "2020-06-04 00:39:46.607000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/11-512x512-232.tfrec",
+      "size": 24121963,
+      "creationDate": "2020-06-04 00:39:46.415000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/12-512x512-232.tfrec",
+      "size": 23612692,
+      "creationDate": "2020-06-04 00:39:44.840000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/13-512x512-232.tfrec",
+      "size": 24304781,
+      "creationDate": "2020-06-04 00:39:46.102000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/14-512x512-232.tfrec",
+      "size": 24114721,
+      "creationDate": "2020-06-04 00:39:44.909000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    },
+    {
+      "name": "tfrecords-jpeg-512x512/val/15-512x512-232.tfrec",
+      "size": 23809981,
+      "creationDate": "2020-06-04 00:39:45.297000",
+      "sha256": null,
+      "comment": "remote-only; read by kernel at runtime"
+    }
+  ],
+  "image_size_variants": [
+    "192x192",
+    "224x224",
+    "331x331",
+    "512x512"
+  ],
+  "notes": "Raw TFRecords are NOT downloaded; the kernel runner consumes them from Kaggle's GCS-hosted dataset at runtime. sha256 is null for every entry because nothing was fetched locally."
+}
