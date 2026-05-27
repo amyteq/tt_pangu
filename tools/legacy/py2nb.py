@@ -48,6 +48,10 @@ def build_notebook(src: Path, *, keep_markdown: bool) -> tuple[Any, dict[str, An
         )
     ]
     nb.metadata.setdefault("language_info", {"name": "python"})
+    nb.metadata.setdefault(
+        "kernelspec",
+        {"name": "python3", "display_name": "Python 3", "language": "python"},
+    )
     code_cells = sum(1 for cell in nb.cells if cell.cell_type == "code")
     markdown_cells = sum(1 for cell in nb.cells if cell.cell_type == "markdown")
     summary = {
