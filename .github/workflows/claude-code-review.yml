@@ -1,14 +1,21 @@
 name: Claude Code Review
 
 on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review, reopened]
+  # pull_request:
+  #   types: [opened, synchronize, ready_for_review, reopened]
     # Optional: Only run on specific file changes
     # paths:
     #   - "src/**/*.ts"
     #   - "src/**/*.tsx"
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
+  # manually trigger, not running on every PR
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: "PR number"
+        required: true
+        type: string
 
 jobs:
   claude-review:
@@ -20,7 +27,8 @@ jobs:
     if: |
       github.event.pull_request.user.login != 'claude'
 
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, ci]
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: read
@@ -28,12 +36,6 @@ jobs:
       id-token: write
 
     steps:
-      - name: Debug PR actor
-        run: |
-          echo "github.actor=${{ github.actor }}"
-          echo "pr.user.login=${{ github.event.pull_request.user.login }}"
-          echo "pr.user.type=${{ github.event.pull_request.user.type }}"
-
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -46,6 +48,10 @@ jobs:
           allowed_bots: "claude"
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           plugin_marketplaces: 'https://github.com/anthropics/claude-code.git'
+          # --model claude-opus-4-7
+          claude_args: |
+            --model claude-sonnet-4-6
+            --max-turns ${{ inputs.max_turns || '10' }}
           plugins: 'code-review@claude-code-plugins'
           prompt: '/code-review:code-review ${{ github.repository }}/pull/${{ github.event.pull_request.number }}'
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
