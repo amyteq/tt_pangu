@@ -168,6 +168,8 @@ def test_kaggle_submit_blocked_without_env(tmp_path: Path) -> None:
             "SUPABASE_DB_URL": None,
             "KAGGLE_USERNAME": None,
             "KAGGLE_KEY": None,
+            # Prevent db.py from re-injecting repo-root .env creds (issue #11).
+            "KCA_SKIP_DOTENV": "1",
         },
     )
     assert proc.returncode != 0
