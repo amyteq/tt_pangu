@@ -9,17 +9,32 @@ concurrency:
   group: tests-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  SELF_HOSTED_PYTHON_BIN: /home/gha-runner/micromamba/envs/v3.12.12/bin
+
 jobs:
   no-db:
     name: no-db pytest
     runs-on: [self-hosted, linux, x64, ci]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+
+      - name: Setup Python on GitHub-hosted
+        if: ${{ runner.environment == 'github-hosted' }}
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Use micromamba Python on self-hosted Arch
+        if: ${{ runner.environment == 'self-hosted' }}
+        run: |
+          echo "$SELF_HOSTED_PYTHON_BIN" >> "$GITHUB_PATH"
+          "$SELF_HOSTED_PYTHON_BIN/python" --version
+          "$SELF_HOSTED_PYTHON_BIN/python" -m pip --version
+
       - name: install
         run: pip install -e ".[dev]" fastapi httpx
+
       - name: pytest (no DB)
         run: python -m pytest tests/ services/decision_api/tests -v
 
@@ -66,9 +81,18 @@ jobs:
             exit 0
           fi
 
-      - uses: actions/setup-python@v5
+      - name: Setup Python on GitHub-hosted
+        if: ${{ runner.environment == 'github-hosted' }}
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Use micromamba Python on self-hosted Arch
+        if: ${{ runner.environment == 'self-hosted' }}
+        run: |
+          echo "$SELF_HOSTED_PYTHON_BIN" >> "$GITHUB_PATH"
+          "$SELF_HOSTED_PYTHON_BIN/python" --version
+          "$SELF_HOSTED_PYTHON_BIN/python" -m pip --version
 
       - name: install
         run: pip install -e ".[dev]" fastapi httpx
@@ -87,13 +111,26 @@ jobs:
     runs-on: [self-hosted, linux, x64, ci]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Setup Python on GitHub-hosted
+        if: ${{ runner.environment == 'github-hosted' }}
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Use micromamba Python on self-hosted Arch
+        if: ${{ runner.environment == 'self-hosted' }}
+        run: |
+          echo "$SELF_HOSTED_PYTHON_BIN" >> "$GITHUB_PATH"
+          "$SELF_HOSTED_PYTHON_BIN/python" --version
+          "$SELF_HOSTED_PYTHON_BIN/python" -m pip --version
+
       - name: install ruff
         run: pip install ruff
+
       - name: ruff check
         run: ruff check .
+
       - name: ruff format --check
         run: ruff format --check .
 
