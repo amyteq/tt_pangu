@@ -33,10 +33,11 @@ if not os.environ.get("KCA_SKIP_DOTENV"):
         from dotenv import load_dotenv as _load_dotenv
 
         _repo_root = Path(__file__).resolve().parent.parent.parent
-        # `.vscode/.env` takes precedence over `.env` (loaded first; override=False
-        # below means the root `.env` cannot clobber values already set here).
-        # This is the conventional location for VS Code workspace env.
-        _load_dotenv(_repo_root / ".vscode" / ".env", override=False)
+        # `.vscode/.env` is the authoritative dev config (user-curated VS Code
+        # workspace env, e.g. cloud Supabase DSN) — load with override=True so
+        # a stale inherited shell env cannot shadow the intended value. The
+        # root `.env` then fills in any keys not already set.
+        _load_dotenv(_repo_root / ".vscode" / ".env", override=True)
         _load_dotenv(_repo_root / ".env", override=False)
     except ImportError:
         pass
