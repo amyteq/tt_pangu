@@ -77,10 +77,10 @@ _FLAG_PATTERNS = [
 ]
 
 
-_PATTERNS: list[tuple[str, re.Pattern[str]]] = (
-    [("secret_kv", _SECRET_KV_RE), ("ctf_json", _CTF_JSON_LEAK_RE)]
-    + [("flag", p) for p in _FLAG_PATTERNS]
-)
+_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    ("secret_kv", _SECRET_KV_RE),
+    ("ctf_json", _CTF_JSON_LEAK_RE),
+] + [("flag", p) for p in _FLAG_PATTERNS]
 
 
 # ---------------------------------------------------------------------------
@@ -149,7 +149,7 @@ def _self_test() -> None:
         # KCA_ALLOW_REMOTE is the gate var and is benign
         "KCA_ALLOW_REMOTE=1\n"
         # `_redacted` placeholder is the M11 reviewer-prompt redaction
-        'CTF_PICOCTF_2025_TOKEN=_redacted' + "\n"
+        "CTF_PICOCTF_2025_TOKEN=_redacted" + "\n"
         # bare path mention in an error message — no JSON key, no value
         "no credentials for event 'picoctf-2025': expected ~/.ctf/picoctf-2025.json\n"
         # placeholder in env example

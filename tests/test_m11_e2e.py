@@ -239,8 +239,11 @@ def test_network_egress_denied_to_kaggle_from_ctf_job():
         with (REPO_ROOT / ".kca" / "permissions" / f"{profile}.yaml").open() as f:
             policy = list(yaml.safe_load_all(f))[0]
         row = next(
-            (r for r in policy if isinstance(r, dict)
-             and r.get("operation") == "network_egress"),
+            (
+                r
+                for r in policy
+                if isinstance(r, dict) and r.get("operation") == "network_egress"
+            ),
             None,
         )
         assert row is not None, f"{profile}.yaml missing network_egress"
@@ -392,9 +395,7 @@ def test_bundled_solver_roundtrip_local(monkeypatch, tmp_path):
     shutil.copytree(web_dir, web_tmp)
     flag_web = "kca{m11_t008_e2e_mocked_run_xyz}"
     digest_web = hashlib.sha256(flag_web.encode("utf-8")).hexdigest()
-    (web_tmp / "expected.sha256").write_text(
-        f"{digest_web}  flag\n", encoding="utf-8"
-    )
+    (web_tmp / "expected.sha256").write_text(f"{digest_web}  flag\n", encoding="utf-8")
 
     # Reload the solver from the tmp dir (so its EXPECTED constant
     # points to the freshly pinned hash).
@@ -460,8 +461,7 @@ def test_no_secret_leak_in_test_stdout(capsys):
     # synthetic injection. Without this assertion, a regression that
     # silently broke the catalog would never fail any test.
     synthetic_hits = _audit_grep.scan_text(
-        "KCA_TOKEN=tok_should_be_caught_xyz\n"
-        "FLAG{synthetic_audit_grep_canary}\n"
+        "KCA_TOKEN=tok_should_be_caught_xyz\nFLAG{synthetic_audit_grep_canary}\n"
     )
     assert any(name == "secret_kv" for name, _ in synthetic_hits)
     assert any(name == "flag" for name, _ in synthetic_hits)
