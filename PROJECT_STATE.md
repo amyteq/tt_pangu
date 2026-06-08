@@ -1,6 +1,6 @@
 # Kaggle Code Agent — Project State
 
-_Last updated: 2026-05-26 (M9.4 close)_
+_Last updated: 2026-06-09 (M11 partial close)_
 
 ## Product intent
 Build a hybrid human + AI competition engineering workbench. The first target is Kaggle-style competitions, with future support for authorized CTF/lab challenges. The system should research, discuss ideas with humans, edit code, run tests/evaluations, analyze results, iterate, and prepare submissions under human-approved guardrails.
@@ -52,6 +52,7 @@ authoritative.
 - **M9.2**: `/save-log` Claude Code session-transcript skill ✓ — operator-tooling milestone; ran in parallel to M10 planning.
 - **M9.3**: `memory-promotion` + `design-archaeology` skills (replaces unbuilt M9.1; retires `docs/m9_1-loop-prompts.md` with deferred-scope notice) ✓
 - **M9.4**: Discovery / Debate Gate agents (planning + scaffolding) ✓
+- **M11**: authorized CTF / lab workflow — PARTIAL (T000–T006 + T008 done 2026-06-09; T007 deferred pending human-supplied live-event credentials + approval)
 
 See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP
 checks PASS), `docs/m8_5-final-review.md` for the M8.5 roll-up (all 26
@@ -71,38 +72,56 @@ M9 metrics snapshot:
 - New tests: `tests/test_m9_smoke.py` (4 DB-gated assertions),
   `tests/test_m9_e2e.py` (5 dry-run tests, 0 net / 0 DB / 0 creds).
 
-## Current milestone: M10 — notebook-submission regression (Petals to the Metal)
+## Current milestone: M11 — authorized CTF / lab workflow (PARTIAL)
 
-_Renumbered 2026-05-24: the old M10 (authorized CTF/lab) is now M11._
-_Promoted to `ai:ready` on issue #12._
+_M11 partial exit: T000–T006 + T008 done (2026-06-09); T007 deferred pending
+human-supplied live-event credentials + approval comment._
 
-Status: planned (M9 exited 2026-05-24). Mirror M9's eight-Loop-Prompt
-structure against [Petals to the Metal — Flower Classification on TPU](https://www.kaggle.com/competitions/tpu-getting-started)
-to validate the **notebook-submission / kernel-push** end-to-end path,
-the same way M9 validated the CSV-submission path on Spaceship Titanic.
-Single approved real `kca kaggle push` (mirroring M9-T004's single-
-submission policy); per-milestone worktree per
-`docs/milestone-loop-protocol.md` §5; CV thresholds finalised in
-`docs/m10-loop-prompts.md` at planning time.
+Status: **PARTIAL**. Next: file M12 planning issues OR resume M11-T007 with
+credentials + `decision:confirmed` on the closing issue.
 
-Cross-cutting follow-ups carried forward from M9 (recorded in
-`docs/handoffs/m9-handoff.md`), tracked as their own issues:
+M11 partial deliverables shipped:
+- `supabase/migrations/0008_m11_ctf.sql` — 4 ctf_* tables; cloud applied.
+- `src/db/ctf.py` — 6 DB helpers.
+- `tools/kca/ctf.py` — 12 subcommands across 5 namespaces.
+- `data/ctf/kca-fixtures-2026/` — web-1 (cookie-tamper) + crypto-1 (tiny RSA) bespoke fixtures.
+- ADR-0016 (CTF data model) + ADR-0017 (CTF approval gates).
+- `docs/architecture/m11-ctf-workflow.md` — 7-section workflow doc.
+- `challenge_run`, `flag_submit`, `network_egress` in all 3 permission profiles.
+- 3 test files: `test_m11_e2e.py` (8/8), `test_m11_smoke.py` (7/7 SKIP without DSN), `test_m11_db.py` (13/13).
+- T005 local solves: web `flag_length=21`, crypto `flag_length=17`; 2 `ctf_attempts(accepted=true)` in cloud.
+- T006 reviewer-gate: `challenge_run` + `flag_submit` approve round-trips; `network_egress` reject smoke.
 
-- **A** — `competitions.repo_url` schema drift (`area:kaggle`, `type:bug`).
-- **B** — Secrets-file hygiene in pytest subprocess (issue #11, P0).
-  Filed as a GitHub issue; **hard pre-req for M10-T007** so the new
-  dry-run test cannot pollute the `tpu-getting-started` leaderboard.
-- **C** — `decision_api`: no `GET /decisions` endpoint
-  (`area:supabase`, `type:feature`).
-- **D** — `reviewer_decision` literal event_type not emitted
-  (`area:worker`, `type:docs`).
-- **E** — Migration 0004 optional columns
-  (`submissions.public_lb_score`, `submissions.run_id`) not applied to
-  the local DB (`area:supabase`, `type:bug`).
+See `docs/m11-final-review.md` (23 PASS / 1 SKIP-BLOCKED / 0 FAIL) and
+`docs/handoffs/m11-handoff.md` for the full handoff.
 
-See `docs/handoffs/m9-handoff.md` for the M9→M10 read-first list
-(`docs/handoffs/m8_5-handoff.md` and `docs/handoffs/m8-handoff.md`
-preserved for historical reference).
+### M11-T007 unblock (human action required)
+
+1. Set `KCA_ALLOW_REMOTE=1`.
+2. Register on a live CTFtime event + populate `~/.ctf/<slug>.json`.
+3. Run `kca ctf event register` + `kca ctf scope set` for the live event.
+4. Comment "approved to submit" on the T007 closing issue + add `decision:confirmed`/`ai:ready` labels.
+5. Re-run M11-T007 Loop Prompt.
+
+### Cross-cutting follow-ups from M11 (file as GitHub issues)
+
+- **A** — `agent_jobs.competition_id` schema drift on cloud (`type:bug`, `area:supabase`, P2).
+- **B** — `kca ctf flag submit` non-dry-run env-check before reviewer-gate (`type:bug`, `area:security`, P1).
+- **C** — T004 fixture-authoring trail in `.agent/audit/tool-events.jsonl` contains deterministic crypto flag (`type:security`, `area:testing`, P1).
+- **D** — `expected.sha256` web-1 churn — regenerates per solve harness run (`type:test-gap`, `area:ctf`, P2).
+- **E** — gh CLI hook denial blocks `decision:confirmed` verification (`type:bug`, `area:security`, `area:ci`, P2).
+- **F** — httpx-level `network_egress` interceptor for subprocess egress deferred (ADR-0017 §pinning) (`type:feature`, `area:security`, P1).
+- **G** — per-challenge rate-limit column on `ctf_scopes` (`type:feature`, `area:ctf`, P3).
+
+### Cross-cutting follow-ups carried forward from M9
+
+- **M9-A** — `competitions.repo_url` schema drift (`area:kaggle`, `type:bug`).
+- **M9-B** — Secrets-file hygiene in pytest subprocess (issue #11, P0).
+- **M9-C** — `decision_api`: no `GET /decisions` endpoint (`area:supabase`, `type:feature`).
+- **M9-D** — `reviewer_decision` literal event_type not emitted (`area:worker`, `type:docs`).
+- **M9-E** — Migration 0004 optional columns not applied to local DB (`area:supabase`, `type:bug`).
+
+See `docs/handoffs/m11-handoff.md` for the full handoff context.
 
 ## Open decisions
 - Decision API multi-user auth (per-user JWT via Supabase auth vs continued
