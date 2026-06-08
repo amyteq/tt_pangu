@@ -1,0 +1,10 @@
+{
+  "method": "fixed-holdout (Kaggle-published train/val split, single-shard slice)",
+  "holdout_accuracy": 0.3965517282485962,
+  "macro_f1": 0.14611478265324418,
+  "seed": 42,
+  "epochs": 3,
+  "backbone": "EfficientNetB0",
+  "axis_varied_vs_baseline": "backbone (MobileNetV2 -> EfficientNetB0)",
+  "preprocessing_note": "EfficientNetB0 fed raw [0,255] (its built-in Rescaling layer normalizes); MobileNetV2 baseline fed [0,1]."
+}
