@@ -29,7 +29,7 @@ Routine.
 8. `tools/kca/kca.py` — subcommand registration; add a `devpost` parser
 9. `src/db/competition.py` (or wherever competition CRUD lives)
 10. `env.example` — to document any new env var names; only document, don't add values
-11. `supabase/migrations/0008_m12_competition_type_teams.sql` (T002)
+11. `supabase/migrations/0009_m12_competition_type_teams.sql` (T002)
 
 ## Scope
 
