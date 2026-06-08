@@ -31,6 +31,7 @@ All commands emit a single JSON object to stdout. Exit codes: `0` ok, `1` runtim
 | `kca kaggle watch`            | `READ_ONLY`    | _will wrap_ `kkr.py watch`  | Stub                                       |
 | `kca kaggle fetch`            | `READ_ONLY`    | _will wrap_ `kkr.py fetch`  | Stub                                       |
 | `kca kaggle list`             | `READ_ONLY`    | _will wrap_ `kkr.py list`   | Stub                                       |
+| `kca kaggle score`            | `READ_ONLY` / `LOCAL_WRITE` | `kaggle.api.competition_submissions` | Reads public LB; with `--update-db --submission-id`, writes `public_score` + `public_lb_score` back to the matched `submissions` row |
 | `kca eval score`              | `READ_ONLY`    | (native, planned)         | Stub                                        |
 | `kca eval compare`            | `READ_ONLY`    | (native, planned)         | Stub                                        |
 | `kca workspace init`          | `LOCAL_WRITE`  | `git worktree add`        | Creates detached-HEAD worktree under `.workspaces/<job_id>/` |

@@ -49,12 +49,15 @@ tf.random.set_seed(SEED)
 #
 # Try Kaggle's GCS-backed dataset path first (kernel runner). Fall back to the local M10-T002 slice.
 
+
 # %%
 def _resolve_gcs_path() -> str | None:
     try:
         from kaggle_datasets import KaggleDatasets  # type: ignore
+
         return KaggleDatasets().get_gcs_path(COMPETITION)
-    except Exception:
+    except Exception as exc:
+        print(f"[data-resolve] kaggle_datasets GCS path unavailable: {exc!r}")
         return None
 
 
@@ -62,6 +65,18 @@ def _resolve_kaggle_input_path() -> str | None:
     p = Path("/kaggle/input") / COMPETITION
     if p.exists():
         return str(p)
+    # Diagnostic: list what IS under /kaggle/input/ so a future failure shows
+    # the real layout instead of an opaque "not found".
+    root = Path("/kaggle/input")
+    if root.exists():
+        try:
+            print(
+                f"[data-resolve] /kaggle/input contents: {sorted(p.name for p in root.iterdir())}"
+            )
+        except Exception as exc:
+            print(f"[data-resolve] /kaggle/input listdir failed: {exc!r}")
+    else:
+        print("[data-resolve] /kaggle/input does not exist")
     return None
 
 
@@ -69,7 +84,9 @@ def _resolve_local_slice() -> str | None:
     # When this notebook is executed locally from the repo root.
     for candidate in [
         Path.cwd() / "data" / COMPETITION / "local-slice",
-        Path("/home/harry/test/tt_pangu/.claude/worktrees/m10-petals-to-the-metal/data") / COMPETITION / "local-slice",
+        Path("/home/harry/test/tt_pangu/.claude/worktrees/m10-petals-to-the-metal/data")
+        / COMPETITION
+        / "local-slice",
     ]:
         if candidate.exists():
             return str(candidate)
@@ -142,7 +159,9 @@ def _split_glob(split: str) -> str:
 def load_dataset(split: str, labeled: bool):
     files = tf.io.gfile.glob(_split_glob(split))
     if not files:
-        raise RuntimeError(f"No TFRecords found for split={split} glob={_split_glob(split)}")
+        raise RuntimeError(
+            f"No TFRecords found for split={split} glob={_split_glob(split)}"
+        )
     ds = tf.data.TFRecordDataset(files, num_parallel_reads=tf.data.AUTOTUNE)
     ds = ds.with_options(tf.data.Options())
     ds = ds.map(
@@ -181,9 +200,11 @@ def get_test_dataset():
 # Petals to the Metal's TFRecord filenames embed the per-shard count (e.g. `00-192x192-798.tfrec` = 798 examples).
 # We extract that to know `steps_per_epoch` without iterating the whole dataset.
 
+
 # %%
 def count_data_items(filenames):
     import re
+
     total = 0
     for fn in filenames:
         m = re.search(r"-(\d+)\.tfrec$", fn)
@@ -220,6 +241,7 @@ except (ValueError, tf.errors.NotFoundError, Exception):
 
 # %% [markdown]
 # ## Model
+
 
 # %%
 def build_model():
@@ -338,7 +360,9 @@ if test_files:
             f.write(f"{i},{int(p)}\n")
     print(f"submission written to {out_path} (n={len(ids)})")
 else:
-    print("no test/ split available locally — skipping submission.csv (Kaggle kernel will produce it)")
+    print(
+        "no test/ split available locally — skipping submission.csv (Kaggle kernel will produce it)"
+    )
 
 # %% [markdown]
 # ## Done.
