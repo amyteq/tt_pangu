@@ -1,0 +1,161 @@
+# tool-smoke cases — deterministic per-tool fixtures.
+#
+# Each case shape:
+#   name:               unique slug; used as eval_results.case_name
+#   tool:               tool registered in src/worker/tools.py::TOOL_SCHEMAS
+#   category:           classification under tools.py::_classify_side_effect
+#                       (read_only | local_write); informational only,
+#                       the runner re-classifies via the executor.
+#   input:              dict passed verbatim to ToolExecutor.execute()
+#   expected_status:    pass | fail | skip | error
+#   expected_contains:  substring(s) the tool's stringified output MUST contain
+#                       (subset-match — list is AND-combined)
+#   expected_keys:      sorted list of top-level JSON keys the tool's output
+#                       MUST emit when the output parses as JSON; [] when the
+#                       tool returns plain text
+#   workspace:          "fixture" — read against tests/fixtures/tool_smoke/
+#                       "tmpdir"  — write against the per-run tmpdir
+#
+# Coverage: 2 read_only tools × 2 cases each (4) + 3 local_write tools, total
+# ≥10. write_file gets 2 cases, edit_file 2, run_bash 2 — 10 in total.
+
+cases:
+  # ---- read_only: read_file ------------------------------------------------
+  - name: read_file_sample_ok
+    tool: read_file
+    category: read_only
+    input:
+      path: sample.txt
+    expected_status: pass
+    expected_contains:
+      - "hello tool-smoke"
+      - "unique-token-XYZ"
+    expected_keys: []
+    workspace: fixture
+
+  - name: read_file_missing_returns_error_string
+    tool: read_file
+    category: read_only
+    input:
+      path: does-not-exist.txt
+    expected_status: pass
+    expected_contains:
+      - "read_file error"
+    expected_keys: []
+    workspace: fixture
+
+  # ---- read_only: grep_workspace -------------------------------------------
+  - name: grep_workspace_match_one
+    tool: grep_workspace
+    category: read_only
+    input:
+      pattern: "unique-token-XYZ"
+      path: "."
+    expected_status: pass
+    expected_contains:
+      - "sample.txt"
+      - "unique-token-XYZ"
+    expected_keys:
+      - file
+      - line
+      - line_number
+    workspace: fixture
+
+  - name: grep_workspace_no_match_returns_empty_json
+    tool: grep_workspace
+    category: read_only
+    input:
+      pattern: "this-string-is-never-in-the-fixture-zzzzz"
+      path: "."
+    expected_status: pass
+    expected_contains:
+      - "[]"
+    expected_keys: []
+    workspace: fixture
+
+  # ---- local_write: write_file ---------------------------------------------
+  - name: write_file_creates_new
+    tool: write_file
+    category: local_write
+    input:
+      path: created/by_suite.txt
+      content: "tool-smoke wrote this\n"
+    expected_status: pass
+    expected_contains:
+      - "ok"
+    expected_keys: []
+    workspace: tmpdir
+
+  - name: write_file_overwrite_idempotent
+    tool: write_file
+    category: local_write
+    input:
+      path: created/by_suite.txt
+      content: "second write replaces first\n"
+    expected_status: pass
+    expected_contains:
+      - "ok"
+    expected_keys: []
+    workspace: tmpdir
+    depends_on: write_file_creates_new
+
+  # ---- local_write: edit_file ----------------------------------------------
+  - name: edit_file_replaces_first_match
+    tool: edit_file
+    category: local_write
+    input:
+      path: created/by_suite.txt
+      old_string: "second write replaces first"
+      new_string: "third write — edited in place"
+    expected_status: pass
+    expected_contains:
+      - "ok"
+    expected_keys: []
+    workspace: tmpdir
+    depends_on: write_file_overwrite_idempotent
+
+  - name: edit_file_missing_old_string_returns_error_string
+    tool: edit_file
+    category: local_write
+    input:
+      path: created/by_suite.txt
+      old_string: "this-substring-is-absent-zzzz"
+      new_string: "unused"
+    expected_status: pass
+    expected_contains:
+      - "edit_file error"
+      - "old_string not found"
+    expected_keys: []
+    workspace: tmpdir
+    depends_on: edit_file_replaces_first_match
+
+  # ---- local_write: run_bash -----------------------------------------------
+  - name: run_bash_allowed_pattern_kca_help
+    tool: run_bash
+    category: local_write
+    input:
+      command: "python -c \"print('tool-smoke ok')\""
+      timeout_s: 10
+    expected_status: pass
+    expected_contains:
+      - "tool-smoke ok"
+    expected_keys:
+      - exit_code
+      - stderr
+      - stdout
+    workspace: tmpdir
+
+  - name: run_bash_hard_deny_kaggle_submit
+    tool: run_bash
+    category: local_write
+    input:
+      command: "kaggle submit -c titanic -f sub.csv -m smoke"
+      timeout_s: 5
+    expected_status: pass
+    expected_contains:
+      - "command not in allowed_tool_patterns"
+    expected_keys:
+      - exit_code
+      - stderr
+      - stdout
+    workspace: tmpdir
