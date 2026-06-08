@@ -1,6 +1,6 @@
 # kaggle-code-agent Milestones
 
-Status: M0–M9 done; M9.2 ✓ done (/save-log operator-tooling skill); M10 in planning (notebook-submission regression — Petals to the Metal)  
+Status: M0–M10 done; M9.2 ✓ done (/save-log operator-tooling skill); M11 in planning (authorized CTF/lab workflow)  
 Created: 2026-05-16  
 Scope: hybrid human + AI code competition platform
 
@@ -711,7 +711,36 @@ Deferred to M9.4+ (not scheduled): session-closeout skill, claude_export_session
 
 ---
 
-## M10: notebook-submission regression — Petals to the Metal
+## M10: notebook-submission regression — Petals to the Metal ✓ done
+
+_Shipped 2026-05-28 (issue #12 decisions confirmed 2026-05-24). Branch
+`worktree-m10-petals-to-the-metal`. Validation matrix **26 PASS / 1 SKIP
+/ 0 FAIL** (see `docs/m10-final-review.md`). The kernel-push loop ran
+end-to-end correctly under the approval gates — the milestone's
+acceptance criterion. **One material deviation: no public LB score was
+recorded.** The single human-approved real `kaggle kernels push` was
+executed (issue #34), but push #1 stalled QUEUED ~66 min and never ran,
+and the approved re-push #2 errored on a missing `metadata.kernelspec`
+(root cause fixed in `tools/legacy/py2nb.py`; notebook now push-ready).
+Per the issue #12 single-push policy the human chose "accept and
+continue"; `submissions.id=03b5d080-…` exists with `public_score` NULL.
+No leaderboard pollution occurred. Re-push tracked by issues #34 / #35.
+Issue #11 (dotenv-leak / LB pollution; M9 follow-up B) was fixed and
+CLOSED during M10 as T007's hard pre-req._
+
+### M10 per-task results
+
+| Task | Description | Result |
+|---|---|---|
+| M10-T000 | Kaggle creds reachable (booleans only) + `tpu-getting-started` registered (`competition_id=4c69e842-…`) | PASS |
+| M10-T001 | `data/tpu-getting-started/manifest.json` (193 entries, remote-only, 4 image-size variants); raw TFRecords gitignored | PASS |
+| M10-T002 | Baseline MobileNetV2 notebook; `experiment_run_id=830fc32f-…`; local-slice holdout **0.4310** (full-dataset ref ~0.7707) | PASS |
+| M10-T003 | Reviewer gate fired for `kernel_push`; `agent_reviews=a6f47954-…` + `human_decisions=b47e2f16-…` (dry approval) | PASS |
+| M10-T004 | ONE approved real `kaggle kernels push` attempted; **no LB recorded** (queue stall + now-fixed kernelspec bug); `submissions=03b5d080-…` `public_score` NULL | PASS-with-deviation |
+| M10-T005 | Alt backbone EfficientNetB0; `experiment_run_id=c3339154-…`; holdout **0.3966** (−3.4pp, within 10pp guard); local only | PASS-with-note |
+| M10-T006 | `tests/test_m10_smoke.py` — 4 DB-gated assertions (floor 0.30; alt within guard; T004 row exists `public_score` NULL; kernel_push event) | PASS |
+| M10-T007 | `tests/test_m10_e2e.py` dry-run + 0-real-push audit sentinel; issue #11 closed; `KCA_SKIP_DOTENV` leak guard honored | PASS |
+| M10-T008 | Exit criteria + `docs/m10-final-review.md` + tracking docs + PR | PASS |
 
 _Promoted to `ai:ready` 2026-05-24 (issue #12). Decisions confirmed:
 target competition `tpu-getting-started`; ONE real kernel push under

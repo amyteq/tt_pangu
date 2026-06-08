@@ -25,12 +25,18 @@ from typing import Any, Iterable
 
 # Load .env from repo root automatically if python-dotenv is installed.
 # This is a no-op when .env doesn't exist or dotenv isn't installed.
-try:
-    from dotenv import load_dotenv as _load_dotenv
+# KCA_SKIP_DOTENV lets a caller (e.g. a test subprocess that scrubbed its env)
+# opt out, so the repo-root secrets file is not silently re-injected regardless
+# of cwd — see issue #11 (Kaggle leaderboard pollution).
+if not os.environ.get("KCA_SKIP_DOTENV"):
+    try:
+        from dotenv import load_dotenv as _load_dotenv
 
-    _load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env", override=False)
-except ImportError:
-    pass
+        _load_dotenv(
+            Path(__file__).resolve().parent.parent.parent / ".env", override=False
+        )
+    except ImportError:
+        pass
 
 try:
     import psycopg
