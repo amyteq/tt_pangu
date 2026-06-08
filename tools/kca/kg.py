@@ -238,15 +238,129 @@ def cmd_push(args: argparse.Namespace) -> int:
         capture_output=True,
         text=True,
     )
-    return _emit_json(
-        {
-            "ok": proc.returncode == 0,
-            "kernel_dir": kernel_dir,
-            "side_effect": se.value,
-            "stdout": proc.stdout,
-            "stderr": proc.stderr,
-        }
-    )
+    push_ok = proc.returncode == 0
+    response: dict = {
+        "ok": push_ok,
+        "kernel_dir": kernel_dir,
+        "side_effect": se.value,
+        "stdout": proc.stdout,
+        "stderr": proc.stderr,
+    }
+
+    # Extract kernel ref + version from the push response and metadata, so we
+    # can auto-watch the resulting run.
+    kernel_ref = None
+    pushed_version = None
+    try:
+        meta = json.loads((Path(kernel_dir) / "kernel-metadata.json").read_text())
+        kernel_ref = meta.get("id")
+    except Exception:
+        pass
+    import re as _re
+
+    m = _re.search(r"[Kk]ernel version (\d+) successfully pushed", proc.stdout or "")
+    if m:
+        pushed_version = int(m.group(1))
+    response["kernel_ref"] = kernel_ref
+    response["pushed_version"] = pushed_version
+
+    # Auto-watch the kernel run until terminal (default). --no-watch opts out.
+    if push_ok and getattr(args, "watch", True) and kernel_ref:
+        watch_result = _watch_kernel_until_terminal(
+            kernel_ref,
+            poll_seconds=getattr(args, "poll_seconds", 60),
+            max_minutes=getattr(args, "max_poll_minutes", 60),
+        )
+        response["watch"] = watch_result
+        response["ok"] = push_ok and watch_result.get("terminal", False)
+
+    return _emit_json(response)
+
+
+def _watch_kernel_until_terminal(
+    kernel_ref: str, *, poll_seconds: int = 60, max_minutes: int = 60
+) -> dict:
+    """Poll a kernel run until it produces a downloadable output log.
+
+    Returns a dict with: terminal (bool), polls, runtime_seconds, log_path,
+    error_excerpt (if a Python traceback is detected in stderr). The Kaggle
+    `kernels status` API has been observed to 500 for newly-pushed kernels;
+    this watcher uses `kernels output` instead, which only succeeds once the
+    run is terminal.
+
+    READ_ONLY against Kaggle.
+    """
+    import tempfile
+    import time as _time
+
+    tmp_dir = tempfile.mkdtemp(prefix="kca-watch-")
+    log_path = Path(tmp_dir) / f"{kernel_ref.split('/')[-1]}.log"
+    polls = 0
+    started = _time.monotonic()
+    max_polls = max(1, (max_minutes * 60) // poll_seconds)
+    while polls < max_polls:
+        polls += 1
+        try:
+            if log_path.exists():
+                log_path.unlink()
+        except OSError:
+            pass
+        # `kaggle kernels output` exits 1 + writes nothing while running;
+        # exits 0 + writes log file once terminal.
+        subprocess.run(
+            ["kaggle", "kernels", "output", kernel_ref, "-p", tmp_dir],
+            capture_output=True,
+            text=True,
+        )
+        if log_path.exists() and log_path.stat().st_size > 100:
+            break
+        if polls < max_polls:
+            _time.sleep(poll_seconds)
+
+    runtime = _time.monotonic() - started
+    terminal = log_path.exists() and log_path.stat().st_size > 100
+    result: dict = {
+        "terminal": terminal,
+        "polls": polls,
+        "runtime_seconds": round(runtime, 1),
+        "log_path": str(log_path) if terminal else None,
+    }
+
+    if terminal:
+        # Extract any "Exception encountered" / Traceback excerpt so the caller
+        # (auto-fix loop or human) can see the failure mode without re-reading
+        # the full multi-MB log.
+        try:
+            entries = json.loads(log_path.read_text())
+            stderr_lines = [
+                r["data"]
+                for r in entries
+                if r.get("stream_name") == "stderr" and "Traceback" in r.get("data", "")
+            ]
+            error_window = []
+            if stderr_lines:
+                # Capture the last ~30 stderr lines starting from the traceback
+                tail_start = next(
+                    (
+                        i
+                        for i, r in enumerate(entries)
+                        if "Traceback" in r.get("data", "")
+                    ),
+                    -1,
+                )
+                if tail_start >= 0:
+                    error_window = [
+                        r["data"].rstrip()
+                        for r in entries[tail_start : tail_start + 60]
+                        if r.get("stream_name") == "stderr"
+                    ]
+            result["error_excerpt"] = (
+                "\n".join(error_window[-30:]) if error_window else None
+            )
+        except Exception as exc:
+            result["error_excerpt"] = f"<log parse failed: {exc!r}>"
+
+    return result
 
 
 def cmd_upload(args: argparse.Namespace) -> int:
@@ -642,6 +756,27 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
         "--dry-run",
         action="store_true",
         help="Validate kernel-metadata.json without uploading",
+    )
+    p_push.add_argument(
+        "--no-watch",
+        dest="watch",
+        action="store_false",
+        default=True,
+        help="Skip auto-watching the kernel run after a successful push",
+    )
+    p_push.add_argument(
+        "--poll-seconds",
+        dest="poll_seconds",
+        type=int,
+        default=60,
+        help="Seconds between watcher polls (default 60)",
+    )
+    p_push.add_argument(
+        "--max-poll-minutes",
+        dest="max_poll_minutes",
+        type=int,
+        default=60,
+        help="Watcher cap in minutes (default 60)",
     )
     p_push.add_argument("--json", action="store_true")
     p_push.set_defaults(func=cmd_push)
