@@ -25,9 +25,10 @@ from typing import Any, Iterable
 
 # Load .env from repo root automatically if python-dotenv is installed.
 # This is a no-op when .env doesn't exist or dotenv isn't installed.
-# Set ``KCA_SKIP_DOTENV=1`` to suppress this — required by tests / suites
-# that need a scrubbed env (e.g. the M13-T004 ``credentials_gate_refusal``
-# case must not pick up KAGGLE_USERNAME / KAGGLE_KEY from .env).
+# Set ``KCA_SKIP_DOTENV=1`` to suppress this — lets a caller (e.g. a test
+# subprocess that scrubbed its env) opt out so the repo-root secrets file is
+# not silently re-injected regardless of cwd — see issue #11 (Kaggle LB
+# pollution) and the M13-T004 ``credentials_gate_refusal`` suite case.
 if os.environ.get("KCA_SKIP_DOTENV") != "1":
     try:
         from dotenv import load_dotenv as _load_dotenv
