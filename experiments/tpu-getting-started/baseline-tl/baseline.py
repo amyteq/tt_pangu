@@ -107,26 +107,47 @@ def _resolve_local_slice() -> str | None:
     return None
 
 
-GCS_PATH = _resolve_gcs_path()
-KAGGLE_INPUT_PATH = _resolve_kaggle_input_path()
-LOCAL_SLICE_PATH = _resolve_local_slice()
+def _has_tfrecord_subdir(root: str, subdir: str) -> bool:
+    # Validate that a resolver-returned `root` actually contains the expected
+    # TFRecord layout. v4 errored because GCS resolver returned a path that
+    # didn't contain the shards (Kaggle TPU shortcut to the wrong mount).
+    try:
+        check = f"{root}/{subdir}/train"
+        return tf.io.gfile.exists(check)
+    except Exception:
+        return False
 
-if GCS_PATH:
-    DATA_ROOT = GCS_PATH
-    DATA_SUBDIR = f"tfrecords-jpeg-{IMAGE_SIZE[0]}x{IMAGE_SIZE[1]}"
-    RUNTIME = "kaggle-tpu"
-elif KAGGLE_INPUT_PATH:
-    DATA_ROOT = KAGGLE_INPUT_PATH
-    DATA_SUBDIR = f"tfrecords-jpeg-{IMAGE_SIZE[0]}x{IMAGE_SIZE[1]}"
-    RUNTIME = "kaggle-gpu"
-elif LOCAL_SLICE_PATH:
-    DATA_ROOT = LOCAL_SLICE_PATH
-    DATA_SUBDIR = ""  # local slice is already at the per-split level
-    RUNTIME = "local-slice"
-else:
+
+_SUBDIR = f"tfrecords-jpeg-{IMAGE_SIZE[0]}x{IMAGE_SIZE[1]}"
+
+# Order matters: prefer the explicit /kaggle/input/competitions/<slug>/ mount
+# (validated by _has_tfrecord_subdir) over the GCS shortcut, then fall back to
+# the GCS path, then a local slice for off-Kaggle execution.
+DATA_ROOT, DATA_SUBDIR, RUNTIME = None, None, None
+for label, candidate in (
+    ("kaggle-input", _resolve_kaggle_input_path()),
+    ("kaggle-tpu-gcs", _resolve_gcs_path()),
+):
+    if candidate and _has_tfrecord_subdir(candidate, _SUBDIR):
+        DATA_ROOT, DATA_SUBDIR, RUNTIME = candidate, _SUBDIR, label
+        print(f"[data-resolve] accepted {label} root={candidate}")
+        break
+    elif candidate:
+        print(
+            f"[data-resolve] rejected {label} root={candidate} — "
+            f"{_SUBDIR}/train not present"
+        )
+
+if DATA_ROOT is None:
+    local = _resolve_local_slice()
+    if local:
+        DATA_ROOT, DATA_SUBDIR, RUNTIME = local, "", "local-slice"
+
+if DATA_ROOT is None:
     raise RuntimeError(
-        "No data source resolved: not on Kaggle (GCS/input path absent) and no local slice present. "
-        "Run scripts/m10_t002_download_slice.py (or equivalent) to stage a single train/val shard."
+        "No data source resolved: no Kaggle mount contains "
+        f"{_SUBDIR}/train, and no local slice is present. "
+        "Run scripts/m10_t002_download_slice.py to stage a local slice."
     )
 
 print(f"runtime={RUNTIME} data_root={DATA_ROOT} subdir={DATA_SUBDIR!r}")
