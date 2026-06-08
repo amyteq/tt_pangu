@@ -43,6 +43,13 @@ def path_is_protected(path: str) -> bool:
     .env.production and .env.test remain protected — these may contain
     production/staging credentials. SSH / AWS / gcloud / gh OAuth token /
     generic secrets/ dir stay protected.
+
+    M11 (ADR-0017): per-event CTF credentials live in ~/.ctf/<slug>.json and
+    are intended to be read ONLY from the allow-listed call-site
+    `tools/kca/ctf.py::_load_event_credentials`. Direct Read/Edit of paths
+    under ~/.ctf/ (and ctf-credentials.json anywhere) is denied at the hook
+    layer — the kca CTF flow opens the file via Python `open()` from inside
+    the kca process, never via the Claude Code Read/Edit/Write tools.
     """
     p = normalize_path(path)
     protected_fragments = [
@@ -54,6 +61,10 @@ def path_is_protected(path: str) -> bool:
         "/.netrc",
         "/id_rsa",
         "/id_ed25519",
+        # M11: deny Read/Edit/Write of any path under ~/.ctf/. This catches
+        # both ~/.ctf/<slug>.json and arbitrary CTF credential dumps the
+        # human may have staged there.
+        "/.ctf/",
     ]
     protected_names = {
         ".env.production",
@@ -62,6 +73,9 @@ def path_is_protected(path: str) -> bool:
         "id_rsa",
         "id_ed25519",
         "hosts.yml",
+        # M11: explicit per-name guard so a relative path like
+        # "ctf-credentials.json" is denied even outside ~/.ctf/.
+        "ctf-credentials.json",
     }
     name = Path(p).name
     return name in protected_names or any(
@@ -116,11 +130,11 @@ def bash_decision(command: str) -> tuple[str | None, str | None]:
             "Refusing privileged Docker container.",
         ),
         (
-            r"\b(cat|less|more|head|tail|grep|rg|awk|sed|xxd|od|strings)\b.*(id_rsa|id_ed25519|\.aws|\.ssh|\.config/gcloud|secrets/|hosts\.yml|\.netrc)",
+            r"\b(cat|less|more|head|tail|grep|rg|awk|sed|xxd|od|strings)\b.*(id_rsa|id_ed25519|\.aws|\.ssh|\.config/gcloud|secrets/|hosts\.yml|\.netrc|\.ctf/|ctf-credentials\.json)",
             "Refusing shell read of protected secrets.",
         ),
         (
-            r"\b(curl|wget|scp|rsync)\b.*(id_rsa|id_ed25519|\.aws|\.ssh|secrets/|metadata\.google|169\.254\.169\.254)",
+            r"\b(curl|wget|scp|rsync)\b.*(id_rsa|id_ed25519|\.aws|\.ssh|secrets/|metadata\.google|169\.254\.169\.254|\.ctf/|ctf-credentials\.json)",
             "Refusing shell exfiltration/metadata access pattern.",
         ),
         (
