@@ -155,8 +155,7 @@ def _load_event_credentials(event_slug: str) -> dict[str, Any]:
             data = json.loads(cred_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
             raise CredentialsMissing(
-                f"~/.ctf/{event_slug}.json is not valid JSON: "
-                f"{type(exc).__name__}"
+                f"~/.ctf/{event_slug}.json is not valid JSON: {type(exc).__name__}"
             ) from exc
         username = data.get("username")
         token = data.get("token")
@@ -269,9 +268,7 @@ def _scope_covers_url(scope_row: dict, url: str) -> bool:
 
 def _list_scopes(conn) -> list[dict]:
     with conn.cursor() as cur:
-        cur.execute(
-            "SELECT * FROM ctf_scopes ORDER BY created_at DESC LIMIT 200"
-        )
+        cur.execute("SELECT * FROM ctf_scopes ORDER BY created_at DESC LIMIT 200")
         rows = cur.fetchall()
     return [dict(r) for r in rows]
 
@@ -507,8 +504,7 @@ def cmd_challenge_fetch(args: argparse.Namespace) -> int:
         _emit(
             {
                 "ok": False,
-                "error": f"remote operation requires {_GATE_ENV}=1 and human "
-                f"approval",
+                "error": f"remote operation requires {_GATE_ENV}=1 and human approval",
                 "command": "ctf challenge fetch",
                 "side_effect": se.value,
             }
@@ -1036,8 +1032,7 @@ def cmd_flag_submit(args: argparse.Namespace) -> int:
                 "ok": False,
                 "command": "ctf flag submit",
                 "side_effect": se.value,
-                "error": f"remote operation requires {_GATE_ENV}=1 and human "
-                f"approval",
+                "error": f"remote operation requires {_GATE_ENV}=1 and human approval",
                 "target_op": "flag_submit",
             }
         )
@@ -1164,9 +1159,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_ev_list.add_argument("--json", action="store_true")
     p_ev_list.set_defaults(func=cmd_event_list)
 
-    p_ev_info = event_sub.add_parser(
-        "info", help="Show one CTF event row (READ_ONLY)."
-    )
+    p_ev_info = event_sub.add_parser("info", help="Show one CTF event row (READ_ONLY).")
     p_ev_info.add_argument("--slug", required=True)
     p_ev_info.add_argument("--json", action="store_true")
     p_ev_info.set_defaults(func=cmd_event_info)
@@ -1194,12 +1187,8 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_chal_add.add_argument(
         "--expected-flag-format", dest="expected_flag_format", default=None
     )
-    p_chal_add.add_argument(
-        "--attachments-path", dest="attachments_path", default=None
-    )
-    p_chal_add.add_argument(
-        "--remote-endpoint", dest="remote_endpoint", default=None
-    )
+    p_chal_add.add_argument("--attachments-path", dest="attachments_path", default=None)
+    p_chal_add.add_argument("--remote-endpoint", dest="remote_endpoint", default=None)
     p_chal_add.add_argument(
         "--scope",
         default=None,
@@ -1215,9 +1204,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     )
     p_chal_fetch.add_argument("--event", required=True)
     p_chal_fetch.add_argument("--slug", required=True)
-    p_chal_fetch.add_argument(
-        "--via", choices=["http", "playwright"], default="http"
-    )
+    p_chal_fetch.add_argument("--via", choices=["http", "playwright"], default="http")
     p_chal_fetch.add_argument("--json", action="store_true")
     p_chal_fetch.set_defaults(func=cmd_challenge_fetch)
 

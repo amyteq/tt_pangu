@@ -187,9 +187,7 @@ def test_scope_covers_url_host_match() -> None:
         "expires_at": None,
     }
     assert ctf_mod._scope_covers_url(scope, "https://event.example/anything")
-    assert ctf_mod._scope_covers_url(
-        scope, "https://www.event.example/api/submit"
-    )
+    assert ctf_mod._scope_covers_url(scope, "https://www.event.example/api/submit")
     assert not ctf_mod._scope_covers_url(scope, "https://kaggle.com/submit")
     assert not ctf_mod._scope_covers_url(scope, "")
 
@@ -268,9 +266,7 @@ def test_flag_submit_no_dry_run_refuses_without_remote_allow(tmp_path) -> None:
     assert _SENTINEL_FLAG not in proc.stderr
 
 
-def test_flag_submit_dry_run_does_not_echo_credentials(
-    tmp_path, monkeypatch
-) -> None:
+def test_flag_submit_dry_run_does_not_echo_credentials(tmp_path, monkeypatch) -> None:
     # Stage a fake credential file under a tmp dir; monkeypatch the
     # module-level dir so we don't even touch the real ~/.ctf/.
     cred_dir = tmp_path / "ctf-creds"
@@ -326,9 +322,13 @@ def test_flag_submit_dry_run_does_not_echo_credentials(
 
 def test_solver_run_dry_run_no_gate() -> None:
     proc = _run(
-        "ctf", "solver", "run",
-        "--event", "demo-event",
-        "--challenge", "demo-challenge",
+        "ctf",
+        "solver",
+        "run",
+        "--event",
+        "demo-event",
+        "--challenge",
+        "demo-challenge",
         "--dry-run",
     )
     assert proc.returncode == 0, proc.stderr
@@ -340,9 +340,13 @@ def test_solver_run_dry_run_no_gate() -> None:
 
 def test_solver_run_with_reviewer_gate_refuses_without_remote_allow() -> None:
     proc = _run(
-        "ctf", "solver", "run",
-        "--event", "demo-event",
-        "--challenge", "demo-challenge",
+        "ctf",
+        "solver",
+        "run",
+        "--event",
+        "demo-event",
+        "--challenge",
+        "demo-challenge",
         "--reviewer-gate",
     )
     assert proc.returncode == 2, (proc.stdout, proc.stderr)
