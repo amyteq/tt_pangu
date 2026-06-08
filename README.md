@@ -76,9 +76,11 @@ runs/                        Run outputs — do not commit
 5. Never read `.env`, `kaggle.json`, `secrets/`, or private keys.
 6. Never submit to Kaggle, push kernels, or perform any remote write without explicit human approval.
 
-## Current milestone: M10 — notebook-submission regression (Petals to the Metal)
+## Current milestone: M13 — evaluation, reliability, and regression suite
 
-Status: planned + `ai:ready` (M9 exited 2026-05-24; M10 decisions confirmed on issue #12 the same day; the old M10 CTF/lab workflow is renumbered to M11). Scope: mirror M9's eight-Loop-Prompt structure against [Petals to the Metal — Flower Classification on TPU](https://www.kaggle.com/competitions/tpu-getting-started) to validate the **notebook-submission / kernel-push** end-to-end path. Single approved real `kca kaggle push` (mirroring M9-T004's single-submission policy); per-milestone worktree per `docs/milestone-loop-protocol.md` §5.
+Status: planned (M12 exited 2026-06-09; M13 planning docs landed in commit `c53bbaa`). Scope: build out the evaluation, reliability, and regression suite so platform improvements can be measured over time against known workflows.
+
+M12 (Devpost / hackathon workflow) shipped on 2026-06-09: ADR-0016 (generalized `competition_type` enum), migration 0009 (competition_type / teams / team_memberships), Devpost adapter (`kca devpost register/fetch/info/submit`), `hackathon-experiment-loop` skill + `hackathon-runner` permission profile, `submission_checklist` tool, two new UI pages (`HackathonDeadline`, `SubmissionChecklist`), decision_api `GET /runs/<id>/submission_pack` endpoint, hand-driven local e2e run with cloud DB rows (`experiment_runs.metric_name=checklist_completion`, `metric_value=66.67`), reviewer gate for `devpost_submit` fired and pending human approval. 46 PASS / 1 DEFERRED (T007 real Devpost submit — pending 3 user artefacts; resume command in `docs/m12-final-review.md`). See `docs/m12-final-review.md` for the 48-row validation matrix and `docs/handoffs/m12-handoff.md` for the M12 → M13 handoff.
 
 M9 (live end-to-end Kaggle regression — Spaceship Titanic) shipped on 2026-05-24: LR baseline CV **0.79144 ±0.0086**, HGB + FE CV **0.81192 ±0.00753** (+0.02048), one approved real Kaggle submission (public LB **0.78676**), two new test files (`tests/test_m9_smoke.py`, `tests/test_m9_e2e.py`). See `docs/m9-final-review.md` for the 30-check validation matrix and `docs/handoffs/m9-handoff.md` for the M9 → M10 handoff (including five cross-cutting follow-ups A–E; item B is now tracked as issue #11 and is a hard pre-req for M10-T007).
 

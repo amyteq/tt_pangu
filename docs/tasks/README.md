@@ -111,6 +111,16 @@ Example: `M0-T001-project-baseline.md`
 | `M9-T006-regression-assertions.md` | M9 | proposed | CV ≥ 0.78 (LR), ≥ 0.80 (HGB); LB recorded; HGB > LR |
 | `M9-T007-e2e-dryrun-test.md` | M9 | proposed | `tests/test_m9_e2e.py` dry-run path (no credentials, no network, no DB) |
 | `M9-T008-m9-exit-criteria.md` | M9 | proposed | M9 exit criteria + `docs/m9-final-review.md` + M9 PR |
+| `M12-T000-survey-and-pick-target.md` | M12 | done | Survey 2–3 Devpost/hackathon candidates; human picks target slug h01 |
+| `M12-T001-discovery-debate-gate.md` | M12 | done | Discovery/Debate Gate on competition-policy generalization; ADR-0016 |
+| `M12-T002-schema-and-policy.md` | M12 | done | Migration 0009 — competition_type / teams / deadline; policy resolver refactor |
+| `M12-T003-devpost-adapter.md` | M12 | done | `tools/kca/devpost.py` + `kca devpost register/fetch/info` (READ_ONLY) |
+| `M12-T004-hackathon-skill.md` | M12 | done | hackathon-experiment-loop skill + hackathon-runner.yaml + submission_checklist tool |
+| `M12-T005-ui-pages.md` | M12 | done | UI: HackathonDeadline + SubmissionChecklist pages + routes + tests |
+| `M12-T006-end-to-end-local.md` | M12 | done | Worker runs hackathon flow end-to-end; submission_pack produced (hand-driven) |
+| `M12-T007-real-submit.md` | M12 | done | Reviewer gate fired; cmd_submit added (credentials-gated); real submit DEFERRED |
+| `M12-T008-regression-tests.md` | M12 | done | `tests/test_m12_e2e.py` (6 tests) + `tests/test_m12_smoke.py` (5 PASS + 2 XFAIL) |
+| `M12-T009-final-review.md` | M12 | done | M12 exit criteria + `docs/m12-final-review.md` + closeout |
 
 > **Convention (M0–M6, M8.5 onward):** Every milestone uses the
 > **double-layer** pattern — `docs/m{N}-loop-prompts.md` for the per-loop

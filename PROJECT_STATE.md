@@ -1,6 +1,6 @@
 # Kaggle Code Agent — Project State
 
-_Last updated: 2026-05-26 (M9.4 close)_
+_Last updated: 2026-06-09 (M12 close)_
 
 ## Product intent
 Build a hybrid human + AI competition engineering workbench. The first target is Kaggle-style competitions, with future support for authorized CTF/lab challenges. The system should research, discuss ideas with humans, edit code, run tests/evaluations, analyze results, iterate, and prepare submissions under human-approved guardrails.
@@ -52,15 +52,18 @@ authoritative.
 - **M9.2**: `/save-log` Claude Code session-transcript skill ✓ — operator-tooling milestone; ran in parallel to M10 planning.
 - **M9.3**: `memory-promotion` + `design-archaeology` skills (replaces unbuilt M9.1; retires `docs/m9_1-loop-prompts.md` with deferred-scope notice) ✓
 - **M9.4**: Discovery / Debate Gate agents (planning + scaffolding) ✓
+- **M12**: Devpost / hackathon workflow ✓ (with T007 real-submit DEFERRED — see open items below)
 
 See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP
 checks PASS), `docs/m8_5-final-review.md` for the M8.5 roll-up (all 26
 non-SKIP checks PASS; three PRs landed on `main` as #4, #5, #6),
 `docs/m9-final-review.md` for the M9 roll-up (30 PASS / 1 SKIP / 0 FAIL;
-the SKIP is UI pnpm gates — M9 did not modify UI), and
+the SKIP is UI pnpm gates — M9 did not modify UI),
 `docs/m9_4-final-review.md` for the M9.4 roll-up (17 PASS / 1 SKIP /
 0 FAIL; the SKIP is the `design-archaeology` skill loader, deferred to
-M9.3-T001 by design).
+M9.3-T001 by design), and `docs/m12-final-review.md` for the M12 roll-up
+(46 PASS / 0 SKIP / 0 FAIL / 1 DEFERRED — T007 real-submit pending 3
+blocked artefacts).
 
 M9 metrics snapshot:
 - LR baseline (M9-T002): CV accuracy **0.79144 ±0.0086** (5-fold stratified, seed=42).
@@ -71,40 +74,56 @@ M9 metrics snapshot:
 - New tests: `tests/test_m9_smoke.py` (4 DB-gated assertions),
   `tests/test_m9_e2e.py` (5 dry-run tests, 0 net / 0 DB / 0 creds).
 
-## Current milestone: M10 — notebook-submission regression (Petals to the Metal)
+## Current milestone: M13 — evaluation, reliability, and regression suite
 
-_Renumbered 2026-05-24: the old M10 (authorized CTF/lab) is now M11._
-_Promoted to `ai:ready` on issue #12._
+_M12 exited 2026-06-09 with T007 real-submit deferred (pending 3 artefacts).
+M11 (authorized CTF/lab workflow) and M10 (notebook-submission regression) may
+be in flight in parallel; M13 does not depend on either completing first._
 
-Status: planned (M9 exited 2026-05-24). Mirror M9's eight-Loop-Prompt
-structure against [Petals to the Metal — Flower Classification on TPU](https://www.kaggle.com/competitions/tpu-getting-started)
-to validate the **notebook-submission / kernel-push** end-to-end path,
-the same way M9 validated the CSV-submission path on Spaceship Titanic.
-Single approved real `kca kaggle push` (mirroring M9-T004's single-
-submission policy); per-milestone worktree per
-`docs/milestone-loop-protocol.md` §5; CV thresholds finalised in
-`docs/m10-loop-prompts.md` at planning time.
+Status: planned (M12 exited 2026-06-09). See `docs/m13-loop-prompts.md` and
+commit `c53bbaa` for the M13 planning docs (already landed on main).
 
-Cross-cutting follow-ups carried forward from M9 (recorded in
-`docs/handoffs/m9-handoff.md`), tracked as their own issues:
+### Open items at M12 exit
+
+**T007 deferred real Devpost submit** (P0 — `policy:approval-required`):
+
+- `human_decisions.id=754cadda-3e08-4072-8bd0-2a088dbd4a06` is pending.
+- 3 blocked artefacts needed: demo video, Vercel deployment link, screenshots.
+- Resume command once artefacts are ready:
+  ```
+  kca devpost submit --slug h01 --run-id r-20260608_154243 \
+    --message "<your submit message>"
+  ```
+  then: `kca decisions approve --id 754cadda-3e08-4072-8bd0-2a088dbd4a06`
+- Approval comment: #42#issuecomment-4650855888.
+- File as a follow-up issue (`type:feature`, `area:tools`, `priority:P0`,
+  `policy:approval-required`, `ai:blocked`) once artefacts are available.
+
+Cross-cutting follow-ups carried forward from M9 (still open, tracked as their
+own issues per `docs/handoffs/m9-handoff.md`):
 
 - **A** — `competitions.repo_url` schema drift (`area:kaggle`, `type:bug`).
 - **B** — Secrets-file hygiene in pytest subprocess (issue #11, P0).
-  Filed as a GitHub issue; **hard pre-req for M10-T007** so the new
-  dry-run test cannot pollute the `tpu-getting-started` leaderboard.
-- **C** — `decision_api`: no `GET /decisions` endpoint
-  (`area:supabase`, `type:feature`).
-- **D** — `reviewer_decision` literal event_type not emitted
-  (`area:worker`, `type:docs`).
-- **E** — Migration 0004 optional columns
-  (`submissions.public_lb_score`, `submissions.run_id`) not applied to
-  the local DB (`area:supabase`, `type:bug`).
+- **C** — `decision_api`: no `GET /decisions` endpoint (`area:supabase`, `type:feature`).
+- **D** — `reviewer_decision` literal event_type not emitted (`area:worker`, `type:docs`).
+- **E** — Migration 0004 optional columns not applied (`area:supabase`, `type:bug`).
 
-See `docs/handoffs/m9-handoff.md` for the M9→M10 read-first list
-(`docs/handoffs/m8_5-handoff.md` and `docs/handoffs/m8-handoff.md`
-preserved for historical reference).
+M12 ADR-0016 follow-ups (from `docs/adr/0016-generalized-competition-type.md`):
+
+- **F1** — jsonb type-check for `submission_format` (P2 tech-debt).
+- **F2** — `approved_by_user_id` FK on `human_decisions` (P1).
+- **F3** — resolver `profile_fallback` event type in `permission_policy.py`.
+- **F4** — ship `ctf-runner.yaml` permission profile (M11 task).
+
+See `docs/handoffs/m12-handoff.md` for the M12→M13 read-first list.
 
 ## Open decisions
+- **ADR-0016** (resolved, M12-T001, 2026-06-09): generalized
+  `competition_type` enum on `competitions` — Alternative A (folded enum)
+  picked. Enum literal `('kaggle', 'devpost', 'hackathon_devpost',
+  'ctf', 'generic')`. ADR-0006 + ADR-0009 referenced, not superseded.
+  Follow-ups F1–F4 listed in Open items above. See
+  `docs/adr/0016-generalized-competition-type.md`.
 - Decision API multi-user auth (per-user JWT via Supabase auth vs continued
   shared token).
 - Artifact storage signed-URL strategy (Supabase storage vs local artifact
