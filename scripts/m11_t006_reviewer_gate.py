@@ -81,9 +81,7 @@ def _create_review_job(prompt: str) -> str:
     helper's column list minus that column.
     """
     project_id = _db.ensure_default_project()
-    policy_json = json.dumps(
-        {"profile": "competition-runner", "m11_t006_driver": True}
-    )
+    policy_json = json.dumps({"profile": "competition-runner", "m11_t006_driver": True})
     payload_json = json.dumps({"driver": "m11_t006"})
     conn = _db.get_conn()
     try:
@@ -191,13 +189,18 @@ def _drive_gate(
             # presence + length.
             "tool_input_redacted": {
                 k: (
-                    {"_redacted": True, "length": (len(v) if isinstance(v, str) else None)}
+                    {
+                        "_redacted": True,
+                        "length": (len(v) if isinstance(v, str) else None),
+                    }
                     if k in ("flag", "flag_value", "submission")
                     else v
                 )
                 for k, v in tool_input.items()
             },
-            "side_effect": "SUBMISSION" if target_op == "flag_submit" else "REMOTE_WRITE",
+            "side_effect": "SUBMISSION"
+            if target_op == "flag_submit"
+            else "REMOTE_WRITE",
             "decision_id": decision_id,
             "review_id": review_id,
             "verdict": verdict.verdict,
@@ -483,10 +486,15 @@ def stage_flag_submit() -> dict:
         # Confirm the kca CLI surface ALSO refuses cleanly (without
         # KCA_ALLOW_REMOTE the CLI returns EXIT_BLOCKED before scope check).
         cli_res = _kca(
-            "ctf", "flag", "submit",
-            "--event", EVENT_SLUG,
-            "--challenge", WEB_SLUG,
-            "--flag-file", tmp_path,
+            "ctf",
+            "flag",
+            "submit",
+            "--event",
+            EVENT_SLUG,
+            "--challenge",
+            WEB_SLUG,
+            "--flag-file",
+            tmp_path,
         )
         cli_payload = json.loads(cli_res.stdout.strip().splitlines()[-1])
         if cli_payload.get("ok"):
@@ -559,9 +567,13 @@ def stage_refusal_smoke() -> dict:
 
     # 1. Scope verify against an out-of-scope URL.
     res = _kca(
-        "ctf", "scope", "verify",
-        "--slug", WEB_SCOPE_NAME,
-        "--url", "http://kaggle.com",
+        "ctf",
+        "scope",
+        "verify",
+        "--slug",
+        WEB_SCOPE_NAME,
+        "--url",
+        "http://kaggle.com",
     )
     scope_payload = json.loads(res.stdout.strip().splitlines()[-1])
     if scope_payload.get("covered"):
@@ -597,7 +609,9 @@ def stage_refusal_smoke() -> dict:
         dry_verdict="reject",
     )
     _log(f"agent_reviews id={review_id} verdict=reject target_op=challenge_run")
-    _log(f"human_decisions id={decision_id} status=pending (no approval, deny by design)")
+    _log(
+        f"human_decisions id={decision_id} status=pending (no approval, deny by design)"
+    )
 
     # Resolve the decision as REJECTED — mirrors the human's "do not approve" path.
     _db.resolve_decision(decision_id, "rejected", notes="m11-t006: out-of-scope target")
@@ -717,7 +731,9 @@ def audit_grep(
     finally:
         conn.close()
 
-    _log(f"audit-grep scanned {rows_scanned} rows across {len(job_ids)} jobs; hits={len(hits)}")
+    _log(
+        f"audit-grep scanned {rows_scanned} rows across {len(job_ids)} jobs; hits={len(hits)}"
+    )
     return {"rows_scanned": rows_scanned, "hits": hits}
 
 
