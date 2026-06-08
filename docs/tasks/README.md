@@ -111,6 +111,16 @@ Example: `M0-T001-project-baseline.md`
 | `M9-T006-regression-assertions.md` | M9 | proposed | CV ≥ 0.78 (LR), ≥ 0.80 (HGB); LB recorded; HGB > LR |
 | `M9-T007-e2e-dryrun-test.md` | M9 | proposed | `tests/test_m9_e2e.py` dry-run path (no credentials, no network, no DB) |
 | `M9-T008-m9-exit-criteria.md` | M9 | proposed | M9 exit criteria + `docs/m9-final-review.md` + M9 PR |
+| `M13-T000-eval-architecture.md` | M13 | done | `arch:` Discovery/Debate Gate; ADR-0016; regression-suite architecture doc |
+| `M13-T001-db-schema-cli-scaffold.md` | M13 | done | Migration 0008 (eval_suites/eval_runs/eval_results); 8 DB helpers; `kca eval` CLI scaffold |
+| `M13-T002-tool-smoke-suite.md` | M13 | done | `tool-smoke` suite; 10 cases; deterministic; audit-grep clean |
+| `M13-T003-kaggle-replay-suite.md` | M13 | done | 3 Kaggle replay suites (titanic, spaceship-titanic, house-prices); offline fixtures; deterministic |
+| `M13-T004-kernel-dryrun-suite.md` | M13 | done | `kernel-dryrun` suite; 4 cases; credentials-gate refusal verified; M10 fixture coexistence |
+| `M13-T005-reasoning-suite.md` | M13 | done | `reasoning` suite; 5 cases; deterministic shape-check judge |
+| `M13-T006-route-comparison.md` | M13 | done | 5 routes wired; paid-route refusal; `--route-compare` 25 rows; no money spent |
+| `M13-T007-aggregator-report.md` | M13 | done | Aggregator + `kca eval report` (JSON + MD); canonical snapshot committed |
+| `M13-T008-ci-smoke-e2e.md` | M13 | done | CI nightly cron; `tests/test_m13_smoke.py` (6); `tests/test_m13_e2e.py` (6); tracking issue #47 |
+| `M13-T009-m13-exit-criteria.md` | M13 | done | M13 exit criteria + `docs/m13-final-review.md` + tracking-doc updates + PR |
 
 > **Convention (M0–M6, M8.5 onward):** Every milestone uses the
 > **double-layer** pattern — `docs/m{N}-loop-prompts.md` for the per-loop

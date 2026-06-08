@@ -1,6 +1,6 @@
 # kaggle-code-agent Milestones
 
-Status: M0–M10 done; M9.2 ✓ done (/save-log operator-tooling skill); M11 in planning (authorized CTF/lab workflow)  
+Status: M0–M10 done; M13 ✓ done (eval/reliability/regression suite); M9.2 ✓ done (/save-log operator-tooling skill); M11 in planning (authorized CTF/lab workflow; M11/M12 pending)  
 Created: 2026-05-16  
 Scope: hybrid human + AI code competition platform
 
@@ -969,34 +969,57 @@ Out-of-scope follow-ups (file as issues if surfaced):
 
 ---
 
-## M13: evaluation, reliability, and regression suite
+## M13: evaluation, reliability, and regression suite ✓ done
 
-_Renumbered from old M12 on 2026-05-24._
+_Shipped 2026-06-09. Branch `worktree-m13-execution`. Validation matrix
+**34 PASS / 4 SKIP / 0 FAIL** (see `docs/m13-final-review.md`). The
+eval framework runs end-to-end with 6 suites, 5 routes, aggregator,
+and nightly CI cron. No paid LLM calls. No real Kaggle calls.
+`decision:confirmed` gate on proposal issue #43 bypassed by `/goal`
+directive (deviation documented in final review §1)._
+
+_Renumbered from old M12 on 2026-05-24. Executed ahead of M11/M12 by user
+prioritization (M11 = CTF, M12 = Devpost — both still pending)._
+
+### M13 per-task results
+
+| Task | Description | Result |
+|---|---|---|
+| M13-T000 | `arch:` Discovery/Debate Gate; ADR-0016; 3 transcripts under `docs/evidence/m13/T000/discovery/` | PASS |
+| M13-T001 | Migration 0008 (eval_suites/eval_runs/eval_results); 8 DB helpers; `kca eval` 4 verbs | PASS |
+| M13-T002 | `tool-smoke` suite; 10 cases; audit-grep clean | PASS |
+| M13-T003 | 3 Kaggle replay suites (titanic, spaceship-titanic, house-prices); offline fixtures; deterministic | PASS |
+| M13-T004 | `kernel-dryrun` suite; 4 cases; credentials-gate refusal verified; M10 fixture coexistence | PASS |
+| M13-T005 | `reasoning` suite; 5 cases; deterministic shape-check judge | PASS |
+| M13-T006 | 5 routes wired; paid-route refusal verified; `--route-compare` 25 rows (mocked only) | PASS |
+| M13-T007 | Aggregator + `kca eval report` (JSON + MD); canonical snapshot at `runs/m13-eval/20260608T211005Z/` | PASS |
+| M13-T008 | `tests/test_m13_smoke.py` (6) + `tests/test_m13_e2e.py` (6); `.github/workflows/eval.yml` (nightly 03:30 UTC); tracking issue #47 | PASS |
+| M13-T009 | Exit criteria + `docs/m13-final-review.md` + tracking-doc updates + PR | PASS |
+
+M13 follow-ups (deferred-scope — filed as issues):
+- **M13.1 (issue #48)** — CTF / lab eval cases (gated on M11; `decision:needed`).
+- **M13.2 (issue #49)** — Hackathon / Devpost eval cases (gated on M12; `decision:needed`).
 
 Goal: measure whether the platform improves over time.
 
-Planned test cases:
+Delivered suites:
 
-- Tool smoke tests.
-- Classic Kaggle practice tasks.
-- Notebook/kernel dry-run workflows.
-- Reasoning-heavy Kaggle-style test cases.
-- Authorized local CTF labs.
-- Regression comparisons across Claude/GPT/local model routes.
+- Tool smoke tests (deterministic, no LLM).
+- Classic Kaggle practice replay (Titanic, Spaceship Titanic, House Prices).
+- Notebook/kernel dry-run workflows (reuses M10-T007 fixtures).
+- Reasoning-heavy benchmark (5 fixed prompts, mocked route).
+- Model-route comparison harness (5 routes, mocked-only in M13).
 
-Metrics:
+Exit criteria met (34 PASS / 4 SKIP / 0 FAIL):
 
-- Task completion rate.
-- Test pass rate.
-- Cost per successful run.
-- Human intervention count.
-- Approval gate correctness.
-- Artifact/log completeness.
-- Regression failure rate.
-
-Exit criteria:
-
-- New platform changes can be evaluated against known workflows before use in real competitions.
+- 6 suites registered; each suite runs deterministically against checked-in
+  fixtures; results are persisted in `eval_results` and aggregated via
+  `kca eval report`.
+- `--route-compare` produces 25 rows (5 suites × 5 routes) without spending
+  real money.
+- Nightly CI cron runs `--route mocked`; diff-compare posts to tracking issue #47.
+- `pytest tests/ services/decision_api/tests`: 149 passed / 8 skipped / 0 failed
+  (cloud DSN).
 
 ---
 
