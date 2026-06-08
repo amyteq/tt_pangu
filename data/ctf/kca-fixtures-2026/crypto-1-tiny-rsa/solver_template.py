@@ -56,9 +56,7 @@ def solve() -> str:
     for prime, mult in factors.items():
         primes.extend([int(prime)] * mult)
     if len(primes) != 2:
-        raise RuntimeError(
-            f"expected exactly 2 prime factors of n, got {len(primes)}"
-        )
+        raise RuntimeError(f"expected exactly 2 prime factors of n, got {len(primes)}")
     p, q = primes
     phi = (p - 1) * (q - 1)
     d = pow(e, -1, phi)

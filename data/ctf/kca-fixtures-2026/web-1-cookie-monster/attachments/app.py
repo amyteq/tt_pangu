@@ -86,8 +86,8 @@ def me():
     if not payload:
         return "no session", 401
     return (
-        f"<p>Hello {payload.get('username','?')!s}. "
-        f"Your role is <code>{payload.get('role','?')!s}</code>.</p>"
+        f"<p>Hello {payload.get('username', '?')!s}. "
+        f"Your role is <code>{payload.get('role', '?')!s}</code>.</p>"
         f"<p>Want the cookie stash? Try <a href='/admin'>/admin</a>.</p>"
     )
 
