@@ -495,6 +495,123 @@ def cmd_watch(args: argparse.Namespace) -> int:
     )
 
 
+def _fetch_kaggle_submissions(competition: str) -> list[dict]:
+    """Call the Kaggle Python API and return submissions as plain dicts.
+
+    Each dict has: file_name, date, description, status, public_score (float|None),
+    private_score (float|None), ref.
+
+    Kaggle's library prints version warnings to stdout, which corrupts our JSON
+    envelope — capture and discard that chatter.
+    """
+    import contextlib
+    import io as _io
+
+    from kaggle import api
+
+    with contextlib.redirect_stdout(_io.StringIO()):
+        api.authenticate()
+        raw = list(api.competition_submissions(competition))
+    rows = []
+    for s in raw:
+        rows.append(
+            {
+                "file_name": getattr(s, "file_name", None),
+                "date": str(getattr(s, "date", "") or ""),
+                "description": getattr(s, "description", "") or "",
+                "status": str(getattr(s, "status", "") or ""),
+                "public_score": (
+                    float(s.public_score)
+                    if getattr(s, "public_score", None) not in (None, "")
+                    else None
+                ),
+                "private_score": (
+                    float(s.private_score)
+                    if getattr(s, "private_score", None) not in (None, "")
+                    else None
+                ),
+                "ref": getattr(s, "ref", None),
+            }
+        )
+    return rows
+
+
+def cmd_score(args: argparse.Namespace) -> int:
+    """Read public LB scores for a competition and optionally write the matched
+    row's public_score back to a `submissions` row.
+
+    READ_ONLY against Kaggle (Python API call to `competition_submissions`).
+    LOCAL_WRITE against the DB when --update-db is given.
+    """
+    competition = args.competition
+    se = SideEffect.READ_ONLY
+
+    try:
+        submissions = _fetch_kaggle_submissions(competition)
+    except Exception as exc:
+        return _emit_json(
+            {
+                "ok": False,
+                "side_effect": se.value,
+                "competition": competition,
+                "error": f"kaggle competition_submissions failed: {exc!s}",
+            }
+        )
+
+    matched = submissions
+    if args.kernel_ref:
+        slug_part = args.kernel_ref.split("/")[-1].lower()
+        matched = [r for r in matched if slug_part in r["description"].lower()]
+    if args.message_filter:
+        needle = args.message_filter.lower()
+        matched = [r for r in matched if needle in r["description"].lower()]
+
+    payload = {
+        "ok": True,
+        "side_effect": se.value,
+        "competition": competition,
+        "match_count": len(matched),
+        "submissions": matched[: args.limit] if args.limit else matched,
+    }
+
+    if args.update_db and args.submission_id:
+        if not matched:
+            payload["ok"] = False
+            payload["error"] = (
+                f"no Kaggle submissions row matched filters for "
+                f"competition={competition!r}; refusing to update DB"
+            )
+            return _emit_json(payload)
+        top = matched[0]
+        public_score = top["public_score"]
+        status = top["status"] or None
+        try:
+            db.update_submission(
+                args.submission_id,
+                public_lb_score=public_score,
+                status=status,
+            )
+            # M10 schema accumulated both columns; the test fixture reads
+            # `public_score` (migration 0004) so mirror the value there too.
+            with db.get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE submissions SET public_score = %s WHERE id = %s::uuid",
+                        (public_score, args.submission_id),
+                    )
+                conn.commit()
+        except Exception as exc:
+            payload["ok"] = False
+            payload["error"] = f"DB update failed: {exc!s}"
+            return _emit_json(payload)
+        payload["updated_submission_id"] = args.submission_id
+        payload["public_score"] = public_score
+        payload["matched_description"] = top["description"]
+        payload["side_effect"] = SideEffect.LOCAL_WRITE.value
+
+    return _emit_json(payload)
+
+
 def cmd_fetch(args: argparse.Namespace) -> int:
     return _emit_stub("fetch", SideEffect.READ_ONLY, {"run": args.run})
 
@@ -567,6 +684,46 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_watch.add_argument("--max-iterations", dest="max_iterations", type=int, default=1)
     p_watch.add_argument("--json", action="store_true")
     p_watch.set_defaults(func=cmd_watch)
+
+    p_score = kg_sub.add_parser(
+        "score",
+        help="Read public LB score from `kaggle competitions submissions` and "
+        "optionally write it to a submissions row (READ_ONLY / LOCAL_WRITE)",
+    )
+    p_score.add_argument("--competition", required=True)
+    p_score.add_argument(
+        "--kernel-ref",
+        dest="kernel_ref",
+        default=None,
+        help="Match the submission row whose description contains this kernel "
+        "slug (user/slug or just slug)",
+    )
+    p_score.add_argument(
+        "--message-filter",
+        dest="message_filter",
+        default=None,
+        help="Substring match against the submission description",
+    )
+    p_score.add_argument(
+        "--submission-id",
+        dest="submission_id",
+        default=None,
+        help="`submissions.id` to update (with --update-db)",
+    )
+    p_score.add_argument(
+        "--update-db",
+        dest="update_db",
+        action="store_true",
+        help="Write the matched row's publicScore + status to submissions",
+    )
+    p_score.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Max rows to return (default 10; 0 disables the cap)",
+    )
+    p_score.add_argument("--json", action="store_true")
+    p_score.set_defaults(func=cmd_score)
 
     p_fetch = kg_sub.add_parser("fetch", help="Fetch run artifacts (READ_ONLY)")
     p_fetch.add_argument("--run", required=True)
