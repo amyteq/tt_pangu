@@ -47,9 +47,7 @@ def main() -> int:
         required=True,
         help="experiment_runs row id from M12-T006 closeout (UUID).",
     )
-    p.add_argument(
-        "--slug", required=True, help="hackathon slug, e.g. 'h01'."
-    )
+    p.add_argument("--slug", required=True, help="hackathon slug, e.g. 'h01'.")
     p.add_argument(
         "--competition-id",
         required=True,

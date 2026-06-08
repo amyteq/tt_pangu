@@ -107,7 +107,11 @@ def test_submission_pack_endpoint_read_only(client: TestClient) -> None:
         "run_id": "r-1",
         "slug": "demo-hack",
         "checklist": [
-            {"item": "README.md", "status": "done", "evidence": "runs/demo-hack/r-1/submission_pack/README.md"},
+            {
+                "item": "README.md",
+                "status": "done",
+                "evidence": "runs/demo-hack/r-1/submission_pack/README.md",
+            },
             {"item": "demo-plan.md", "status": "todo", "evidence": ""},
         ],
     }

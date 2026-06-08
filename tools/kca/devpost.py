@@ -465,9 +465,7 @@ def _load_submission_pack(slug: str, run_id: str) -> dict[str, Any]:
     """
     from pathlib import Path
 
-    pack = (
-        Path("runs") / slug / run_id / "submission_pack"
-    ).resolve()
+    pack = (Path("runs") / slug / run_id / "submission_pack").resolve()
     if not pack.is_dir():
         raise FileNotFoundError(
             f"submission_pack not found at {pack}; run M12-T006 first"
@@ -595,9 +593,11 @@ def cmd_submit(
             endpoint, data=form, headers=headers, timeout=DEFAULT_TIMEOUT_S
         )
         resp.raise_for_status()
-        body = resp.json() if "application/json" in resp.headers.get(
-            "Content-Type", ""
-        ) else {}
+        body = (
+            resp.json()
+            if "application/json" in resp.headers.get("Content-Type", "")
+            else {}
+        )
     except Exception as exc:
         return {
             "ok": False,
@@ -611,9 +611,7 @@ def cmd_submit(
     external_id = str(
         body.get("id") or body.get("external_submission_id") or ""
     ).strip()
-    submission_url = str(
-        body.get("submission_url") or body.get("url") or ""
-    ).strip()
+    submission_url = str(body.get("submission_url") or body.get("url") or "").strip()
     return {
         "ok": bool(external_id and submission_url),
         "external_submission_id": external_id,

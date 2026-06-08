@@ -209,9 +209,11 @@ def make_app(
                 detail="run has no competition_id",
             )
         try:
-            comp = _db.get_competition(competition_id) if hasattr(
-                _db, "get_competition"
-            ) else None
+            comp = (
+                _db.get_competition(competition_id)
+                if hasattr(_db, "get_competition")
+                else None
+            )
         except Exception as exc:  # pragma: no cover
             raise HTTPException(
                 status_code=503,

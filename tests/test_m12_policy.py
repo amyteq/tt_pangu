@@ -208,9 +208,9 @@ def test_missing_type_profile_falls_back_to_default(
     # Sanity: hackathon-runner is registered in the map...
     assert COMPETITION_TYPE_PROFILES.get("devpost") == "hackathon-runner"
     # ...but the file doesn't exist in this perms root.
-    assert _resolve_profile_for_competition_type(
-        "devpost", permissions_root=root
-    ) is None
+    assert (
+        _resolve_profile_for_competition_type("devpost", permissions_root=root) is None
+    )
     decision = resolve_for_skill(
         skill,
         "devpost_submit",
