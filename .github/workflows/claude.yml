@@ -17,8 +17,9 @@ jobs:
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
       (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # runs-on: ubuntu-latest
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write
@@ -42,8 +43,8 @@ jobs:
             actions: read
 
           claude_args: |
-            --model claude-opus-4-7
-            --max-turns 200
+            --model claude-sonnet-4-6
+            --max-turns ${{ inputs.max_turns || '100' }}
           # Optional: Give a custom prompt to Claude. If this is not specified, Claude will perform the instructions specified in the comment that tagged it.
           # prompt: 'Update the pull request description to include a summary of changes.'
 
