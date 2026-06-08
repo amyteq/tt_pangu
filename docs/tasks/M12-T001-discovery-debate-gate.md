@@ -155,7 +155,7 @@ M12-T001 closeout
   PROJECT_STATE.md updated: YES
   Acceptance: PASS | FAIL — link to closing issue
   Risks / blockers: ...
-  Next: M12-T002 (migration 0008 + policy resolver refactor)
+  Next: M12-T002 (migration 0009 + policy resolver refactor)
 ```
 
 ## Related issues

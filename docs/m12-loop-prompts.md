@@ -86,7 +86,7 @@ later are blocked on the human pick from T000 being recorded.
 |---|---|---|
 | Hackathon survey + target pick | new `docs/evidence/m12/t000-candidates.md` | T000 |
 | Competition-policy generalization | new ADR-0016 + refactor of `JobPolicy` / `permission_policy.py` | T001 / T002 |
-| Schema for type / teams / deadline | `supabase/migrations/0008_m12_competition_type_teams.sql` | T002 |
+| Schema for type / teams / deadline | `supabase/migrations/0009_m12_competition_type_teams.sql` | T002 |
 | Devpost adapter (READ_ONLY) | new `tools/kca/devpost.py`; new `devpost` subcommands in `tools/kca/kca.py` | T003 |
 | Hackathon skill + permissions | new `.kca/skills/hackathon-experiment-loop/SKILL.md` + new `.kca/permissions/hackathon-runner.yaml` + new `submission_checklist` tool | T004 |
 | UI deadline + checklist pages | new `ui/src/pages/HackathonDeadline.tsx` + `ui/src/pages/SubmissionChecklist.tsx`; routes; vitest + Playwright | T005 |
@@ -130,7 +130,7 @@ M12-T007 also needs sandbox bypass (network out to `devpost.com`).
 |---|---|---|
 | M12-T000 | Survey 2–3 candidate Devpost / hackathon events; human picks target slug (READ_ONLY; no DB writes) | Prompt 0 |
 | M12-T001 | `arch:` Discovery / Debate Gate on competition-policy generalization; produce ADR-0016 | Prompt 1 |
-| M12-T002 | Migration 0008 — `competition_type` enum, `teams`, `team_memberships`, `deadline`, `submission_format`; policy resolver refactor | Prompt 2 |
+| M12-T002 | Migration 0009 — `competition_type` enum, `teams`, `team_memberships`, `deadline`, `submission_format`; policy resolver refactor | Prompt 2 |
 | M12-T003 | `tools/kca/devpost.py` adapter + `kca devpost register/fetch/info` (READ_ONLY only) | Prompt 3 |
 | M12-T004 | `hackathon-experiment-loop` skill + `hackathon-runner.yaml` permission profile + `submission_checklist` tool | Prompt 4 |
 | M12-T005 | UI: `HackathonDeadline.tsx` + `SubmissionChecklist.tsx` + routes + vitest + Playwright smoke | Prompt 5 |
@@ -212,7 +212,7 @@ trigger). Backwards compatibility: existing rows default to 'kaggle'.
 ## Loop Prompt 2 — M12-T002 Schema migration + policy resolver refactor
 
 ```
-/goal Execute M12-T002 migration 0008 (competition_type / teams / deadline) + policy resolver refactor until acceptance criteria pass or stop after 80 turns and summarize blockers.
+/goal Execute M12-T002 migration 0009 (competition_type / teams / deadline) + policy resolver refactor until acceptance criteria pass or stop after 80 turns and summarize blockers.
 
 Follow: docs/milestone-loop-protocol.md
 Task spec: docs/tasks/M12-T002-schema-and-policy.md
@@ -226,7 +226,7 @@ Read also (background context):
 - tests/test_m4_smoke.py, tests/test_m7_smoke.py (DB-gated patterns)
 
 Mission (full version in task spec):
-Author supabase/migrations/0008_m12_competition_type_teams.sql:
+Author supabase/migrations/0009_m12_competition_type_teams.sql:
   - CREATE TYPE competition_type_enum AS ENUM ('kaggle','devpost',
     'hackathon_devpost','ctf','generic');
   - ALTER TABLE competitions ADD COLUMN competition_type
@@ -575,7 +575,7 @@ file it as a new M12.x issue and gate it the same way.
   exist; each carries its canonical acceptance line verbatim.
 - `docs/adr/0016-generalized-competition-type.md` exists and is
   referenced from `docs/milestones.md` §M12.
-- `supabase/migrations/0008_m12_competition_type_teams.sql` applied
+- `supabase/migrations/0009_m12_competition_type_teams.sql` applied
   locally; the M9 / M10 baseline rows still resolve their policy
   correctly with `competition_type='kaggle'`.
 - M12-T007 closing issue links to the approval comment AND the
@@ -597,7 +597,7 @@ these is true:
 - Any `policy:approval-required` issue advances without the corresponding
   `decision:confirmed` label and comment.
 - Any test in the validation suite regresses from green to red.
-- Migration 0008 breaks a Kaggle row's policy resolution (regression
+- Migration 0009 breaks a Kaggle row's policy resolution (regression
   against M9 / M10 baseline rows).
 - DEVPOST credentials, the DSN, or `.env*` are accidentally printed in
   any log, audit row, or PR. Stop and rotate the credential immediately.
