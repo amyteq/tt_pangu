@@ -57,8 +57,6 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "tools" / "kca"))
 
-import db as _db  # type: ignore  # noqa: E402
-
 from src.db import ctf as ctf_db  # noqa: E402
 
 EVENT_SLUG = "kca-fixtures-2026"
@@ -118,7 +116,9 @@ def _wait_for_http(url: str, timeout: float = 30.0) -> None:
     raise RuntimeError(f"service at {url} did not come up: {last_err!r}")
 
 
-def _docker_compose(*args: str, env_extra: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+def _docker_compose(
+    *args: str, env_extra: dict[str, str] | None = None
+) -> subprocess.CompletedProcess:
     compose_file = EVENT_DIR / WEB_SLUG / "docker-compose.yml"
     env = dict(os.environ)
     if env_extra:
@@ -136,7 +136,9 @@ def _docker_compose(*args: str, env_extra: dict[str, str] | None = None) -> subp
     )
 
 
-def _kca(*args: str, env_extra: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+def _kca(
+    *args: str, env_extra: dict[str, str] | None = None
+) -> subprocess.CompletedProcess:
     env = dict(os.environ)
     if env_extra:
         env.update(env_extra)
@@ -153,7 +155,14 @@ def _kca(*args: str, env_extra: dict[str, str] | None = None) -> subprocess.Comp
 def _ensure_competition() -> str:
     # ctf-<event-slug> mirrors the kca-run convention noted in the task spec.
     comp_slug = f"ctf-{EVENT_SLUG}"
-    res = _kca("run", "init", "--competition", comp_slug, "--run-id", f"_warmup_{int(time.time())}")
+    res = _kca(
+        "run",
+        "init",
+        "--competition",
+        comp_slug,
+        "--run-id",
+        f"_warmup_{int(time.time())}",
+    )
     # The init creates a competition row if missing. We don't need the warmup run.
     if res.returncode != 0:
         raise RuntimeError(f"run init warmup failed: {res.stderr or res.stdout}")
@@ -169,8 +178,16 @@ def _record_run_and_attempt(
 ) -> tuple[str, str]:
     # 1. kca run init
     run_id = f"{challenge_slug}-{int(time.time())}"
-    res = _kca("run", "init", "--competition", comp_slug, "--run-id", run_id, "--hypothesis",
-               f"M11-T005 local solve of {challenge_slug}")
+    res = _kca(
+        "run",
+        "init",
+        "--competition",
+        comp_slug,
+        "--run-id",
+        run_id,
+        "--hypothesis",
+        f"M11-T005 local solve of {challenge_slug}",
+    )
     if res.returncode != 0:
         raise RuntimeError(f"kca run init failed: {res.stderr or res.stdout}")
     init_payload = json.loads(res.stdout.strip().splitlines()[-1])
@@ -178,10 +195,14 @@ def _record_run_and_attempt(
 
     # 2. kca run record-metric
     res = _kca(
-        "run", "record-metric",
-        "--experiment-run-id", experiment_run_id,
-        "--key", "flag_length",
-        "--value", str(flag_length),
+        "run",
+        "record-metric",
+        "--experiment-run-id",
+        experiment_run_id,
+        "--key",
+        "flag_length",
+        "--value",
+        str(flag_length),
     )
     if res.returncode != 0:
         raise RuntimeError(f"kca run record-metric failed: {res.stderr or res.stdout}")
@@ -197,10 +218,20 @@ def _record_run_and_attempt(
     )
 
     # 4. kca ctf solver run --dry-run (gate-path side-effect record)
-    res = _kca("ctf", "solver", "run", "--event", EVENT_SLUG,
-               "--challenge", challenge_slug, "--dry-run")
+    res = _kca(
+        "ctf",
+        "solver",
+        "run",
+        "--event",
+        EVENT_SLUG,
+        "--challenge",
+        challenge_slug,
+        "--dry-run",
+    )
     if res.returncode != 0:
-        raise RuntimeError(f"kca ctf solver run --dry-run failed: {res.stderr or res.stdout}")
+        raise RuntimeError(
+            f"kca ctf solver run --dry-run failed: {res.stderr or res.stdout}"
+        )
 
     return experiment_run_id, attempt_id
 
@@ -208,13 +239,17 @@ def _record_run_and_attempt(
 def solve_crypto() -> dict:
     challenge_dir = EVENT_DIR / CRYPTO_SLUG
     _log(f"=== {CRYPTO_SLUG} ===")
-    _log("strategy: crypto / 143-bit RSA -- sympy.factorint(n), d=e^-1 mod phi, m=c^d, decode")
+    _log(
+        "strategy: crypto / 143-bit RSA -- sympy.factorint(n), d=e^-1 mod phi, m=c^d, decode"
+    )
 
     mod = _load_solver_module(challenge_dir)
     flag = mod.solve()
     verified = mod._verify(flag)
     if not verified:
-        raise RuntimeError(f"{CRYPTO_SLUG}: sha256 verify FAILED (flag_length={len(flag)})")
+        raise RuntimeError(
+            f"{CRYPTO_SLUG}: sha256 verify FAILED (flag_length={len(flag)})"
+        )
     _log(f"{CRYPTO_SLUG}: sha256 verify PASS, flag_length={len(flag)}")
     return {"flag": flag, "flag_length": len(flag), "flag_sha256": _sha256(flag)}
 
@@ -222,8 +257,10 @@ def solve_crypto() -> dict:
 def solve_web() -> dict:
     challenge_dir = EVENT_DIR / WEB_SLUG
     _log(f"=== {WEB_SLUG} ===")
-    _log("strategy: web / Flask /admin gated on role=admin in a base64-JSON unsigned session cookie. "
-         "POST /login as guest, decode cookie, flip role to admin, re-encode, GET /admin, parse FLAG.")
+    _log(
+        "strategy: web / Flask /admin gated on role=admin in a base64-JSON unsigned session cookie. "
+        "POST /login as guest, decode cookie, flip role to admin, re-encode, GET /admin, parse FLAG."
+    )
 
     # Generate fresh flag, pin expected.sha256, supply via env to compose.
     flag = _gen_flag()
@@ -233,7 +270,15 @@ def solve_web() -> dict:
     env_extra = {"KCA_FIXTURE_FLAG": flag}
     # docker compose up -d
     up = subprocess.run(
-        ["docker", "compose", "-f", str(challenge_dir / "docker-compose.yml"), "up", "-d", "--build"],
+        [
+            "docker",
+            "compose",
+            "-f",
+            str(challenge_dir / "docker-compose.yml"),
+            "up",
+            "-d",
+            "--build",
+        ],
         check=False,
         capture_output=True,
         text=True,
@@ -250,9 +295,15 @@ def solve_web() -> dict:
         recovered = mod.solve()
         verified = mod._verify(recovered)
         if not verified:
-            raise RuntimeError(f"{WEB_SLUG}: sha256 verify FAILED (flag_length={len(recovered)})")
+            raise RuntimeError(
+                f"{WEB_SLUG}: sha256 verify FAILED (flag_length={len(recovered)})"
+            )
         _log(f"{WEB_SLUG}: sha256 verify PASS, flag_length={len(recovered)}")
-        return {"flag": recovered, "flag_length": len(recovered), "flag_sha256": _sha256(recovered)}
+        return {
+            "flag": recovered,
+            "flag_length": len(recovered),
+            "flag_sha256": _sha256(recovered),
+        }
     finally:
         down = _docker_compose("down", "-v")
         if down.returncode != 0:
@@ -289,7 +340,11 @@ def main() -> int:
     )
 
     crypto_run, crypto_att = _record_run_and_attempt(
-        CRYPTO_SLUG, crypto_row["id"], crypto_res["flag_length"], crypto_excerpt, comp_slug
+        CRYPTO_SLUG,
+        crypto_row["id"],
+        crypto_res["flag_length"],
+        crypto_excerpt,
+        comp_slug,
     )
     web_run, web_att = _record_run_and_attempt(
         WEB_SLUG, web_row["id"], web_res["flag_length"], web_excerpt, comp_slug
