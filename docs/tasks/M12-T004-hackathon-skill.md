@@ -32,7 +32,7 @@ Routine.
 8. `tools/kca/agent/tool_executor.py` — tool registry / ToolSpec shape
 9. `src/worker/tools.py` — gate lookup path (post-T002 refactor)
 10. `tools/kca/devpost.py` (T003 output) — adapter surface
-11. `supabase/migrations/0008_m12_competition_type_teams.sql` (T002) —
+11. `supabase/migrations/0009_m12_competition_type_teams.sql` (T002) —
     `competitions.submission_format` jsonb shape
 
 ## Scope
