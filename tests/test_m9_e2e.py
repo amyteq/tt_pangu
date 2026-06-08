@@ -329,7 +329,9 @@ def test_kca_kaggle_submit_refuses_without_credentials(tmp_path):
         # `tools/kca/db.py` uses python-dotenv with override=False, so an
         # explicitly absent KAGGLE_USERNAME in the subprocess env can
         # still be re-populated from a project-root .env file. We point
-        # HOME away and additionally clear any candidate locations.
+        # HOME away and additionally set KCA_SKIP_DOTENV so db.py skips the
+        # repo-root .env auto-load entirely (issue #11).
+        "KCA_SKIP_DOTENV": "1",
     }
     proc = subprocess.run(
         [
