@@ -62,9 +62,17 @@ def _resolve_gcs_path() -> str | None:
 
 
 def _resolve_kaggle_input_path() -> str | None:
-    p = Path("/kaggle/input") / COMPETITION
-    if p.exists():
-        return str(p)
+    # Try the direct competition mount first, then the /competitions/<slug>/ layout
+    # Kaggle uses for "official" Getting Started competitions (v3 diagnostic showed
+    # /kaggle/input had only ['competitions'], not the slug directly).
+    candidates = [
+        Path("/kaggle/input") / COMPETITION,
+        Path("/kaggle/input/competitions") / COMPETITION,
+    ]
+    for p in candidates:
+        if p.exists():
+            print(f"[data-resolve] /kaggle/input mount found at {p}")
+            return str(p)
     # Diagnostic: list what IS under /kaggle/input/ so a future failure shows
     # the real layout instead of an opaque "not found".
     root = Path("/kaggle/input")
@@ -73,6 +81,12 @@ def _resolve_kaggle_input_path() -> str | None:
             print(
                 f"[data-resolve] /kaggle/input contents: {sorted(p.name for p in root.iterdir())}"
             )
+            comp_root = root / "competitions"
+            if comp_root.exists():
+                print(
+                    f"[data-resolve] /kaggle/input/competitions contents: "
+                    f"{sorted(p.name for p in comp_root.iterdir())}"
+                )
         except Exception as exc:
             print(f"[data-resolve] /kaggle/input listdir failed: {exc!r}")
     else:
@@ -225,6 +239,17 @@ print(
     f"val shards={len(val_files)} val_images={NUM_VALIDATION_IMAGES} "
     f"steps_per_epoch={STEPS_PER_EPOCH}"
 )
+
+# Fail loudly if the resolver pointed at an empty path — v3 silently trained on
+# zero shards because we trusted the resolver's word. Catch that here.
+if len(train_files) == 0 or len(val_files) == 0:
+    raise RuntimeError(
+        f"Zero TFRecords resolved at {DATA_ROOT}/{DATA_SUBDIR or '<root>'}/{{train,val}}/*.tfrec — "
+        f"train_files={len(train_files)} val_files={len(val_files)}. "
+        f"The resolver returned a path that does not contain the expected shards; "
+        f"investigate the /kaggle/input layout (see earlier [data-resolve] prints) "
+        f"before pushing again."
+    )
 
 # %% [markdown]
 # ## Strategy (TPU vs GPU/CPU)
