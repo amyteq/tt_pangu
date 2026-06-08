@@ -50,11 +50,20 @@ def _check_token(provided: Optional[str]) -> None:
 def make_app(
     decisions_module: Optional[object] = None,
     audit_logger: Optional[Callable] = None,
+    submission_pack_provider: Optional[Callable[[str], dict]] = None,
 ) -> FastAPI:
     """Construct the FastAPI app.
 
     ``decisions_module`` exposes ``get_decision``, ``resolve_decision``, and
     ``append_job_event``. Tests pass a fake module to avoid touching Supabase.
+
+    ``submission_pack_provider`` is the optional READ_ONLY hook for the
+    ``GET /runs/{run_id}/submission_pack`` endpoint (M12-T005). When
+    omitted, the endpoint resolves the run -> competition -> slug +
+    submission_format via the real DB layer and shells out to
+    ``tools/kca/submission_checklist.build_checklist`` so the UI sees the
+    same checklist the worker tool sees. Tests inject a deterministic
+    in-memory provider to avoid touching Supabase / the filesystem.
     """
     app = FastAPI(title="kca decision_api", version="0.1.0")
 
@@ -163,6 +172,76 @@ def make_app(
             "decision_id": decision_id,
             "status": "needs_improvement",
             "job_id": row.get("job_id"),
+        }
+
+    # ------------------------------------------------------------------
+    # M12-T005: READ_ONLY submission_pack inspector for the UI.
+    # ------------------------------------------------------------------
+    @app.get("/runs/{run_id}/submission_pack")
+    def get_submission_pack(
+        run_id: str,
+        x_decision_api_token: Optional[str] = Header(default=None),
+    ) -> dict:
+        """READ_ONLY: return the checklist for a run's submission_pack.
+
+        Response shape mirrors
+        ``tools/kca/submission_checklist.build_checklist`` so the UI and
+        the worker agree on the rendering. Never writes; never mutates.
+        """
+        _check_token(x_decision_api_token)
+        if submission_pack_provider is not None:
+            return submission_pack_provider(run_id)
+        # Real path: resolve the run -> competition row -> build_checklist.
+        try:
+            _db = _resolve_db()
+            run_row = _db.get_run(run_id) if hasattr(_db, "get_run") else None
+        except Exception as exc:  # pragma: no cover — surfaced as 503
+            raise HTTPException(
+                status_code=503,
+                detail=f"db unavailable: {type(exc).__name__}",
+            )
+        if not run_row:
+            raise HTTPException(status_code=404, detail="run not found")
+        competition_id = run_row.get("competition_id")
+        if not competition_id:
+            raise HTTPException(
+                status_code=404,
+                detail="run has no competition_id",
+            )
+        try:
+            comp = _db.get_competition(competition_id) if hasattr(
+                _db, "get_competition"
+            ) else None
+        except Exception as exc:  # pragma: no cover
+            raise HTTPException(
+                status_code=503,
+                detail=f"db unavailable: {type(exc).__name__}",
+            )
+        if not comp:
+            raise HTTPException(status_code=404, detail="competition not found")
+        try:
+            import sys
+            from pathlib import Path
+
+            sys.path.insert(
+                0, str(Path(__file__).resolve().parents[2] / "tools" / "kca")
+            )
+            from submission_checklist import build_checklist  # type: ignore
+        except Exception as exc:  # pragma: no cover
+            raise HTTPException(
+                status_code=503,
+                detail=f"checklist tool unavailable: {type(exc).__name__}",
+            )
+        checklist = build_checklist(
+            slug=comp.get("slug"),
+            run_id=run_id,
+            submission_format=comp.get("submission_format"),
+        )
+        return {
+            "ok": True,
+            "run_id": run_id,
+            "slug": comp.get("slug"),
+            "checklist": checklist,
         }
 
     return app
