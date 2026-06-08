@@ -1,0 +1,37 @@
+[
+  {
+    "evidence": "runs/sample-hack/20260609T000000Z/submission_pack/README.md",
+    "item": "README.md",
+    "status": "done"
+  },
+  {
+    "evidence": "runs/sample-hack/20260609T000000Z/submission_pack/demo-plan.md",
+    "item": "demo-plan.md",
+    "status": "done"
+  },
+  {
+    "evidence": "runs/sample-hack/20260609T000000Z/submission_pack/source",
+    "item": "source/",
+    "status": "done"
+  },
+  {
+    "evidence": "runs/sample-hack/20260609T000000Z/submission_pack/submission-checklist.json",
+    "item": "submission-checklist.json",
+    "status": "done"
+  },
+  {
+    "evidence": "runs/sample-hack/20260609T000000Z/submission_pack/text_description",
+    "item": "text_description",
+    "status": "done"
+  },
+  {
+    "evidence": "runs/sample-hack/20260609T000000Z/submission_pack/demo_video",
+    "item": "demo_video",
+    "status": "done"
+  },
+  {
+    "evidence": "runs/sample-hack/20260609T000000Z/submission_pack/github_repo_url",
+    "item": "github_repo_url",
+    "status": "done"
+  }
+]
