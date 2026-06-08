@@ -39,6 +39,49 @@ All commands emit a single JSON object to stdout. Exit codes: `0` ok, `1` runtim
 | `kca decisions list`          | `READ_ONLY`    | (native)                  | List pending human approval requests        |
 | `kca decisions approve`       | `LOCAL_WRITE`  | (native)                  | Approve a pending decision                  |
 | `kca decisions deny`          | `LOCAL_WRITE`  | (native)                  | Deny a pending decision                     |
+| `kca ctf event register`      | `LOCAL_WRITE`  | `src/db/ctf.register_event` | Idempotent on `--slug`; `credentials_ref` is a path hint only |
+| `kca ctf event list`          | `READ_ONLY`    | `src/db/ctf.list_events`  | JSON list of registered events              |
+| `kca ctf event info`          | `READ_ONLY`    | (native)                  | Single event row by slug                    |
+| `kca ctf challenge add`       | `LOCAL_WRITE`  | `src/db/ctf.add_challenge` | Idempotent on (event, slug); attaches optional ctf_scopes row |
+| `kca ctf challenge fetch`     | `REMOTE_WRITE` | (planned via `research_fetch`) | Refuses without `KCA_ALLOW_REMOTE=1` + matching `ctf_scopes.target_urls` row |
+| `kca ctf challenge list`      | `READ_ONLY`    | (native)                  | List challenges for an event                |
+| `kca ctf challenge info`      | `READ_ONLY`    | `src/db/ctf.get_challenge` | Single challenge row by (event, slug)       |
+| `kca ctf scope set`           | `LOCAL_WRITE`  | (native)                  | Upsert a `ctf_scopes` row keyed by name     |
+| `kca ctf scope list`          | `READ_ONLY`    | (native)                  | List `ctf_scopes` rows                      |
+| `kca ctf scope verify`        | `READ_ONLY`    | (native)                  | Exit 0 iff URL ∈ `target_urls` AND scope not expired; else exit 2 |
+| `kca ctf solver run`          | `SUBMISSION`*  | (planned via worker)      | `--dry-run` is `LOCAL_WRITE`; otherwise fires `challenge_run` reviewer gate |
+| `kca ctf flag submit`         | `SUBMISSION`   | (planned via worker)      | `--dry-run` is `LOCAL_WRITE`; otherwise fires `flag_submit` reviewer gate. Flag value is read from `--flag-file` and is **never echoed**. |
+
+\*`kca ctf solver run` is `LOCAL_WRITE` under `--dry-run` and elevates to
+`SUBMISSION`-class via the worker's `challenge_run` target_op when
+`--reviewer-gate` is set. Cross-link: `src/worker/worker.py::_TOOL_TO_TARGET_OP`.
+
+### `kca ctf` reviewer-gate map
+
+| CLI invocation                          | Reviewer-gate op  | Default policy (per ADR-0017) |
+|-----------------------------------------|-------------------|-------------------------------|
+| `kca ctf solver run` (no `--dry-run`, with `--reviewer-gate`) | `challenge_run` | ask |
+| `kca ctf flag submit` (no `--dry-run`)  | `flag_submit`     | ask |
+| `kca ctf challenge fetch` (no `--dry-run`) | `network_egress` | deny outside `ctf_scopes.target_urls`; ask when scope+URL match |
+
+The `--dry-run` form on every gated subcommand bypasses the network and
+the reviewer gate while still emitting a JSON envelope describing the
+prospective side effect — useful for skill prompts and CI smoke tests.
+
+### `kca ctf flag submit` — flag-value discipline
+
+- The flag value is **read from `--flag-file`** (the file is opened
+  inside the Python process; nothing under `~/.ctf/` is read by the
+  Claude Code Read/Edit/Write tools).
+- The command emits only the integer `flag_length`, `accepted=true|false`
+  and the event's HTTP status. The flag string is **never** added to
+  any JSON envelope, audit row, log line, or PR body.
+- The credential-loading helper `_load_event_credentials(event_slug)`
+  is the single allow-listed call-site for the guard_tool deny
+  exception over `~/.ctf/<slug>.json` added in M11-T002. It returns
+  boolean-presence fields (`has_username` / `has_token` /
+  `has_team_id`) for any output-bound code path; the underscored
+  raw fields stay local to the POST-building stack frame.
 
 ## Safety
 
