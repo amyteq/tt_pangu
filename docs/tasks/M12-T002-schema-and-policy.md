@@ -1,4 +1,4 @@
-# M12-T002: Migration 0008 (competition_type / teams / deadline) + policy resolver refactor
+# M12-T002: Migration 0009 (competition_type / teams / deadline) + policy resolver refactor
 
 ## Milestone
 M12: live end-to-end hackathon regression on a Devpost-style event.
@@ -6,7 +6,7 @@ M12: live end-to-end hackathon regression on a Devpost-style event.
 ## Goal
 Land the schema and code changes ADR-0016 specified:
 
-1. `supabase/migrations/0008_m12_competition_type_teams.sql` adds:
+1. `supabase/migrations/0009_m12_competition_type_teams.sql` adds:
    - `competition_type_enum` postgres enum;
    - `competitions.competition_type` (default `'kaggle'`);
    - `competitions.deadline timestamptz NULL`;
@@ -42,7 +42,7 @@ Routine. (T001's `arch:` gate already covered this design.)
 
 ## Scope
 
-1. Author `supabase/migrations/0008_m12_competition_type_teams.sql`.
+1. Author `supabase/migrations/0009_m12_competition_type_teams.sql`.
    The file MUST:
    - Use `CREATE TYPE IF NOT EXISTS competition_type_enum AS ENUM
      ('kaggle','devpost','hackathon_devpost','ctf','generic');` (or the
@@ -100,7 +100,7 @@ Routine. (T001's `arch:` gate already covered this design.)
 
 ## Acceptance criteria
 
-- `supabase/migrations/0008_m12_competition_type_teams.sql` exists,
+- `supabase/migrations/0009_m12_competition_type_teams.sql` exists,
   is idempotent, and has been applied locally.
 - `psql $SUPABASE_DB_URL -c "\d competitions"` shows the three new
   columns; `\d teams` and `\d team_memberships` exist.
@@ -133,7 +133,7 @@ Routine. (T001's `arch:` gate already covered this design.)
 
 ```
 M12-T002 closeout
-  Migration: supabase/migrations/0008_m12_competition_type_teams.sql
+  Migration: supabase/migrations/0009_m12_competition_type_teams.sql
   Applied locally: YES
   competitions columns: competition_type | deadline | submission_format
   teams + team_memberships: present
