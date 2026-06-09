@@ -5,7 +5,7 @@
 - Session id: `420577eb-3298-42a6-b33c-48a1c675b57b`
 - Status: `stopped`
 - Source transcript: `/home/harry/.claude-ayla/projects/-home-harry/420577eb-3298-42a6-b33c-48a1c675b57b.jsonl`
-- Output: `/tmp/worklogs-dump-dcy44b/worklogs/takeover.md`
+- Output: `/tmp/worklogs-dump-Ca85tk/worklogs/takeover.md`
 
 ---
 
