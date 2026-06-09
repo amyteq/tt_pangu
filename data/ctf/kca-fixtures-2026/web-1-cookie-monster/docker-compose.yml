@@ -1,0 +1,39 @@
+# docker-compose.yml — web-1-cookie-monster
+#
+# Brings up the vulnerable Flask app on localhost:18080. The host port is
+# explicitly bound to 127.0.0.1 so the service is NOT reachable from the
+# LAN or from a routable bridge interface.
+#
+# The flag VALUE is supplied via the KCA_FIXTURE_FLAG environment variable
+# at compose-up time. It is NEVER committed to this bundle. The T005
+# solver harness sets it before `docker-compose up` and re-reads it after
+# exploit recovery to verify against ./expected.sha256.
+#
+# License: MIT (runner code).
+services:
+  cookie-monster:
+    build: ./attachments
+    image: kca-fixtures/cookie-monster:m11
+    container_name: kca-fixtures-cookie-monster
+    environment:
+      # If KCA_FIXTURE_FLAG is unset, the app refuses to start. This
+      # prevents an accidental "blank flag" run that would mask a
+      # mis-wired solver in T005.
+      FLAG: "${KCA_FIXTURE_FLAG?KCA_FIXTURE_FLAG must be set before docker-compose up}"
+    ports:
+      # 127.0.0.1 binding is load-bearing — see description.md "Out of scope".
+      - "127.0.0.1:18080:8080"
+    networks:
+      - kca-fixtures-web1
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  kca-fixtures-web1:
+    driver: bridge
+    internal: false

@@ -24,7 +24,7 @@ Routine.
 1. `PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`
 2. `docs/milestones.md` §M12
 3. `docs/m12-loop-prompts.md` Loop Prompt 4
-4. `docs/adr/0016-generalized-competition-type.md` (T001 output)
+4. `docs/adr/0018-generalized-competition-type.md` (T001 output)
 5. `docs/architecture/kca-cli-architecture.md` — four-layer model
 6. `.kca/skills/kaggle-experiment-loop/SKILL.md` — skill body precedent
 7. `.kca/permissions/default.yaml`, `.kca/permissions/competition-runner.yaml`,
@@ -139,7 +139,7 @@ M12-T004 closeout
 
 ## Related issues
 
-- ADR-0016 — referenced for the policy hierarchy.
+- ADR-0018 — referenced for the policy hierarchy.
 - Closing issue for M12 — gets a comment confirming the skill +
   profile + tool land without DB schema change.
 

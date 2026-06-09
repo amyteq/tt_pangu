@@ -31,7 +31,7 @@ literal appears in this document.
 | Criterion | Status |
 |---|---|
 | Candidate hackathon picked; entry in `competitions` with `competition_type='devpost'` | PASS — `competitions.id=d66f321c-…` |
-| ADR-0016 merged; three Discovery/Debate Gate reports carry canonical acceptance lines | PASS — `docs/adr/0016-generalized-competition-type.md` |
+| ADR-0018 merged; three Discovery/Debate Gate reports carry canonical acceptance lines | PASS — `docs/adr/0018-generalized-competition-type.md` |
 | Migration 0009 applied; existing Kaggle rows still resolve policy correctly | PASS — cloud Supabase; 3 Kaggle rows backfilled |
 | `kca devpost fetch --slug h01` returns metadata; no submit/upload in T003 | PASS |
 | `hackathon-experiment-loop` skill produces submission_pack at `runs/h01/r-20260608_154243/` | PASS — checklist_completion 66.67 % |
@@ -72,7 +72,7 @@ Approval comment already posted: issue #42 comment
 | 3 | M12-T001 — `legacy-archaeologist` report present with canonical acceptance line | PASS | `docs/evidence/m12/t001/discovery/legacy-archaeologist.md` |
 | 4 | M12-T001 — `requirements-skeptic` report present (≥5 questions, ≥3 categories) with canonical acceptance line | PASS | `docs/evidence/m12/t001/discovery/requirements-skeptic.md` |
 | 5 | M12-T001 — `design-red-team` report present (≥3 alternatives, ≥1 dropped capability with file:line) with canonical acceptance line | PASS | `docs/evidence/m12/t001/discovery/design-red-team.md` |
-| 6 | M12-T001 — ADR-0016 written; Alternative A (folded enum) selected | PASS | `docs/adr/0016-generalized-competition-type.md`; enum: `('kaggle','devpost','hackathon_devpost','ctf','generic')` |
+| 6 | M12-T001 — ADR-0018 written; Alternative A (folded enum) selected | PASS | `docs/adr/0018-generalized-competition-type.md`; enum: `('kaggle','devpost','hackathon_devpost','ctf','generic')` |
 | 7 | M12-T002 — `supabase/migrations/0009_m12_competition_type_teams.sql` authored; applied to cloud | PASS | Applied to cloud Supabase; renumbered from 0008 due to M13 collision |
 | 8 | M12-T002 — 3 pre-existing Kaggle rows backfilled to `competition_type='kaggle'` | PASS | Idempotent migration; backfill SQL confirmed in cloud |
 | 9 | M12-T002 — `src/worker/_types.py::JobPolicy.competition_type` field added | PASS | `src/worker/_types.py` |
@@ -114,7 +114,7 @@ Approval comment already posted: issue #42 comment
 | 45 | `ruff format --check .` clean | PASS | All files formatted |
 | 46 | `kca run list --json` shows M12 hackathon run with `checklist_completion` metric | PASS | `experiment_runs.id=5964822d-…`, `metric_value=66.67` |
 | 47 | `docs/evidence/m12/t000-candidates.md` exists; 2–3 candidates listed | PASS | 3 candidates listed |
-| 48 | `docs/adr/0016-generalized-competition-type.md` referenced from `docs/milestones.md` §M12 | PASS | ADR-0016 referenced in milestones.md |
+| 48 | `docs/adr/0018-generalized-competition-type.md` referenced from `docs/milestones.md` §M12 | PASS | ADR-0018 referenced in milestones.md |
 
 **Tally: 46 PASS / 0 SKIP / 0 FAIL / 1 DEFERRED (T007 real submit — tracked as open item).**
 
@@ -150,7 +150,7 @@ Cloud rows created in M12:
   the human pick at #42#issuecomment-4650158601.
 - No DB writes in T000 per spec.
 
-### M12-T001 — Discovery / Debate Gate + ADR-0016
+### M12-T001 — Discovery / Debate Gate + ADR-0018
 
 - Three Discovery / Debate Gate subagent reports under
   `docs/evidence/m12/t001/discovery/`:
@@ -163,11 +163,11 @@ Cloud rows created in M12:
   - `design-red-team.md` — ≥3 alternatives (folded enum vs new table vs
     denormalised jsonb); ≥1 dropped capability with file:line evidence;
     scored on 4 cost axes.
-- `docs/adr/0016-generalized-competition-type.md` — Alternative A
+- `docs/adr/0018-generalized-competition-type.md` — Alternative A
   (folded `competition_type` enum on existing `competitions` table)
   picked. Enum: `('kaggle','devpost','hackathon_devpost','ctf','generic')`.
   `ctf` ships for M11 reuse without a second migration.
-- `PROJECT_STATE.md` updated with ADR-0016 decision.
+- `PROJECT_STATE.md` updated with ADR-0018 decision.
 - Issue comment: #42#issuecomment-4650319779.
 
 ### M12-T002 — Schema migration + policy resolver refactor
@@ -341,7 +341,7 @@ filed as GitHub issues if the user wants to address them:
 6. **CTF wiring against `competition_type='ctf'`** — the enum value
    ships in M12; no CTF code paths are added. M11 owns this.
    Labels: `type:feature`, `area:policy`.
-7. **ADR-0016 follow-ups F1–F4** (from the ADR itself):
+7. **ADR-0018 follow-ups F1–F4** (from the ADR itself):
    - F1 — jsonb type-check for `submission_format` (P2 tech-debt).
    - F2 — `approved_by_user_id` FK on `human_decisions` (P1).
    - F3 — resolver `profile_fallback` event type in `permission_policy.py`.
@@ -356,7 +356,7 @@ filed as GitHub issues if the user wants to address them:
 - `docs/evidence/m12/t001/discovery/legacy-archaeologist.md` — archaeology report.
 - `docs/evidence/m12/t001/discovery/requirements-skeptic.md` — skeptic report.
 - `docs/evidence/m12/t001/discovery/design-red-team.md` — red-team report.
-- `docs/adr/0016-generalized-competition-type.md` — ADR: Alternative A selected.
+- `docs/adr/0018-generalized-competition-type.md` — ADR: Alternative A selected.
 - `supabase/migrations/0009_m12_competition_type_teams.sql` — schema migration.
 - `src/db/teams.py` — team CRUD helpers (read + insert).
 - `src/worker/_types.py` — `JobPolicy.competition_type` field.

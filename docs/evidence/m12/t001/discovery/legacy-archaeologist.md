@@ -15,7 +15,7 @@ shapes" clause in `docs/milestone-loop-protocol.md` §7 and
 design-archaeology skill" governs this fallback. No interpretive judgement
 about the design was made before the requirements-skeptic and
 design-red-team reports were written; each role was authored in isolation
-and then the parent synthesised ADR-0016.
+and then the parent synthesised ADR-0018.
 
 1. workflows:
    - competition register (Kaggle slug → DB row + repo metadata) — entry: tools/kca/competition.py:48 (`cmd_register`); exit: tools/kca/competition.py:81 (`return EXIT_OK`)

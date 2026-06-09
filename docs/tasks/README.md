@@ -111,8 +111,18 @@ Example: `M0-T001-project-baseline.md`
 | `M9-T006-regression-assertions.md` | M9 | proposed | CV ≥ 0.78 (LR), ≥ 0.80 (HGB); LB recorded; HGB > LR |
 | `M9-T007-e2e-dryrun-test.md` | M9 | proposed | `tests/test_m9_e2e.py` dry-run path (no credentials, no network, no DB) |
 | `M9-T008-m9-exit-criteria.md` | M9 | proposed | M9 exit criteria + `docs/m9-final-review.md` + M9 PR |
+| `M11-T000-discovery-debate-gate.md` | M11 | done | Discovery / Debate Gate — 3 subagent reports for CTF data model + approval ops |
+| `M11-T001-ctf-schema-db.md` | M11 | done | `supabase/migrations/0008_m11_ctf.sql` + `src/db/ctf.py` helpers + ADR-0016 |
+| `M11-T002-approval-gates.md` | M11 | done | `challenge_run` / `flag_submit` / `network_egress` ops + reviewer-gate wiring + ADR-0017 |
+| `M11-T003-kca-ctf-cli.md` | M11 | done | `tools/kca/ctf.py` 12 subcommands across 5 namespaces + COMMANDS.md |
+| `M11-T004-frozen-challenges.md` | M11 | done | Frozen past-event bundle (web-1 + crypto-1 bespoke fixtures) + licensing brief |
+| `M11-T005-local-solve-loop.md` | M11 | done | Agent loop solves web + crypto locally; 2 `ctf_attempts(accepted=true)` in cloud |
+| `M11-T006-reviewer-gate.md` | M11 | done | Reviewer-gate round-trips for `challenge_run` + `flag_submit`; `network_egress` reject smoke |
+| `M11-T007-live-flag-submission.md` | M11 | deferred | ONE real flag submission to live CTFtime event (SKIP-BLOCKED — human action required) |
+| `M11-T008-e2e-dryrun-test.md` | M11 | done | `tests/test_m11_e2e.py` (8/8) + `tests/test_m11_smoke.py` (7/7) |
+| `M11-T009-m11-exit-criteria.md` | M11 | done | M11 exit criteria + `docs/m11-final-review.md` + handoff + PR |
 | `M12-T000-survey-and-pick-target.md` | M12 | done | Survey 2–3 Devpost/hackathon candidates; human picks target slug h01 |
-| `M12-T001-discovery-debate-gate.md` | M12 | done | Discovery/Debate Gate on competition-policy generalization; ADR-0016 |
+| `M12-T001-discovery-debate-gate.md` | M12 | done | Discovery/Debate Gate on competition-policy generalization; ADR-0018 |
 | `M12-T002-schema-and-policy.md` | M12 | done | Migration 0009 — competition_type / teams / deadline; policy resolver refactor |
 | `M12-T003-devpost-adapter.md` | M12 | done | `tools/kca/devpost.py` + `kca devpost register/fetch/info` (READ_ONLY) |
 | `M12-T004-hackathon-skill.md` | M12 | done | hackathon-experiment-loop skill + hackathon-runner.yaml + submission_checklist tool |

@@ -1,6 +1,6 @@
 # kaggle-code-agent Milestones
 
-Status: M0–M10 done + M12 done (T007 real-submit DEFERRED); M9.2 ✓ done (/save-log operator-tooling skill); M11 in planning (authorized CTF/lab workflow); M13 in planning (evaluation, reliability, regression suite)  
+Status: M0–M10 done + M12 done (T007 real-submit DEFERRED); M11 PARTIAL (T000–T006 + T008 done 2026-06-09; T007 deferred pending human action); M9.2 ✓ done (/save-log operator-tooling skill); M13 in planning (evaluation, reliability, regression suite)  
 Created: 2026-05-16  
 Scope: hybrid human + AI code competition platform
 
@@ -864,20 +864,53 @@ Gaps this milestone is expected to close (or scope to a follow-up):
 
 _Renumbered from old M10 on 2026-05-24 to make room for the
 notebook-submission regression milestone (new M10)._
+_Status: T000–T006 + T008 done (2026-06-09); T007 deferred pending human-supplied live-event credentials + approval comment._
 
 Goal: support CTF-style challenges only inside explicit authorization boundaries.
 
-Planned capabilities:
+Planned capabilities (all delivered except T007 live submission):
 
-- Challenge scope and authorization metadata.
-- Local container/lab-only execution.
-- Solver script generation and testing.
-- Writeup generation.
-- Hard policy blocks for external scanning, real targets, credential theft, persistence, or unsafe actions.
+- Challenge scope and authorization metadata (`ctf_events`, `ctf_challenges`, `ctf_attempts`, `ctf_scopes`).
+- Local container/lab-only execution (docker-compose web + in-process crypto).
+- Solver script generation and testing (`kca ctf solver run`).
+- Hard policy blocks for external scanning, real targets, credential theft, persistence, or unsafe actions (`challenge_run` / `flag_submit` / `network_egress` gates).
 
 Exit criteria:
 
 - CTF workflow is useful for local/sandbox labs and safely refuses out-of-scope activity.
+
+### M11 landed deliverables (T000–T006 + T008, 2026-06-09)
+
+- Discovery / Debate Gate: 3 subagent reports under `docs/evidence/m11/discovery/`.
+- `supabase/migrations/0008_m11_ctf.sql` — 4 ctf_* tables; applied to cloud.
+- `src/db/ctf.py` — 6 DB helpers.
+- ADR-0016 (CTF data model) + ADR-0017 (CTF approval gates).
+- `tools/kca/ctf.py` — 12 subcommands across 5 namespaces.
+- `data/ctf/kca-fixtures-2026/` — web-1 (cookie-tamper) + crypto-1 (tiny RSA).
+- `challenge_run`, `flag_submit`, `network_egress` in all 3 permission profiles.
+- T005 local solves: web `flag_length=21`, crypto `flag_length=17`; 2 `ctf_attempts(accepted=true)` in cloud.
+- T006 reviewer-gate round-trips: `challenge_run` approve + `flag_submit` approve + `network_egress` reject.
+- `tests/test_m11_e2e.py` (8/8 PASS), `tests/test_m11_smoke.py` (7/7), `tests/test_m11_db.py` (13/13).
+- `docs/architecture/m11-ctf-workflow.md` (7 sections).
+- `docs/m11-final-review.md` — 23 PASS / 1 SKIP-BLOCKED / 0 FAIL.
+
+### M11 T007 deferred — punch list for human
+
+1. `KCA_ALLOW_REMOTE=1` set in session.
+2. Register on a live CTFtime event; populate `~/.ctf/<slug>.json`.
+3. `kca ctf event register` + `kca ctf scope set` for the live event.
+4. Comment "approved to submit" on T007 closing issue + `decision:confirmed`/`ai:ready` labels.
+5. Re-run M11-T007 Loop Prompt.
+
+### M11 follow-ups (file as GitHub issues)
+
+- **A** — `agent_jobs.competition_id` schema drift on cloud (P2, `type:bug`, `area:supabase`).
+- **B** — `kca ctf flag submit` non-dry-run env-check before reviewer-gate (P1, `type:bug`, `area:security`).
+- **C** — T004 fixture-authoring trail contains deterministic crypto flag (P1, `type:security`).
+- **D** — `expected.sha256` web-1 churn (P2, `type:test-gap`, `area:ctf`).
+- **E** — gh CLI hook denial blocks `decision:confirmed` verification (P2, `type:bug`).
+- **F** — httpx-level `network_egress` interceptor for subprocess egress (P1, `type:feature`, `area:security`).
+- **G** — per-challenge rate-limit column on `ctf_scopes` (P3, `type:feature`, `area:ctf`).
 
 ---
 

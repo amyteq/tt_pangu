@@ -45,7 +45,7 @@ Routine.
 1. Add `ui/src/pages/HackathonDeadline.tsx`:
    - Route: `/hackathons/:slug/deadline`.
    - Reads: `competitions` row by slug; `team_memberships` joined on
-     `teams` for the slug's team (per the ADR-0016 team-scoped rules).
+     `teams` for the slug's team (per the ADR-0018 team-scoped rules).
    - Renders: deadline countdown (live updating, computed from
      `competitions.deadline`), phase chip
      (`competitions.deadline > now()` → "open"; else "closed"; richer

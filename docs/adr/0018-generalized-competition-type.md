@@ -1,5 +1,5 @@
 ---
-adr: "0016"
+adr: "0018"
 title: "Generalized competition_type — folded enum on competitions"
 status: Accepted
 date: 2026-06-09
@@ -14,7 +14,7 @@ references:
   - docs/evidence/m12/t001/discovery/design-red-team.md
 ---
 
-# ADR-0016: Generalized `competition_type` — folded enum on `competitions`
+# ADR-0018: Generalized `competition_type` — folded enum on `competitions`
 
 ## Status
 
@@ -62,7 +62,7 @@ The product constraints the synthesis must satisfy:
    exists because the original `tools/legacy/kkr.py` migration lost
    multi-account semantics silently (`docs/meeting-notes/2026-05-24-r3.md` §6,
    referenced from `docs/architecture/discovery-debate-gate.md:18–22`).
-   ADR-0016 must NOT introduce a new silent-fallback path.
+   ADR-0018 must NOT introduce a new silent-fallback path.
 4. **Additive, not renaming.** "Renaming any of the existing
    Kaggle-specific surfaces" is explicitly out of scope
    (docs/m12-loop-prompts.md:116). `kaggle_submit` / `kernel_push` keep
@@ -218,7 +218,7 @@ ships three new op entries:
 
 | Op | M12 default | Reason |
 |---|---|---|
-| `devpost_submit` | `ask` | External hackathon submission; analog of `kaggle_submit`'s ADR-0006 conservative default (ADR-0006 is default-allow for `kaggle_submit` but ADR-0016 overrides per-type; see §"Migration impact" below). |
+| `devpost_submit` | `ask` | External hackathon submission; analog of `kaggle_submit`'s ADR-0006 conservative default (ADR-0006 is default-allow for `kaggle_submit` but ADR-0018 overrides per-type; see §"Migration impact" below). |
 | `demo_upload` | `ask` | Public artifact publication; analog of `kernel_push`. Not used in M12 (reserved for M12.x demo-video flow). |
 | `team_invite` | `deny` | Out of M12 scope (read-only team membership only; docs/tasks/M12-T001-discovery-debate-gate.md:91–92). |
 
@@ -247,7 +247,7 @@ A future milestone (M12.x or M13) MAY relax the rule per-op (e.g. let a
 non-owner member trigger `submission_checklist` reads but not
 `devpost_submit`) by adding an `allowed_for_roles: ['owner', 'member']`
 clause to each `PolicyRecord` in
-`tools/kca/agent/permission_policy.py:25–30`. ADR-0016 does NOT ship
+`tools/kca/agent/permission_policy.py:25–30`. ADR-0018 does NOT ship
 this relaxation.
 
 ### Migration impact (concrete; lands in M12-T002)
@@ -256,7 +256,7 @@ this relaxation.
 |---|---|
 | `competitions` rows for M9 (`spaceship-titanic`), M10 (`tpu-getting-started`), any other Kaggle slugs registered before 2026-06-09 | `UPDATE competitions SET competition_type='kaggle' WHERE competition_type IS NULL` (run before the `NOT NULL` is enforced if the migration uses two-phase ALTER; one-phase ALTER with `DEFAULT 'kaggle'` plus `NOT NULL` is also acceptable per skeptic §explicit_unknowns.2). |
 | `experiments`, `experiment_runs`, `submissions` rows | No backfill needed; they FK to `competitions(id)` and inherit the parent's `competition_type` at query time. |
-| `competitions.competition_policy` jsonb | Unchanged for Kaggle rows. New Devpost rows MAY carry per-row gate overrides per ADR-0006 §"Per-competition override"; ADR-0016 does not constrain the key schema (red team open_disagreement #1 flags this as tech-debt). |
+| `competitions.competition_policy` jsonb | Unchanged for Kaggle rows. New Devpost rows MAY carry per-row gate overrides per ADR-0006 §"Per-competition override"; ADR-0018 does not constrain the key schema (red team open_disagreement #1 flags this as tech-debt). |
 
 | `.kca/permissions/*.yaml` profile changes (M12-T004 scope) | Add `hackathon-runner.yaml` with `devpost_submit`, `demo_upload`, `team_invite` entries per the table above. `default.yaml`, `competition-runner.yaml`, `permissive-dev.yaml` are **unchanged**. |
 | ADR-0006 default `kaggle_submit: false` (allow) | **Preserved** for `competition_type='kaggle'`. ADR-0006 is referenced, not superseded. |
@@ -284,7 +284,7 @@ this relaxation.
 |---|---|---|
 | Per-Kaggle-owner secret partitioning (`.env.<owner>`) | **Not preserved.** Out of M12 scope; legacy only. Flagged for future ADR. |
 | Per-competition `competition_policy.approval_gates` key-level type-safety | **Not preserved.** Accepted with rationale; open_disagreement #1 → P2 tech-debt follow-up. |
-| `competition_type='devpost'` index for `WHERE competition_type=…` | **Preserved.** ADR-0016 includes `CREATE INDEX idx_competitions_type`. |
+| `competition_type='devpost'` index for `WHERE competition_type=…` | **Preserved.** ADR-0018 includes `CREATE INDEX idx_competitions_type`. |
 | "Row owner" persona for the team-scoped rule | **Partially preserved.** Documentation-only in M12; open_disagreement #2 → P1 follow-up. |
 | Multi-Devpost-account precedent | **Not preserved.** Out of M12 scope. |
 

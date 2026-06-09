@@ -8,7 +8,7 @@ Run the Discovery / Debate Gate (`docs/milestone-loop-protocol.md` §7)
 on the proposed generalization of the competition-policy layer beyond
 Kaggle. The gate's output is three role-isolated reports
 (`legacy-archaeologist`, `requirements-skeptic`, `design-red-team`) and
-ADR-0016 synthesising them into a concrete `competition_type` schema +
+ADR-0018 synthesising them into a concrete `competition_type` schema +
 policy-resolver design that M12-T002 implements.
 
 The motivating constraint: M11 (CTF) must be able to reuse this schema
@@ -73,7 +73,7 @@ values from day one.
 4. Verify each acceptance line byte-for-byte. A missing acceptance
    line is a task FAIL — re-invoke the agent, do not patch by hand.
 5. Synthesise the three reports into
-   `docs/adr/0016-generalized-competition-type.md`. The ADR MUST:
+   `docs/adr/0018-generalized-competition-type.md`. The ADR MUST:
    - Pick one of the three alternatives (default expectation: A —
      folded enum — unless the red team's evidence makes B or C
      decisively better; the ADR must explain the trade-off).
@@ -94,7 +94,7 @@ values from day one.
    - List concrete migration impact: which existing rows backfill to
      `'kaggle'`, which `.kca/permissions/*.yaml` profiles get new
      entries.
-6. Update `PROJECT_STATE.md` to add ADR-0016 to the open-decisions
+6. Update `PROJECT_STATE.md` to add ADR-0018 to the open-decisions
    list (per `feedback_ci_repair_workflow.md` discipline).
 7. Run `grep -nE 'competition_type|hackathon_devpost' docs/adr/0016-*.md`
    to confirm the enum values appear; commit the evidence.
@@ -118,15 +118,15 @@ values from day one.
   `docs/evidence/m12/t001/discovery/`; each carries its canonical
   acceptance line byte-for-byte (verify via `grep -F` against the
   expected strings in `docs/architecture/discovery-debate-gate.md`).
-- `docs/adr/0016-generalized-competition-type.md` exists; the enum
+- `docs/adr/0018-generalized-competition-type.md` exists; the enum
   literal `('kaggle', 'devpost', 'hackathon_devpost', 'ctf', 'generic')`
   appears verbatim in the ADR body.
 - The ADR picks one of the three alternatives and explains the
   trade-off; the red-team's dropped capabilities are addressed (either
   preserved or explicitly accepted with rationale).
-- `PROJECT_STATE.md` lists ADR-0016 under open / recently-resolved
+- `PROJECT_STATE.md` lists ADR-0018 under open / recently-resolved
   decisions.
-- `python -c "import yaml,pathlib; yaml.safe_load(pathlib.Path('docs/adr/0016-generalized-competition-type.md').read_text().split('---',2)[1])"`
+- `python -c "import yaml,pathlib; yaml.safe_load(pathlib.Path('docs/adr/0018-generalized-competition-type.md').read_text().split('---',2)[1])"`
   parses the ADR front-matter without error (if the ADR uses YAML
   front-matter per ADR-0015 precedent).
 - No code, test, or migration files touched.
@@ -136,7 +136,7 @@ values from day one.
 
 - `Read` / `Glob` / `Grep` / `WebFetch` allowed (for ADR research).
 - `Edit` / `Write` restricted to: `docs/evidence/m12/t001/discovery/**`,
-  `docs/adr/0016-generalized-competition-type.md`, `PROJECT_STATE.md`.
+  `docs/adr/0018-generalized-competition-type.md`, `PROJECT_STATE.md`.
 - No DB writes. No `kca` write subcommands. No Devpost / Kaggle network
   calls.
 - `git commit` / `git push` deferred to T009 closeout.
@@ -149,7 +149,7 @@ M12-T001 closeout
     - docs/evidence/m12/t001/discovery/legacy-archaeologist.md (acceptance line: PASS)
     - docs/evidence/m12/t001/discovery/requirements-skeptic.md  (acceptance line: PASS)
     - docs/evidence/m12/t001/discovery/design-red-team.md       (acceptance line: PASS)
-  ADR: docs/adr/0016-generalized-competition-type.md
+  ADR: docs/adr/0018-generalized-competition-type.md
   Picked alternative: A | B | C (with one-line trade-off summary)
   Enum values present: kaggle | devpost | hackathon_devpost | ctf | generic
   PROJECT_STATE.md updated: YES
@@ -160,7 +160,7 @@ M12-T001 closeout
 
 ## Related issues
 
-- Closing issue for M12 — gets a comment linking ADR-0016 + the three
+- Closing issue for M12 — gets a comment linking ADR-0018 + the three
   discovery reports; transitions to `ai:ready` for T002 on PASS.
 - Cross-link M11 placeholder issue (if filed) — note that the
   generalization includes `ctf` so M11 can reuse the schema.

@@ -4,7 +4,7 @@
 M12: live end-to-end hackathon regression on a Devpost-style event.
 
 ## Goal
-Land the schema and code changes ADR-0016 specified:
+Land the schema and code changes ADR-0018 specified:
 
 1. `supabase/migrations/0009_m12_competition_type_teams.sql` adds:
    - `competition_type_enum` postgres enum;
@@ -28,7 +28,7 @@ Routine. (T001's `arch:` gate already covered this design.)
 1. `PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`
 2. `docs/milestones.md` §M12
 3. `docs/m12-loop-prompts.md` Loop Prompt 2
-4. `docs/adr/0016-generalized-competition-type.md` (T001 output)
+4. `docs/adr/0018-generalized-competition-type.md` (T001 output)
 5. `docs/adr/0006-configurable-approval-gates.md`
 6. `supabase/migrations/0004_m4_competition_repo.sql` — adds the
    existing `competitions` columns; mirror that style
@@ -148,7 +148,7 @@ M12-T002 closeout
 
 ## Related issues
 
-- ADR-0016 (T001 output) — referenced for every design decision.
+- ADR-0018 (T001 output) — referenced for every design decision.
 - Closing issue for M12 — gets a comment linking the migration file
   and confirming the M9 / M10 regression check.
 

@@ -35,3 +35,23 @@
   default_decision: allow
 - operation: litellm_call
   default_decision: allow
+# M11 — CTF approval operations (ADR-0017). In competition-runner,
+# challenge_run may resolve to `allow` under conditional_allow.when_in_scope
+# (worker holds an in-scope target URL). flag_submit stays on `ask`
+# unconditionally — highest-blast-radius op.
+- operation: challenge_run
+  default_decision: ask
+  reason: Executing a solver against an authorized CTF target.
+  audit_required: true
+  conditional_allow:
+    when_in_scope: allow   # if request URL ∈ ctf_scopes.target_urls
+- operation: flag_submit
+  default_decision: ask
+  reason: Flag submission to a CTF event API — never auto-allow.
+  audit_required: true
+- operation: network_egress
+  default_decision: deny
+  reason: Egress outside ctf_scopes.target_urls is denied; widen scope row to allow.
+  audit_required: true
+  conditional_allow:
+    when_in_scope: ask   # if request URL ∈ ctf_scopes.target_urls
