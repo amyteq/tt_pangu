@@ -917,7 +917,7 @@ Exit criteria:
 ## M12: Devpost / hackathon workflow ✓ done (with T007 real-submit DEFERRED)
 
 _Shipped 2026-06-09. See `docs/m12-final-review.md` (46 PASS / 0 SKIP / 0 FAIL / 1 DEFERRED).
-Summary: ADR-0016 (folded `competition_type` enum: kaggle/devpost/hackathon_devpost/ctf/generic);
+Summary: ADR-0018 (folded `competition_type` enum: kaggle/devpost/hackathon_devpost/ctf/generic; renumbered from ADR-0016 during PR #46 merge);
 migration 0009 (competition_type + teams + team_memberships + deadline + submission_format);
 Devpost adapter (`kca devpost register/fetch/info/submit`); hackathon-experiment-loop skill +
 hackathon-runner.yaml; submission_checklist tool; two new UI pages (HackathonDeadline,
@@ -940,7 +940,7 @@ a hackathon picked in M12-T000 under human approval.
 
 The `arch:` task in this milestone is **M12-T001**: a Discovery /
 Debate Gate run (`docs/milestone-loop-protocol.md` §7) that produces
-ADR-0016 defining the generalized `competition_type` enum and
+ADR-0018 defining the generalized `competition_type` enum and
 team-scoped policy resolver. CTF-friendly enum values (`ctf`) ship in
 M12 so M11 can plug in without a second schema migration.
 
@@ -949,7 +949,7 @@ M12 so M11 can plug in without a second schema migration.
 | Task | Description | Depends on |
 |---|---|---|
 | M12-T000 | Survey 2–3 candidate Devpost / hackathon events; human picks target slug. READ_ONLY; no DB writes. | — |
-| M12-T001 | `arch:` Discovery / Debate Gate on competition-policy generalization; ADR-0016 (`competition_type` enum, team-scoped resolver). | T000 |
+| M12-T001 | `arch:` Discovery / Debate Gate on competition-policy generalization; ADR-0018 (`competition_type` enum, team-scoped resolver). | T000 |
 | M12-T002 | Migration `0009_m12_competition_type_teams.sql` — `competitions.competition_type` enum (default `kaggle`), `teams`, `team_memberships`, `competitions.deadline`, `competitions.submission_format`. Policy resolver refactor. Backwards-compatible. | T001 |
 | M12-T003 | `tools/kca/devpost.py` + `kca devpost register/fetch/info` (READ_ONLY). Lightweight HTTP first; Playwright fallback per `tools/kca/research_fetch.py` pattern. | T002 |
 | M12-T004 | `.kca/skills/hackathon-experiment-loop/SKILL.md` + `.kca/permissions/hackathon-runner.yaml` + `submission_checklist` tool. | T002, T003 |
@@ -961,7 +961,7 @@ M12 so M11 can plug in without a second schema migration.
 
 Planned capabilities:
 
-- **Generalized competition-policy layer** (ADR-0016): `competition_type`
+- **Generalized competition-policy layer** (ADR-0018): `competition_type`
   enum (`kaggle`, `devpost`, `hackathon_devpost`, `ctf`, `generic`);
   policy resolver routes on type; M11 reuses the schema.
 - **Minimal team model**: `teams` + `team_memberships` tables; idea
@@ -986,7 +986,7 @@ Exit criteria — proposed (final list in `docs/m12-loop-prompts.md`):
 
 - Candidate hackathon picked; entry registered in `competitions` with
   `competition_type='devpost'` (or `hackathon_devpost`).
-- ADR-0016 merged; the three Discovery / Debate Gate reports under
+- ADR-0018 merged; the three Discovery / Debate Gate reports under
   `docs/evidence/m12/t001/discovery/` carry their canonical
   acceptance lines verbatim.
 - Migration `0009_m12_competition_type_teams.sql` applied; all

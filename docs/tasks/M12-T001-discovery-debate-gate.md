@@ -96,7 +96,7 @@ values from day one.
      entries.
 6. Update `PROJECT_STATE.md` to add ADR-0018 to the open-decisions
    list (per `feedback_ci_repair_workflow.md` discipline).
-7. Run `grep -nE 'competition_type|hackathon_devpost' docs/adr/0016-*.md`
+7. Run `grep -nE 'competition_type|hackathon_devpost' docs/adr/0018-*.md`
    to confirm the enum values appear; commit the evidence.
 
 ## Non-goals

@@ -18,6 +18,11 @@ dependencies = [
 [project.optional-dependencies]
 llm = ["litellm>=1.40"]
 dev = ["pytest>=8", "ruff>=0.4"]
+# Required by the M13 Kaggle-replay eval suites (kaggle_replay_titanic /
+# kaggle_replay_spaceship_titanic / kaggle_replay_house_prices). Lean
+# install (`.[dev]`) keeps these out; CI installs `.[dev,eval]` so the
+# suites can register and run.
+eval = ["numpy>=1.26", "pandas>=2.0", "scikit-learn>=1.4"]
 
 [project.scripts]
 kca = "tools.kca.kca:main"

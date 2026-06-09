@@ -159,6 +159,13 @@ def test_tool_smoke_suite_runs_mocked(scrubbed_env):
 def test_kaggle_replays_run_mocked(scrubbed_env):
     """Each of the three kaggle-replay suites runs against fixtures and
     emits the expected metric keys."""
+    # The three kaggle-replay suites need numpy / pandas / sklearn at
+    # import time (declared via the `[eval]` optional-dependencies extra
+    # in pyproject.toml). On a lean `pip install -e .[dev]` install they
+    # never register, so the test should skip cleanly rather than fail.
+    pytest.importorskip("numpy")
+    pytest.importorskip("pandas")
+    pytest.importorskip("sklearn")
     suite_names = (
         "kaggle-replay-titanic",
         "kaggle-replay-spaceship-titanic",

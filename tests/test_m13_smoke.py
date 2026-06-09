@@ -189,7 +189,10 @@ def test_db_helpers_roundtrip():
 
 @requires_db
 def test_kca_eval_list_shows_registered_suites():
-    """``kca eval list --json`` reports ≥6 suite names."""
+    """``kca eval list --json`` reports the core 3 suites; with the
+    ``[eval]`` optional-dependencies extra installed (numpy / pandas /
+    scikit-learn) the 3 kaggle-replay suites also register, bringing
+    the total to 6."""
     proc = subprocess.run(
         [sys.executable, str(KCA_BIN), "eval", "list", "--json"],
         env=_subprocess_env(),
@@ -207,18 +210,32 @@ def test_kca_eval_list_shows_registered_suites():
     assert json_lines, f"no JSON payload in stdout:\n{proc.stdout}"
     payload = json.loads(json_lines[-1])
     assert payload.get("ok") is True
-    names = [s["name"] for s in payload["suites"]]
-    assert len(names) >= 6, f"expected ≥6 suites, got {len(names)}: {names}"
-    expected = {
-        "tool-smoke",
-        "reasoning",
-        "kernel-dryrun",
-        "kaggle-replay-titanic",
-        "kaggle-replay-spaceship-titanic",
-        "kaggle-replay-house-prices",
-    }
-    missing = expected - set(names)
-    assert not missing, f"expected suites missing from list: {sorted(missing)}"
+    names = set(s["name"] for s in payload["suites"])
+    # The 3 core suites must always register — they have no heavy deps.
+    core = {"tool-smoke", "reasoning", "kernel-dryrun"}
+    missing_core = core - names
+    assert not missing_core, f"core suites missing from list: {sorted(missing_core)}"
+    # Kaggle replay suites require the `[eval]` extra (numpy / pandas /
+    # scikit-learn). If those deps are installed, all 3 should register.
+    try:
+        import numpy  # noqa: F401
+        import pandas  # noqa: F401
+        import sklearn  # noqa: F401
+
+        have_eval_deps = True
+    except ImportError:
+        have_eval_deps = False
+    if have_eval_deps:
+        kaggle_suites = {
+            "kaggle-replay-titanic",
+            "kaggle-replay-spaceship-titanic",
+            "kaggle-replay-house-prices",
+        }
+        missing_kaggle = kaggle_suites - names
+        assert not missing_kaggle, (
+            f"kaggle-replay suites missing despite eval deps installed: "
+            f"{sorted(missing_kaggle)}"
+        )
 
 
 @requires_db
