@@ -95,6 +95,22 @@ systemctl --user daemon-reload
 # optional: sudo loginctl disable-linger "$USER"
 ```
 
+## Troubleshooting
+
+- **Service fails instantly with no log output** (`status=1/FAILURE`,
+  `journalctl` shows only systemd's own lines): almost always a
+  variable/PATH that your interactive shell sets but a systemd service env does
+  not. A systemd `--user` service starts with a minimal environment — it does
+  **not** source `~/.bashrc`/`~/.profile`, so things like `MAMBA_ROOT_PREFIX`
+  are absent. `scripts/worklogs_dump.sh` defaults `MAMBA_ROOT_PREFIX` and relaxes
+  `set -u` around the micromamba hook for exactly this reason. To debug any
+  variant, run the script directly (`~/test/tt_pangu/scripts/worklogs_dump.sh`)
+  or under a stripped env (`env -i HOME="$HOME" PATH=/usr/bin:/bin
+  scripts/worklogs_dump.sh`) to see the real error.
+- **`gh: command not found` / auth errors** under the service: ensure `gh` is on
+  the PATH the script builds, and that `gh auth status` is logged in for your
+  user (the service runs as you and reads `~/.config/gh`).
+
 ## Caveats
 
 - **Build cost.** `WORKLOG_MERGE_MODE=pr` opens a PR daily, which triggers the
