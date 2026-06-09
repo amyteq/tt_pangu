@@ -1,0 +1,156 @@
+# reasoning suite cases — M13-T005.
+#
+# Each case shape:
+#   name:                unique slug; eval_results.case_name.
+#   prompt_kind:         informational label of what the case exercises
+#                        (research_brief | debug_trace | cv_analysis |
+#                         submit_decision | tool_choice).
+#   input_files:         list of fixture paths (relative to tests/fixtures/
+#                        reasoning/ unless otherwise prefixed) materialised
+#                        for the case.
+#   deterministic_check: shape contract validated WITHOUT an LLM.
+#       required_keys:   top-level keys the response MUST have. AND-matched.
+#       extra:           per-case extra constraints; values handled inline by
+#                        the runner (citation_count_min, enum, etc.).
+#   rubric_prompt:       jinja-style template the rubric-LLM call would use
+#                        when --route != mocked; T005 stores it but does not
+#                        invoke it. T006 will exercise it live.
+#   expected_keys:       (subset of) keys the rubric output is expected to
+#                        produce; recorded for the report aggregator (T007).
+#   max_cost_usd:        hard per-case cost cap; default $0.05.
+#
+# Determinism rule: the mocked responder reads
+# tests/fixtures/reasoning/mocked_responses.json keyed by case name. Every
+# case below must have a corresponding key in that file. Two consecutive
+# --route mocked runs MUST produce byte-identical metrics.
+
+cases:
+  - name: research_brief_from_cached_pages
+    prompt_kind: research_brief
+    input_files:
+      - research/01-kaggle-spaceship-overview.html
+      - research/02-sklearn-hgb-docs.html
+      - research/03-forum-feature-engineering.html
+    deterministic_check:
+      required_keys:
+        - citations
+        - key_findings
+        - explicit_unknowns
+        - sources
+      extra:
+        citation_count_min: 3
+        trust_enum:
+          - official
+          - trusted_public
+          - community
+          - untrusted
+          - unknown
+        trust_field: sources
+    rubric_prompt: |
+      You are a research-brief reviewer. Given the input HTML pages and
+      the agent's brief, score the brief 0-1 on: citation completeness,
+      trust labelling accuracy, and explicit-unknowns surfacing.
+      Return JSON: {score: float in [0,1], rationale: str}.
+    expected_keys:
+      - score
+      - rationale
+    max_cost_usd: 0.05
+
+  - name: debug_worker_trace
+    prompt_kind: debug_trace
+    input_files:
+      - worker_trace.jsonl
+    deterministic_check:
+      required_keys:
+        - root_cause
+        - evidence_event_ids
+        - proposed_fix
+      extra:
+        evidence_min: 1
+        valid_event_id_prefix: "evt-"
+    rubric_prompt: |
+      You are a worker-trace debugger reviewer. Given the JSONL trace
+      and the agent's diagnosis, score 0-1 on root-cause accuracy,
+      evidence grounding, and fix actionability.
+      Return JSON: {score: float in [0,1], rationale: str}.
+    expected_keys:
+      - score
+      - rationale
+    max_cost_usd: 0.05
+
+  - name: cv_result_analysis
+    prompt_kind: cv_analysis
+    input_files:
+      - cv_row.json
+    deterministic_check:
+      required_keys:
+        - is_overfit
+        - recommendation
+        - next_experiment
+      extra:
+        recommendation_enum:
+          - regularize
+          - more_data
+          - different_model
+          - ship_it
+          - investigate
+        boolean_keys:
+          - is_overfit
+    rubric_prompt: |
+      You are a CV-result reviewer. Given the experiment_runs row and the
+      agent's analysis, score 0-1 on overfit diagnosis accuracy,
+      recommendation specificity, and next-experiment concreteness.
+      Return JSON: {score: float in [0,1], rationale: str}.
+    expected_keys:
+      - score
+      - rationale
+    max_cost_usd: 0.05
+
+  - name: submit_decision_rationale
+    prompt_kind: submit_decision
+    input_files:
+      - submit_candidate.json
+    deterministic_check:
+      required_keys:
+        - should_submit
+        - scenario_tag
+        - rationale
+      extra:
+        scenario_enum:
+          - 1
+          - 2
+          - 3
+          - 4
+        boolean_keys:
+          - should_submit
+    rubric_prompt: |
+      You are a submission-gate reviewer. Given the candidate row, current
+      best LB, daily slots, and days-to-close, score 0-1 on whether the
+      agent picked the right scenario and rationale per the four-scenario
+      table in CLAUDE.md.
+      Return JSON: {score: float in [0,1], rationale: str}.
+    expected_keys:
+      - score
+      - rationale
+    max_cost_usd: 0.05
+
+  - name: tool_choice_rationale
+    prompt_kind: tool_choice
+    input_files:
+      - tool_choice_step.json
+    deterministic_check:
+      required_keys:
+        - chosen_tool
+        - justification
+      extra:
+        chosen_tool_field: chosen_tool
+        legal_subcommand_source: tool_choice_step.json
+    rubric_prompt: |
+      You are a tool-choice reviewer. Given the step's goal and the two
+      candidate tools, score 0-1 on tool-choice correctness and
+      justification clarity.
+      Return JSON: {score: float in [0,1], rationale: str}.
+    expected_keys:
+      - score
+      - rationale
+    max_cost_usd: 0.05

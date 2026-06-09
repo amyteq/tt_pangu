@@ -23,7 +23,20 @@ DEFAULT_TRIGGER_OPS = (
     "git_force_push",
     "dataset_upload",
     "delete_artifact",
+    # M11 (ADR-0017): CTF approval operations. The reviewer-gate is the
+    # deny-default authority for these; the hook layer
+    # (.claude/hooks/guard_tool.py) acts as a secondary defense for known-bad
+    # paths/hosts even before the reviewer fires. An httpx-level interceptor
+    # is out of scope for M11 (filed as a follow-up).
+    "challenge_run",
+    "flag_submit",
+    "network_egress",
 )
+
+# Flag-substring sentinels we MUST NOT render into the reviewer prompt for
+# the flag_submit op. Kept narrow on purpose: the worker is expected to pass
+# the flag value under the `tool_input["flag"]` key.
+_FLAG_INPUT_KEYS = ("flag", "flag_value", "submission")
 
 
 @dataclass
@@ -80,6 +93,31 @@ def _trim_event_trail(events: list[dict], max_events: int = 20) -> list[dict]:
 _EVENT_TRAIL_TRIAGE_THRESHOLD = 8 * 1024  # 8 KB
 
 
+def _redact_tool_input(target_op: str, tool_input: dict) -> dict:
+    """Strip secret-shaped fields from the reviewer-rendered tool_input.
+
+    M11 (ADR-0017): for `flag_submit` the flag value MUST NEVER appear in
+    the reviewer prompt, agent_reviews.rationale, agent_job_events.event_data,
+    or any audit row. The reviewer only needs the event slug, challenge slug,
+    and the flag length to decide.
+    """
+    if not isinstance(tool_input, dict):
+        return tool_input
+    if target_op != "flag_submit":
+        return tool_input
+    redacted: dict[str, Any] = {}
+    for k, v in tool_input.items():
+        if k in _FLAG_INPUT_KEYS:
+            try:
+                length = len(v) if isinstance(v, (str, bytes, list, tuple)) else None
+            except Exception:
+                length = None
+            redacted[k] = {"_redacted": True, "length": length}
+        else:
+            redacted[k] = v
+    return redacted
+
+
 def _render_prompt(req: ReviewRequest) -> str:
     trail = _trim_event_trail(req.event_trail)
     trail_json = json.dumps(trail, default=str, ensure_ascii=False)
@@ -100,7 +138,7 @@ def _render_prompt(req: ReviewRequest) -> str:
         "job_id": req.job_id,
         "target_op": req.target_op,
         "tool_name": req.tool_name,
-        "tool_input": req.tool_input,
+        "tool_input": _redact_tool_input(req.target_op, req.tool_input),
         "final_message": req.final_message,
     }
     if summary_block is not None:
@@ -121,6 +159,22 @@ def _trigger_ops_from_env() -> set[str]:
 def should_consult_reviewer(operation: str) -> bool:
     """Return True if the given operation is in the configured trigger set."""
     return operation in _trigger_ops_from_env()
+
+
+def run_review(req: ReviewRequest, *, dry_run: bool = True) -> ReviewVerdict:
+    """Module-level convenience wrapper. Runs a Reviewer with the given
+    request. Default to dry-run so callers from tests / smoke paths don't
+    accidentally hit the LiteLLM endpoint."""
+    reviewer = Reviewer(dry_run=dry_run)
+    return reviewer.review(req)
+
+
+def render_review_context(req: ReviewRequest) -> str:
+    """Render the exact prompt body a live reviewer would see. Used by tests
+    (and by future structured-audit code) to assert that the flag value never
+    appears in the reviewer's context for `flag_submit`.
+    """
+    return _render_prompt(req)
 
 
 def escalate_reject() -> bool:

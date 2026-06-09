@@ -27,7 +27,7 @@ graded against.
 This is also the first milestone whose entry task (`M13-T000`) is
 tagged `arch:` and therefore triggers the **Discovery / Debate Gate**
 (M9.4): `legacy-archaeologist` (skippable — greenfield), then
-`requirements-skeptic`, then `design-red-team`. ADR-0016 must cite all
+`requirements-skeptic`, then `design-red-team`. ADR-0019 must cite all
 three transcripts under `docs/evidence/m13/T000/discovery/` before any
 implementation begins.
 
@@ -53,8 +53,8 @@ Direct entry into M13 is blocked until **all** are true:
 
 | Capability | Owned by | M13 touches |
 |---|---|---|
-| Regression-suite framework + metrics schema | `docs/adr/0016-eval-regression-suite.md` + `docs/architecture/eval-regression-suite.md` | T000 |
-| `eval_suites` / `eval_runs` / `eval_results` tables | `supabase/migrations/0008_m13_eval.sql` + `tools/kca/db.py` | T001 |
+| Regression-suite framework + metrics schema | `docs/adr/0019-eval-regression-suite.md` + `docs/architecture/eval-regression-suite.md` | T000 |
+| `eval_suites` / `eval_runs` / `eval_results` tables | `supabase/migrations/0010_m13_eval.sql` + `tools/kca/db.py` | T001 |
 | `kca eval` CLI surface (`list`, `run`, `show`, `report`) | `tools/kca/eval.py` + `tools/kca/kca.py` registration | T001 — scaffold; T002–T007 — fill |
 | Tool-smoke suite (deterministic, no LLM) | `tools/kca/eval/suites/tool_smoke/` + fixtures | T002 |
 | Kaggle classic-practice replay (Titanic / Spaceship Titanic / House Prices) | `tools/kca/eval/suites/kaggle_replay/` + fixtures | T003 |
@@ -98,8 +98,8 @@ route also needs sandbox bypass; default is the local-vllm route or
 
 | Task | Goal | Loop Prompt |
 |---|---|---|
-| M13-T000 | `arch:` Regression-suite design + ADR-0016 + Discovery / Debate Gate transcripts | Prompt 0 |
-| M13-T001 | Migration 0008 (`eval_suites` / `eval_runs` / `eval_results`) + `kca eval` CLI scaffold | Prompt 1 |
+| M13-T000 | `arch:` Regression-suite design + ADR-0019 + Discovery / Debate Gate transcripts | Prompt 0 |
+| M13-T001 | Migration 0010 (`eval_suites` / `eval_runs` / `eval_results`) + `kca eval` CLI scaffold | Prompt 1 |
 | M13-T002 | Tool-smoke suite (deterministic; no LLM; per-tool fixture inputs/outputs; ≥10 cases) | Prompt 2 |
 | M13-T003 | Kaggle classic-practice replay suite (Titanic / Spaceship Titanic / House Prices fixtures; offline) | Prompt 3 |
 | M13-T004 | Notebook/kernel dry-run regression — reuses M10-T007 fixtures + reviewer-gate stub | Prompt 4 |
@@ -115,10 +115,10 @@ spec.
 
 ---
 
-## Loop Prompt 0 — M13-T000 Regression-suite design + ADR-0016 (arch:)
+## Loop Prompt 0 — M13-T000 Regression-suite design + ADR-0019 (arch:)
 
 ```
-/goal Execute M13-T000 regression-suite architecture + ADR-0016 + Discovery / Debate Gate transcripts until acceptance criteria pass or stop after 80 turns and summarize blockers.
+/goal Execute M13-T000 regression-suite architecture + ADR-0019 + Discovery / Debate Gate transcripts until acceptance criteria pass or stop after 80 turns and summarize blockers.
 
 Follow: docs/milestone-loop-protocol.md (note §7 — Discovery / Debate Gate is MANDATORY for this `arch:` task)
 Task spec: docs/tasks/M13-T000-eval-architecture.md
@@ -136,7 +136,7 @@ Read also (background context):
 - tools/kca/run.py (existing run-artifact layout)
 
 Mission (full version in task spec):
-Write `docs/adr/0016-eval-regression-suite.md` and the companion
+Write `docs/adr/0019-eval-regression-suite.md` and the companion
 `docs/architecture/eval-regression-suite.md`. Run the Discovery /
 Debate Gate (skip `legacy-archaeologist` only with an explicit
 greenfield note). Attach all three transcripts under
@@ -146,16 +146,16 @@ changes in this Loop Prompt — design only.
 
 ---
 
-## Loop Prompt 1 — M13-T001 Migration 0008 + `kca eval` CLI scaffold
+## Loop Prompt 1 — M13-T001 Migration 0010 + `kca eval` CLI scaffold
 
 ```
-/goal Execute M13-T001 migration 0008 (eval_suites / eval_runs / eval_results) + `kca eval` CLI scaffold until acceptance criteria pass or stop after 60 turns and summarize blockers.
+/goal Execute M13-T001 migration 0010 (eval_suites / eval_runs / eval_results) + `kca eval` CLI scaffold until acceptance criteria pass or stop after 60 turns and summarize blockers.
 
 Follow: docs/milestone-loop-protocol.md
 Task spec: docs/tasks/M13-T001-migration-and-cli.md
 
 Read also (background context):
-- M13-T000 closeout (ADR-0016 + architecture doc)
+- M13-T000 closeout (ADR-0019 + architecture doc)
 - supabase/migrations/0007_m8_agent_tool_audit.sql (most recent migration)
 - supabase/migrations/0006_m6_reviews_spans.sql (the M6 pattern for new tables)
 - tools/kca/db.py (helper functions for new tables follow the M6 / M8 pattern)
@@ -164,7 +164,7 @@ Read also (background context):
 - docs/architecture/kca-cli-architecture.md
 
 Mission (full version in task spec):
-Add `supabase/migrations/0008_m13_eval.sql` (the three tables and
+Add `supabase/migrations/0010_m13_eval.sql` (the three tables and
 their indexes), the matching helpers in `tools/kca/db.py`, and the
 `kca eval` subcommand surface with four placeholder verbs
 (`list`, `run`, `show`, `report`). No suites yet; the scaffold must
@@ -498,7 +498,7 @@ if any of these is true:
 
 If M13 needs a new architectural decision mid-flight (e.g.
 "reasoning benchmark needs its own DB table", "model-route harness
-needs a new run-artefact shape"), pause and update ADR-0016 in a
+needs a new run-artefact shape"), pause and update ADR-0019 in a
 new revision; do not advance to the next Loop Prompt with hidden
 schema drift.
 

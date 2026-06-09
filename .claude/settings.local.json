@@ -3,7 +3,11 @@
     "allow": [
       "WebFetch(domain:ndownloader.figshare.com)",
       "WebFetch(domain:supabase-db)",
-      "Bash(echo \"EXIT $?\")"
+      "Bash(echo \"EXIT $?\")",
+      "Bash(echo \"fake-flag-do-not-leak\")",
+      "Bash(env -u KCA_ALLOW_REMOTE python tools/kca/kca.py ctf flag submit --event demo --challenge x --flag-file /tmp/_flag_test.txt --dry-run)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(env -u KCA_ALLOW_REMOTE python tools/kca/kca.py ctf flag submit --event demo --challenge x --flag-file /tmp/_flag_test.txt)"
     ]
   },
   "worktree": {

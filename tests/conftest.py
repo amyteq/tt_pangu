@@ -31,7 +31,19 @@ def cleanup_run_dir(unique_competition: str) -> Iterator[str]:
 
 @pytest.fixture(scope="session")
 def db_url() -> str:
-    """Return the SUPABASE_DB_URL from env. Test files using this fixture should
-    also be guarded by `@requires_db` so they skip cleanly when unset.
+    """Return the SUPABASE_DB_URL using the same resolution kca itself uses.
+
+    `tools/kca/db.py` loads `.vscode/.env` (override=True) and the repo-root
+    `.env` (override=False) on import. Mirror that here so a stale parent
+    shell env can't shadow the workspace's authoritative cloud DSN.
+    Tests using this fixture should also be guarded by `@requires_db` so they
+    skip cleanly when no DSN is configured anywhere.
     """
+    try:
+        from dotenv import load_dotenv
+
+        load_dotenv(REPO_ROOT / ".vscode" / ".env", override=True)
+        load_dotenv(REPO_ROOT / ".env", override=False)
+    except ImportError:
+        pass
     return os.environ.get("SUPABASE_DB_URL") or ""

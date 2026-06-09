@@ -1,0 +1,284 @@
+name: eval
+
+# Nightly mocked-route eval-suite run for the M13 regression framework.
+#
+# This workflow runs every day at 03:30 UTC against the in-process eval
+# framework (no Supabase, no Anthropic, no Kaggle — all under --route
+# mocked). It uploads the JSON snapshot + Markdown report as workflow
+# artefacts, then a follow-up job downloads the previous nightly
+# snapshot and posts a side-by-side diff on the canonical "M13 nightly
+# eval — rolling diff" tracking issue when any suite × route group
+# flipped pass↔fail.
+#
+# Hard guarantees:
+#   - No KAGGLE_* / *_API_KEY in the workflow env.
+#   - --route mocked always; paid LLM / Kaggle calls are operator-only,
+#     local, and never trigger from this workflow.
+#   - Audit-grep regression sentinel inspects the snapshot + the
+#     in-repo .agent/audit.jsonl for forbidden Kaggle CLI patterns
+#     (kaggle competitions submit / kernels push / datasets create /
+#     datasets version). Any hit fails the job.
+
+on:
+  schedule:
+    - cron: "30 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  actions: read
+
+concurrency:
+  group: eval-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  KCA_SKIP_DOTENV: "1"
+  KCA_ALLOW_REMOTE: ""
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  eval-mocked:
+    name: eval (mocked nightly)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      snapshot: ${{ steps.locations.outputs.snapshot }}
+      report: ${{ steps.locations.outputs.report }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install kca
+        run: pip install -e ".[dev]"
+
+      - name: locations
+        id: locations
+        run: |
+          echo "snapshot=/tmp/eval-snapshot.json" >> "$GITHUB_OUTPUT"
+          echo "report=/tmp/eval-report.md" >> "$GITHUB_OUTPUT"
+
+      - name: run kca eval (all suites, mocked, dry-run)
+        run: |
+          python tools/kca/kca.py eval run \
+            --all \
+            --route mocked \
+            --dry-run \
+            --json \
+            > /tmp/eval-run-stdout.log
+          # The CLI prints multi-line stderr warnings (db-skip noise) and
+          # a single JSON payload on stdout — pull the last JSON line.
+          tail -n 200 /tmp/eval-run-stdout.log | grep -E '^\{' | tail -n 1 \
+            > /tmp/eval-snapshot.json
+          if [ ! -s /tmp/eval-snapshot.json ]; then
+            echo "::error::no JSON payload produced by kca eval run --all"
+            cat /tmp/eval-run-stdout.log
+            exit 1
+          fi
+          python -c "import json,sys; p=json.load(open('/tmp/eval-snapshot.json')); print('ok:', p.get('ok'), 'suites:', len(p.get('suites',[])))"
+
+      - name: render markdown report
+        run: |
+          # The --md verb needs a DB; without one we render a minimal
+          # JSON-derived markdown so eval-diff still has something to
+          # compare. The aggregator module's render_markdown is the
+          # canonical renderer when a DB is available; here we fall
+          # back to a slim summary.
+          python <<'PY'
+          import json, datetime
+          payload = json.load(open("/tmp/eval-snapshot.json"))
+          lines = []
+          lines.append(f"# M13 nightly eval snapshot — {datetime.datetime.utcnow().isoformat()}Z")
+          lines.append("")
+          totals = payload.get("totals", {})
+          lines.append(f"- ok: {payload.get('ok')}")
+          lines.append(f"- route: {payload.get('route')}")
+          lines.append(f"- dry_run: {payload.get('dry_run')}")
+          lines.append(f"- total_cases: {totals.get('total_cases')}")
+          lines.append(f"- total_pass:  {totals.get('total_pass')}")
+          lines.append(f"- total_fail:  {totals.get('total_fail')}")
+          lines.append(f"- total_skip:  {totals.get('total_skip')}")
+          lines.append(f"- total_error: {totals.get('total_error')}")
+          lines.append(f"- audit_grep_violations: {payload.get('audit_grep_violations', 0)}")
+          lines.append("")
+          lines.append("## Per-suite roll-up")
+          lines.append("")
+          lines.append("| Suite | cases | pass | fail | skip | error |")
+          lines.append("|---|---:|---:|---:|---:|---:|")
+          for s in payload.get("suites", []):
+              lines.append(
+                  f"| {s.get('name')} | {s.get('case_count', 0)} | "
+                  f"{s.get('pass', 0)} | {s.get('fail', 0)} | "
+                  f"{s.get('skip', 0)} | {s.get('error', 0)} |"
+              )
+          open("/tmp/eval-report.md", "w").write("\n".join(lines) + "\n")
+          print("wrote /tmp/eval-report.md")
+          PY
+
+      - name: audit-grep sentinel
+        run: |
+          # The eval framework writes audit lines to .agent/audit.jsonl.
+          # Re-check both the JSON snapshot AND the audit log for any of
+          # the M10-T007 forbidden Kaggle CLI patterns. Any hit FAILs
+          # the nightly.
+          set +e
+          FOUND=0
+          for needle in "kaggle competitions submit" "kaggle kernels push" "kaggle datasets create" "kaggle datasets version"; do
+            for target in /tmp/eval-snapshot.json .agent/audit.jsonl; do
+              if [ -f "$target" ] && grep -F "$needle" "$target"; then
+                echo "::error::forbidden Kaggle CLI pattern found in $target: $needle"
+                FOUND=1
+              fi
+            done
+          done
+          if [ "$FOUND" -ne 0 ]; then
+            exit 1
+          fi
+          echo "audit-grep sentinel passed: no forbidden Kaggle CLI lines."
+
+      - name: upload eval snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-snapshot
+          path: /tmp/eval-snapshot.json
+          retention-days: 30
+
+      - name: upload eval report
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: /tmp/eval-report.md
+          retention-days: 30
+
+  eval-diff:
+    name: eval (rolling diff)
+    needs: eval-mocked
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: download current snapshot
+        uses: actions/download-artifact@v4
+        with:
+          name: eval-snapshot
+          path: current/
+
+      - name: download previous snapshot
+        id: prev
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Find the most recent successful run BEFORE this one and
+          # download its eval-snapshot artefact. Falls back to "no
+          # previous snapshot" on the first nightly.
+          set +e
+          PREV_RUN_ID=$(gh run list \
+            --workflow eval.yml \
+            --branch "${{ github.ref_name }}" \
+            --status success \
+            --limit 5 \
+            --json databaseId,number,headBranch \
+            -q '.[] | .databaseId' | sed -n '2p')
+          if [ -z "$PREV_RUN_ID" ]; then
+            echo "no_previous=1" >> "$GITHUB_OUTPUT"
+            echo "::notice::no previous successful nightly snapshot to diff against."
+            exit 0
+          fi
+          mkdir -p previous
+          gh run download "$PREV_RUN_ID" \
+            --name eval-snapshot \
+            --dir previous/ \
+            --repo "${{ github.repository }}" \
+          || {
+            echo "no_previous=1" >> "$GITHUB_OUTPUT"
+            echo "::notice::previous run $PREV_RUN_ID had no eval-snapshot artefact."
+            exit 0
+          }
+          echo "previous_run_id=$PREV_RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: compute side-by-side diff
+        id: diff
+        if: steps.prev.outputs.no_previous != '1'
+        run: |
+          python <<'PY'
+          import json, os, pathlib
+          cur = json.load(open("current/eval-snapshot.json"))
+          prev = json.load(open("previous/eval-snapshot.json"))
+          def fingerprint(payload):
+              fp = {}
+              for s in payload.get("suites", []):
+                  name = s.get("name")
+                  fp[name] = {
+                      "pass": s.get("pass", 0),
+                      "fail": s.get("fail", 0),
+                      "skip": s.get("skip", 0),
+                      "error": s.get("error", 0),
+                  }
+              return fp
+          cur_fp = fingerprint(cur)
+          prev_fp = fingerprint(prev)
+          flipped = []
+          for name in sorted(set(cur_fp) | set(prev_fp)):
+              c = cur_fp.get(name, {"pass":0,"fail":0,"skip":0,"error":0})
+              p = prev_fp.get(name, {"pass":0,"fail":0,"skip":0,"error":0})
+              cur_fail = (c.get("fail",0) + c.get("error",0)) > 0
+              prev_fail = (p.get("fail",0) + p.get("error",0)) > 0
+              if cur_fail != prev_fail:
+                  flipped.append((name, p, c))
+          gha_out = os.environ["GITHUB_OUTPUT"]
+          if not flipped:
+              with open(gha_out, "a") as fh:
+                  fh.write("flipped=0\n")
+              print("no pass↔fail flips since previous nightly.")
+          else:
+              lines = []
+              lines.append("## M13 nightly eval — flip detected")
+              lines.append("")
+              lines.append("| suite | previous (pass/fail/skip/error) | current (pass/fail/skip/error) |")
+              lines.append("|---|---|---|")
+              for name, p, c in flipped:
+                  lines.append(
+                      f"| {name} | {p['pass']}/{p['fail']}/{p['skip']}/{p['error']} | "
+                      f"{c['pass']}/{c['fail']}/{c['skip']}/{c['error']} |"
+                  )
+              pathlib.Path("/tmp/eval-diff.md").write_text("\n".join(lines) + "\n")
+              with open(gha_out, "a") as fh:
+                  fh.write("flipped=1\n")
+                  fh.write(f"flipped_count={len(flipped)}\n")
+              print(f"{len(flipped)} suite(s) flipped pass↔fail.")
+          PY
+
+      - name: post comment on rolling-diff tracking issue
+        if: steps.diff.outputs.flipped == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          # The tracking issue is searched by title; we never open a new
+          # one per nightly. If it does not exist, the workflow fails
+          # loudly so the operator can create it (M13-T008 sets it up
+          # as part of the milestone closeout).
+          ISSUE_NUMBER=$(gh issue list \
+            --search 'M13 nightly eval — rolling diff in:title' \
+            --state open \
+            --json number,title \
+            -q '.[0].number')
+          if [ -z "$ISSUE_NUMBER" ]; then
+            echo "::error::tracking issue 'M13 nightly eval — rolling diff' not found; create it once and re-run."
+            exit 1
+          fi
+          gh issue comment "$ISSUE_NUMBER" \
+            --body-file /tmp/eval-diff.md
+          echo "commented on issue #$ISSUE_NUMBER"

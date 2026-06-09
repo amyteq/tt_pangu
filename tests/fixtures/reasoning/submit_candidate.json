@@ -1,0 +1,16 @@
+{
+  "competition": "spaceship-titanic",
+  "candidate": {
+    "submission_id": "sub-2026-06-09-hgb-fe",
+    "experiment_id": "exp-2026-06-09-hgb-fe",
+    "expected_score": 0.812,
+    "metric_name": "accuracy",
+    "metric_direction": "maximize"
+  },
+  "current_best_lb": 0.805,
+  "daily_remaining": 4,
+  "daily_limit": 5,
+  "days_to_close": 28,
+  "competition_period_days": 50,
+  "candidates_beating_best": 1
+}

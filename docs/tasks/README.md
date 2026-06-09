@@ -111,6 +111,36 @@ Example: `M0-T001-project-baseline.md`
 | `M9-T006-regression-assertions.md` | M9 | proposed | CV ≥ 0.78 (LR), ≥ 0.80 (HGB); LB recorded; HGB > LR |
 | `M9-T007-e2e-dryrun-test.md` | M9 | proposed | `tests/test_m9_e2e.py` dry-run path (no credentials, no network, no DB) |
 | `M9-T008-m9-exit-criteria.md` | M9 | proposed | M9 exit criteria + `docs/m9-final-review.md` + M9 PR |
+| `M11-T000-discovery-debate-gate.md` | M11 | done | Discovery / Debate Gate — 3 subagent reports for CTF data model + approval ops |
+| `M11-T001-ctf-schema-db.md` | M11 | done | `supabase/migrations/0008_m11_ctf.sql` + `src/db/ctf.py` helpers + ADR-0016 |
+| `M11-T002-approval-gates.md` | M11 | done | `challenge_run` / `flag_submit` / `network_egress` ops + reviewer-gate wiring + ADR-0017 |
+| `M11-T003-kca-ctf-cli.md` | M11 | done | `tools/kca/ctf.py` 12 subcommands across 5 namespaces + COMMANDS.md |
+| `M11-T004-frozen-challenges.md` | M11 | done | Frozen past-event bundle (web-1 + crypto-1 bespoke fixtures) + licensing brief |
+| `M11-T005-local-solve-loop.md` | M11 | done | Agent loop solves web + crypto locally; 2 `ctf_attempts(accepted=true)` in cloud |
+| `M11-T006-reviewer-gate.md` | M11 | done | Reviewer-gate round-trips for `challenge_run` + `flag_submit`; `network_egress` reject smoke |
+| `M11-T007-live-flag-submission.md` | M11 | deferred | ONE real flag submission to live CTFtime event (SKIP-BLOCKED — human action required) |
+| `M11-T008-e2e-dryrun-test.md` | M11 | done | `tests/test_m11_e2e.py` (8/8) + `tests/test_m11_smoke.py` (7/7) |
+| `M11-T009-m11-exit-criteria.md` | M11 | done | M11 exit criteria + `docs/m11-final-review.md` + handoff + PR |
+| `M12-T000-survey-and-pick-target.md` | M12 | done | Survey 2–3 Devpost/hackathon candidates; human picks target slug h01 |
+| `M12-T001-discovery-debate-gate.md` | M12 | done | Discovery/Debate Gate on competition-policy generalization; ADR-0018 |
+| `M12-T002-schema-and-policy.md` | M12 | done | Migration 0009 — competition_type / teams / deadline; policy resolver refactor |
+| `M12-T003-devpost-adapter.md` | M12 | done | `tools/kca/devpost.py` + `kca devpost register/fetch/info` (READ_ONLY) |
+| `M12-T004-hackathon-skill.md` | M12 | done | hackathon-experiment-loop skill + hackathon-runner.yaml + submission_checklist tool |
+| `M12-T005-ui-pages.md` | M12 | done | UI: HackathonDeadline + SubmissionChecklist pages + routes + tests |
+| `M12-T006-end-to-end-local.md` | M12 | done | Worker runs hackathon flow end-to-end; submission_pack produced (hand-driven) |
+| `M12-T007-real-submit.md` | M12 | done | Reviewer gate fired; cmd_submit added (credentials-gated); real submit DEFERRED |
+| `M12-T008-regression-tests.md` | M12 | done | `tests/test_m12_e2e.py` (6 tests) + `tests/test_m12_smoke.py` (5 PASS + 2 XFAIL) |
+| `M12-T009-final-review.md` | M12 | done | M12 exit criteria + `docs/m12-final-review.md` + closeout |
+| `M13-T000-eval-architecture.md` | M13 | done | `arch:` Discovery/Debate Gate; ADR-0019 (renumbered from 0016 — M11 took 0016/0017 + M12 took 0018); regression-suite architecture doc |
+| `M13-T001-migration-and-cli.md` | M13 | done | Migration **0010_m13_eval.sql** (renumbered from 0008 — M11 took 0008 and M12 took 0009); 8 DB helpers; `kca eval` CLI scaffold |
+| `M13-T002-tool-smoke-suite.md` | M13 | done | `tool-smoke` suite; 10 cases; deterministic; audit-grep clean |
+| `M13-T003-kaggle-replay-suite.md` | M13 | done | 3 Kaggle replay suites (titanic, spaceship-titanic, house-prices); offline fixtures; deterministic |
+| `M13-T004-notebook-kernel-dryrun-suite.md` | M13 | done | `kernel-dryrun` suite; 4 cases; credentials-gate refusal verified; M10 fixture coexistence |
+| `M13-T005-reasoning-benchmark.md` | M13 | done | `reasoning` suite; 5 cases; deterministic shape-check judge |
+| `M13-T006-model-route-comparison.md` | M13 | done | 5 routes wired; paid-route refusal; `--route-compare` 25 rows; no money spent |
+| `M13-T007-report-aggregator.md` | M13 | done | Aggregator + `kca eval report` (JSON + MD); canonical snapshot committed |
+| `M13-T008-ci-and-tests.md` | M13 | done | CI nightly cron; `tests/test_m13_smoke.py` (6); `tests/test_m13_e2e.py` (6); tracking issue #47 |
+| `M13-T009-m13-exit-criteria.md` | M13 | done | M13 exit criteria + `docs/m13-final-review.md` + tracking-doc updates + PR |
 
 > **Convention (M0–M6, M8.5 onward):** Every milestone uses the
 > **double-layer** pattern — `docs/m{N}-loop-prompts.md` for the per-loop
