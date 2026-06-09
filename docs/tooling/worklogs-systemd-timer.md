@@ -116,6 +116,13 @@ systemctl --user daemon-reload
 - **Build cost.** `WORKLOG_MERGE_MODE=pr` opens a PR daily, which triggers the
   full CI suite for a Markdown-only change. If that's wasteful, set
   `WORKLOG_MERGE_MODE=direct` to commit straight to `main` (skips CI/PR).
+- **How "merge after green" works.** GitHub's *native* auto-merge needs the
+  repo's "Allow auto-merge" setting **and** a required status check via branch
+  protection — both unavailable on a free private repo. So the script polls the
+  checks itself and merges when they pass. It deliberately waits out the first
+  few seconds where the PR has *no checks registered yet* (otherwise
+  `gh pr checks` reports "no checks" and the run would bail early). A genuinely
+  red build leaves the PR open instead of merging.
 - **Machine must be on.** A user timer only fires when the host is up;
   `Persistent=true` catches a missed run on the next boot.
 - **Masking is heuristic** (see `SECRET_PATTERNS` in `exp_cc.py`). Treat worklogs
