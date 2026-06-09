@@ -25,10 +25,11 @@ from typing import Any, Iterable
 
 # Load .env from repo root automatically if python-dotenv is installed.
 # This is a no-op when .env doesn't exist or dotenv isn't installed.
-# KCA_SKIP_DOTENV lets a caller (e.g. a test subprocess that scrubbed its env)
-# opt out, so the repo-root secrets file is not silently re-injected regardless
-# of cwd — see issue #11 (Kaggle leaderboard pollution).
-if not os.environ.get("KCA_SKIP_DOTENV"):
+# Set ``KCA_SKIP_DOTENV=1`` to suppress this — lets a caller (e.g. a test
+# subprocess that scrubbed its env) opt out so the repo-root secrets file is
+# not silently re-injected regardless of cwd — see issue #11 (Kaggle LB
+# pollution) and the M13-T004 ``credentials_gate_refusal`` suite case.
+if os.environ.get("KCA_SKIP_DOTENV") != "1":
     try:
         from dotenv import load_dotenv as _load_dotenv
 
@@ -111,6 +112,15 @@ __all__ = [
     "set_job_trace",
     # M8 tool audit (0007 schema)
     "insert_tool_audit",
+    # M13 eval regression suite (0008 schema)
+    "register_eval_suite",
+    "start_eval_run",
+    "finish_eval_run",
+    "record_eval_result",
+    "list_eval_suites",
+    "list_eval_runs",
+    "fetch_eval_results",
+    "get_eval_run",
 ]
 
 
@@ -2020,6 +2030,331 @@ def _insert_tool_audit(conn: "psycopg.Connection", rec: dict) -> int:
     conn.commit()
     assert row is not None
     return row["id"]
+
+
+# ---------------------------------------------------------------------------
+# M13: eval regression suite (schema in 0008)
+# ---------------------------------------------------------------------------
+
+
+_EVAL_VALID_CATEGORIES = {
+    "tool_smoke",
+    "kaggle_replay",
+    "kernel_dryrun",
+    "reasoning",
+    "model_route_compare",
+}
+_EVAL_VALID_STATUSES = {"pass", "fail", "skip", "error"}
+
+
+def register_eval_suite(
+    name: str,
+    description: str | None,
+    version: str,
+    category: str,
+    metadata: dict | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> str:
+    """Upsert an eval_suites row keyed by name. Returns the suite id (uuid str).
+
+    Idempotent on ``name``: a second call with the same ``name`` updates
+    description / version / category / metadata in place and returns the
+    same suite id. This is the registration entry point invoked by
+    ``tools/kca/eval/__init__.register_all()``.
+    """
+    if category not in _EVAL_VALID_CATEGORIES:
+        raise ValueError(
+            f"category must be one of {sorted(_EVAL_VALID_CATEGORIES)}, "
+            f"got {category!r}"
+        )
+    return _with_conn(
+        conn,
+        _register_eval_suite,
+        name,
+        description,
+        version,
+        category,
+        metadata or {},
+    )
+
+
+def _register_eval_suite(
+    conn: "psycopg.Connection",
+    name: str,
+    description: str | None,
+    version: str,
+    category: str,
+    metadata: dict,
+) -> str:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO eval_suites (name, description, version, category, metadata)
+            VALUES (%s, %s, %s, %s, %s::jsonb)
+            ON CONFLICT (name) DO UPDATE
+              SET description = EXCLUDED.description,
+                  version     = EXCLUDED.version,
+                  category    = EXCLUDED.category,
+                  metadata    = EXCLUDED.metadata
+            RETURNING id::text
+            """,
+            (name, description, version, category, json.dumps(metadata)),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    assert row is not None
+    return row["id"]
+
+
+def start_eval_run(
+    route: str,
+    dry_run: bool,
+    budget_usd: float | None = None,
+    metadata: dict | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> str:
+    """Insert a new eval_runs row with started_at = now(). Returns run id."""
+    return _with_conn(
+        conn,
+        _start_eval_run,
+        route,
+        bool(dry_run),
+        budget_usd,
+        metadata or {},
+    )
+
+
+def _start_eval_run(
+    conn: "psycopg.Connection",
+    route: str,
+    dry_run: bool,
+    budget_usd: float | None,
+    metadata: dict,
+) -> str:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO eval_runs (route, dry_run, budget_usd, metadata)
+            VALUES (%s, %s, %s, %s::jsonb)
+            RETURNING id::text
+            """,
+            (route, dry_run, budget_usd, json.dumps(metadata)),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    assert row is not None
+    return row["id"]
+
+
+def finish_eval_run(
+    run_id: str,
+    totals: dict,
+    cost_usd: float | None = None,
+    aborted_on_budget: bool = False,
+    conn: "psycopg.Connection | None" = None,
+) -> None:
+    """Set finished_at + totals + cost on an existing eval_runs row.
+
+    ``totals`` keys (all optional): ``total_cases``, ``total_pass``,
+    ``total_fail``, ``total_skip``. Missing keys leave the column unchanged
+    (NULL for the pass/fail/skip columns; 0 default for total_cases on
+    insert — caller decides whether to update).
+    """
+    _with_conn(
+        conn,
+        _finish_eval_run,
+        run_id,
+        totals or {},
+        cost_usd,
+        bool(aborted_on_budget),
+    )
+
+
+def _finish_eval_run(
+    conn: "psycopg.Connection",
+    run_id: str,
+    totals: dict,
+    cost_usd: float | None,
+    aborted_on_budget: bool,
+) -> None:
+    fields: list[str] = ["finished_at = now()", "aborted_on_budget = %s"]
+    params: list[Any] = [aborted_on_budget]
+    for key in ("total_cases", "total_pass", "total_fail", "total_skip"):
+        if key in totals and totals[key] is not None:
+            fields.append(f"{key} = %s")
+            params.append(int(totals[key]))
+    if cost_usd is not None:
+        fields.append("cost_usd = %s")
+        params.append(float(cost_usd))
+    params.append(run_id)
+    with conn.cursor() as cur:
+        cur.execute(
+            f"UPDATE eval_runs SET {', '.join(fields)} WHERE id = %s::uuid",
+            params,
+        )
+    conn.commit()
+
+
+def record_eval_result(
+    run_id: str,
+    suite_id: str,
+    case_name: str,
+    route: str,
+    status: str,
+    metrics: dict | None = None,
+    latency_ms: int | None = None,
+    cost_usd: float | None = None,
+    error_text: str | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> str:
+    """Insert one eval_results row. Returns the new result id (uuid str)."""
+    if status not in _EVAL_VALID_STATUSES:
+        raise ValueError(
+            f"status must be one of {sorted(_EVAL_VALID_STATUSES)}, got {status!r}"
+        )
+    return _with_conn(
+        conn,
+        _record_eval_result,
+        run_id,
+        suite_id,
+        case_name,
+        route,
+        status,
+        metrics or {},
+        latency_ms,
+        cost_usd,
+        error_text,
+    )
+
+
+def _record_eval_result(
+    conn: "psycopg.Connection",
+    run_id: str,
+    suite_id: str,
+    case_name: str,
+    route: str,
+    status: str,
+    metrics: dict,
+    latency_ms: int | None,
+    cost_usd: float | None,
+    error_text: str | None,
+) -> str:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO eval_results
+              (run_id, suite_id, case_name, route, status,
+               metrics, latency_ms, cost_usd, error_text)
+            VALUES
+              (%s::uuid, %s::uuid, %s, %s, %s,
+               %s::jsonb, %s, %s, %s)
+            RETURNING id::text
+            """,
+            (
+                run_id,
+                suite_id,
+                case_name,
+                route,
+                status,
+                json.dumps(metrics),
+                latency_ms,
+                cost_usd,
+                error_text,
+            ),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    assert row is not None
+    return row["id"]
+
+
+def list_eval_suites(
+    category: str | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> list[dict]:
+    """List eval_suites rows. Filter by category if provided."""
+    return _with_conn(conn, _list_eval_suites, category)
+
+
+def _list_eval_suites(
+    conn: "psycopg.Connection",
+    category: str | None,
+) -> list[dict]:
+    if category is not None:
+        query = "SELECT * FROM eval_suites WHERE category = %s ORDER BY name ASC"
+        params: list[Any] = [category]
+    else:
+        query = "SELECT * FROM eval_suites ORDER BY name ASC"
+        params = []
+    with conn.cursor() as cur:
+        cur.execute(query, params)
+        rows = cur.fetchall()
+    return [dict(r) for r in rows]
+
+
+def list_eval_runs(
+    limit: int = 20,
+    conn: "psycopg.Connection | None" = None,
+) -> list[dict]:
+    """List eval_runs rows newest-first."""
+    return _with_conn(conn, _list_eval_runs, limit)
+
+
+def _list_eval_runs(conn: "psycopg.Connection", limit: int) -> list[dict]:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM eval_runs ORDER BY started_at DESC LIMIT %s",
+            (limit,),
+        )
+        rows = cur.fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_eval_run(
+    run_id: str,
+    conn: "psycopg.Connection | None" = None,
+) -> dict | None:
+    """Fetch a single eval_runs row by id; returns None on miss."""
+    return _with_conn(conn, _get_eval_run, run_id)
+
+
+def _get_eval_run(conn: "psycopg.Connection", run_id: str) -> dict | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT * FROM eval_runs WHERE id = %s::uuid",
+            (run_id,),
+        )
+        row = cur.fetchone()
+    return dict(row) if row else None
+
+
+def fetch_eval_results(
+    run_id: str,
+    conn: "psycopg.Connection | None" = None,
+) -> list[dict]:
+    """List eval_results rows for a given eval_run id, oldest first."""
+    return _with_conn(conn, _fetch_eval_results, run_id)
+
+
+def _fetch_eval_results(conn: "psycopg.Connection", run_id: str) -> list[dict]:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT er.*, es.name AS suite_name, es.category AS suite_category
+              FROM eval_results er
+              JOIN eval_suites es ON es.id = er.suite_id
+             WHERE er.run_id = %s::uuid
+             ORDER BY er.created_at ASC, er.id ASC
+            """,
+            (run_id,),
+        )
+        rows = cur.fetchall()
+    return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# Connection helper (kept at the bottom so all per-table helpers are above).
+# ---------------------------------------------------------------------------
 
 
 def _with_conn(conn, fn, *args, **kwargs):

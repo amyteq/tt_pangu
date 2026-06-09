@@ -26,11 +26,11 @@ are PASS**.
 
 1. **Validation matrix.** Re-verify the evidence from each Loop
    Prompt's closeout still holds:
-   - T000: ADR-0016 + architecture doc exist; 3 discovery
+   - T000: ADR-0019 + architecture doc exist; 3 discovery
      transcripts (or 2 + greenfield SKIP-NOTE) under
      `docs/evidence/m13/T000/discovery/`; canonical acceptance
      lines verified.
-   - T001: migration 0008 applied; 7 DB helpers; `kca eval` 4
+   - T001: migration 0010 applied; 7 DB helpers; `kca eval` 4
      verbs; `NO_SUITES_REGISTERED` refusal still works for the
      empty case.
    - T002: `tool-smoke` registered; ≥10 cases; audit-grep clean.

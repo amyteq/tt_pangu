@@ -19,7 +19,8 @@ the deferred M12-T007 real Devpost submit (see "State at handoff" for
 the resume command).
 
 M12 shipped the generalized competition-policy layer and Devpost
-hackathon workflow: ADR-0016 (`competition_type` enum), migration 0009
+hackathon workflow: ADR-0018 (`competition_type` enum; renumbered from
+ADR-0016 during PR #46 merge — M11 took 0016/0017), migration 0009
 (`competition_type` / `teams` / `team_memberships` / `deadline` /
 `submission_format`), Devpost adapter (`kca devpost register/fetch/
 info/submit`), `hackathon-experiment-loop` skill + `hackathon-runner`
@@ -46,8 +47,9 @@ provides three blocked artefacts.
 7. `docs/engineering-practice.md` — GitHub collaboration model.
 8. `docs/architecture/kca-cli-architecture.md` — four-layer model that
    M12 extended.
-9. `docs/adr/0016-generalized-competition-type.md` — M12's arch ADR;
-   M13 inherits the competition_type enum shape.
+9. `docs/adr/0018-generalized-competition-type.md` — M12's arch ADR
+   (renumbered from 0016 during PR #46 merge); M13 inherits the
+   competition_type enum shape.
 10. `docs/handoff-prompt.md` — canonical handoff template.
 11. `docs/milestone-loop-protocol.md` — per-milestone worktree rules,
     secret denylist, sequencing.
@@ -140,7 +142,7 @@ From M9 (still tracked):
 - **D** — `reviewer_decision` literal event_type not emitted (`type:docs`, `area:worker`).
 - **E** — Migration 0004 optional columns not applied (`type:bug`, `area:supabase`).
 
-From M12 ADR-0016:
+From M12 ADR-0018:
 
 - **F1** — jsonb type-check for `submission_format` (`type:bug`, P2 tech-debt).
 - **F2** — `approved_by_user_id` FK on `human_decisions` (`type:feature`, P1).

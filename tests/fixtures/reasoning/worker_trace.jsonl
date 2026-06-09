@@ -1,0 +1,5 @@
+{"event_id": "evt-001", "ts": "2026-06-09T00:00:00Z", "job_id": "job-abc", "phase": "start", "tool": null, "data": {"job_type": "fit_baseline"}}
+{"event_id": "evt-002", "ts": "2026-06-09T00:00:01Z", "job_id": "job-abc", "phase": "tool_call", "tool": "read_file", "data": {"path": "train.csv", "ok": true}}
+{"event_id": "evt-003", "ts": "2026-06-09T00:00:02Z", "job_id": "job-abc", "phase": "tool_call", "tool": "run_bash", "data": {"cmd": "python scripts/fit.py", "rc": 1, "stderr": "ImportError: cannot import name 'HistGradientBoostingClassifier' from 'sklearn.ensemble' (version=0.24.2)"}}
+{"event_id": "evt-004", "ts": "2026-06-09T00:00:03Z", "job_id": "job-abc", "phase": "retry", "tool": "run_bash", "data": {"cmd": "python scripts/fit.py", "rc": 1, "stderr": "ImportError: cannot import name 'HistGradientBoostingClassifier' from 'sklearn.ensemble' (version=0.24.2)"}}
+{"event_id": "evt-005", "ts": "2026-06-09T00:00:04Z", "job_id": "job-abc", "phase": "fail", "tool": null, "data": {"reason": "tool_error_loop", "retries": 2}}

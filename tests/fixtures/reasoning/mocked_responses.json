@@ -1,0 +1,49 @@
+{
+  "research_brief_from_cached_pages": {
+    "question_answered": "What baseline approach should we take for spaceship-titanic, and what are the trust levels of each cited source?",
+    "sources": [
+      {"url": "https://www.kaggle.com/competitions/spaceship-titanic/overview", "trust": "official", "fingerprint": "01-kaggle-spaceship-overview.html"},
+      {"url": "https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html", "trust": "official", "fingerprint": "02-sklearn-hgb-docs.html"},
+      {"url": "https://www.kaggle.com/competitions/spaceship-titanic/discussion/example-forum-post", "trust": "community", "fingerprint": "03-forum-feature-engineering.html"}
+    ],
+    "citations": [
+      "01-kaggle-spaceship-overview.html",
+      "02-sklearn-hgb-docs.html",
+      "03-forum-feature-engineering.html"
+    ],
+    "key_findings": [
+      "Metric is classification accuracy on test.csv (official).",
+      "Daily submission limit is 5 (official).",
+      "HistGradientBoostingClassifier handles missing values natively and is appropriate for this dataset size (official).",
+      "Splitting Cabin into deck/num/side is a community-reported gain; verify on held-out fold before submitting (community)."
+    ],
+    "explicit_unknowns": [
+      "Whether the leaderboard private/public split ratio matches the public CV.",
+      "Whether the group-prefix feature leaks across folds; needs grouped CV to verify."
+    ],
+    "next_action": "Run HGB baseline with the cabin/deck/side features under grouped 5-fold CV; compare against the LR baseline before submitting."
+  },
+  "debug_worker_trace": {
+    "root_cause": "ImportError: HistGradientBoostingClassifier is not available in sklearn 0.24.2 — it moved to ensemble in 0.21 but the experimental flag was required until 1.0.",
+    "evidence_event_ids": ["evt-003", "evt-004"],
+    "proposed_fix": "Pin sklearn>=1.0 in requirements.txt; remove the from sklearn.experimental import enable_hist_gradient_boosting shim; verify the import in a clean venv before retrying the job.",
+    "confidence": "high"
+  },
+  "cv_result_analysis": {
+    "is_overfit": true,
+    "recommendation": "regularize",
+    "rationale": "Train accuracy 0.987 vs CV mean 0.812 is a 17.5pp gap on a 5-fold CV with 28 features — classic overfit. learning_rate=0.05 with max_iter=400 is over-parameterised for this dataset; tighten via lower max_iter, higher min_samples_leaf, or early_stopping='auto'.",
+    "next_experiment": "Re-fit with max_iter=200, min_samples_leaf=32, early_stopping='auto' on the same seed; keep the 15-feature set; expect train-CV gap to shrink to <5pp before further FE."
+  },
+  "submit_decision_rationale": {
+    "should_submit": true,
+    "scenario_tag": 1,
+    "confidence": "medium",
+    "rationale": "Exactly one candidate beats current LB (0.812 > 0.805) with 4 daily slots remaining and 28 days to close (>5-day closing threshold). Per the four-scenario table this is scenario 1: submit the candidate; use remaining slots for exploration near the baseline.",
+    "next_action": "Submit sub-2026-06-09-hgb-fe; queue three exploration runs around the baseline for the remaining daily slots."
+  },
+  "tool_choice_rationale": {
+    "chosen_tool": "exp-list",
+    "justification": "The goal references the experiment_runs table directly; run-list only lists the runs/ artefact tree, which lags the DB and omits cv_mean. exp-list is the right surface even though it is slower."
+  }
+}
