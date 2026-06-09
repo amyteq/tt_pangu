@@ -5,7 +5,7 @@
 - Session id: `3fc5c613-3c17-4605-b8bf-cc2177c2a25e`
 - Status: `stopped`
 - Source transcript: `/home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu/3fc5c613-3c17-4605-b8bf-cc2177c2a25e.jsonl`
-- Output: `/tmp/worklogs-dump-dcy44b/worklogs/prep-m8.md`
+- Output: `/tmp/worklogs-dump-Ca85tk/worklogs/prep-m8.md`
 
 ---
 
