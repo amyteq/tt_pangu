@@ -10,6 +10,8 @@ import { ApprovalInbox } from "./pages/ApprovalInbox";
 import { DecisionGate } from "./pages/DecisionGate";
 import { Artifacts } from "./pages/Artifacts";
 import { ArtifactDetail } from "./pages/ArtifactDetail";
+import { HackathonDeadline } from "./pages/HackathonDeadline";
+import { SubmissionChecklist } from "./pages/SubmissionChecklist";
 
 export const routes: RouteObject[] = [
   {
@@ -26,6 +28,12 @@ export const routes: RouteObject[] = [
       { path: "approvals/:id", element: <DecisionGate /> },
       { path: "artifacts", element: <Artifacts /> },
       { path: "artifacts/:id", element: <ArtifactDetail /> },
+      // M12-T005 hackathon pages.
+      { path: "hackathons/:slug/deadline", element: <HackathonDeadline /> },
+      {
+        path: "hackathons/:slug/runs/:run_id/checklist",
+        element: <SubmissionChecklist />,
+      },
       { path: "*", element: <Navigate to="/" replace /> },
     ],
   },

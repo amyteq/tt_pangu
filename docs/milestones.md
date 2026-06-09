@@ -1,6 +1,6 @@
 # kaggle-code-agent Milestones
 
-Status: M0–M10 done; M9.2 ✓ done (/save-log operator-tooling skill); M11 PARTIAL (T000–T006 + T008 done 2026-06-09; T007 deferred pending human action)  
+Status: M0–M10 done + M12 done (T007 real-submit DEFERRED); M11 PARTIAL (T000–T006 + T008 done 2026-06-09; T007 deferred pending human action); M9.2 ✓ done (/save-log operator-tooling skill); M13 in planning (evaluation, reliability, regression suite)  
 Created: 2026-05-16  
 Scope: hybrid human + AI code competition platform
 
@@ -914,7 +914,18 @@ Exit criteria:
 
 ---
 
-## M12: Devpost / hackathon workflow
+## M12: Devpost / hackathon workflow ✓ done (with T007 real-submit DEFERRED)
+
+_Shipped 2026-06-09. See `docs/m12-final-review.md` (46 PASS / 0 SKIP / 0 FAIL / 1 DEFERRED).
+Summary: ADR-0016 (folded `competition_type` enum: kaggle/devpost/hackathon_devpost/ctf/generic);
+migration 0009 (competition_type + teams + team_memberships + deadline + submission_format);
+Devpost adapter (`kca devpost register/fetch/info/submit`); hackathon-experiment-loop skill +
+hackathon-runner.yaml; submission_checklist tool; two new UI pages (HackathonDeadline,
+SubmissionChecklist); decision_api GET /runs/<id>/submission_pack; hand-driven local e2e run for
+"Hack the Zero Stack" (h01) with cloud DB rows (checklist_completion=66.67); reviewer gate for
+devpost_submit fired (human_decisions.id=754cadda-…, status=pending). T007 real Devpost submit
+DEFERRED — user needs to supply demo video, Vercel link, and screenshots, then run the resume
+command in docs/m12-final-review.md. PR: worktree-m12-execution branch, issue #42._
 
 _Renumbered from old M11 on 2026-05-24. Planning landed 2026-05-26 —
 `docs/m12-loop-prompts.md` + ten `docs/tasks/M12-T00x-*.md` specs._
@@ -939,7 +950,7 @@ M12 so M11 can plug in without a second schema migration.
 |---|---|---|
 | M12-T000 | Survey 2–3 candidate Devpost / hackathon events; human picks target slug. READ_ONLY; no DB writes. | — |
 | M12-T001 | `arch:` Discovery / Debate Gate on competition-policy generalization; ADR-0016 (`competition_type` enum, team-scoped resolver). | T000 |
-| M12-T002 | Migration `0008_m12_competition_type_teams.sql` — `competitions.competition_type` enum (default `kaggle`), `teams`, `team_memberships`, `competitions.deadline`, `competitions.submission_format`. Policy resolver refactor. Backwards-compatible. | T001 |
+| M12-T002 | Migration `0009_m12_competition_type_teams.sql` — `competitions.competition_type` enum (default `kaggle`), `teams`, `team_memberships`, `competitions.deadline`, `competitions.submission_format`. Policy resolver refactor. Backwards-compatible. | T001 |
 | M12-T003 | `tools/kca/devpost.py` + `kca devpost register/fetch/info` (READ_ONLY). Lightweight HTTP first; Playwright fallback per `tools/kca/research_fetch.py` pattern. | T002 |
 | M12-T004 | `.kca/skills/hackathon-experiment-loop/SKILL.md` + `.kca/permissions/hackathon-runner.yaml` + `submission_checklist` tool. | T002, T003 |
 | M12-T005 | UI: `ui/src/pages/HackathonDeadline.tsx` + `ui/src/pages/SubmissionChecklist.tsx`; routes; vitest + Playwright smoke. Reuse `ApprovalInbox` / `DecisionGate`. | T002 |
@@ -978,7 +989,7 @@ Exit criteria — proposed (final list in `docs/m12-loop-prompts.md`):
 - ADR-0016 merged; the three Discovery / Debate Gate reports under
   `docs/evidence/m12/t001/discovery/` carry their canonical
   acceptance lines verbatim.
-- Migration `0008_m12_competition_type_teams.sql` applied; all
+- Migration `0009_m12_competition_type_teams.sql` applied; all
   existing Kaggle competitions still resolve their policy correctly
   (`competition_type` defaults to `kaggle`).
 - `kca devpost fetch --slug <picked>` returns metadata; no submit /

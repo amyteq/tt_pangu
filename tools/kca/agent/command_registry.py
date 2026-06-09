@@ -46,7 +46,9 @@ def _seed_registry() -> None:
     import competition as competition_mod
     import ctf as ctf_mod
     import decisions as decisions_mod
+    import devpost as devpost_mod
     import eval as eval_mod
+    import submission_checklist as submission_checklist_mod
     import kg as kg_mod
     import local as local_mod
     import nb as nb_mod
@@ -117,6 +119,24 @@ def _seed_registry() -> None:
             "LOCAL_WRITE",
             True,
             ctf_mod.add_parsers,
+        )
+    )
+    REGISTRY.register(
+        CommandSpec(
+            "devpost",
+            "Devpost / hackathon adapter (register / fetch / info + gated submit; M12-T007).",
+            "SUBMISSION",
+            True,
+            devpost_mod.add_parsers,
+        )
+    )
+    REGISTRY.register(
+        CommandSpec(
+            "submission",
+            "Submission-pack inspector (READ_ONLY checklist; M12-T004).",
+            "READ_ONLY",
+            False,
+            submission_checklist_mod.add_parsers,
         )
     )
     REGISTRY.register(

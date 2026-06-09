@@ -58,7 +58,7 @@ write to the DB; it only reads.
    `SUPABASE_DB_URL` is unset):
    - The picked-slug `competitions` row has
      `competition_type='devpost'` (or `'hackathon_devpost'` if
-     ADR-0016 picked that).
+     ADR-0018 picked that).
    - At least one `teams` row exists with a matching
      `team_memberships` row.
    - `experiment_runs` row exists with

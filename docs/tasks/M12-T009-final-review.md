@@ -40,9 +40,9 @@ Routine. Closeout task.
    - All three Discovery / Debate Gate reports
      (`docs/evidence/m12/t001/discovery/*.md`) carry their canonical
      acceptance lines verbatim.
-   - `docs/adr/0016-generalized-competition-type.md` exists; enum
+   - `docs/adr/0018-generalized-competition-type.md` exists; enum
      literal present.
-   - `supabase/migrations/0008_m12_competition_type_teams.sql`
+   - `supabase/migrations/0009_m12_competition_type_teams.sql`
      applied locally; M9 / M10 baseline rows still resolve their
      gates correctly.
    - `tools/kca/devpost.py` + `kca devpost register/fetch/info` and
@@ -71,7 +71,7 @@ Routine. Closeout task.
    - "Exit criteria" roll-up against the list in
      `docs/m12-loop-prompts.md` "Required tests / evidence" + the
      bullets in `docs/milestones.md` §M12.
-   - "What landed" prose summary (ADR-0016, migration 0008,
+   - "What landed" prose summary (ADR-0018, migration 0009,
      adapter, skill, profiles, UI pages, real Devpost submission
      metadata).
    - "Out-of-scope follow-ups" list (matches the loop-prompts
@@ -130,7 +130,7 @@ Routine. Closeout task.
 - Branch pushed to origin.
 - PR opened against `main`; CI status green for `no-db pytest`,
   `live-db pytest`, `ruff`, and UI `pnpm` jobs.
-- PR body links: `docs/m12-final-review.md`, ADR-0016, T007's
+- PR body links: `docs/m12-final-review.md`, ADR-0018, T007's
   approval comment, T007's Devpost submission URL.
 - The closing GitHub issue for M12 is updated with the PR URL and
   closed once the PR merges (merge is human-gated; T009 stops at PR

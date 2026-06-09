@@ -22,14 +22,14 @@ Routine.
 1. `PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`
 2. `docs/milestones.md` §M12
 3. `docs/m12-loop-prompts.md` Loop Prompt 3
-4. `docs/adr/0016-generalized-competition-type.md` (T001 output)
+4. `docs/adr/0018-generalized-competition-type.md` (T001 output)
 5. `docs/evidence/m12/t000-candidates.md` (the picked slug)
 6. `tools/kca/research_fetch.py` — HTTP + readability + Playwright opt-in
 7. `tools/kca/competition.py` — register/fetch/info shape on the Kaggle side
 8. `tools/kca/kca.py` — subcommand registration; add a `devpost` parser
 9. `src/db/competition.py` (or wherever competition CRUD lives)
 10. `env.example` — to document any new env var names; only document, don't add values
-11. `supabase/migrations/0008_m12_competition_type_teams.sql` (T002)
+11. `supabase/migrations/0009_m12_competition_type_teams.sql` (T002)
 
 ## Scope
 
@@ -38,7 +38,7 @@ Routine.
      - If `name` is None, call `cmd_fetch` to extract it from the
        public page.
      - Insert a `competitions` row with `competition_type='devpost'`
-       (or `'hackathon_devpost'` if ADR-0016 picked that value
+       (or `'hackathon_devpost'` if ADR-0018 picked that value
        explicitly for this slug; default to `'devpost'` if the ADR is
        silent).
      - Populate `competitions.deadline` and `competitions.submission_format`
@@ -139,7 +139,7 @@ M12-T003 closeout
 
 ## Related issues
 
-- ADR-0016 (T001 output) — referenced for the enum value
+- ADR-0018 (T001 output) — referenced for the enum value
   (`devpost` vs `hackathon_devpost`).
 - Closing issue for M12 — gets a comment confirming READ_ONLY only
   (zero write actions).

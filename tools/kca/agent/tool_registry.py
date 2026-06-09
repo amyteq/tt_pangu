@@ -201,6 +201,58 @@ _TOOLS: list[ToolSpec] = [
         "sandboxed",
         ["filesystem", "artifact"],
     ),
+    # M12-T004 — read-only inspector for hackathon submission packs.
+    # The hackathon-runner permission profile keeps this on `ask` even
+    # though the tool itself is READ_ONLY, so the agent has a single
+    # consistent surface to gate against.
+    _spec(
+        "submission_checklist",
+        "Inspect a run's submission_pack and emit a per-item checklist.",
+        "READ_ONLY",
+        "ask",
+        10,
+        "sandboxed",
+        ["hackathon", "submission-pack"],
+        {
+            "type": "object",
+            "properties": {
+                "competition_id": {"type": "string"},
+                "run_id": {"type": "string"},
+            },
+            "required": ["competition_id", "run_id"],
+        },
+    ),
+    # M12-T004 — the gated external write op the hackathon-runner profile
+    # references. The actual implementation ships in M12-T007. Registering
+    # the ToolSpec here lets the permission resolver + the skill's
+    # allowed-tools surface line up before T007 lands.
+    _spec(
+        "devpost_submit",
+        "Submit a Devpost-style hackathon entry (gated; M12-T007).",
+        "SUBMISSION",
+        "ask",
+        60,
+        "unsandboxed",
+        ["hackathon", "devpost"],
+    ),
+    _spec(
+        "demo_upload",
+        "Upload a demo asset for a hackathon entry (gated; follow-up).",
+        "REMOTE_WRITE",
+        "ask",
+        60,
+        "unsandboxed",
+        ["hackathon", "devpost"],
+    ),
+    _spec(
+        "team_invite",
+        "Invite a teammate to a hackathon team (deny by default in M12).",
+        "REMOTE_WRITE",
+        "deny",
+        30,
+        "unsandboxed",
+        ["hackathon", "teams"],
+    ),
 ]
 
 TOOL_REGISTRY: dict[str, ToolSpec] = {t.name: t for t in _TOOLS}

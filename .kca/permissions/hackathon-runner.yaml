@@ -1,0 +1,47 @@
+# Hackathon runner: devpost_submit + demo_upload remain gated; team_invite
+# is denied outright in M12. All other gates inherit from default.yaml via
+# the resolver's fallback chain (see tools/kca/agent/permission_policy.py).
+#
+# ADR-0016 routes competition_type IN ('devpost','hackathon_devpost') to
+# this profile. The team-scoped operation rule (owner-only) is documented
+# in ADR-0016 §"Team-scoped operation rules" and enforced at the worker
+# layer, not in this YAML; this file only carries the four-level gate
+# decisions.
+- operation: devpost_submit
+  default_decision: ask
+  reason: External Devpost submission requires human approval; one real submit per milestone.
+  allowed_in_modes:
+    - hackathon-finalization
+    - human-approved
+  audit_required: true
+- operation: demo_upload
+  default_decision: ask
+  reason: Demo video / asset upload publishes content; gate on human until M12 follow-up wires the full upload flow.
+  allowed_in_modes:
+    - hackathon-finalization
+    - human-approved
+  audit_required: true
+- operation: team_invite
+  default_decision: deny
+  reason: M12 ships read-only team membership; full invite / role flow is a follow-up. Deny by default.
+  audit_required: true
+- operation: supabase_migrate
+  default_decision: ask
+  audit_required: true
+- operation: gh_pr_merge
+  default_decision: ask
+  audit_required: true
+- operation: bash
+  default_decision: ask
+- operation: read_file
+  default_decision: allow
+- operation: write_file
+  default_decision: allow
+- operation: edit_file
+  default_decision: allow
+- operation: create_artifact
+  default_decision: allow
+- operation: run_tests
+  default_decision: allow
+- operation: litellm_call
+  default_decision: allow

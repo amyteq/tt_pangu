@@ -80,7 +80,7 @@ T007 is the only task in M12 that:
 5. Execute exactly ONE real `kca devpost submit --slug <slug>
    --run-id <run_id> --message "<short message>"`.
 6. Record the result in `submissions`:
-   - `platform = 'devpost'` (new value; ADR-0016's policy supports it)
+   - `platform = 'devpost'` (new value; ADR-0018's policy supports it)
    - `external_submission_id = <id-from-cmd_submit>`
    - `submission_url = <url-from-cmd_submit>`
    - `competition_id`, `run_id`, `submitted_at = now()`

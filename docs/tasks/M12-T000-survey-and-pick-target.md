@@ -67,7 +67,7 @@ picked slug feeds every later task.
 ## Non-goals
 
 - Do NOT register the picked hackathon in the `competitions` table.
-  That's M12-T002 (after migration 0008 lands).
+  That's M12-T002 (after migration 0009 lands).
 - Do NOT add `tools/kca/devpost.py` or any new `kca` subcommand. That's
   M12-T003.
 - Do NOT begin authoring an idea / prototype. That's M12-T006.
