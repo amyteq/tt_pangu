@@ -1,5 +1,19 @@
 name: Worklogs Dump
 
+# ============================================================================
+# STATUS: DISABLED (2026-06-09). Superseded by the systemd *user* timer
+# (scripts/systemd/worklogs-dump.timer + scripts/worklogs_dump.sh), which runs
+# the dump as the account that owns the Claude sessions — no cross-user ACLs and
+# no all-projects exposure on the self-hosted runner. See
+# docs/tooling/worklogs-systemd-timer.md.
+#
+# Kept in-tree for reference / quick re-enable: the schedule triggers are
+# commented out and the job is gated behind `vars.WORKLOGS_DUMP_ENABLED == 'true'`,
+# so it does nothing unless deliberately re-enabled. To revive it: set the repo
+# variable WORKLOGS_DUMP_ENABLED=true and uncomment the schedule block, then
+# re-apply the runner ACLs in docs/tooling/worklogs-routine.md.
+# ============================================================================
+
 # Dump Claude Code session transcripts for THIS project to Markdown and merge
 # them into main, once per day at ~02:00 Australia/Melbourne.
 #
@@ -24,9 +38,11 @@ name: Worklogs Dump
 
 on:
   workflow_dispatch: {}
-  schedule:
-    - cron: "0 15 * * *" # 02:00 Melbourne while AEDT (UTC+11)
-    - cron: "0 16 * * *" # 02:00 Melbourne while AEST (UTC+10)
+  # DISABLED — superseded by the systemd user timer. Uncomment to re-enable the
+  # daily schedule (and set vars.WORKLOGS_DUMP_ENABLED=true).
+  # schedule:
+  #   - cron: "0 15 * * *" # 02:00 Melbourne while AEDT (UTC+11)
+  #   - cron: "0 16 * * *" # 02:00 Melbourne while AEST (UTC+10)
 
 permissions:
   contents: write
@@ -44,6 +60,8 @@ env:
 
 jobs:
   dump:
+    # DISABLED safety gate: does nothing unless explicitly re-enabled.
+    if: ${{ vars.WORKLOGS_DUMP_ENABLED == 'true' }}
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
     timeout-minutes: 30
 

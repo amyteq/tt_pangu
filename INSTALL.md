@@ -88,6 +88,25 @@ ruff check .
 ruff format --check .
 ```
 
+### Enforce ruff before every push (recommended)
+
+CI runs `ruff check .` and `ruff format --check .`; enable the repo's pre-push
+hook so format/lint drift is caught locally before a push or PR (once per clone):
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Bypass for a deliberate WIP push with `SKIP_RUFF_GATE=1 git push …` or
+`git push --no-verify`. (Claude Code sessions are additionally gated by
+`.claude/hooks/format_gate.py`.)
+
+## Worklogs dump (daily, automated)
+
+Claude session transcripts for this project are exported to Markdown and merged
+to `main` on a daily schedule by a **systemd user timer**. Setup and operation:
+[`docs/tooling/worklogs-systemd-timer.md`](docs/tooling/worklogs-systemd-timer.md).
+
 ## KCA CLI quick reference
 
 ```bash

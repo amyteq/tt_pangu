@@ -1,4 +1,13 @@
-# Worklogs dump routine
+# Worklogs dump routine (GitHub Actions — DISABLED)
+
+> **Status: disabled / superseded (2026-06-09).** The daily dump now runs from a
+> **systemd user timer** instead of this GitHub Actions workflow — see
+> [`worklogs-systemd-timer.md`](./worklogs-systemd-timer.md). The timer runs as
+> the account that owns the Claude sessions, which removes the cross-user ACL
+> setup and the all-projects exposure described below. This document is kept for
+> reference and for anyone who wants to revive the self-hosted-runner approach
+> (`.github/workflows/worklogs-dump.yml` has its schedule commented out and the
+> job gated behind `vars.WORKLOGS_DUMP_ENABLED == 'true'`).
 
 `scripts/exp_cc.py` exports Claude Code session transcripts for this project to
 Markdown. The `.github/workflows/worklogs-dump.yml` workflow runs it on a daily

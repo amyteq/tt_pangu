@@ -34,3 +34,9 @@ include = ["tools*", "src*"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
+
+[tool.ruff]
+# ruff only lints/formats Python — Markdown (Claude skill definitions, worklog
+# dumps, docs) is never touched by it. worklogs/ holds generated session dumps;
+# exclude it so a stray file there can never trip the linter / CI / pre-push gate.
+extend-exclude = ["worklogs"]
