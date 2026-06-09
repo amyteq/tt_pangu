@@ -121,18 +121,50 @@ PR_URL="$(gh pr create --repo "$GH_REPO" --base "$BASE" --head "$BR" \
   2>&1)" || die "gh pr create failed: $PR_URL"
 log "opened PR: $PR_URL"
 
-# Prefer GitHub native auto-merge (merges itself when required checks pass).
+# Best-effort GitHub native auto-merge first. This needs the repo's "Allow
+# auto-merge" setting AND a required check (branch protection). On a free
+# private repo neither is available, so this almost always falls through to the
+# polling path below — which is the real workhorse.
 if gh pr merge "$BR" --repo "$GH_REPO" --squash --delete-branch --auto >/dev/null 2>&1; then
-  log "auto-merge enabled; GitHub will merge $BR when the build is green."
+  log "native auto-merge enabled; GitHub will merge $BR when the build is green."
   exit 0
 fi
 
-# Otherwise poll the checks ourselves, then merge.
-log "auto-merge unavailable; watching checks (timeout ${CI_TIMEOUT}s)."
-if timeout "$CI_TIMEOUT" gh pr checks "$BR" --repo "$GH_REPO" --watch --fail-fast >/dev/null 2>&1; then
-  gh pr merge "$BR" --repo "$GH_REPO" --squash --delete-branch \
-    && log "merged $BR after green build." \
-    || log "merge of $BR failed after green build — left open: $PR_URL"
-else
-  log "checks failed or timed out — leaving PR open for review: $PR_URL"
+# Poll until the build is green, then merge. Important: `gh pr checks --watch`
+# returns IMMEDIATELY with a "no checks" error if it runs before the workflow
+# has registered on the new PR (a race in the first seconds after opening it) —
+# the old code mistook that for "checks failed" and bailed. So loop: keep
+# retrying while no checks exist yet; once they appear, --watch blocks until
+# they finish; only a genuine failure or the overall timeout stops us.
+log "watching checks for $BR (timeout ${CI_TIMEOUT}s)."
+deadline=$(( $(date +%s) + CI_TIMEOUT ))
+green=""
+while [ "$(date +%s)" -lt "$deadline" ]; do
+  checks_out="$(gh pr checks "$BR" --repo "$GH_REPO" --watch --fail-fast 2>&1)"
+  checks_rc=$?
+  if [ "$checks_rc" -eq 0 ]; then
+    green=1
+    break
+  fi
+  if printf '%s' "$checks_out" | grep -qiE 'no checks|no required check'; then
+    sleep 15 # checks not registered yet — wait for the workflow to start
+    continue
+  fi
+  log "checks failed for $BR — leaving PR open for review: $PR_URL"
+  exit 0
+done
+
+if [ -z "$green" ]; then
+  log "timed out after ${CI_TIMEOUT}s waiting for checks — leaving PR open: $PR_URL"
+  exit 0
 fi
+
+# Green. Merge, retrying briefly while GitHub settles the merge-state status.
+for _ in 1 2 3 4 5; do
+  if gh pr merge "$BR" --repo "$GH_REPO" --squash --delete-branch >/dev/null 2>&1; then
+    log "merged $BR after green build."
+    exit 0
+  fi
+  sleep 10
+done
+log "build green but merge did not succeed after retries — left open: $PR_URL"
