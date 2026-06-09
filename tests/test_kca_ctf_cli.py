@@ -207,8 +207,7 @@ def test_load_ctftime_credentials_from_home_env_file(tmp_path, monkeypatch) -> N
 def test_load_ctftime_credentials_token_alias(tmp_path, monkeypatch) -> None:
     fake_env = tmp_path / ".env"
     fake_env.write_text(
-        f"CTFTIME_USERNAME={_SENTINEL_USER}\n"
-        f"CTFTIME_TOKEN={_SENTINEL_TOKEN}\n",
+        f"CTFTIME_USERNAME={_SENTINEL_USER}\nCTFTIME_TOKEN={_SENTINEL_TOKEN}\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(ctf_mod, "_CTFTIME_ENV_PATH", fake_env)
