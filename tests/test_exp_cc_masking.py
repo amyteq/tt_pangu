@@ -1,0 +1,125 @@
+"""Unit tests for scripts/exp_cc.py secret masking and defaults.
+
+These exercise the pure helpers (no Claude transcripts, no network):
+- mask_secret_body keeps the first/last MASK_KEEP chars and stars the rest.
+- mask_secret_like_text masks every known secret shape in place, leaves
+  surrounding markdown / variable names readable, collapses private-key
+  blocks, and is idempotent.
+- the CLI default output directory is `worklogs`.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+EXP_CC_PATH = REPO_ROOT / "scripts" / "exp_cc.py"
+
+
+def _load_exp_cc():
+    spec = importlib.util.spec_from_file_location("exp_cc_under_test", EXP_CC_PATH)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+exp_cc = _load_exp_cc()
+
+
+# --- mask_secret_body -------------------------------------------------------
+
+
+def test_mask_keeps_three_chars_each_end():
+    s = "ABCDEFGHIJKLMNOP"  # len 16
+    masked = exp_cc.mask_secret_body(s)
+    assert masked.startswith("ABC")
+    assert masked.endswith("NOP")
+    assert masked == "ABC" + "*" * (len(s) - 6) + "NOP"
+    assert len(masked) == len(s)
+
+
+def test_mask_short_secret_fully_masked():
+    # Too short to keep both ends without overlap -> all stars.
+    assert exp_cc.mask_secret_body("abcdef") == "******"
+    assert exp_cc.mask_secret_body("abc") == "***"
+    assert exp_cc.mask_secret_body("") == ""
+
+
+# --- mask_secret_like_text --------------------------------------------------
+
+
+def test_masks_anthropic_token_keeps_ends():
+    token = "sk-ant-api03-" + "A" * 40
+    masked = exp_cc.mask_secret_like_text(f"key is {token} here")
+    assert token not in masked
+    assert masked.startswith("key is sk-")  # first 3 chars of the token kept
+    assert masked.endswith("AAA here")  # last 3 chars kept
+    assert "*" in masked
+
+
+def test_masks_github_pat():
+    pat = "github_pat_" + "B" * 40
+    masked = exp_cc.mask_secret_like_text(pat)
+    assert pat not in masked
+    assert masked.startswith("git")
+    assert masked.endswith("BBB")
+
+
+def test_assignment_keeps_variable_name_visible():
+    line = "ANTHROPIC_API_KEY=sk-ant-secretvalue1234567890abc"
+    masked = exp_cc.mask_secret_like_text(line)
+    # The variable name and = stay readable; only the value is masked.
+    assert masked.startswith("ANTHROPIC_API_KEY=sk-")
+    assert "secretvalue1234567890" not in masked
+    assert masked.endswith("abc")
+
+
+def test_private_key_block_collapsed():
+    block = (
+        "-----BEGIN OPENSSH PRIVATE KEY-----\n"
+        "b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAAB\n"
+        "MoreBase64HereThatIsDefinitelySecret==\n"
+        "-----END OPENSSH PRIVATE KEY-----"
+    )
+    masked = exp_cc.mask_secret_like_text(f"before\n{block}\nafter")
+    assert "b3BlbnNzaC1rZXkt" not in masked
+    assert "MoreBase64HereThatIsDefinitelySecret" not in masked
+    assert "[REDACTED]" in masked
+    assert "before" in masked and "after" in masked
+
+
+def test_masking_is_idempotent():
+    token = "ghp_" + "C" * 36
+    once = exp_cc.mask_secret_like_text(token)
+    twice = exp_cc.mask_secret_like_text(once)
+    assert once == twice
+
+
+def test_non_secret_text_untouched():
+    text = "# Heading\n\nJust ordinary prose with a short word api.\n"
+    assert exp_cc.mask_secret_like_text(text) == text
+
+
+def test_scan_still_detects_after_pattern_refactor():
+    token = "sk-ant-" + "D" * 30
+    locations = exp_cc.scan_secret_like_lines(f"x = {token}")
+    assert any(loc["label"] == "Anthropic API key" for loc in locations)
+
+
+# --- CLI defaults -----------------------------------------------------------
+
+
+def test_default_output_dir_is_worklogs():
+    parser = exp_cc.build_parser()
+    args = parser.parse_args([])
+    assert args.output_dir == "worklogs"
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-v"]))

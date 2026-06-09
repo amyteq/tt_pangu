@@ -6,8 +6,12 @@ Builds on the conventions of scripts/save_claude_session_log.py:
   `claude agents --json`. Does NOT read .env*, kaggle.json, ~/.ssh,
   ~/.aws, ~/.config/gcloud, ~/.config/gh, or secrets/.
 - Renders through `uvx claude-code-log@latest --format md --compact`.
+- Writes Markdown dumps to `worklogs/` under the repo root by default
+  (override with --output-dir).
 - Refuses to write transcripts containing secret-like patterns unless
-  --allow-secret-like is passed.
+  --allow-secret-like is passed; with that flag the matched secrets are
+  masked (first/last 3 chars kept, the rest replaced with '*') so the
+  dumped worklog never carries the raw value.
 
 Differences from scripts/save_claude_session_log.py:
 - `--all` (default) exports every session discoverable for the project.
@@ -48,21 +52,43 @@ from typing import Any, Iterable
 
 TERMINAL_STATUSES = {"completed", "complete", "stopped", "stop"}
 
-SECRET_PATTERNS: list[tuple[str, str]] = [
-    (r"github_pat_[A-Za-z0-9_]{20,}", "GitHub fine-grained PAT"),
-    (r"\bgh[opsu]_[A-Za-z0-9_]{20,}", "GitHub token"),
-    (r"\bsk-ant-[A-Za-z0-9_\-]{20,}", "Anthropic API key"),
-    (r"\bsk-[A-Za-z0-9_\-]{32,}", "generic sk-* API key"),
-    (r"BEGIN (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY", "private key block"),
-    (r"\bANTHROPIC_API_KEY\s*=\s*['\"]?[A-Za-z0-9_\-]{16,}", "Anthropic env key"),
-    (r"\bOPENAI_API_KEY\s*=\s*['\"]?[A-Za-z0-9_\-]{16,}", "OpenAI env key"),
-    (r"\bKAGGLE_KEY\s*=\s*['\"]?[A-Za-z0-9_\-]{8,}", "Kaggle key"),
-    (r"\bSUPABASE_[A-Z0-9_]*KEY\s*=\s*['\"]?[A-Za-z0-9_\-.]{16,}", "Supabase key"),
+# Number of leading/trailing characters of a secret body left in the clear
+# when masking (everything between them becomes '*'). Keep small so that the
+# masked value remains recognisable without disclosing the secret.
+MASK_KEEP = 3
+
+# Each rule is (regex, label, value_group). value_group selects the portion of
+# the match that is the actual secret body to mask: 0 = mask the whole match;
+# a positive index masks only that capturing group (so for `KEY=value` style
+# assignments the variable name stays visible and only the value is masked).
+SECRET_PATTERNS: list[tuple[str, str, int]] = [
+    (r"github_pat_[A-Za-z0-9_]{20,}", "GitHub fine-grained PAT", 0),
+    (r"\bgh[opsu]_[A-Za-z0-9_]{20,}", "GitHub token", 0),
+    (r"\bsk-ant-[A-Za-z0-9_\-]{20,}", "Anthropic API key", 0),
+    (r"\bsk-[A-Za-z0-9_\-]{32,}", "generic sk-* API key", 0),
+    (r"BEGIN (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY", "private key block", 0),
+    (r"(\bANTHROPIC_API_KEY\s*=\s*['\"]?)([A-Za-z0-9_\-]{16,})", "Anthropic env key", 2),
+    (r"(\bOPENAI_API_KEY\s*=\s*['\"]?)([A-Za-z0-9_\-]{16,})", "OpenAI env key", 2),
+    (r"(\bKAGGLE_KEY\s*=\s*['\"]?)([A-Za-z0-9_\-]{8,})", "Kaggle key", 2),
     (
-        r"\b(?:password|passwd|secret|token)\s*[:=]\s*['\"]?[A-Za-z0-9_\-.]{16,}",
+        r"(\bSUPABASE_[A-Z0-9_]*KEY\s*=\s*['\"]?)([A-Za-z0-9_\-.]{16,})",
+        "Supabase key",
+        2,
+    ),
+    (
+        r"(\b(?:password|passwd|secret|token)\s*[:=]\s*['\"]?)([A-Za-z0-9_\-.]{16,})",
         "generic secret assignment",
+        2,
     ),
 ]
+
+# Full `-----BEGIN ... PRIVATE KEY-----` ... `-----END ... PRIVATE KEY-----`
+# block, masked in one shot so the base64 body never reaches the output.
+PRIVATE_KEY_BLOCK_RE = re.compile(
+    r"-----BEGIN (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----.*?"
+    r"-----END (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----",
+    flags=re.DOTALL,
+)
 
 
 @dataclass(frozen=True)
@@ -438,7 +464,7 @@ def scan_secret_like_lines(text: str) -> list[dict[str, Any]]:
     locations: list[dict[str, Any]] = []
     seen: set[tuple[int, str]] = set()
     for lineno, line in enumerate(text.splitlines(), start=1):
-        for pattern, label in SECRET_PATTERNS:
+        for pattern, label, _value_group in SECRET_PATTERNS:
             m = re.search(pattern, line, flags=re.IGNORECASE)
             if not m:
                 continue
@@ -454,6 +480,44 @@ def scan_secret_like_lines(text: str) -> list[dict[str, Any]]:
                 }
             )
     return locations
+
+
+def mask_secret_body(s: str, *, keep: int = MASK_KEEP) -> str:
+    """Mask the middle of a secret, leaving `keep` chars at each end in the
+    clear and replacing the rest with '*'. Secrets too short to keep both
+    ends without overlap are masked in full."""
+    if not s:
+        return s
+    if len(s) <= keep * 2:
+        return "*" * len(s)
+    return s[:keep] + "*" * (len(s) - keep * 2) + s[-keep:]
+
+
+def mask_secret_like_text(text: str) -> str:
+    """Return `text` with every secret-like match masked in place.
+
+    Private-key blocks are collapsed to a single redaction marker; every
+    other rule masks only its secret body (the whole match, or the captured
+    value group for `KEY=value` assignments) so the surrounding markdown and
+    variable names stay readable. Idempotent: re-masking masked text is a
+    no-op because the patterns no longer match the '*'-filled bodies."""
+    text = PRIVATE_KEY_BLOCK_RE.sub(
+        "-----BEGIN PRIVATE KEY----- [REDACTED] -----END PRIVATE KEY-----", text
+    )
+
+    for pattern, _label, value_group in SECRET_PATTERNS:
+
+        def repl(m: re.Match[str], vg: int = value_group) -> str:
+            whole = m.group(0)
+            if vg == 0 or m.group(vg) is None:
+                return mask_secret_body(whole)
+            start = m.start(vg) - m.start(0)
+            end = m.end(vg) - m.start(0)
+            return whole[:start] + mask_secret_body(m.group(vg)) + whole[end:]
+
+        text = re.sub(pattern, repl, text, flags=re.IGNORECASE)
+
+    return text
 
 
 def build_header(candidate: Candidate, transcript: Path, output_path: Path) -> str:
@@ -560,12 +624,18 @@ def export_one(
                     f"Refused to write {output_path}: secret-like patterns "
                     f"detected on {len(locations)} line(s): "
                     f"{', '.join(labels)}. Inspect manually and rerun with "
-                    "--allow-secret-like to override."
+                    "--allow-secret-like to write a masked copy."
                 ),
                 "transcript": str(transcript),
                 "secret_labels": labels,
                 "secret_locations": locations,
             }
+
+        # When writing despite secret-like hits (--allow-secret-like), mask the
+        # secret bodies first so the dumped worklog never carries the raw value.
+        masked = bool(locations)
+        if masked:
+            final_text = mask_secret_like_text(final_text)
 
         tmp_out = output_path.with_suffix(".tmp.md")
         tmp_out.write_text(final_text, encoding="utf-8")
@@ -585,6 +655,7 @@ def export_one(
         "secret_labels": labels,
         "secret_locations": locations,
         "secret_override_applied": bool(locations and allow_secret_like),
+        "secret_masked": masked,
     }
 
 
@@ -602,7 +673,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  python temp/export_claude_session_logs.py\n"
             "  python temp/export_claude_session_logs.py --name M7\n"
             "  python temp/export_claude_session_logs.py --id 01F8ABC\n"
-            "  python temp/export_claude_session_logs.py --json --output-dir logs\n"
+            "  python temp/export_claude_session_logs.py --json --output-dir worklogs\n"
             "  python temp/export_claude_session_logs.py --allow-any-state --detail high\n"
         ),
     )
@@ -634,7 +705,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--allow-secret-like",
         action="store_true",
-        help="Write even if secret-like patterns are found in the rendered transcript.",
+        help="Write even if secret-like patterns are found in the rendered "
+        "transcript; matched secrets are masked (first/last "
+        f"{MASK_KEEP} chars kept, the rest replaced with '*').",
     )
     parser.add_argument(
         "--detail",
@@ -644,8 +717,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--output-dir",
-        default="logs",
-        help="Output directory, relative to repo root (default: logs).",
+        default="worklogs",
+        help="Output directory, relative to repo root (default: worklogs).",
     )
     parser.add_argument(
         "--json",
@@ -667,7 +740,7 @@ def emit_human(result: dict[str, Any]) -> None:
         if result.get("secret_override_applied") and locations:
             eprint(
                 f"          WARN: --allow-secret-like override applied; "
-                f"{len(locations)} secret-like line(s) written:"
+                f"{len(locations)} secret-like line(s) masked and written:"
             )
             for loc in locations:
                 eprint(
