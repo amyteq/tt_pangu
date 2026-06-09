@@ -131,6 +131,16 @@ Example: `M0-T001-project-baseline.md`
 | `M12-T007-real-submit.md` | M12 | done | Reviewer gate fired; cmd_submit added (credentials-gated); real submit DEFERRED |
 | `M12-T008-regression-tests.md` | M12 | done | `tests/test_m12_e2e.py` (6 tests) + `tests/test_m12_smoke.py` (5 PASS + 2 XFAIL) |
 | `M12-T009-final-review.md` | M12 | done | M12 exit criteria + `docs/m12-final-review.md` + closeout |
+| `M13-T000-eval-architecture.md` | M13 | done | `arch:` Discovery/Debate Gate; ADR-0019 (renumbered from 0016 — M11 took 0016/0017 + M12 took 0018); regression-suite architecture doc |
+| `M13-T001-migration-and-cli.md` | M13 | done | Migration **0010_m13_eval.sql** (renumbered from 0008 — M11 took 0008 and M12 took 0009); 8 DB helpers; `kca eval` CLI scaffold |
+| `M13-T002-tool-smoke-suite.md` | M13 | done | `tool-smoke` suite; 10 cases; deterministic; audit-grep clean |
+| `M13-T003-kaggle-replay-suite.md` | M13 | done | 3 Kaggle replay suites (titanic, spaceship-titanic, house-prices); offline fixtures; deterministic |
+| `M13-T004-notebook-kernel-dryrun-suite.md` | M13 | done | `kernel-dryrun` suite; 4 cases; credentials-gate refusal verified; M10 fixture coexistence |
+| `M13-T005-reasoning-benchmark.md` | M13 | done | `reasoning` suite; 5 cases; deterministic shape-check judge |
+| `M13-T006-model-route-comparison.md` | M13 | done | 5 routes wired; paid-route refusal; `--route-compare` 25 rows; no money spent |
+| `M13-T007-report-aggregator.md` | M13 | done | Aggregator + `kca eval report` (JSON + MD); canonical snapshot committed |
+| `M13-T008-ci-and-tests.md` | M13 | done | CI nightly cron; `tests/test_m13_smoke.py` (6); `tests/test_m13_e2e.py` (6); tracking issue #47 |
+| `M13-T009-m13-exit-criteria.md` | M13 | done | M13 exit criteria + `docs/m13-final-review.md` + tracking-doc updates + PR |
 
 > **Convention (M0–M6, M8.5 onward):** Every milestone uses the
 > **double-layer** pattern — `docs/m{N}-loop-prompts.md` for the per-loop

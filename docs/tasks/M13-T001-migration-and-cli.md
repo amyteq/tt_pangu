@@ -1,11 +1,11 @@
-# M13-T001: Migration 0008 + `kca eval` CLI scaffold
+# M13-T001: Migration 0010 + `kca eval` CLI scaffold
 
 ## Milestone
 M13: evaluation, reliability, and regression suite.
 
 ## Goal
 Land the three new tables (`eval_suites`, `eval_runs`,
-`eval_results`) via `supabase/migrations/0008_m13_eval.sql`, the
+`eval_results`) via `supabase/migrations/0010_m13_eval.sql`, the
 matching helper functions in `tools/kca/db.py`, and the `kca eval`
 top-level subcommand surface with four placeholder verbs (`list`,
 `run`, `show`, `report`). No suites yet; the scaffold must exit-0
@@ -17,8 +17,8 @@ issue has reached `decision:confirmed` + `ai:ready`.
 
 ## Read first
 
-1. M13-T000 closeout (ADR-0016 + architecture doc).
-2. `docs/adr/0016-eval-regression-suite.md` (the schema this task
+1. M13-T000 closeout (ADR-0019 + architecture doc).
+2. `docs/adr/0019-eval-regression-suite.md` (the schema this task
    implements).
 3. `docs/architecture/eval-regression-suite.md` (table layouts).
 4. `supabase/migrations/0007_m8_agent_tool_audit.sql` (most recent
@@ -38,7 +38,7 @@ issue has reached `decision:confirmed` + `ai:ready`.
 
 ## Scope
 
-1. **Migration `supabase/migrations/0008_m13_eval.sql`** —
+1. **Migration `supabase/migrations/0010_m13_eval.sql`** —
    idempotent (`CREATE TABLE IF NOT EXISTS …`):
 
    - `eval_suites` — `id uuid pk`, `name text unique not null`,
@@ -121,8 +121,8 @@ issue has reached `decision:confirmed` + `ai:ready`.
 
 ## Acceptance criteria
 
-- `supabase/migrations/0008_m13_eval.sql` applies cleanly via
-  `psql $SUPABASE_DB_URL -f supabase/migrations/0008_m13_eval.sql`
+- `supabase/migrations/0010_m13_eval.sql` applies cleanly via
+  `psql $SUPABASE_DB_URL -f supabase/migrations/0010_m13_eval.sql`
   twice in a row (idempotent).
 - `tools/kca/db.py` exports the seven helpers in scope step 2;
   `ruff check .` and `ruff format --check .` clean.
@@ -145,7 +145,7 @@ issue has reached `decision:confirmed` + `ai:ready`.
 
 ```
 M13-T001 closeout
-  Migration: supabase/migrations/0008_m13_eval.sql (applied; idempotent verified)
+  Migration: supabase/migrations/0010_m13_eval.sql (applied; idempotent verified)
   DB helpers: tools/kca/db.py +<n> functions (register_eval_suite, start_eval_run, finish_eval_run, record_eval_result, list_eval_suites, list_eval_runs, fetch_eval_results)
   CLI: kca eval list/run/show/report — registered; `kca eval --help` prints 4 verbs
   NO_SUITES_REGISTERED refusal: verified via `kca eval run --all --dry-run --json`

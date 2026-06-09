@@ -27,7 +27,7 @@ emits real (or mocked) rows for the aggregator to roll up.
 4. `docs/m9-final-review.md`, `docs/m10-final-review.md` (visual
    precedent for the Markdown layout).
 5. `docs/architecture/eval-regression-suite.md` (report-shape
-   contract from ADR-0016).
+   contract from ADR-0019).
 6. Existing `kca run list --json` output (rolling-up pattern).
 
 ## Scope
@@ -98,7 +98,7 @@ emits real (or mocked) rows for the aggregator to roll up.
 
 4. **Stable ordering.** Suites listed in registration order
    (matches `eval_suites.created_at`). Routes listed in the
-   ADR-0016 canonical order (`mocked`, `local_vllm`,
+   ADR-0019 canonical order (`mocked`, `local_vllm`,
    `claude_haiku_4_5`, `claude_sonnet_4_6`, `gpt_4o`). Cases
    listed in `cases.yaml` order (i.e. `eval_results.created_at`).
 

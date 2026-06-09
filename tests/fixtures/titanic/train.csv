@@ -1,0 +1,201 @@
+PassengerId,Survived,Pclass,Name,Sex,Age,SibSp,Parch,Ticket,Fare,Cabin,Embarked
+1,1,3,"Sloper, Mrs. James",female,46.0,1,2,66250,11.6182,,S
+2,0,2,"Wheadon, Mr. Charles",male,26.1,1,0,57007,10.0822,,Q
+3,1,2,"Laroche, Mrs. John",female,,1,0,80302,20.5962,,C
+4,0,3,"Cann, Master. Owen",male,13.9,0,2,10644,14.4048,,S
+5,0,3,"Nicola, Mr. Margaret",male,14.3,0,0,24200,12.3088,D33,Q
+6,1,2,"Moran, Master. Lily",male,18.0,1,2,68492,98.1909,E46,S
+7,1,2,"Williams, Mrs. William",female,17.0,1,0,92549,2.7153,C123,S
+8,0,1,"Cann, Mr. John",male,18.8,1,0,16411,37.6933,D33,S
+9,1,1,"Futrelle, Mr. Edward",male,,0,0,81443,9.6662,,S
+10,1,2,"Fortune, Mrs. Charles",female,34.7,0,0,95992,13.864,D33,S
+11,0,3,"Bonnell, Mr. George",male,34.4,0,2,89396,16.0735,B96 B98,Q
+12,0,3,"Moran, Mrs. Mary",female,36.9,0,0,71445,14.2218,G6,S
+13,1,2,"Devaney, Mrs. James",female,,0,0,91664,15.8606,G6,S
+14,1,3,"Heikkinen, Mrs. Owen",female,11.8,0,1,34077,38.9386,G6,C
+15,0,3,"ODwyer, Mr. Owen",male,17.2,1,1,95199,73.079,,S
+16,0,3,"Turpin, Mr. Margaret",male,30.1,0,0,36797,31.6889,G6,C
+17,1,2,"Devaney, Mr. William",male,,0,0,20342,119.6043,D33,C
+18,1,1,"Cann, Mrs. Catherine",female,16.3,0,0,77055,15.2643,C85,S
+19,0,3,"Fortune, Mr. Margaret",male,,4,0,15159,21.2308,,S
+20,0,3,"Vander, Master. George",male,26.8,0,0,44281,13.9655,G6,S
+21,0,2,"Moran, Mr. Henry",male,19.9,0,0,8115,18.2253,B96 B98,S
+22,0,2,"Vestrom, Miss. Lily",female,19.6,0,0,76807,47.0966,C123,S
+23,0,3,"Heikkinen, Mr. Florence",male,,0,0,13814,10.4881,B96 B98,C
+24,1,1,"Meyer, Miss. Anna",female,36.2,0,1,65431,78.6803,,S
+25,0,3,"Ahlin, Mrs. Margaret",female,37.7,1,1,94226,40.5156,,S
+26,0,3,"McGowan, Mr. Florence",male,,0,1,86094,20.1574,E46,C
+27,0,3,"Andersson, Mr. Edward",male,38.0,1,2,63304,27.5615,,S
+28,0,1,"Rice, Mr. Edward",male,6.7,0,0,50452,28.4866,C85,C
+29,0,2,"Sloper, Master. Mary",male,49.0,0,0,80286,20.1617,,S
+30,0,1,"Devaney, Mr. James",male,,0,0,50354,158.5938,,C
+31,1,3,"Johnson, Mrs. Catherine",female,48.9,1,0,38609,96.8183,B96 B98,C
+32,0,3,"Laroche, Mr. Mary",male,21.2,1,0,5340,17.8871,B96 B98,S
+33,0,3,"Holverson, Mr. William",male,34.7,0,0,19195,17.0581,,Q
+34,0,2,"ODwyer, Mr. George",male,1.14,1,0,42632,32.2296,,S
+35,1,3,"Andersson, Mrs. William",female,68.9,0,2,98138,6.6452,,Q
+36,1,1,"Johnson, Mr. James",male,,0,2,47579,1.6719,B96 B98,S
+37,1,1,"Beesley, Mr. Henry",male,22.3,2,1,99040,10.2,,C
+38,1,3,"Nasser, Miss. Margaret",female,,0,0,83588,16.4673,C123,S
+39,1,3,"Wheadon, Mrs. Laina",female,9.4,0,0,14336,10.1818,,C
+40,1,2,"McGowan, Miss. Florence",female,41.3,0,2,46678,18.9175,G6,C
+41,1,2,"Nasser, Mrs. George",female,41.9,0,0,12231,69.874,,S
+42,1,2,"Mamee, Master. Helen",male,30.3,0,0,13473,40.0091,,S
+43,1,1,"ODwyer, Mrs. Margaret",female,20.2,1,0,37160,23.8524,,S
+44,0,2,"Nicola, Miss. Laina",female,44.8,0,0,16260,36.2993,D33,S
+45,1,3,"Devaney, Miss. Helen",female,14.9,0,0,39445,7.4395,D33,S
+46,0,2,"Moran, Miss. Catherine",female,,0,0,941,17.4209,,Q
+47,0,3,"McGowan, Mrs. Anna",female,33.2,0,0,55374,46.1171,,S
+48,1,3,"Emir, Mrs. George",female,53.6,0,1,51157,125.9104,G6,Q
+49,0,3,"Bonnell, Mr. Margaret",male,49.8,0,0,80382,121.3667,C123,S
+50,1,1,"Williams, Mrs. Mary",female,34.0,0,0,21446,16.014,,S
+51,0,3,"Moran, Mr. Anna",male,3.7,0,0,70341,20.0604,,S
+52,1,1,"Fynney, Mr. Catherine",male,49.5,0,0,33476,17.8846,,S
+53,1,3,"Uruchurtu, Mr. Owen",male,14.1,0,0,10779,2.2246,,S
+54,1,3,"Fortune, Mrs. Laina",female,30.2,0,1,32832,21.8089,C85,Q
+55,1,2,"Holverson, Mrs. Helen",female,45.8,1,1,70376,29.5228,,S
+56,0,3,"Braund, Master. Mary",male,18.0,0,1,16063,17.3795,D33,S
+57,1,3,"Laroche, Mrs. Laina",female,35.0,0,0,18094,64.7279,C123,S
+58,0,3,"Johnson, Mr. George",male,,0,4,74745,13.8615,,C
+59,0,2,"Spencer, Mr. John",male,35.3,0,0,28945,24.5921,G6,C
+60,0,3,"Saundercock, Miss. Margaret",female,,0,0,50443,52.7651,C123,C
+61,0,3,"Cumings, Mrs. Mary",female,19.3,0,0,96085,30.3099,G6,S
+62,1,1,"Sloper, Master. Florence",male,11.1,0,1,28480,20.2501,C85,S
+63,1,2,"Spencer, Mrs. Mary",female,20.1,1,0,74120,66.7568,E46,S
+64,1,3,"Cumings, Mr. Laina",male,35.8,1,0,94182,33.0567,G6,S
+65,0,3,"Moran, Mr. Margaret",male,,2,0,88133,10.9592,C123,S
+66,1,3,"Masselmani, Miss. Mary",female,7.6,0,0,69803,25.728,,S
+67,1,3,"Masselmani, Miss. James",female,40.7,0,0,69472,23.1246,C85,S
+68,0,3,"Cann, Miss. Charles",female,33.4,0,0,21405,7.8849,,S
+69,0,1,"Sandstrom, Mr. Florence",male,16.4,1,0,74627,12.5876,C85,C
+70,1,1,"Laroche, Mrs. William",female,45.1,0,0,66150,34.7025,E46,C
+71,1,2,"Beesley, Miss. James",female,34.5,0,0,92580,179.9655,,C
+72,1,1,"Kraeff, Miss. Henry",female,3.3,0,0,2156,11.5356,C123,S
+73,0,2,"Hewlett, Master. William",male,30.2,0,0,24778,55.1392,C123,S
+74,0,1,"Todoroff, Master. Mary",male,39.0,0,0,76474,16.2037,,S
+75,0,2,"Allen, Mr. William",male,,1,0,88101,23.7017,,S
+76,1,3,"Holverson, Mrs. Florence",female,,0,1,17657,74.2915,B96 B98,S
+77,0,3,"Saundercock, Miss. Anna",female,,0,1,91903,97.5293,B96 B98,Q
+78,0,3,"Bonnell, Mr. Anna",male,45.6,0,0,9490,55.2584,B96 B98,S
+79,0,2,"Moran, Mr. Edward",male,12.7,0,1,79731,14.647,E46,S
+80,0,3,"McGowan, Mr. Mary",male,23.5,0,0,54342,46.7774,E46,Q
+81,0,3,"Rice, Mr. Helen",male,,0,2,54131,9.0019,C85,S
+82,1,2,"Devaney, Miss. Anna",female,,0,0,59931,129.9929,G6,S
+83,0,3,"McGowan, Mrs. William",female,36.8,0,1,61885,25.311,,S
+84,1,2,"Kraeff, Mr. John",male,20.9,0,0,63396,18.1129,C85,S
+85,1,3,"Braund, Mrs. John",female,41.4,0,0,90138,9.4245,,S
+86,1,3,"Nasser, Master. John",male,18.5,0,0,54984,7.0978,C123,S
+87,1,3,"Todoroff, Miss. Henry",female,24.2,0,2,61852,2.504,,S
+88,0,2,"Cumings, Master. Henry",male,28.5,1,0,36312,7.7976,E46,Q
+89,1,1,"McCarthy, Master. Helen",male,10.4,4,0,21252,8.411,,S
+90,0,3,"Sloper, Miss. Mary",female,,0,0,25749,48.6364,D33,S
+91,0,2,"Johnson, Mr. Charles",male,9.8,1,0,21826,18.9672,,C
+92,0,3,"Meyer, Mr. Margaret",male,38.9,0,0,94006,93.0904,E46,C
+93,0,2,"Vander, Mr. Henry",male,16.7,1,3,49719,36.7487,E46,C
+94,0,3,"Mamee, Mr. James",male,29.6,0,2,78190,3.2302,D33,S
+95,1,1,"Ahlin, Mr. George",male,50.6,0,0,30078,98.3908,,C
+96,1,3,"ODwyer, Mr. Helen",male,13.0,0,5,92916,32.6344,D33,S
+97,1,2,"Holverson, Miss. Mary",female,,0,0,63007,28.5986,B96 B98,S
+98,1,3,"Turpin, Miss. Florence",female,12.9,0,0,59989,24.9785,,C
+99,0,2,"Braund, Mrs. Catherine",female,48.4,0,0,73274,48.1587,,Q
+100,0,3,"Fynney, Mrs. John",female,51.9,0,0,65063,13.1736,C123,Q
+101,0,3,"Emir, Mr. William",male,51.7,1,0,52685,4.0401,,S
+102,1,2,"Masselmani, Miss. George",female,20.3,0,1,38289,11.1052,,C
+103,1,3,"Nicola, Miss. Henry",female,40.7,0,2,88656,17.7121,,S
+104,0,3,"Todoroff, Mr. Mary",male,38.8,2,1,53381,10.1262,C123,S
+105,1,1,"Turpin, Miss. James",female,31.5,0,1,10790,35.301,,S
+106,1,3,"Emir, Mrs. John",female,,0,2,57222,7.2803,C123,C
+107,0,3,"Kraeff, Mr. Catherine",male,59.0,0,0,27243,30.9485,,S
+108,0,3,"Bonnell, Master. Anna",male,48.8,0,0,16992,18.0345,D33,S
+109,0,3,"Vander, Master. Helen",male,14.8,0,1,29457,19.1867,G6,S
+110,1,2,"Mamee, Mrs. Owen",female,49.9,2,2,24689,11.6966,,Q
+111,0,1,"Meyer, Mr. Laina",male,23.5,0,0,51335,41.9168,B96 B98,S
+112,1,2,"Andersson, Miss. Mary",female,23.8,0,0,31946,21.1634,C123,S
+113,1,1,"Mamee, Master. Margaret",male,31.0,0,0,89625,10.0298,,S
+114,1,3,"Allen, Mrs. William",female,59.2,0,4,98619,10.9323,,S
+115,1,1,"Johnson, Miss. George",female,40.2,0,5,40552,14.8821,,S
+116,0,3,"Cumings, Mr. John",male,19.1,0,0,77156,70.2414,,S
+117,1,1,"Ahlin, Mrs. Owen",female,35.1,0,0,5868,5.3188,D33,S
+118,1,3,"Turpin, Mrs. Florence",female,21.0,1,0,99929,33.8471,C85,S
+119,1,1,"Vander, Mrs. George",female,32.8,0,0,2977,29.5281,,S
+120,0,3,"Allen, Miss. Florence",female,20.8,0,0,63705,13.8342,,Q
+121,0,3,"Sloper, Mr. James",male,11.1,0,2,61144,7.9491,,S
+122,0,3,"Braund, Mrs. William",female,14.6,0,0,21921,22.8745,G6,S
+123,1,3,"Masselmani, Mrs. John",female,16.2,0,0,83780,64.6887,B96 B98,S
+124,0,2,"Emir, Master. Lily",male,20.7,0,0,76440,86.2,G6,S
+125,0,2,"Bonnell, Mr. Helen",male,32.8,0,0,2091,57.5456,E46,S
+126,1,1,"Sandstrom, Miss. Charles",female,55.9,0,2,26637,13.5008,C85,C
+127,1,1,"Sandstrom, Mrs. Henry",female,41.8,2,0,99486,48.3543,D33,S
+128,0,3,"Spencer, Mrs. James",female,56.0,1,0,8274,17.8249,E46,S
+129,1,3,"Hewlett, Mrs. Catherine",female,40.7,1,0,59132,14.817,,S
+130,0,3,"Hewlett, Master. Florence",male,,1,0,78719,33.0997,,S
+131,1,2,"Saundercock, Miss. Anna",female,46.4,0,0,62166,15.5454,C85,Q
+132,1,3,"Holverson, Mrs. Henry",female,25.8,0,0,24847,19.2153,,S
+133,0,3,"Saundercock, Miss. Helen",female,29.0,0,1,90719,9.645,,C
+134,0,3,"Asplund, Mr. John",male,42.0,1,0,88508,226.167,C85,Q
+135,1,1,"Bonnell, Mrs. Lily",female,33.6,0,0,46340,17.0609,,S
+136,1,1,"Futrelle, Mrs. Edward",female,24.9,1,2,79330,84.5189,E46,S
+137,0,3,"Wheadon, Mr. Lily",male,25.5,0,0,84767,12.3169,C85,S
+138,1,2,"Palsson, Mrs. William",female,,2,1,24482,46.3345,,S
+139,0,2,"Braund, Miss. Florence",female,18.3,0,0,16204,11.5151,G6,C
+140,1,2,"Futrelle, Mr. Edward",male,16.7,0,3,3718,13.1182,B96 B98,S
+141,0,3,"Wheadon, Mr. Lily",male,46.7,0,0,33223,5.4095,,S
+142,0,3,"Johnson, Mr. Anna",male,,0,1,942,38.4129,,S
+143,0,3,"Beesley, Master. Catherine",male,29.4,0,0,52961,25.6678,B96 B98,S
+144,1,1,"Nasser, Mrs. William",female,42.7,0,0,87165,8.931,C85,S
+145,1,3,"Holverson, Mrs. Catherine",female,39.2,0,0,48070,13.472,,S
+146,1,2,"Palsson, Miss. Charles",female,7.7,0,0,5309,11.1421,E46,S
+147,0,3,"Sandstrom, Mr. George",male,6.6,1,1,69033,120.0742,D33,S
+148,0,3,"Uruchurtu, Mrs. Anna",female,33.0,4,0,75910,13.9224,,S
+149,1,2,"Asplund, Miss. Henry",female,30.4,0,2,78654,11.2129,C123,S
+150,1,3,"Uruchurtu, Mrs. George",female,40.8,1,0,26945,46.5743,D33,S
+151,0,3,"Cumings, Mrs. Mary",female,26.6,1,0,25277,6.8676,,S
+152,1,2,"Emir, Mrs. William",female,40.9,0,2,7796,16.3818,C85,S
+153,1,3,"Moran, Mrs. Owen",female,1.9,2,0,66439,26.8546,D33,Q
+154,1,3,"Moran, Master. Florence",male,46.2,1,0,75567,31.675,,S
+155,0,1,"Kraeff, Mr. James",male,30.8,0,0,10380,1.0952,,C
+156,1,1,"Kraeff, Mrs. Lily",female,37.3,1,0,78628,11.0855,D33,S
+157,0,2,"Uruchurtu, Mr. Lily",male,42.0,0,0,88610,31.6935,G6,S
+158,1,3,"Ahlin, Miss. William",female,32.9,0,0,67852,150.5867,G6,S
+159,0,2,"Sloper, Master. Catherine",male,32.1,0,0,72134,3.0318,B96 B98,S
+160,1,3,"Spencer, Mrs. Owen",female,34.6,0,0,12888,23.6191,G6,C
+161,1,1,"Saundercock, Mr. George",male,,1,0,12008,23.37,B96 B98,S
+162,1,3,"Wheadon, Mrs. John",female,37.7,1,0,46079,7.9021,,S
+163,0,1,"Turpin, Mr. Margaret",male,,0,0,51504,8.629,C85,C
+164,0,1,"Johnson, Master. Henry",male,28.6,0,0,2436,21.6023,C123,C
+165,1,1,"Mamee, Miss. Catherine",female,27.5,0,5,51842,6.155,C85,S
+166,0,1,"Nicola, Master. Lily",male,16.2,0,0,97232,53.869,,S
+167,0,2,"Ahlin, Mr. Helen",male,25.7,0,0,34184,36.3305,B96 B98,C
+168,0,1,"Meyer, Mr. John",male,24.4,1,0,29784,5.5868,,C
+169,1,3,"Heikkinen, Mr. Florence",male,27.6,1,0,59280,7.9924,E46,S
+170,1,1,"Hewlett, Miss. James",female,41.0,0,0,59472,2.4052,C85,S
+171,0,3,"Uruchurtu, Mr. Henry",male,25.2,2,0,84940,4.3312,,S
+172,0,2,"Holverson, Miss. Edward",female,9.0,0,1,61468,33.0699,B96 B98,S
+173,1,3,"Johnson, Miss. Lily",female,21.3,0,0,22642,32.3963,C85,S
+174,0,3,"Saundercock, Mr. Edward",male,37.1,0,0,16813,10.0875,G6,S
+175,1,3,"Johnson, Mrs. Catherine",female,,0,1,85897,21.0967,,S
+176,1,3,"McGowan, Mrs. Florence",female,35.1,0,0,299,20.2507,C123,C
+177,1,3,"Fynney, Miss. Margaret",female,,0,0,12227,4.4773,,S
+178,0,3,"Sandstrom, Master. John",male,,0,1,73594,37.4844,E46,S
+179,1,3,"Sloper, Mrs. Anna",female,28.5,2,0,62084,51.4623,G6,C
+180,1,3,"Spencer, Mrs. John",female,28.3,0,0,48899,18.3983,C85,S
+181,0,1,"Johnson, Mr. George",male,1.33,0,0,54356,55.7524,,S
+182,0,1,"Fortune, Mr. James",male,26.3,0,2,10417,17.3947,C123,C
+183,1,1,"Allen, Miss. Owen",female,46.4,0,0,45468,16.1477,,S
+184,0,3,"Todoroff, Master. Margaret",male,11.3,0,0,61662,24.6739,D33,S
+185,0,1,"Cumings, Mr. Florence",male,41.8,5,0,24092,59.6178,,C
+186,1,1,"Todoroff, Master. Laina",male,26.5,0,0,38037,17.6138,B96 B98,S
+187,0,2,"Ahlin, Mr. Anna",male,6.5,0,0,99728,20.8312,C85,S
+188,1,3,"Heikkinen, Mrs. Owen",female,33.6,1,0,48445,5.9972,,S
+189,1,1,"Palsson, Mr. William",male,,1,0,63962,19.743,G6,Q
+190,0,3,"Holverson, Mr. Owen",male,,0,1,82220,22.4316,B96 B98,S
+191,0,3,"Hewlett, Miss. Owen",female,17.1,0,2,20086,65.297,C123,C
+192,1,3,"Andersson, Miss. Florence",female,,0,0,24507,6.9448,G6,S
+193,0,2,"Laroche, Mrs. William",female,35.9,1,0,65855,37.6856,C85,S
+194,0,3,"Emir, Mr. Mary",male,23.3,0,0,83694,14.4679,E46,S
+195,0,3,"Braund, Mr. Henry",male,68.8,8,0,86037,150.1846,C85,S
+196,0,3,"ODwyer, Mr. Mary",male,,0,0,33923,11.7466,E46,S
+197,0,3,"Uruchurtu, Mr. Charles",male,47.5,0,1,47969,19.0288,,C
+198,0,3,"Meyer, Mrs. Edward",female,,1,0,99398,18.2376,E46,S
+199,0,2,"Bonnell, Mr. Florence",male,27.1,0,3,32906,11.3344,E46,S
+200,1,3,"Masselmani, Mrs. John",female,21.6,0,0,65628,88.9859,B96 B98,S
