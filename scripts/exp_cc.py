@@ -279,16 +279,52 @@ def load_agents_from_state_files(config_dir: Path, root: Path) -> list[Candidate
     return out
 
 
+def identity_key(c: Candidate) -> tuple[str, str]:
+    """A stable identity for a session. The session id uniquely identifies a
+    transcript, so it is the primary key; fall back to job id, then name. This
+    matters because the SAME session surfaces from two sources with different
+    completeness — `claude agents --json` reports the session id but no job id,
+    while jobs/<id>/state.json reports both — and keying on all three fields
+    would treat them as two sessions and dump the transcript twice."""
+    if c.session_id:
+        return ("sid", c.session_id)
+    if c.job_id:
+        return ("job", c.job_id)
+    return ("name", c.name)
+
+
+def merge_candidates(a: Candidate, b: Candidate) -> Candidate:
+    """Combine two records for the same session into the richer one: prefer the
+    record backed by a state.json file (it carries job id + status + the raw
+    payload used for transcript resolution), then fill any blank fields from the
+    other and prefer a terminal status."""
+    primary, secondary = (a, b) if a.state_path else (b, a)
+    status = primary.status
+    if status not in TERMINAL_STATUSES and secondary.status in TERMINAL_STATUSES:
+        status = secondary.status
+    return Candidate(
+        source=primary.source,
+        job_id=primary.job_id or secondary.job_id,
+        session_id=primary.session_id or secondary.session_id,
+        name=primary.name or secondary.name,
+        status=status or primary.status or secondary.status,
+        cwd=primary.cwd or secondary.cwd,
+        state_path=primary.state_path or secondary.state_path,
+        raw=primary.raw or secondary.raw,
+    )
+
+
 def dedupe(candidates: list[Candidate]) -> list[Candidate]:
-    seen: set[tuple[str, str, str]] = set()
-    out: list[Candidate] = []
+    by_key: dict[tuple[str, str], Candidate] = {}
+    order: list[tuple[str, str]] = []
     for c in candidates:
-        key = (c.job_id, c.session_id, c.name)
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(c)
-    return out
+        key = identity_key(c)
+        if key in by_key:
+            by_key[key] = merge_candidates(by_key[key], c)
+        else:
+            by_key[key] = c
+            order.append(key)
+    return [by_key[key] for key in order]
 
 
 def score_candidate(target: str, c: Candidate, *, field: str | None = None) -> int:
@@ -585,10 +621,12 @@ def mask_secret_like_text(text: str) -> str:
     return text
 
 
-def build_header(candidate: Candidate, transcript: Path, output_path: Path) -> str:
-    # No "Exported at" / wall-clock timestamp on purpose: the header must be a
-    # pure function of the session content so an unchanged session re-exports to
-    # byte-identical Markdown and the daily worklogs routine produces no commit.
+def build_header(candidate: Candidate, transcript: Path) -> str:
+    # The header must be a pure function of the session CONTENT so an unchanged
+    # session re-exports to byte-identical Markdown and the daily worklogs
+    # routine produces no commit. So: no "Exported at" wall-clock, and no
+    # "Output" path — the output path varies per run (the routine renders into a
+    # fresh temp worktree), which otherwise churned every file on every run.
     # The git commit time already records when a dump happened.
     title = (
         candidate.name or candidate.job_id or candidate.session_id or "Claude session"
@@ -599,8 +637,7 @@ def build_header(candidate: Candidate, transcript: Path, output_path: Path) -> s
         f"- Job id: `{candidate.job_id or ''}`\n"
         f"- Session id: `{candidate.session_id or ''}`\n"
         f"- Status: `{candidate.status or ''}`\n"
-        f"- Source transcript: `{transcript}`\n"
-        f"- Output: `{output_path}`\n\n"
+        f"- Source transcript: `{transcript}`\n\n"
         "---\n\n"
     )
 
@@ -673,9 +710,7 @@ def export_one(
             }
 
         body = tmp_md.read_text(encoding="utf-8", errors="replace")
-        final_text = (
-            build_header(candidate, transcript, output_path) + body.rstrip() + "\n"
-        )
+        final_text = build_header(candidate, transcript) + body.rstrip() + "\n"
 
         locations = scan_secret_like_lines(final_text)
         labels = sorted({loc["label"] for loc in locations})
