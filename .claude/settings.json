@@ -101,7 +101,11 @@
       "Bash(kaggle datasets create*)",
       "Bash(kaggle datasets version*)",
       "Bash(python tools/kca/kca.py kaggle push*)",
-      "Bash(python tools/kca/kca.py kaggle upload*)"
+      "Bash(python tools/kca/kca.py kaggle upload*)",
+      "Bash(kca ctf flag submit*)",
+      "Bash(kca ctf solver run*)",
+      "Bash(python tools/kca/kca.py ctf flag submit*)",
+      "Bash(python tools/kca/kca.py ctf solver run*)"
     ],
     "deny": [
       "Read(./.env.production)",

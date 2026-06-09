@@ -1,0 +1,15 @@
+{
+  "id": "exp-2026-06-09-hgb-fe",
+  "competition": "spaceship-titanic",
+  "model": "HistGradientBoostingClassifier",
+  "seed": 0,
+  "cv_metric_name": "accuracy",
+  "cv_mean": 0.812,
+  "cv_std": 0.011,
+  "train_score": 0.987,
+  "n_folds": 5,
+  "n_features": 28,
+  "features": ["HomePlanet", "CryoSleep", "Cabin_deck", "Cabin_num", "Cabin_side", "Destination", "Age", "VIP", "RoomService", "FoodCourt", "ShoppingMall", "Spa", "VRDeck", "Group", "TotalSpend"],
+  "runtime_sec": 42.1,
+  "notes": "early_stopping='auto', learning_rate=0.05, max_iter=400"
+}

@@ -1,0 +1,471 @@
+{
+  "aborted_on_budget": false,
+  "cost_usd": 0.0,
+  "finished_at": "2026-06-08T21:09:12.013106+00:00",
+  "groups": [
+    {
+      "case_count": 3,
+      "cases": [
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "category": "read_only",
+            "expected_status": "pass",
+            "latency_ms": 0,
+            "output_keys": [],
+            "output_match": true,
+            "route": "mocked",
+            "route_no_op": false,
+            "tool": "read_file"
+          },
+          "name": "read_file_sample_ok",
+          "status": "pass"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "category": "read_only",
+            "expected_status": "pass",
+            "latency_ms": 0,
+            "output_keys": [
+              "file",
+              "line",
+              "line_number"
+            ],
+            "output_match": true,
+            "route": "mocked",
+            "route_no_op": false,
+            "tool": "grep_workspace"
+          },
+          "name": "grep_workspace_match_one",
+          "status": "pass"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "category": "local_write",
+            "expected_status": "pass",
+            "latency_ms": 0,
+            "output_keys": [],
+            "output_match": true,
+            "route": "mocked",
+            "route_no_op": false,
+            "tool": "write_file"
+          },
+          "name": "write_file_creates_new",
+          "status": "pass"
+        }
+      ],
+      "metrics_aggregate": {
+        "latency_ms": {
+          "max": 0.0,
+          "mean": 0.0,
+          "min": 0.0,
+          "p50": 0.0
+        }
+      },
+      "pass_count": 3,
+      "route": "mocked",
+      "suite": "tool-smoke"
+    },
+    {
+      "case_count": 3,
+      "cases": [
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "NO_LIVE_LOCAL_ENDPOINT",
+            "refusal_layer": "resolver",
+            "route": "local_vllm",
+            "route_no_op": true
+          },
+          "name": "read_file_sample_ok",
+          "status": "skip"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "NO_LIVE_LOCAL_ENDPOINT",
+            "refusal_layer": "resolver",
+            "route": "local_vllm",
+            "route_no_op": true
+          },
+          "name": "grep_workspace_match_one",
+          "status": "skip"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "NO_LIVE_LOCAL_ENDPOINT",
+            "refusal_layer": "resolver",
+            "route": "local_vllm",
+            "route_no_op": true
+          },
+          "name": "write_file_creates_new",
+          "status": "skip"
+        }
+      ],
+      "metrics_aggregate": {},
+      "pass_count": 0,
+      "route": "local_vllm",
+      "suite": "tool-smoke"
+    },
+    {
+      "case_count": 3,
+      "cases": [
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "claude_haiku_4_5",
+            "route_no_op": true
+          },
+          "name": "read_file_sample_ok",
+          "status": "skip"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "claude_haiku_4_5",
+            "route_no_op": true
+          },
+          "name": "grep_workspace_match_one",
+          "status": "skip"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "claude_haiku_4_5",
+            "route_no_op": true
+          },
+          "name": "write_file_creates_new",
+          "status": "skip"
+        }
+      ],
+      "metrics_aggregate": {},
+      "pass_count": 0,
+      "route": "claude_haiku_4_5",
+      "suite": "tool-smoke"
+    },
+    {
+      "case_count": 3,
+      "cases": [
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "claude_sonnet_4_6",
+            "route_no_op": true
+          },
+          "name": "read_file_sample_ok",
+          "status": "skip"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "claude_sonnet_4_6",
+            "route_no_op": true
+          },
+          "name": "grep_workspace_match_one",
+          "status": "skip"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "claude_sonnet_4_6",
+            "route_no_op": true
+          },
+          "name": "write_file_creates_new",
+          "status": "skip"
+        }
+      ],
+      "metrics_aggregate": {},
+      "pass_count": 0,
+      "route": "claude_sonnet_4_6",
+      "suite": "tool-smoke"
+    },
+    {
+      "case_count": 3,
+      "cases": [
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "gpt_4o",
+            "route_no_op": true
+          },
+          "name": "read_file_sample_ok",
+          "status": "skip"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "gpt_4o",
+            "route_no_op": true
+          },
+          "name": "grep_workspace_match_one",
+          "status": "skip"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "gpt_4o",
+            "route_no_op": true
+          },
+          "name": "write_file_creates_new",
+          "status": "skip"
+        }
+      ],
+      "metrics_aggregate": {},
+      "pass_count": 0,
+      "route": "gpt_4o",
+      "suite": "tool-smoke"
+    },
+    {
+      "case_count": 2,
+      "cases": [
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "case_max_cost_usd": 0.05,
+            "cost_usd": 0.0,
+            "deterministic_pass": true,
+            "input_files": [
+              "research/01-kaggle-spaceship-overview.html",
+              "research/02-sklearn-hgb-docs.html",
+              "research/03-forum-feature-engineering.html"
+            ],
+            "prompt_kind": "research_brief",
+            "reasons": [],
+            "response_keys": [
+              "citations",
+              "explicit_unknowns",
+              "key_findings",
+              "next_action",
+              "question_answered",
+              "sources"
+            ],
+            "route": "mocked",
+            "route_no_op": false,
+            "rubric_score": null
+          },
+          "name": "research_brief_from_cached_pages",
+          "status": "pass"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "case_max_cost_usd": 0.05,
+            "cost_usd": 0.0,
+            "deterministic_pass": true,
+            "input_files": [
+              "worker_trace.jsonl"
+            ],
+            "prompt_kind": "debug_trace",
+            "reasons": [],
+            "response_keys": [
+              "confidence",
+              "evidence_event_ids",
+              "proposed_fix",
+              "root_cause"
+            ],
+            "route": "mocked",
+            "route_no_op": false,
+            "rubric_score": null
+          },
+          "name": "debug_worker_trace",
+          "status": "pass"
+        }
+      ],
+      "metrics_aggregate": {
+        "case_max_cost_usd": {
+          "max": 0.05,
+          "mean": 0.05,
+          "min": 0.05,
+          "p50": 0.05
+        },
+        "cost_usd": {
+          "max": 0.0,
+          "mean": 0.0,
+          "min": 0.0,
+          "p50": 0.0
+        }
+      },
+      "pass_count": 2,
+      "route": "mocked",
+      "suite": "reasoning"
+    },
+    {
+      "case_count": 2,
+      "cases": [
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "NO_LIVE_LOCAL_ENDPOINT",
+            "refusal_layer": "resolver",
+            "route": "local_vllm",
+            "route_no_op": true
+          },
+          "name": "research_brief_from_cached_pages",
+          "status": "skip"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "NO_LIVE_LOCAL_ENDPOINT",
+            "refusal_layer": "resolver",
+            "route": "local_vllm",
+            "route_no_op": true
+          },
+          "name": "debug_worker_trace",
+          "status": "skip"
+        }
+      ],
+      "metrics_aggregate": {},
+      "pass_count": 0,
+      "route": "local_vllm",
+      "suite": "reasoning"
+    },
+    {
+      "case_count": 2,
+      "cases": [
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "claude_haiku_4_5",
+            "route_no_op": true
+          },
+          "name": "research_brief_from_cached_pages",
+          "status": "skip"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "claude_haiku_4_5",
+            "route_no_op": true
+          },
+          "name": "debug_worker_trace",
+          "status": "skip"
+        }
+      ],
+      "metrics_aggregate": {},
+      "pass_count": 0,
+      "route": "claude_haiku_4_5",
+      "suite": "reasoning"
+    },
+    {
+      "case_count": 2,
+      "cases": [
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "claude_sonnet_4_6",
+            "route_no_op": true
+          },
+          "name": "research_brief_from_cached_pages",
+          "status": "skip"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "claude_sonnet_4_6",
+            "route_no_op": true
+          },
+          "name": "debug_worker_trace",
+          "status": "skip"
+        }
+      ],
+      "metrics_aggregate": {},
+      "pass_count": 0,
+      "route": "claude_sonnet_4_6",
+      "suite": "reasoning"
+    },
+    {
+      "case_count": 2,
+      "cases": [
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "gpt_4o",
+            "route_no_op": true
+          },
+          "name": "research_brief_from_cached_pages",
+          "status": "skip"
+        },
+        {
+          "cost_usd": 0.0,
+          "latency_ms": 0,
+          "metrics": {
+            "reason": "REMOTE_NOT_APPROVED",
+            "refusal_layer": "resolver",
+            "route": "gpt_4o",
+            "route_no_op": true
+          },
+          "name": "debug_worker_trace",
+          "status": "skip"
+        }
+      ],
+      "metrics_aggregate": {},
+      "pass_count": 0,
+      "route": "gpt_4o",
+      "suite": "reasoning"
+    }
+  ],
+  "run_id": "b89f2f89-7b7b-4842-ba4f-ccc2bd418c4e",
+  "started_at": "2026-06-08T21:08:24.848632+00:00",
+  "totals": {
+    "error": 0,
+    "fail": 0,
+    "pass": 5,
+    "skip": 20
+  }
+}

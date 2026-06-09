@@ -35,6 +35,12 @@ class JobPolicy:
     policy_profile: str = "default"
     mode: str = "default"
     tool_decisions: dict = field(default_factory=dict)
+    # M12 / ADR-0016: route policy resolution on competition type.
+    # Defaults to 'kaggle' for backwards-compatibility with M9 / M10 baseline
+    # rows. The resolver in tools.kca.agent.permission_policy uses this to
+    # pick a competition-type-specific profile when one is registered, then
+    # falls back to the default profile (then to ToolSpec defaults).
+    competition_type: str = "kaggle"
 
 
 @dataclass

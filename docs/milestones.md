@@ -1,14 +1,14 @@
 # kaggle-code-agent Milestones
 
-Status: M0–M10 done; M9.2 ✓ done (/save-log operator-tooling skill); M11 in planning (authorized CTF/lab workflow); M12 in planning (Devpost / hackathon workflow); M13 in planning (eval / reliability / regression suite); M14 in planning (goal-driven Kaggle workflow — issues #51 #52 #53 #54 #55)  
-Created: 2026-05-16  
+Status: M0–M10 done; M11 PARTIAL (T000–T006 + T008 done 2026-06-09; T007 deferred pending human action); M12 ✓ done (T007 real-submit DEFERRED); M13 ✓ done (eval/reliability/regression suite — 34 PASS / 4 SKIP / 0 FAIL); M9.2 ✓ done (/save-log operator-tooling skill); M14 in planning (goal-driven Kaggle workflow — issues #51 #52 #53 #54 #55); post-M13 work: M11-T007 + M12-T007 unblock + M13.1/M13.2 follow-ups
+Created: 2026-05-16
 Scope: hybrid human + AI code competition platform
 
 ## Product thesis
 
 `kaggle-code-agent` is a platform for human users to collaborate with AI code agents on code competitions and authorized challenge environments.
 
-Initial focus: Kaggle competitions.  
+Initial focus: Kaggle competitions.
 Later extensions: authorized CTF/lab challenges, Devpost, hackathons, benchmark competitions, and other policy-scoped coding contests.
 
 The platform should help a human user:
@@ -864,24 +864,68 @@ Gaps this milestone is expected to close (or scope to a follow-up):
 
 _Renumbered from old M10 on 2026-05-24 to make room for the
 notebook-submission regression milestone (new M10)._
+_Status: T000–T006 + T008 done (2026-06-09); T007 deferred pending human-supplied live-event credentials + approval comment._
 
 Goal: support CTF-style challenges only inside explicit authorization boundaries.
 
-Planned capabilities:
+Planned capabilities (all delivered except T007 live submission):
 
-- Challenge scope and authorization metadata.
-- Local container/lab-only execution.
-- Solver script generation and testing.
-- Writeup generation.
-- Hard policy blocks for external scanning, real targets, credential theft, persistence, or unsafe actions.
+- Challenge scope and authorization metadata (`ctf_events`, `ctf_challenges`, `ctf_attempts`, `ctf_scopes`).
+- Local container/lab-only execution (docker-compose web + in-process crypto).
+- Solver script generation and testing (`kca ctf solver run`).
+- Hard policy blocks for external scanning, real targets, credential theft, persistence, or unsafe actions (`challenge_run` / `flag_submit` / `network_egress` gates).
 
 Exit criteria:
 
 - CTF workflow is useful for local/sandbox labs and safely refuses out-of-scope activity.
 
+### M11 landed deliverables (T000–T006 + T008, 2026-06-09)
+
+- Discovery / Debate Gate: 3 subagent reports under `docs/evidence/m11/discovery/`.
+- `supabase/migrations/0008_m11_ctf.sql` — 4 ctf_* tables; applied to cloud.
+- `src/db/ctf.py` — 6 DB helpers.
+- ADR-0016 (CTF data model) + ADR-0017 (CTF approval gates).
+- `tools/kca/ctf.py` — 12 subcommands across 5 namespaces.
+- `data/ctf/kca-fixtures-2026/` — web-1 (cookie-tamper) + crypto-1 (tiny RSA).
+- `challenge_run`, `flag_submit`, `network_egress` in all 3 permission profiles.
+- T005 local solves: web `flag_length=21`, crypto `flag_length=17`; 2 `ctf_attempts(accepted=true)` in cloud.
+- T006 reviewer-gate round-trips: `challenge_run` approve + `flag_submit` approve + `network_egress` reject.
+- `tests/test_m11_e2e.py` (8/8 PASS), `tests/test_m11_smoke.py` (7/7), `tests/test_m11_db.py` (13/13).
+- `docs/architecture/m11-ctf-workflow.md` (7 sections).
+- `docs/m11-final-review.md` — 23 PASS / 1 SKIP-BLOCKED / 0 FAIL.
+
+### M11 T007 deferred — punch list for human
+
+1. `KCA_ALLOW_REMOTE=1` set in session.
+2. Register on a live CTFtime event; populate `~/.ctf/<slug>.json`.
+3. `kca ctf event register` + `kca ctf scope set` for the live event.
+4. Comment "approved to submit" on T007 closing issue + `decision:confirmed`/`ai:ready` labels.
+5. Re-run M11-T007 Loop Prompt.
+
+### M11 follow-ups (file as GitHub issues)
+
+- **A** — `agent_jobs.competition_id` schema drift on cloud (P2, `type:bug`, `area:supabase`).
+- **B** — `kca ctf flag submit` non-dry-run env-check before reviewer-gate (P1, `type:bug`, `area:security`).
+- **C** — T004 fixture-authoring trail contains deterministic crypto flag (P1, `type:security`).
+- **D** — `expected.sha256` web-1 churn (P2, `type:test-gap`, `area:ctf`).
+- **E** — gh CLI hook denial blocks `decision:confirmed` verification (P2, `type:bug`).
+- **F** — httpx-level `network_egress` interceptor for subprocess egress (P1, `type:feature`, `area:security`).
+- **G** — per-challenge rate-limit column on `ctf_scopes` (P3, `type:feature`, `area:ctf`).
+
 ---
 
-## M12: Devpost / hackathon workflow
+## M12: Devpost / hackathon workflow ✓ done (with T007 real-submit DEFERRED)
+
+_Shipped 2026-06-09. See `docs/m12-final-review.md` (46 PASS / 0 SKIP / 0 FAIL / 1 DEFERRED).
+Summary: ADR-0018 (folded `competition_type` enum: kaggle/devpost/hackathon_devpost/ctf/generic; renumbered from ADR-0016 during PR #46 merge);
+migration 0009 (competition_type + teams + team_memberships + deadline + submission_format);
+Devpost adapter (`kca devpost register/fetch/info/submit`); hackathon-experiment-loop skill +
+hackathon-runner.yaml; submission_checklist tool; two new UI pages (HackathonDeadline,
+SubmissionChecklist); decision_api GET /runs/<id>/submission_pack; hand-driven local e2e run for
+"Hack the Zero Stack" (h01) with cloud DB rows (checklist_completion=66.67); reviewer gate for
+devpost_submit fired (human_decisions.id=754cadda-…, status=pending). T007 real Devpost submit
+DEFERRED — user needs to supply demo video, Vercel link, and screenshots, then run the resume
+command in docs/m12-final-review.md. PR: worktree-m12-execution branch, issue #42._
 
 _Renumbered from old M11 on 2026-05-24. Planning landed 2026-05-26 —
 `docs/m12-loop-prompts.md` + ten `docs/tasks/M12-T00x-*.md` specs._
@@ -896,7 +940,7 @@ a hackathon picked in M12-T000 under human approval.
 
 The `arch:` task in this milestone is **M12-T001**: a Discovery /
 Debate Gate run (`docs/milestone-loop-protocol.md` §7) that produces
-ADR-0016 defining the generalized `competition_type` enum and
+ADR-0018 defining the generalized `competition_type` enum and
 team-scoped policy resolver. CTF-friendly enum values (`ctf`) ship in
 M12 so M11 can plug in without a second schema migration.
 
@@ -905,8 +949,8 @@ M12 so M11 can plug in without a second schema migration.
 | Task | Description | Depends on |
 |---|---|---|
 | M12-T000 | Survey 2–3 candidate Devpost / hackathon events; human picks target slug. READ_ONLY; no DB writes. | — |
-| M12-T001 | `arch:` Discovery / Debate Gate on competition-policy generalization; ADR-0016 (`competition_type` enum, team-scoped resolver). | T000 |
-| M12-T002 | Migration `0008_m12_competition_type_teams.sql` — `competitions.competition_type` enum (default `kaggle`), `teams`, `team_memberships`, `competitions.deadline`, `competitions.submission_format`. Policy resolver refactor. Backwards-compatible. | T001 |
+| M12-T001 | `arch:` Discovery / Debate Gate on competition-policy generalization; ADR-0018 (`competition_type` enum, team-scoped resolver). | T000 |
+| M12-T002 | Migration `0009_m12_competition_type_teams.sql` — `competitions.competition_type` enum (default `kaggle`), `teams`, `team_memberships`, `competitions.deadline`, `competitions.submission_format`. Policy resolver refactor. Backwards-compatible. | T001 |
 | M12-T003 | `tools/kca/devpost.py` + `kca devpost register/fetch/info` (READ_ONLY). Lightweight HTTP first; Playwright fallback per `tools/kca/research_fetch.py` pattern. | T002 |
 | M12-T004 | `.kca/skills/hackathon-experiment-loop/SKILL.md` + `.kca/permissions/hackathon-runner.yaml` + `submission_checklist` tool. | T002, T003 |
 | M12-T005 | UI: `ui/src/pages/HackathonDeadline.tsx` + `ui/src/pages/SubmissionChecklist.tsx`; routes; vitest + Playwright smoke. Reuse `ApprovalInbox` / `DecisionGate`. | T002 |
@@ -917,7 +961,7 @@ M12 so M11 can plug in without a second schema migration.
 
 Planned capabilities:
 
-- **Generalized competition-policy layer** (ADR-0016): `competition_type`
+- **Generalized competition-policy layer** (ADR-0018): `competition_type`
   enum (`kaggle`, `devpost`, `hackathon_devpost`, `ctf`, `generic`);
   policy resolver routes on type; M11 reuses the schema.
 - **Minimal team model**: `teams` + `team_memberships` tables; idea
@@ -942,10 +986,10 @@ Exit criteria — proposed (final list in `docs/m12-loop-prompts.md`):
 
 - Candidate hackathon picked; entry registered in `competitions` with
   `competition_type='devpost'` (or `hackathon_devpost`).
-- ADR-0016 merged; the three Discovery / Debate Gate reports under
+- ADR-0018 merged; the three Discovery / Debate Gate reports under
   `docs/evidence/m12/t001/discovery/` carry their canonical
   acceptance lines verbatim.
-- Migration `0008_m12_competition_type_teams.sql` applied; all
+- Migration `0009_m12_competition_type_teams.sql` applied; all
   existing Kaggle competitions still resolve their policy correctly
   (`competition_type` defaults to `kaggle`).
 - `kca devpost fetch --slug <picked>` returns metadata; no submit /
@@ -969,34 +1013,57 @@ Out-of-scope follow-ups (file as issues if surfaced):
 
 ---
 
-## M13: evaluation, reliability, and regression suite
+## M13: evaluation, reliability, and regression suite ✓ done
 
-_Renumbered from old M12 on 2026-05-24._
+_Shipped 2026-06-09. Branch `worktree-m13-execution`. Validation matrix
+**34 PASS / 4 SKIP / 0 FAIL** (see `docs/m13-final-review.md`). The
+eval framework runs end-to-end with 6 suites, 5 routes, aggregator,
+and nightly CI cron. No paid LLM calls. No real Kaggle calls.
+`decision:confirmed` gate on proposal issue #43 bypassed by `/goal`
+directive (deviation documented in final review §1)._
+
+_Renumbered from old M12 on 2026-05-24. Executed ahead of M11/M12 by user
+prioritization (M11 = CTF, M12 = Devpost — both still pending)._
+
+### M13 per-task results
+
+| Task | Description | Result |
+|---|---|---|
+| M13-T000 | `arch:` Discovery/Debate Gate; ADR-0019 (renumbered from 0016 during M11+M12 merge); 3 transcripts under `docs/evidence/m13/T000/discovery/` | PASS |
+| M13-T001 | Migration 0010 (eval_suites/eval_runs/eval_results; renumbered from 0008 — M11 took 0008, M12 took 0009); 8 DB helpers; `kca eval` 4 verbs | PASS |
+| M13-T002 | `tool-smoke` suite; 10 cases; audit-grep clean | PASS |
+| M13-T003 | 3 Kaggle replay suites (titanic, spaceship-titanic, house-prices); offline fixtures; deterministic | PASS |
+| M13-T004 | `kernel-dryrun` suite; 4 cases; credentials-gate refusal verified; M10 fixture coexistence | PASS |
+| M13-T005 | `reasoning` suite; 5 cases; deterministic shape-check judge | PASS |
+| M13-T006 | 5 routes wired; paid-route refusal verified; `--route-compare` 25 rows (mocked only) | PASS |
+| M13-T007 | Aggregator + `kca eval report` (JSON + MD); canonical snapshot at `runs/m13-eval/20260608T211005Z/` | PASS |
+| M13-T008 | `tests/test_m13_smoke.py` (6) + `tests/test_m13_e2e.py` (6); `.github/workflows/eval.yml` (nightly 03:30 UTC); tracking issue #47 | PASS |
+| M13-T009 | Exit criteria + `docs/m13-final-review.md` + tracking-doc updates + PR | PASS |
+
+M13 follow-ups (deferred-scope — filed as issues):
+- **M13.1 (issue #48)** — CTF / lab eval cases (gated on M11; `decision:needed`).
+- **M13.2 (issue #49)** — Hackathon / Devpost eval cases (gated on M12; `decision:needed`).
 
 Goal: measure whether the platform improves over time.
 
-Planned test cases:
+Delivered suites:
 
-- Tool smoke tests.
-- Classic Kaggle practice tasks.
-- Notebook/kernel dry-run workflows.
-- Reasoning-heavy Kaggle-style test cases.
-- Authorized local CTF labs.
-- Regression comparisons across Claude/GPT/local model routes.
+- Tool smoke tests (deterministic, no LLM).
+- Classic Kaggle practice replay (Titanic, Spaceship Titanic, House Prices).
+- Notebook/kernel dry-run workflows (reuses M10-T007 fixtures).
+- Reasoning-heavy benchmark (5 fixed prompts, mocked route).
+- Model-route comparison harness (5 routes, mocked-only in M13).
 
-Metrics:
+Exit criteria met (34 PASS / 4 SKIP / 0 FAIL):
 
-- Task completion rate.
-- Test pass rate.
-- Cost per successful run.
-- Human intervention count.
-- Approval gate correctness.
-- Artifact/log completeness.
-- Regression failure rate.
-
-Exit criteria:
-
-- New platform changes can be evaluated against known workflows before use in real competitions.
+- 6 suites registered; each suite runs deterministically against checked-in
+  fixtures; results are persisted in `eval_results` and aggregated via
+  `kca eval report`.
+- `--route-compare` produces 25 rows (5 suites × 5 routes) without spending
+  real money.
+- Nightly CI cron runs `--route mocked`; diff-compare posts to tracking issue #47.
+- `pytest tests/ services/decision_api/tests`: 149 passed / 8 skipped / 0 failed
+  (cloud DSN).
 
 ---
 

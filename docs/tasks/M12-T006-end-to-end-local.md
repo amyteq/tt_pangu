@@ -37,7 +37,7 @@ Routine.
 
 1. Confirm M12-T003 + T004 + T005 closeouts are PASS and the picked
    hackathon's `competitions` row exists with
-   `competition_type='devpost'` (or the value ADR-0016 picked).
+   `competition_type='devpost'` (or the value ADR-0018 picked).
 2. Launch the AgentWorker with skill = `hackathon-experiment-loop`,
    competition slug = picked slug, permission profile =
    `hackathon-runner`. Budget: 80 turns, $10 cost cap (mirror M9

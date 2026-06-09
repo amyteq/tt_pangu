@@ -34,7 +34,7 @@ Routine.
 8. `ui/src/pages/Research.tsx` — typed read pattern
 9. `ui/src/lib/supabase.ts` — typed client
 10. `ui/playwright.config.ts` and an existing Playwright smoke test
-11. `supabase/migrations/0008_m12_competition_type_teams.sql` (T002) —
+11. `supabase/migrations/0009_m12_competition_type_teams.sql` (T002) —
     `competitions.deadline`, `competitions.submission_format`, `teams`,
     `team_memberships`
 12. `.kca/skills/hackathon-experiment-loop/SKILL.md` (T004) — what
@@ -45,7 +45,7 @@ Routine.
 1. Add `ui/src/pages/HackathonDeadline.tsx`:
    - Route: `/hackathons/:slug/deadline`.
    - Reads: `competitions` row by slug; `team_memberships` joined on
-     `teams` for the slug's team (per the ADR-0016 team-scoped rules).
+     `teams` for the slug's team (per the ADR-0018 team-scoped rules).
    - Renders: deadline countdown (live updating, computed from
      `competitions.deadline`), phase chip
      (`competitions.deadline > now()` → "open"; else "closed"; richer

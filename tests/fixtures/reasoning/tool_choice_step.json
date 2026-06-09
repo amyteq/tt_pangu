@@ -1,0 +1,15 @@
+{
+  "step_id": "step-007",
+  "goal": "List the most recent experiment_runs rows for the spaceship-titanic competition so the agent can pick the next baseline to extend.",
+  "candidates": [
+    {
+      "tool": "run-list",
+      "rationale": "Lists runs from the runs/ artefact tree only — does not query experiment_runs in Supabase."
+    },
+    {
+      "tool": "exp-list",
+      "rationale": "Queries experiment_runs in Supabase directly, the canonical source the goal references."
+    }
+  ],
+  "legal_subcommands": ["run-list", "exp-list", "kg", "kaggle", "metric"]
+}

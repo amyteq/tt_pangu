@@ -1,0 +1,3 @@
+hello tool-smoke
+line two
+unique-token-XYZ

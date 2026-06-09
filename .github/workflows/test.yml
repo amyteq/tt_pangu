@@ -34,7 +34,7 @@ jobs:
           "$SELF_HOSTED_PYTHON_BIN/python" -m pip --version
 
       - name: install
-        run: pip install -e ".[dev]" fastapi httpx
+        run: pip install -e ".[dev,eval]" fastapi httpx
 
       - name: pytest (no DB)
         run: python -m pytest tests/ services/decision_api/tests -v
@@ -96,11 +96,14 @@ jobs:
           "$SELF_HOSTED_PYTHON_BIN/python" -m pip --version
 
       - name: install
-        run: pip install -e ".[dev]" fastapi httpx
+        run: pip install -e ".[dev,eval]" fastapi httpx
 
       - name: apply migrations
         run: |
-          for f in supabase/migrations/000*.sql; do
+          # Glob `000*.sql` was pre-M13 and matched 0001-0009 only;
+          # `0[0-9]*_*.sql` covers 0001-0099 and stays sorted lexically
+          # so apply order matches the numeric prefix.
+          for f in supabase/migrations/0[0-9]*_*.sql; do
             psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f "$f"
           done
 

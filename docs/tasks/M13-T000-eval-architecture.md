@@ -1,4 +1,4 @@
-# M13-T000: `arch:` Regression-suite architecture + ADR-0016 (Discovery / Debate Gate)
+# M13-T000: `arch:` Regression-suite architecture + ADR-0019 (Discovery / Debate Gate)
 
 ## Milestone
 M13: evaluation, reliability, and regression suite.
@@ -9,7 +9,7 @@ regression-suite framework). Triggers the **Discovery / Debate Gate**
 per `docs/milestone-loop-protocol.md` §7.
 
 ## Goal
-Write the canonical M13 design docs — `docs/adr/0016-eval-regression-suite.md`
+Write the canonical M13 design docs — `docs/adr/0019-eval-regression-suite.md`
 (decision record) and `docs/architecture/eval-regression-suite.md`
 (architecture and data-flow). Run the Discovery / Debate Gate
 (`legacy-archaeologist` optional / skippable for greenfield;
@@ -55,7 +55,7 @@ and discovery only.
      (scope, schema, routing, secrets, replay-stability, …) plus a
      non-empty `explicit_unknowns` list. Save the transcript under
      `docs/evidence/m13/T000/discovery/requirements-skeptic.md`.
-   - Invoke `design-red-team` against a strawman draft of ADR-0016
+   - Invoke `design-red-team` against a strawman draft of ADR-0019
      (write the strawman first, then red-team it). Expect ≥3
      alternatives, ≥1 dropped capability with file:line evidence
      from the current repo, 4 cost axes, actionable
@@ -65,7 +65,7 @@ and discovery only.
      `docs/architecture/discovery-debate-gate.md`. A missing
      acceptance line is a task FAIL.
 
-2. **Write `docs/adr/0016-eval-regression-suite.md`.** Decisions
+2. **Write `docs/adr/0019-eval-regression-suite.md`.** Decisions
    covered (non-exhaustive):
    - Schema choice: three new tables (`eval_suites`, `eval_runs`,
      `eval_results`) vs single wide table. Argue for three.
@@ -103,7 +103,7 @@ and discovery only.
      reach the kaggle CLI from any suite process).
 
 4. **File the M13 proposal issue** using
-   `.github/ISSUE_TEMPLATE/feature-work.yml`. Body links ADR-0016,
+   `.github/ISSUE_TEMPLATE/feature-work.yml`. Body links ADR-0019,
    the architecture doc, and the three discovery transcripts.
    Labels at file: `arch:`, `type:feature`, `area:eval`,
    `area:docs`, `decision:needed`, `ai:triage`. Promote to
@@ -112,7 +112,7 @@ and discovery only.
 
 ## Non-goals
 
-- Do not write any migration SQL. Migration 0008 lands in T001.
+- Do not write any migration SQL. Migration 0010 lands in T001.
 - Do not write any Python under `tools/kca/eval/` or new CLI
   subcommand registration. T001 owns the scaffold.
 - Do not modify `src/worker/`, `tools/kca/db.py`, `tools/kca/kca.py`,
@@ -122,7 +122,7 @@ and discovery only.
 
 ## Acceptance criteria
 
-- `docs/adr/0016-eval-regression-suite.md` exists; covers all
+- `docs/adr/0019-eval-regression-suite.md` exists; covers all
   decisions in scope step 2; cross-links the architecture doc.
 - `docs/architecture/eval-regression-suite.md` exists; covers all
   items in scope step 3; ASCII data-flow renders.
@@ -152,7 +152,7 @@ and discovery only.
 
 ```
 M13-T000 closeout
-  ADR: docs/adr/0016-eval-regression-suite.md (written; <n> decisions)
+  ADR: docs/adr/0019-eval-regression-suite.md (written; <n> decisions)
   Architecture: docs/architecture/eval-regression-suite.md (written; ASCII data-flow + 3 table layouts)
   Discovery / Debate Gate:
     legacy-archaeologist: SKIP (greenfield; see SKIP-NOTE.md) | RAN (see <path>)
@@ -161,7 +161,7 @@ M13-T000 closeout
   Canonical acceptance lines: 3/3 verified byte-for-byte
   Proposal issue: <url> — labelled arch:, decision:needed, ai:triage
   Acceptance: PASS — design + gate complete; no code changed
-  Next: M13-T001 (migration 0008 + kca eval CLI scaffold) — BLOCKED until proposal issue reaches decision:confirmed + ai:ready
+  Next: M13-T001 (migration 0010 + kca eval CLI scaffold) — BLOCKED until proposal issue reaches decision:confirmed + ai:ready
 ```
 
 ## Related issues
@@ -176,7 +176,7 @@ Stop after 80 turns. HALT and ask if:
 - Any of the three canonical acceptance lines cannot be produced
   byte-for-byte. The agent definitions in `.claude/agents/` are
   the source of truth — don't paraphrase.
-- The strawman ADR-0016 lands more than one major schema decision
+- The strawman ADR-0019 lands more than one major schema decision
   that the `design-red-team` agent flags as load-bearing without
   evidence. Add evidence or split into a follow-up ADR.
 - The M13 proposal issue cannot reach `decision:confirmed` because

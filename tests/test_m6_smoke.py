@@ -41,6 +41,8 @@ def _env_clean(**overrides) -> dict:
     for n in range(10):
         for s in ("NAME", "URL", "MODEL", "BACKEND", "API_KEY"):
             env.pop(f"KCA_LOCAL_ENDPOINT_{n}_{s}", None)
+    # Prevent db.py from re-injecting popped repo-root / .vscode .env creds (issue #11).
+    env["KCA_SKIP_DOTENV"] = "1"
     for k, v in overrides.items():
         if v is None:
             env.pop(k, None)

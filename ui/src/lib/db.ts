@@ -29,6 +29,26 @@ export interface Competition {
   repo_url: string | null;
   default_branch: string | null;
   created_at: string;
+  // M12-T002 additive columns. Nullable in older rows.
+  competition_type?: string | null;
+  deadline?: string | null;
+  submission_format?: unknown | null;
+}
+
+// M12-T002 team identity (read-only in M12).
+export interface Team {
+  id: Uuid;
+  competition_id: Uuid | null;
+  name: string;
+  created_at: string;
+}
+
+export interface TeamMembership {
+  id: Uuid;
+  team_id: Uuid;
+  user_id: string;
+  role: string;
+  created_at: string;
 }
 
 export interface AgentJob {
@@ -241,6 +261,36 @@ export const db = {
         .select("*")
         .order("created_at", { ascending: false })
         .limit(limit),
+    );
+  },
+  getCompetitionBySlug(slug: string): Promise<Competition | null> {
+    return maybeOne<Competition>(
+      supabase.from("competitions").select("*").eq("slug", slug),
+    );
+  },
+
+  // M12 — teams + memberships (read-only)
+  listTeamsForCompetition(competitionId: Uuid): Promise<Team[]> {
+    return rows<Team>(
+      supabase
+        .from("teams")
+        .select("*")
+        .eq("competition_id", competitionId)
+        .order("created_at", { ascending: true }),
+    );
+  },
+  listTeamMemberships(teamId: Uuid): Promise<TeamMembership[]> {
+    return rows<TeamMembership>(
+      supabase
+        .from("team_memberships")
+        .select("*")
+        .eq("team_id", teamId)
+        .order("created_at", { ascending: true }),
+    );
+  },
+  getRun(runId: Uuid): Promise<Run | null> {
+    return maybeOne<Run>(
+      supabase.from("experiment_runs").select("*").eq("id", runId),
     );
   },
 
