@@ -45,10 +45,17 @@ command -v git >/dev/null 2>&1 || die "git not found on PATH"
 [ -d "$REPO_DIR/.git" ] || die "repo checkout not found at $REPO_DIR"
 
 # Activate the micromamba env so exp_cc.py finds the right python + uvx.
+# A systemd service env does NOT have MAMBA_ROOT_PREFIX (your shell profile sets
+# it interactively), and `micromamba shell hook` expands it unguarded — under
+# `set -u` that aborts the whole script before anything runs. So provide a
+# default and relax nounset across the hook eval + activate.
+export MAMBA_ROOT_PREFIX="${MAMBA_ROOT_PREFIX:-$HOME/micromamba}"
 MAMBA_EXE="$(command -v micromamba || echo "$HOME/.local/bin/micromamba")"
 if [ -x "$MAMBA_EXE" ]; then
-  eval "$("$MAMBA_EXE" shell hook --shell bash)" 2>/dev/null || true
-  micromamba activate "$MAMBA_ENV" 2>/dev/null || log "WARN: could not activate env $MAMBA_ENV"
+  set +u
+  eval "$("$MAMBA_EXE" shell hook --shell bash)" || log "WARN: micromamba shell hook failed"
+  micromamba activate "$MAMBA_ENV" || log "WARN: could not activate env $MAMBA_ENV"
+  set -u
 else
   log "WARN: micromamba not found; relying on PATH python"
 fi
