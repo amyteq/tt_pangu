@@ -5,7 +5,6 @@
 - Session id: `a11b43f4-e1df-4e77-bb97-d327e8e753ce`
 - Status: `completed`
 - Source transcript: `/home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu/a11b43f4-e1df-4e77-bb97-d327e8e753ce.jsonl`
-- Output: `/tmp/worklogs-dump-Ca85tk/worklogs/misc.md`
 
 ---
 
