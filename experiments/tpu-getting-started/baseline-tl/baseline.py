@@ -1,27 +1,23 @@
 # %% [markdown]
-# # Petals to the Metal — alt backbone (EfficientNetB0)
+# # Petals to the Metal — baseline (transfer learning)
 #
-# M10-T005 second experiment for the
+# M10-T002 baseline for the
 # [Petals to the Metal — Flower Classification on TPU](https://www.kaggle.com/competitions/tpu-getting-started)
 # competition.
 #
-# **Single axis varied vs the M10-T002 baseline:** the ImageNet backbone, `MobileNetV2` → `EfficientNetB0`.
-# Image size (192x192), epochs, seed (42), batch size, the train/val split, and the head are all unchanged so
-# the holdout delta is attributable to the backbone alone.
-#
-# - **Backbone:** `EfficientNetB0` pretrained on ImageNet.
-# - **Image size:** 192x192.
-# - **Optimizer / epochs:** Adam (default LR), 3 epochs for local sanity (Kaggle kernel may bump; see `KERNEL_EPOCHS`).
+# - **Backbone:** `MobileNetV2` pretrained on ImageNet (small, fast — sanity baseline, not a leaderboard chaser).
+# - **Image size:** 192x192 (smallest published variant).
+# - **Optimizer / epochs:** Adam (default LR), 3 epochs for local sanity (TPU kernel may train longer; see `EPOCHS` constant).
 # - **Seed:** 42.
-# - **Split:** Kaggle ships `train/` and `val/` TFRecord splits separately — used as-is (holdout accuracy on `val/`).
+# - **Split:** Kaggle ships `train/` and `val/` TFRecord splits separately — we use them as-is (holdout accuracy on `val/`).
 #
-# **Preprocessing contract:** Keras `EfficientNetB0` carries a built-in Rescaling/Normalization layer that
-# expects RAW `[0, 255]` float inputs. Unlike the MobileNetV2 baseline (which fed `[0, 1]`), this notebook
-# decodes to `[0, 255]` and lets EfficientNet normalize internally. Feeding `[0, 1]` double-normalizes and
-# collapses accuracy to ~chance.
+# When executed on Kaggle's kernel runner, this notebook reads TFRecords from the GCS path exposed by
+# `kaggle_datasets.KaggleDatasets().get_gcs_path('tpu-getting-started')`. When executed locally
+# (e.g. via `jupyter nbconvert --to notebook --execute`), it falls back to the local slice at
+# `data/tpu-getting-started/local-slice/{train,val}/*.tfrec` that M10-T002 staged for sanity.
 #
-# **Defense-in-depth:** this notebook does NOT call `kaggle kernels push` from any cell. M10-T005 is LOCAL ONLY;
-# no kernel push happens for this experiment.
+# **Defense-in-depth:** this notebook does NOT call `kaggle kernels push` from any cell. Kernel pushing
+# happens via `kca kaggle push` in M10-T004, never from inside the notebook itself.
 
 # %%
 import collections
@@ -53,59 +49,111 @@ tf.random.set_seed(SEED)
 #
 # Try Kaggle's GCS-backed dataset path first (kernel runner). Fall back to the local M10-T002 slice.
 
+
 # %%
 def _resolve_gcs_path() -> str | None:
     try:
         from kaggle_datasets import KaggleDatasets  # type: ignore
+
         return KaggleDatasets().get_gcs_path(COMPETITION)
-    except Exception:
+    except Exception as exc:
+        print(f"[data-resolve] kaggle_datasets GCS path unavailable: {exc!r}")
         return None
 
 
 def _resolve_kaggle_input_path() -> str | None:
-    p = Path("/kaggle/input") / COMPETITION
-    if p.exists():
-        return str(p)
+    # Try the direct competition mount first, then the /competitions/<slug>/ layout
+    # Kaggle uses for "official" Getting Started competitions (v3 diagnostic showed
+    # /kaggle/input had only ['competitions'], not the slug directly).
+    candidates = [
+        Path("/kaggle/input") / COMPETITION,
+        Path("/kaggle/input/competitions") / COMPETITION,
+    ]
+    for p in candidates:
+        if p.exists():
+            print(f"[data-resolve] /kaggle/input mount found at {p}")
+            return str(p)
+    # Diagnostic: list what IS under /kaggle/input/ so a future failure shows
+    # the real layout instead of an opaque "not found".
+    root = Path("/kaggle/input")
+    if root.exists():
+        try:
+            print(
+                f"[data-resolve] /kaggle/input contents: {sorted(p.name for p in root.iterdir())}"
+            )
+            comp_root = root / "competitions"
+            if comp_root.exists():
+                print(
+                    f"[data-resolve] /kaggle/input/competitions contents: "
+                    f"{sorted(p.name for p in comp_root.iterdir())}"
+                )
+        except Exception as exc:
+            print(f"[data-resolve] /kaggle/input listdir failed: {exc!r}")
+    else:
+        print("[data-resolve] /kaggle/input does not exist")
     return None
 
 
 def _resolve_local_slice() -> str | None:
+    # When this notebook is executed locally from the repo root.
     for candidate in [
         Path.cwd() / "data" / COMPETITION / "local-slice",
-        Path("/home/harry/test/tt_pangu/.claude/worktrees/m10-petals-to-the-metal/data") / COMPETITION / "local-slice",
+        Path("/home/harry/test/tt_pangu/.claude/worktrees/m10-petals-to-the-metal/data")
+        / COMPETITION
+        / "local-slice",
     ]:
         if candidate.exists():
             return str(candidate)
     return None
 
 
-GCS_PATH = _resolve_gcs_path()
-KAGGLE_INPUT_PATH = _resolve_kaggle_input_path()
-LOCAL_SLICE_PATH = _resolve_local_slice()
+def _has_tfrecord_subdir(root: str, subdir: str) -> bool:
+    # Validate that a resolver-returned `root` actually contains the expected
+    # TFRecord layout. v4 errored because GCS resolver returned a path that
+    # didn't contain the shards (Kaggle TPU shortcut to the wrong mount).
+    try:
+        check = f"{root}/{subdir}/train"
+        return tf.io.gfile.exists(check)
+    except Exception:
+        return False
 
-if GCS_PATH:
-    DATA_ROOT = GCS_PATH
-    DATA_SUBDIR = f"tfrecords-jpeg-{IMAGE_SIZE[0]}x{IMAGE_SIZE[1]}"
-    RUNTIME = "kaggle-tpu"
-elif KAGGLE_INPUT_PATH:
-    DATA_ROOT = KAGGLE_INPUT_PATH
-    DATA_SUBDIR = f"tfrecords-jpeg-{IMAGE_SIZE[0]}x{IMAGE_SIZE[1]}"
-    RUNTIME = "kaggle-gpu"
-elif LOCAL_SLICE_PATH:
-    DATA_ROOT = LOCAL_SLICE_PATH
-    DATA_SUBDIR = ""  # local slice is already at the per-split level
-    RUNTIME = "local-slice"
-else:
+
+_SUBDIR = f"tfrecords-jpeg-{IMAGE_SIZE[0]}x{IMAGE_SIZE[1]}"
+
+# Order matters: prefer the explicit /kaggle/input/competitions/<slug>/ mount
+# (validated by _has_tfrecord_subdir) over the GCS shortcut, then fall back to
+# the GCS path, then a local slice for off-Kaggle execution.
+DATA_ROOT, DATA_SUBDIR, RUNTIME = None, None, None
+for label, candidate in (
+    ("kaggle-input", _resolve_kaggle_input_path()),
+    ("kaggle-tpu-gcs", _resolve_gcs_path()),
+):
+    if candidate and _has_tfrecord_subdir(candidate, _SUBDIR):
+        DATA_ROOT, DATA_SUBDIR, RUNTIME = candidate, _SUBDIR, label
+        print(f"[data-resolve] accepted {label} root={candidate}")
+        break
+    elif candidate:
+        print(
+            f"[data-resolve] rejected {label} root={candidate} — "
+            f"{_SUBDIR}/train not present"
+        )
+
+if DATA_ROOT is None:
+    local = _resolve_local_slice()
+    if local:
+        DATA_ROOT, DATA_SUBDIR, RUNTIME = local, "", "local-slice"
+
+if DATA_ROOT is None:
     raise RuntimeError(
-        "No data source resolved: not on Kaggle (GCS/input path absent) and no local slice present."
+        "No data source resolved: no Kaggle mount contains "
+        f"{_SUBDIR}/train, and no local slice is present. "
+        "Run scripts/m10_t002_download_slice.py to stage a local slice."
     )
 
 print(f"runtime={RUNTIME} data_root={DATA_ROOT} subdir={DATA_SUBDIR!r}")
 
 # %% [markdown]
 # ## TFRecord decoding
-#
-# NOTE: EfficientNet expects raw [0, 255] inputs (built-in normalization), so we do NOT divide by 255 here.
 
 # %%
 LABELED_TFREC_FORMAT = {
@@ -122,7 +170,7 @@ UNLABELED_TFREC_FORMAT = {
 def decode_image(image_bytes):
     image = tf.image.decode_jpeg(image_bytes, channels=3)
     image = tf.image.resize(image, IMAGE_SIZE)
-    image = tf.cast(image, tf.float32)  # keep [0, 255]; EfficientNet normalizes internally
+    image = tf.cast(image, tf.float32) / 255.0
     image = tf.reshape(image, [*IMAGE_SIZE, 3])
     return image
 
@@ -146,7 +194,9 @@ def _split_glob(split: str) -> str:
 def load_dataset(split: str, labeled: bool):
     files = tf.io.gfile.glob(_split_glob(split))
     if not files:
-        raise RuntimeError(f"No TFRecords found for split={split} glob={_split_glob(split)}")
+        raise RuntimeError(
+            f"No TFRecords found for split={split} glob={_split_glob(split)}"
+        )
     ds = tf.data.TFRecordDataset(files, num_parallel_reads=tf.data.AUTOTUNE)
     ds = ds.with_options(tf.data.Options())
     ds = ds.map(
@@ -181,10 +231,15 @@ def get_test_dataset():
 
 # %% [markdown]
 # ## Dataset sizing
+#
+# Petals to the Metal's TFRecord filenames embed the per-shard count (e.g. `00-192x192-798.tfrec` = 798 examples).
+# We extract that to know `steps_per_epoch` without iterating the whole dataset.
+
 
 # %%
 def count_data_items(filenames):
     import re
+
     total = 0
     for fn in filenames:
         m = re.search(r"-(\d+)\.tfrec$", fn)
@@ -206,6 +261,17 @@ print(
     f"steps_per_epoch={STEPS_PER_EPOCH}"
 )
 
+# Fail loudly if the resolver pointed at an empty path — v3 silently trained on
+# zero shards because we trusted the resolver's word. Catch that here.
+if len(train_files) == 0 or len(val_files) == 0:
+    raise RuntimeError(
+        f"Zero TFRecords resolved at {DATA_ROOT}/{DATA_SUBDIR or '<root>'}/{{train,val}}/*.tfrec — "
+        f"train_files={len(train_files)} val_files={len(val_files)}. "
+        f"The resolver returned a path that does not contain the expected shards; "
+        f"investigate the /kaggle/input layout (see earlier [data-resolve] prints) "
+        f"before pushing again."
+    )
+
 # %% [markdown]
 # ## Strategy (TPU vs GPU/CPU)
 
@@ -220,11 +286,12 @@ except (ValueError, tf.errors.NotFoundError, Exception):
     print(f"strategy=default replicas={strategy.num_replicas_in_sync}")
 
 # %% [markdown]
-# ## Model — EfficientNetB0 (the single axis varied vs M10-T002)
+# ## Model
+
 
 # %%
 def build_model():
-    base = tf.keras.applications.EfficientNetB0(
+    base = tf.keras.applications.MobileNetV2(
         input_shape=[*IMAGE_SIZE, 3],
         include_top=False,
         weights="imagenet",
@@ -236,7 +303,7 @@ def build_model():
             tf.keras.layers.GlobalAveragePooling2D(),
             tf.keras.layers.Dense(NUM_CLASSES, activation="softmax"),
         ],
-        name="petals_alt_efficientnetb0",
+        name="petals_baseline_mobilenetv2",
     )
     model.compile(
         optimizer=tf.keras.optimizers.Adam(),
@@ -275,6 +342,8 @@ print(f"holdout_accuracy={val_acc:.4f} val_loss={val_loss:.4f}")
 
 # %% [markdown]
 # ## Macro F1 on holdout
+#
+# Petals to the Metal scores submissions on macro F1; we record both holdout accuracy AND macro F1 locally.
 
 # %%
 per_class_tp = collections.Counter()
@@ -311,6 +380,9 @@ print(f"macro_f1={macro_f1:.4f}")
 
 # %% [markdown]
 # ## Test-set inference + submission.csv
+#
+# On Kaggle's kernel runner this writes `/kaggle/working/submission.csv` (the kernel push artifact).
+# Locally we skip test-set inference unless the local slice contains a `test/` directory (it does not by default).
 
 # %%
 try:
@@ -334,10 +406,12 @@ if test_files:
             f.write(f"{i},{int(p)}\n")
     print(f"submission written to {out_path} (n={len(ids)})")
 else:
-    print("no test/ split available locally — skipping submission.csv (Kaggle kernel will produce it)")
+    print(
+        "no test/ split available locally — skipping submission.csv (Kaggle kernel will produce it)"
+    )
 
 # %% [markdown]
 # ## Done.
 #
 # Local sanity metrics are surfaced as the last two stdout lines (`holdout_accuracy=` and `macro_f1=`),
-# which `scripts/m10_t005_local_train.py` parses to record into `experiment_runs` via `kca run record-metric`.
+# which `scripts/m10_t002_local_train.py` parses to record into `experiment_runs` via `kca run record-metric`.
