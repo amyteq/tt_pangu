@@ -51,8 +51,8 @@ Direct entry into M14 is blocked until **all** are true:
 
 | Capability | Owned by | M14 touches |
 |---|---|---|
-| Goal-driven loop architecture + ADR | `docs/adr/0017-goal-driven-kaggle-loop.md` + `docs/architecture/goal-driven-kaggle-loop.md` | T000 |
-| `goals` table + `competitions.max_*` columns + `experiment_runs.analysis.exploration_batch_id` | `supabase/migrations/0009_m14_goal_loop.sql` + `tools/kca/db.py` | T001 |
+| Goal-driven loop architecture + ADR | `docs/adr/0020-goal-driven-kaggle-loop.md` + `docs/architecture/goal-driven-kaggle-loop.md` | T000 |
+| `goals` table + `competitions.max_*` columns + `experiment_runs.analysis.exploration_batch_id` | `supabase/migrations/0011_m14_goal_loop.sql` + `tools/kca/db.py` | T001 |
 | `kca goal {init, show, update}` + `goal.md` workspace artefact | `tools/kca/goal.py` + new subcommand registration | T002 (issue #51) |
 | `kca explore {init, run, rank}` + search-space YAML + local screening | `tools/kca/explore.py` + `src/worker/` integration | T003 (issue #52) |
 | Per-competition concurrency enforcement in `cmd_push` | `tools/kca/kg.py` + `competitions.max_concurrent_pushes` | T004 (issue #53) |
@@ -92,8 +92,8 @@ Kaggle push also needs sandbox bypass (network out to `kaggle.com`).
 
 | Task | Goal | Loop Prompt |
 |---|---|---|
-| M14-T000 | `arch:` Goal-driven loop architecture + ADR-0017 + Discovery / Debate Gate transcripts | Prompt 0 |
-| M14-T001 | Migration 0009 (`goals` + `competitions.max_*` + `experiment_runs.analysis.exploration_batch_id`) + DB helpers | Prompt 1 |
+| M14-T000 | `arch:` Goal-driven loop architecture + ADR-0020 + Discovery / Debate Gate transcripts | Prompt 0 |
+| M14-T001 | Migration 0011 (`goals` + `competitions.max_*` + `experiment_runs.analysis.exploration_batch_id`) + DB helpers | Prompt 1 |
 | M14-T002 | `kca goal {init, show, update}` + `goal.md` schema (issue #51) | Prompt 2 |
 | M14-T003 | `kca explore {init, run, rank}` + local-screening fan-out (issue #52) | Prompt 3 |
 | M14-T004 | Per-competition concurrency enforcement in `cmd_push` + daily-budget gate (issue #53) | Prompt 4 |
@@ -110,10 +110,10 @@ are the authoritative scope.
 
 ---
 
-## Loop Prompt 0 — M14-T000 Goal-driven loop architecture + ADR-0017 (arch:)
+## Loop Prompt 0 — M14-T000 Goal-driven loop architecture + ADR-0020 (arch:)
 
 ```
-/goal Execute M14-T000 goal-driven loop architecture + ADR-0017 + Discovery / Debate Gate transcripts until acceptance criteria pass or stop after 80 turns and summarize blockers.
+/goal Execute M14-T000 goal-driven loop architecture + ADR-0020 + Discovery / Debate Gate transcripts until acceptance criteria pass or stop after 80 turns and summarize blockers.
 
 Follow: docs/milestone-loop-protocol.md (note §7 — Discovery / Debate Gate is MANDATORY for this `arch:` task)
 Task spec: docs/tasks/M14-T000-goal-loop-architecture.md  (to be written in this prompt)
@@ -131,7 +131,7 @@ Read also (background context):
 - docs/adr/0010-model-routing.md (route routing precedent)
 
 Mission:
-Write `docs/adr/0017-goal-driven-kaggle-loop.md` and the companion
+Write `docs/adr/0020-goal-driven-kaggle-loop.md` and the companion
 `docs/architecture/goal-driven-kaggle-loop.md`. Decide:
   - `goal.md` schema (target_lb_rank vs target_lb_score; deadline; exit_strategy)
   - `goals` table shape + FK from `submissions` + `experiment_runs.analysis`
@@ -150,28 +150,28 @@ No code, no migration, no CLI changes in this Loop Prompt — design only.
 
 ---
 
-## Loop Prompt 1 — M14-T001 Migration 0009 + DB helpers
+## Loop Prompt 1 — M14-T001 Migration 0011 + DB helpers
 
 ```
-/goal Execute M14-T001 migration 0009 (goals + competitions.max_* + experiment_runs.analysis.exploration_batch_id) + DB helpers until acceptance criteria pass or stop after 60 turns and summarize blockers.
+/goal Execute M14-T001 migration 0011 (goals + competitions.max_* + experiment_runs.analysis.exploration_batch_id) + DB helpers until acceptance criteria pass or stop after 60 turns and summarize blockers.
 
 Follow: docs/milestone-loop-protocol.md
 Task spec: docs/tasks/M14-T001-migration-and-helpers.md
 
 Read also (background context):
-- M14-T000 closeout (ADR-0017 + architecture doc)
-- supabase/migrations/0008_m13_eval.sql (most recent migration if M13-T001 has landed; otherwise 0007)
+- M14-T000 closeout (ADR-0020 + architecture doc)
+- supabase/migrations/0010_m13_eval.sql (most recent migration on main, from M13-T001)
 - tools/kca/db.py (existing helpers: ensure_competition, create_experiment_m2, update_submission)
 - docs/architecture/goal-driven-kaggle-loop.md
 
 Mission:
-Write `supabase/migrations/0009_m14_goal_loop.sql` with:
+Write `supabase/migrations/0011_m14_goal_loop.sql` (next free number — M11/M12/M13 occupy 0008/0009/0010 on main) with:
   - `goals` table (id, competition_id FK, target_lb_score, target_lb_rank,
     deadline, exit_strategy, status, created_at, closed_at, closed_reason)
   - `competitions` columns: `max_daily_submissions`, `max_concurrent_pushes`,
     `rules_summary_url`, `last_rules_fetch_at`
   - `experiment_runs.analysis` keys (no schema change — these are JSONB
-    fields documented in ADR-0017): `exploration_batch_id`, `parent_run_id`,
+    fields documented in ADR-0020): `exploration_batch_id`, `parent_run_id`,
     `queue_time_seconds`, `running_time_seconds`, `escalation_id`
   - `goals.id` FK on `submissions.goal_id` (nullable)
 Add matching helpers in `tools/kca/db.py`: `create_goal`, `update_goal`,
