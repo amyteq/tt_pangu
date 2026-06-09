@@ -1,0 +1,14 @@
+{
+  "competition": "tpu-getting-started",
+  "competition_id": "4c69e842-eade-41e4-9143-b5d3966a9578",
+  "experiment_id": "ac5a9c47-03e4-48cb-a661-ae4e6f1506a6",
+  "experiment_run_id": "c3339154-944b-49aa-8322-f4a8607ad240",
+  "run_id": "alt-backbone-v1",
+  "started_at": "2026-05-27T20:37:18Z",
+  "hypothesis": "EfficientNetB0 ImageNet backbone (single-axis swap vs MobileNetV2 baseline), same 192x192 inputs / 3 epochs / seed 42 / local slice; expect holdout accuracy and macro F1 >= MobileNetV2 baseline",
+  "tags": [
+    "M10-T005",
+    "alt-backbone",
+    "transfer-learning"
+  ]
+}

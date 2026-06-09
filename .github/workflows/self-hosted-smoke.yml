@@ -1,0 +1,57 @@
+name: self-hosted smoke
+
+on:
+  workflow_dispatch:
+
+env:
+  SELF_HOSTED_PYTHON_BIN: /home/gha-runner/micromamba/envs/v3.12.12/bin
+
+jobs:
+  smoke:
+    # runs-on: [self-hosted, linux, x64, ci]
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    timeout-minutes: 10
+
+    steps:
+      - name: host info
+        run: |
+          hostname
+          whoami
+          pwd
+          uname -a
+          id
+
+      - name: Use micromamba Python on self-hosted Arch
+        if: ${{ runner.environment == 'self-hosted' }}
+        run: |
+          echo "$SELF_HOSTED_PYTHON_BIN" >> "$GITHUB_PATH"
+          "$SELF_HOSTED_PYTHON_BIN/python" --version
+          "$SELF_HOSTED_PYTHON_BIN/python" -m pip --version
+
+      - name: tool versions
+        run: |
+          git --version
+          "$SELF_HOSTED_PYTHON_BIN/python" --version
+          node --version
+          pnpm --version || true
+          docker --version
+          docker compose version || true
+          psql --version
+
+      - name: docker smoke
+        run: |
+          docker run --rm hello-world
+
+      - name: debug
+        env:
+          ACTOR: ${{ github.actor }}
+          PR_USER: ${{ github.event.pull_request.user.login || github.event.sender.login }}
+          USER_TYPE: ${{ github.event.pull_request.user.type || github.event.sender.type }}
+        run: |
+          # echo "github.actor=${{ github.actor }}"
+          # echo "sender.login=${{ github.event.sender.login }}"
+          # echo "sender.type=${{ github.event.sender.type }}"
+          echo "Actor: $ACTOR"
+          echo "Target User: $PR_USER"
+          echo "User Type: $USER_TYPE"
+          echo "Path: $PATH"

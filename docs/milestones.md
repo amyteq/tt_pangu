@@ -881,23 +881,91 @@ Exit criteria:
 
 ---
 
-## M12: Devpost/hackathon workflow
+## M12: Devpost / hackathon workflow
 
-_Renumbered from old M11 on 2026-05-24._
+_Renumbered from old M11 on 2026-05-24. Planning landed 2026-05-26 —
+`docs/m12-loop-prompts.md` + ten `docs/tasks/M12-T00x-*.md` specs._
 
-Goal: generalize competition policy modules beyond Kaggle and CTF.
+Goal: validate the full platform loop with a real Devpost-style
+**hackathon submission** end-to-end, and in doing so generalize the
+competition-policy layer beyond Kaggle so M11 (CTF) and future
+platforms can reuse it. M9 validated the **CSV-submission** path on
+Spaceship Titanic; M10 validates the **notebook / kernel-push** path on
+Petals to the Metal; M12 validates the **hackathon-submission** path on
+a hackathon picked in M12-T000 under human approval.
+
+The `arch:` task in this milestone is **M12-T001**: a Discovery /
+Debate Gate run (`docs/milestone-loop-protocol.md` §7) that produces
+ADR-0016 defining the generalized `competition_type` enum and
+team-scoped policy resolver. CTF-friendly enum values (`ctf`) ship in
+M12 so M11 can plug in without a second schema migration.
+
+### M12 task sequence
+
+| Task | Description | Depends on |
+|---|---|---|
+| M12-T000 | Survey 2–3 candidate Devpost / hackathon events; human picks target slug. READ_ONLY; no DB writes. | — |
+| M12-T001 | `arch:` Discovery / Debate Gate on competition-policy generalization; ADR-0016 (`competition_type` enum, team-scoped resolver). | T000 |
+| M12-T002 | Migration `0008_m12_competition_type_teams.sql` — `competitions.competition_type` enum (default `kaggle`), `teams`, `team_memberships`, `competitions.deadline`, `competitions.submission_format`. Policy resolver refactor. Backwards-compatible. | T001 |
+| M12-T003 | `tools/kca/devpost.py` + `kca devpost register/fetch/info` (READ_ONLY). Lightweight HTTP first; Playwright fallback per `tools/kca/research_fetch.py` pattern. | T002 |
+| M12-T004 | `.kca/skills/hackathon-experiment-loop/SKILL.md` + `.kca/permissions/hackathon-runner.yaml` + `submission_checklist` tool. | T002, T003 |
+| M12-T005 | UI: `ui/src/pages/HackathonDeadline.tsx` + `ui/src/pages/SubmissionChecklist.tsx`; routes; vitest + Playwright smoke. Reuse `ApprovalInbox` / `DecisionGate`. | T002 |
+| M12-T006 | Worker runs `hackathon-experiment-loop` end-to-end locally; produces `runs/<slug>/<run_id>/submission_pack/` (README, demo plan, source link). No external write. | T003, T004 |
+| M12-T007 | Reviewer gate fires for `devpost_submit`; human approves via `kca decisions approve`; **ONE** real Devpost submission; record row in `submissions` (platform=`devpost`). | T006 |
+| M12-T008 | `tests/test_m12_e2e.py` (dry-run, no creds) + `tests/test_m12_smoke.py` (DB-gated). Mirror M9 / M10 patterns. | T002–T007 |
+| M12-T009 | Exit criteria validation + `docs/m12-final-review.md` + PROJECT_STATE / README / milestones updates + handoff + `worktree-milestone-pr`. | all |
 
 Planned capabilities:
 
-- Hackathon rules and deadline tracking.
-- Team discussion and idea board.
-- App prototype workflows.
-- Demo/video/readme generation.
-- Submission checklist and approval gates.
+- **Generalized competition-policy layer** (ADR-0016): `competition_type`
+  enum (`kaggle`, `devpost`, `hackathon_devpost`, `ctf`, `generic`);
+  policy resolver routes on type; M11 reuses the schema.
+- **Minimal team model**: `teams` + `team_memberships` tables; idea
+  board / submission scope by team. No invite / role flow in M12.
+- **Hackathon rules and deadline tracking**: `competitions.deadline`
+  + `competitions.submission_format` (jsonb); UI deadline countdown.
+- **Idea / discussion board** reusing `research_items`; no new table.
+- **App prototype workflows** as a hackathon-flavoured skill;
+  produces a structured submission pack.
+- **Submission checklist + approval gates**: templated checklist
+  page in UI; new `devpost_submit` reviewer gate.
+- **Real Devpost submission** under explicit human approval — one
+  per milestone, mirroring M9 `kaggle_submit` discipline.
 
-Exit criteria:
+Regression target: hackathon slug picked in M12-T000 from a candidate
+list of 2–3 Devpost events. Human selects via comment on the closing
+GitHub issue before T001 begins. The picked slug is recorded in
+`docs/evidence/m12/t000-candidates.md` and referenced from every
+later task closeout.
 
-- The same platform can represent different competition policies without changing worker core logic.
+Exit criteria — proposed (final list in `docs/m12-loop-prompts.md`):
+
+- Candidate hackathon picked; entry registered in `competitions` with
+  `competition_type='devpost'` (or `hackathon_devpost`).
+- ADR-0016 merged; the three Discovery / Debate Gate reports under
+  `docs/evidence/m12/t001/discovery/` carry their canonical
+  acceptance lines verbatim.
+- Migration `0008_m12_competition_type_teams.sql` applied; all
+  existing Kaggle competitions still resolve their policy correctly
+  (`competition_type` defaults to `kaggle`).
+- `kca devpost fetch --slug <picked>` returns metadata; no submit /
+  upload / write action runs in T003.
+- `hackathon-experiment-loop` skill runs locally and produces a
+  submission pack at `runs/<slug>/<run_id>/submission_pack/`.
+- Reviewer gate fires for `devpost_submit`; human approves; exactly
+  ONE real Devpost submission lands; `submissions` row written with
+  `platform='devpost'` + external submission URL.
+- `tests/test_m12_e2e.py` passes in CI without credentials; the
+  Devpost adapter refuses to submit without env vars present.
+- `docs/m12-final-review.md` PASS, mirroring the M9 / M10 layout.
+
+Out-of-scope follow-ups (file as issues if surfaced):
+
+- Hook-level enforcement of the Discovery / Debate Gate (deferred from M9.4).
+- Full team-invite / role-based permission flow.
+- Other hackathon platforms (HackerEarth, MLH, Devfolio).
+- Auto-generated demo video / readme from agent run logs.
+- CTF wiring against `competition_type='ctf'` (owned by M11).
 
 ---
 
