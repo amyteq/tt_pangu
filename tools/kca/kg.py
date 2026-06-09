@@ -238,15 +238,129 @@ def cmd_push(args: argparse.Namespace) -> int:
         capture_output=True,
         text=True,
     )
-    return _emit_json(
-        {
-            "ok": proc.returncode == 0,
-            "kernel_dir": kernel_dir,
-            "side_effect": se.value,
-            "stdout": proc.stdout,
-            "stderr": proc.stderr,
-        }
-    )
+    push_ok = proc.returncode == 0
+    response: dict = {
+        "ok": push_ok,
+        "kernel_dir": kernel_dir,
+        "side_effect": se.value,
+        "stdout": proc.stdout,
+        "stderr": proc.stderr,
+    }
+
+    # Extract kernel ref + version from the push response and metadata, so we
+    # can auto-watch the resulting run.
+    kernel_ref = None
+    pushed_version = None
+    try:
+        meta = json.loads((Path(kernel_dir) / "kernel-metadata.json").read_text())
+        kernel_ref = meta.get("id")
+    except Exception:
+        pass
+    import re as _re
+
+    m = _re.search(r"[Kk]ernel version (\d+) successfully pushed", proc.stdout or "")
+    if m:
+        pushed_version = int(m.group(1))
+    response["kernel_ref"] = kernel_ref
+    response["pushed_version"] = pushed_version
+
+    # Auto-watch the kernel run until terminal (default). --no-watch opts out.
+    if push_ok and getattr(args, "watch", True) and kernel_ref:
+        watch_result = _watch_kernel_until_terminal(
+            kernel_ref,
+            poll_seconds=getattr(args, "poll_seconds", 60),
+            max_minutes=getattr(args, "max_poll_minutes", 60),
+        )
+        response["watch"] = watch_result
+        response["ok"] = push_ok and watch_result.get("terminal", False)
+
+    return _emit_json(response)
+
+
+def _watch_kernel_until_terminal(
+    kernel_ref: str, *, poll_seconds: int = 60, max_minutes: int = 60
+) -> dict:
+    """Poll a kernel run until it produces a downloadable output log.
+
+    Returns a dict with: terminal (bool), polls, runtime_seconds, log_path,
+    error_excerpt (if a Python traceback is detected in stderr). The Kaggle
+    `kernels status` API has been observed to 500 for newly-pushed kernels;
+    this watcher uses `kernels output` instead, which only succeeds once the
+    run is terminal.
+
+    READ_ONLY against Kaggle.
+    """
+    import tempfile
+    import time as _time
+
+    tmp_dir = tempfile.mkdtemp(prefix="kca-watch-")
+    log_path = Path(tmp_dir) / f"{kernel_ref.split('/')[-1]}.log"
+    polls = 0
+    started = _time.monotonic()
+    max_polls = max(1, (max_minutes * 60) // poll_seconds)
+    while polls < max_polls:
+        polls += 1
+        try:
+            if log_path.exists():
+                log_path.unlink()
+        except OSError:
+            pass
+        # `kaggle kernels output` exits 1 + writes nothing while running;
+        # exits 0 + writes log file once terminal.
+        subprocess.run(
+            ["kaggle", "kernels", "output", kernel_ref, "-p", tmp_dir],
+            capture_output=True,
+            text=True,
+        )
+        if log_path.exists() and log_path.stat().st_size > 100:
+            break
+        if polls < max_polls:
+            _time.sleep(poll_seconds)
+
+    runtime = _time.monotonic() - started
+    terminal = log_path.exists() and log_path.stat().st_size > 100
+    result: dict = {
+        "terminal": terminal,
+        "polls": polls,
+        "runtime_seconds": round(runtime, 1),
+        "log_path": str(log_path) if terminal else None,
+    }
+
+    if terminal:
+        # Extract any "Exception encountered" / Traceback excerpt so the caller
+        # (auto-fix loop or human) can see the failure mode without re-reading
+        # the full multi-MB log.
+        try:
+            entries = json.loads(log_path.read_text())
+            stderr_lines = [
+                r["data"]
+                for r in entries
+                if r.get("stream_name") == "stderr" and "Traceback" in r.get("data", "")
+            ]
+            error_window = []
+            if stderr_lines:
+                # Capture the last ~30 stderr lines starting from the traceback
+                tail_start = next(
+                    (
+                        i
+                        for i, r in enumerate(entries)
+                        if "Traceback" in r.get("data", "")
+                    ),
+                    -1,
+                )
+                if tail_start >= 0:
+                    error_window = [
+                        r["data"].rstrip()
+                        for r in entries[tail_start : tail_start + 60]
+                        if r.get("stream_name") == "stderr"
+                    ]
+            result["error_excerpt"] = (
+                "\n".join(error_window[-30:]) if error_window else None
+            )
+        except Exception as exc:
+            result["error_excerpt"] = f"<log parse failed: {exc!r}>"
+
+    return result
 
 
 def cmd_upload(args: argparse.Namespace) -> int:
@@ -495,6 +609,123 @@ def cmd_watch(args: argparse.Namespace) -> int:
     )
 
 
+def _fetch_kaggle_submissions(competition: str) -> list[dict]:
+    """Call the Kaggle Python API and return submissions as plain dicts.
+
+    Each dict has: file_name, date, description, status, public_score (float|None),
+    private_score (float|None), ref.
+
+    Kaggle's library prints version warnings to stdout, which corrupts our JSON
+    envelope — capture and discard that chatter.
+    """
+    import contextlib
+    import io as _io
+
+    from kaggle import api
+
+    with contextlib.redirect_stdout(_io.StringIO()):
+        api.authenticate()
+        raw = list(api.competition_submissions(competition))
+    rows = []
+    for s in raw:
+        rows.append(
+            {
+                "file_name": getattr(s, "file_name", None),
+                "date": str(getattr(s, "date", "") or ""),
+                "description": getattr(s, "description", "") or "",
+                "status": str(getattr(s, "status", "") or ""),
+                "public_score": (
+                    float(s.public_score)
+                    if getattr(s, "public_score", None) not in (None, "")
+                    else None
+                ),
+                "private_score": (
+                    float(s.private_score)
+                    if getattr(s, "private_score", None) not in (None, "")
+                    else None
+                ),
+                "ref": getattr(s, "ref", None),
+            }
+        )
+    return rows
+
+
+def cmd_score(args: argparse.Namespace) -> int:
+    """Read public LB scores for a competition and optionally write the matched
+    row's public_score back to a `submissions` row.
+
+    READ_ONLY against Kaggle (Python API call to `competition_submissions`).
+    LOCAL_WRITE against the DB when --update-db is given.
+    """
+    competition = args.competition
+    se = SideEffect.READ_ONLY
+
+    try:
+        submissions = _fetch_kaggle_submissions(competition)
+    except Exception as exc:
+        return _emit_json(
+            {
+                "ok": False,
+                "side_effect": se.value,
+                "competition": competition,
+                "error": f"kaggle competition_submissions failed: {exc!s}",
+            }
+        )
+
+    matched = submissions
+    if args.kernel_ref:
+        slug_part = args.kernel_ref.split("/")[-1].lower()
+        matched = [r for r in matched if slug_part in r["description"].lower()]
+    if args.message_filter:
+        needle = args.message_filter.lower()
+        matched = [r for r in matched if needle in r["description"].lower()]
+
+    payload = {
+        "ok": True,
+        "side_effect": se.value,
+        "competition": competition,
+        "match_count": len(matched),
+        "submissions": matched[: args.limit] if args.limit else matched,
+    }
+
+    if args.update_db and args.submission_id:
+        if not matched:
+            payload["ok"] = False
+            payload["error"] = (
+                f"no Kaggle submissions row matched filters for "
+                f"competition={competition!r}; refusing to update DB"
+            )
+            return _emit_json(payload)
+        top = matched[0]
+        public_score = top["public_score"]
+        status = top["status"] or None
+        try:
+            db.update_submission(
+                args.submission_id,
+                public_lb_score=public_score,
+                status=status,
+            )
+            # M10 schema accumulated both columns; the test fixture reads
+            # `public_score` (migration 0004) so mirror the value there too.
+            with db.get_conn() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE submissions SET public_score = %s WHERE id = %s::uuid",
+                        (public_score, args.submission_id),
+                    )
+                conn.commit()
+        except Exception as exc:
+            payload["ok"] = False
+            payload["error"] = f"DB update failed: {exc!s}"
+            return _emit_json(payload)
+        payload["updated_submission_id"] = args.submission_id
+        payload["public_score"] = public_score
+        payload["matched_description"] = top["description"]
+        payload["side_effect"] = SideEffect.LOCAL_WRITE.value
+
+    return _emit_json(payload)
+
+
 def cmd_fetch(args: argparse.Namespace) -> int:
     return _emit_stub("fetch", SideEffect.READ_ONLY, {"run": args.run})
 
@@ -525,6 +756,27 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
         "--dry-run",
         action="store_true",
         help="Validate kernel-metadata.json without uploading",
+    )
+    p_push.add_argument(
+        "--no-watch",
+        dest="watch",
+        action="store_false",
+        default=True,
+        help="Skip auto-watching the kernel run after a successful push",
+    )
+    p_push.add_argument(
+        "--poll-seconds",
+        dest="poll_seconds",
+        type=int,
+        default=60,
+        help="Seconds between watcher polls (default 60)",
+    )
+    p_push.add_argument(
+        "--max-poll-minutes",
+        dest="max_poll_minutes",
+        type=int,
+        default=60,
+        help="Watcher cap in minutes (default 60)",
     )
     p_push.add_argument("--json", action="store_true")
     p_push.set_defaults(func=cmd_push)
@@ -567,6 +819,46 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_watch.add_argument("--max-iterations", dest="max_iterations", type=int, default=1)
     p_watch.add_argument("--json", action="store_true")
     p_watch.set_defaults(func=cmd_watch)
+
+    p_score = kg_sub.add_parser(
+        "score",
+        help="Read public LB score from `kaggle competitions submissions` and "
+        "optionally write it to a submissions row (READ_ONLY / LOCAL_WRITE)",
+    )
+    p_score.add_argument("--competition", required=True)
+    p_score.add_argument(
+        "--kernel-ref",
+        dest="kernel_ref",
+        default=None,
+        help="Match the submission row whose description contains this kernel "
+        "slug (user/slug or just slug)",
+    )
+    p_score.add_argument(
+        "--message-filter",
+        dest="message_filter",
+        default=None,
+        help="Substring match against the submission description",
+    )
+    p_score.add_argument(
+        "--submission-id",
+        dest="submission_id",
+        default=None,
+        help="`submissions.id` to update (with --update-db)",
+    )
+    p_score.add_argument(
+        "--update-db",
+        dest="update_db",
+        action="store_true",
+        help="Write the matched row's publicScore + status to submissions",
+    )
+    p_score.add_argument(
+        "--limit",
+        type=int,
+        default=10,
+        help="Max rows to return (default 10; 0 disables the cap)",
+    )
+    p_score.add_argument("--json", action="store_true")
+    p_score.set_defaults(func=cmd_score)
 
     p_fetch = kg_sub.add_parser("fetch", help="Fetch run artifacts (READ_ONLY)")
     p_fetch.add_argument("--run", required=True)

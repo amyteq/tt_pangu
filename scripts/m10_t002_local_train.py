@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """M10-T002 local sanity training driver.
 
-Runs the same logic as ``runs/tpu-getting-started/baseline-tl/baseline.py``
+Runs the same logic as ``experiments/tpu-getting-started/baseline-tl/baseline.py``
 against the small local slice staged under
 ``data/tpu-getting-started/local-slice/{train,val}/*.tfrec`` and records the
 resulting ``holdout_accuracy`` and ``macro_f1`` into ``experiment_runs`` via
