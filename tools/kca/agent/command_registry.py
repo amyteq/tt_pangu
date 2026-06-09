@@ -44,6 +44,7 @@ REGISTRY = CommandRegistry()
 
 def _seed_registry() -> None:
     import competition as competition_mod
+    import ctf as ctf_mod
     import decisions as decisions_mod
     import eval as eval_mod
     import kg as kg_mod
@@ -107,6 +108,15 @@ def _seed_registry() -> None:
             "LOCAL_WRITE",
             True,
             competition_mod.add_parsers,
+        )
+    )
+    REGISTRY.register(
+        CommandSpec(
+            "ctf",
+            "Authorized CTF / lab workflow (event/challenge/scope/solver/flag).",
+            "LOCAL_WRITE",
+            True,
+            ctf_mod.add_parsers,
         )
     )
     REGISTRY.register(

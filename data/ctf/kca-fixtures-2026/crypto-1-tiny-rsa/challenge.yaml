@@ -1,0 +1,15 @@
+# challenge.yaml — kca-fixtures-2026/crypto-1-tiny-rsa
+# Schema documented in docs/tasks/M11-T004-frozen-challenges.md.
+slug: crypto-1-tiny-rsa
+event: kca-fixtures-2026
+name: Tiny RSA
+category: crypto
+points: 100
+description: '@description.md'
+# Flag format regex. The literal `{}` braces are part of the regex — this
+# is the only `flag\{` style match permitted by the M11-T004 hygiene grep.
+expected_flag_format: '^kca\{[A-Za-z0-9_]+\}$'
+attachments_path: ./attachments
+remote_endpoint: null
+scope_ref: ctf-local-kca-fixtures-2026-crypto-1
+license: CC0-1.0 (problem text) + MIT (runner code) — in-house bespoke

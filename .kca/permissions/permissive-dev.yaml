@@ -40,3 +40,20 @@
   default_decision: allow
 - operation: gh_pr_create
   default_decision: allow
+# M11 — CTF approval operations (ADR-0017). Even in dev, challenge_run
+# and flag_submit stay on `ask` (no auto-allow for live submission paths).
+# network_egress stays deny-default; widen via ctf_scopes.target_urls.
+- operation: challenge_run
+  default_decision: ask
+  reason: Executing a solver against an authorized CTF target — gate even in dev.
+  audit_required: true
+- operation: flag_submit
+  default_decision: ask
+  reason: Flag submission to a CTF event API — always gated.
+  audit_required: true
+- operation: network_egress
+  default_decision: deny
+  reason: Egress outside ctf_scopes.target_urls is denied; widen scope row to allow.
+  audit_required: true
+  conditional_allow:
+    when_in_scope: ask   # if request URL ∈ ctf_scopes.target_urls

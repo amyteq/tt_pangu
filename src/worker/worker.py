@@ -25,6 +25,36 @@ class PolicyViolation(Exception):
         super().__init__(f"{tool_name} denied by policy ({decision})")
 
 
+# M11 (ADR-0017): map tool_name to reviewer target_op for the new CTF ops.
+# The default identity mapping (target_op == tool_name) covers M6/M9/M10 ops
+# (kaggle_submit, kernel_push, supabase_migrate, ...). The mapping below is
+# only consulted for synthetic / wrapper tools whose tool_name doesn't match
+# the operation in the policy YAMLs. Each entry must correspond to an
+# operation row in .kca/permissions/*.yaml.
+_TOOL_TO_TARGET_OP: dict[str, str] = {
+    # `kca ctf solver run` invocation surfaces as a `challenge_run` op.
+    "kca_ctf_solver_run": "challenge_run",
+    "ctf_solver_run": "challenge_run",
+    "challenge_run": "challenge_run",
+    # `kca ctf flag submit` invocation surfaces as a `flag_submit` op.
+    "kca_ctf_flag_submit": "flag_submit",
+    "ctf_flag_submit": "flag_submit",
+    "flag_submit": "flag_submit",
+    # Worker-issued HTTP egress that doesn't match the ctf_scopes.target_urls
+    # union surfaces as a `network_egress` op.
+    "http_request": "network_egress",
+    "network_egress": "network_egress",
+}
+
+
+def _resolve_target_op(tool_name: str) -> str:
+    """Return the reviewer target_op string for the given tool_name.
+
+    For unknown tools, target_op == tool_name (the M6/M9/M10 contract).
+    """
+    return _TOOL_TO_TARGET_OP.get(tool_name, tool_name)
+
+
 # ---------------------------------------------------------------------------
 # Mock LiteLLM client for dry_run tests
 # ---------------------------------------------------------------------------
@@ -711,7 +741,7 @@ class AgentWorker:
             escalate_reject,
         )
 
-        target_op = exc.tool_name
+        target_op = _resolve_target_op(exc.tool_name)
         if not should_consult_reviewer(target_op):
             return None
         if not self.db_url:

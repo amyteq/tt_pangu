@@ -1,6 +1,6 @@
 # Kaggle Code Agent — Project State
 
-_Last updated: 2026-05-28 (M10 close)_
+_Last updated: 2026-06-09 (M11 partial close)_
 
 ## Product intent
 Build a hybrid human + AI competition engineering workbench. The first target is Kaggle-style competitions, with future support for authorized CTF/lab challenges. The system should research, discuss ideas with humans, edit code, run tests/evaluations, analyze results, iterate, and prepare submissions under human-approved guardrails.
@@ -53,6 +53,7 @@ authoritative.
 - **M9.3**: `memory-promotion` + `design-archaeology` skills (replaces unbuilt M9.1; retires `docs/m9_1-loop-prompts.md` with deferred-scope notice) ✓
 - **M9.4**: Discovery / Debate Gate agents (planning + scaffolding) ✓
 - **M10**: notebook-submission Kaggle regression — Petals to the Metal (kernel-push path) ✓ — one approved real `kaggle kernels push` attempted; no public LB recorded (queue stall + now-fixed kernelspec bug; single-push policy, "accept and continue"); issue #11 (dotenv-leak) closed during M10.
+- **M11**: authorized CTF / lab workflow — PARTIAL (T000–T006 + T008 done 2026-06-09; T007 deferred pending human-supplied live-event credentials + approval)
 
 See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP
 checks PASS), `docs/m8_5-final-review.md` for the M8.5 roll-up (all 26
@@ -72,7 +73,8 @@ M9 metrics snapshot:
 - New tests: `tests/test_m9_smoke.py` (4 DB-gated assertions),
   `tests/test_m9_e2e.py` (5 dry-run tests, 0 net / 0 DB / 0 creds).
 
-M10 metrics snapshot (see `docs/m10-final-review.md`, 26 PASS / 1 SKIP / 0 FAIL):
+## M10 metrics snapshot (see `docs/m10-final-review.md`, 26 PASS / 1 SKIP / 0 FAIL)
+
 - Baseline transfer learning (M10-T002, MobileNetV2): local-slice holdout
   **0.4310** (full-dataset reference ~0.7707); `experiment_run_id=830fc32f-…`.
 - Alt backbone (M10-T005, EfficientNetB0): local-slice holdout **0.3966**
@@ -87,43 +89,67 @@ M10 metrics snapshot (see `docs/m10-final-review.md`, 26 PASS / 1 SKIP / 0 FAIL)
 - New tests: `tests/test_m10_smoke.py` (4 DB-gated assertions),
   `tests/test_m10_e2e.py` (dry-run e2e + 0-real-push audit sentinel).
 
-## Current milestone: M11 — authorized CTF/lab workflow (planned)
 
-_Renumbered 2026-05-24: the old M10 (authorized CTF/lab) became M11 to
-make room for the notebook-submission regression M10, now ✓ done._
+## Current milestone: M11 — authorized CTF / lab workflow (PARTIAL)
 
-Status: planned (M10 exited 2026-05-28; see `docs/m10-final-review.md`,
-26 PASS / 1 SKIP / 0 FAIL). M11 brings the platform's authorized
-CTF/lab challenge workflow online — challenge metadata + container lab
-+ writeup — inside explicitly authorized sandbox environments only (no
-third-party scanning, no real targets, no credential theft). See
-`docs/milestones.md §M11` and `docs/handoffs/m10-handoff.md` for the
-read-first list and carried-forward items.
+_M11 partial exit: T000–T006 + T008 done (2026-06-09); T007 deferred pending
+human-supplied live-event credentials + approval comment._
 
-Cross-cutting follow-ups status after M10:
+Status: **PARTIAL**. Next: file M12 planning issues OR resume M11-T007 with
+credentials + `decision:confirmed` on the closing issue.
 
-- **B** — Secrets-file hygiene in pytest subprocess (issue #11, P0):
-  **RESOLVED** during M10 (`KCA_SKIP_DOTENV` guard in
-  `tools/kca/db.py`); issue #11 CLOSED.
-- **A** — `competitions.repo_url` schema drift (`area:kaggle`,
-  `type:bug`) — still open.
-- **C** — `decision_api`: no `GET /decisions` endpoint
-  (`area:supabase`, `type:feature`) — still open.
-- **D** — `reviewer_decision` literal event_type not emitted
-  (`area:worker`, `type:docs`) — still open.
-- **E** — Migration 0004 optional columns
-  (`submissions.public_lb_score`, `submissions.run_id`) not applied to
-  the local DB (`area:supabase`, `type:bug`) — still open.
+M11 partial deliverables shipped:
+- `supabase/migrations/0008_m11_ctf.sql` — 4 ctf_* tables; cloud applied.
+- `src/db/ctf.py` — 6 DB helpers.
+- `tools/kca/ctf.py` — 12 subcommands across 5 namespaces.
+- `data/ctf/kca-fixtures-2026/` — web-1 (cookie-tamper) + crypto-1 (tiny RSA) bespoke fixtures.
+- ADR-0016 (CTF data model) + ADR-0017 (CTF approval gates).
+- `docs/architecture/m11-ctf-workflow.md` — 7-section workflow doc.
+- `challenge_run`, `flag_submit`, `network_egress` in all 3 permission profiles.
+- 3 test files: `test_m11_e2e.py` (8/8), `test_m11_smoke.py` (7/7 SKIP without DSN), `test_m11_db.py` (13/13).
+- T005 local solves: web `flag_length=21`, crypto `flag_length=17`; 2 `ctf_attempts(accepted=true)` in cloud.
+- T006 reviewer-gate: `challenge_run` + `flag_submit` approve round-trips; `network_egress` reject smoke.
 
-M10-surfaced follow-ups:
+See `docs/m11-final-review.md` (23 PASS / 1 SKIP-BLOCKED / 0 FAIL) and
+`docs/handoffs/m11-handoff.md` for the full handoff.
+
+### M11-T007 unblock (human action required)
+
+1. Set `KCA_ALLOW_REMOTE=1`.
+2. Register on a live CTFtime event + populate `~/.ctf/<slug>.json`.
+3. Run `kca ctf event register` + `kca ctf scope set` for the live event.
+4. Comment "approved to submit" on the T007 closing issue + add `decision:confirmed`/`ai:ready` labels.
+5. Re-run M11-T007 Loop Prompt.
+
+### Cross-cutting follow-ups from M11 (file as GitHub issues)
+
+- **A** — `agent_jobs.competition_id` schema drift on cloud (`type:bug`, `area:supabase`, P2).
+- **B** — `kca ctf flag submit` non-dry-run env-check before reviewer-gate (`type:bug`, `area:security`, P1).
+- **C** — T004 fixture-authoring trail in `.agent/audit/tool-events.jsonl` contains deterministic crypto flag (`type:security`, `area:testing`, P1).
+- **D** — `expected.sha256` web-1 churn — regenerates per solve harness run (`type:test-gap`, `area:ctf`, P2).
+- **E** — gh CLI hook denial blocks `decision:confirmed` verification (`type:bug`, `area:security`, `area:ci`, P2).
+- **F** — httpx-level `network_egress` interceptor for subprocess egress deferred (ADR-0017 §pinning) (`type:feature`, `area:security`, P1).
+- **G** — per-challenge rate-limit column on `ctf_scopes` (`type:feature`, `area:ctf`, P3).
+
+### M10-surfaced follow-ups (carried forward)
 
 - **#34** — M10-T004 needs a future approved re-push to record a public
   LB score (notebook is push-ready after the py2nb kernelspec fix).
 - **#35** — kernel-run queue-stall robustness + slug/title fix
   (kernelspec fix landed in the M10 PR).
 
-See `docs/handoffs/m10-handoff.md` for the M10→M11 read-first list
-(`docs/handoffs/m9-handoff.md` and earlier preserved for history).
+Issue #11 (dotenv-leak / Kaggle LB pollution; M9 follow-up B) was
+**CLOSED during M10** via `KCA_SKIP_DOTENV` guard in `tools/kca/db.py`.
+
+### Cross-cutting follow-ups carried forward from M9
+
+- **M9-A** — `competitions.repo_url` schema drift (`area:kaggle`, `type:bug`).
+- **M9-B** — Secrets-file hygiene in pytest subprocess (issue #11, P0).
+- **M9-C** — `decision_api`: no `GET /decisions` endpoint (`area:supabase`, `type:feature`).
+- **M9-D** — `reviewer_decision` literal event_type not emitted (`area:worker`, `type:docs`).
+- **M9-E** — Migration 0004 optional columns not applied to local DB (`area:supabase`, `type:bug`).
+
+See `docs/handoffs/m11-handoff.md` for the full handoff context.
 
 ## Open decisions
 - Decision API multi-user auth (per-user JWT via Supabase auth vs continued
