@@ -26,11 +26,12 @@ All commands emit a single JSON object to stdout. Exit codes: `0` ok, `1` runtim
 | `kca run record-metric`       | `LOCAL_WRITE`  | (native)                  | Appends to `metrics.json`                   |
 | `kca run list`                | `READ_ONLY`    | (native)                  |                                             |
 | `kca kaggle submit`           | `SUBMISSION`   | _will wrap_ `kkr.py submit` | Blocked without `KCA_ALLOW_REMOTE=1` (stub)|
-| `kca kaggle push`             | `REMOTE_WRITE` | _will wrap_ `kkr.py push`   | Blocked without `KCA_ALLOW_REMOTE=1` (stub)|
+| `kca kaggle push`             | `REMOTE_WRITE` | `kaggle kernels push` + auto-watch | Auto-polls `kaggle kernels output` after a successful push until terminal (`--no-watch` to opt out, `--max-poll-minutes` default 60). Returns push response + watch result (terminal/polls/runtime/error excerpt). |
 | `kca kaggle upload`           | `REMOTE_WRITE` | _will wrap_ Kaggle dataset upload | Blocked without `KCA_ALLOW_REMOTE=1` (stub) |
 | `kca kaggle watch`            | `READ_ONLY`    | _will wrap_ `kkr.py watch`  | Stub                                       |
 | `kca kaggle fetch`            | `READ_ONLY`    | _will wrap_ `kkr.py fetch`  | Stub                                       |
 | `kca kaggle list`             | `READ_ONLY`    | _will wrap_ `kkr.py list`   | Stub                                       |
+| `kca kaggle score`            | `READ_ONLY` / `LOCAL_WRITE` | `kaggle.api.competition_submissions` | Reads public LB; with `--update-db --submission-id`, writes `public_score` + `public_lb_score` back to the matched `submissions` row |
 | `kca eval score`              | `READ_ONLY`    | (native, planned)         | Stub                                        |
 | `kca eval compare`            | `READ_ONLY`    | (native, planned)         | Stub                                        |
 | `kca workspace init`          | `LOCAL_WRITE`  | `git worktree add`        | Creates detached-HEAD worktree under `.workspaces/<job_id>/` |

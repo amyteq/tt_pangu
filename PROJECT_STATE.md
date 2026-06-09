@@ -52,6 +52,7 @@ authoritative.
 - **M9.2**: `/save-log` Claude Code session-transcript skill ✓ — operator-tooling milestone; ran in parallel to M10 planning.
 - **M9.3**: `memory-promotion` + `design-archaeology` skills (replaces unbuilt M9.1; retires `docs/m9_1-loop-prompts.md` with deferred-scope notice) ✓
 - **M9.4**: Discovery / Debate Gate agents (planning + scaffolding) ✓
+- **M10**: notebook-submission Kaggle regression — Petals to the Metal (kernel-push path) ✓ — one approved real `kaggle kernels push` attempted; no public LB recorded (queue stall + now-fixed kernelspec bug; single-push policy, "accept and continue"); issue #11 (dotenv-leak) closed during M10.
 - **M11**: authorized CTF / lab workflow — PARTIAL (T000–T006 + T008 done 2026-06-09; T007 deferred pending human-supplied live-event credentials + approval)
 
 See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP
@@ -122,6 +123,58 @@ See `docs/m11-final-review.md` (23 PASS / 1 SKIP-BLOCKED / 0 FAIL) and
 - **M9-E** — Migration 0004 optional columns not applied to local DB (`area:supabase`, `type:bug`).
 
 See `docs/handoffs/m11-handoff.md` for the full handoff context.
+M10 metrics snapshot (see `docs/m10-final-review.md`, 26 PASS / 1 SKIP / 0 FAIL):
+- Baseline transfer learning (M10-T002, MobileNetV2): local-slice holdout
+  **0.4310** (full-dataset reference ~0.7707); `experiment_run_id=830fc32f-…`.
+- Alt backbone (M10-T005, EfficientNetB0): local-slice holdout **0.3966**
+  (−3.4pp vs baseline, within the 10pp guard); `experiment_run_id=c3339154-…`.
+- One approved real Kaggle kernel push (M10-T004): **NO public LB recorded** —
+  push #1 stalled QUEUED ~66 min; approved re-push #2 errored on a missing
+  `metadata.kernelspec` (now fixed in `tools/legacy/py2nb.py`). `submissions.id=03b5d080-…`
+  exists with `public_score` NULL. Single-push policy → "accept and continue".
+  Re-push tracked by issues #34 / #35; notebook is push-ready.
+- Issue #11 (dotenv-leak / Kaggle LB pollution; M9 follow-up B) CLOSED during M10:
+  `tools/kca/db.py` guards repo-root `.env` auto-load behind `KCA_SKIP_DOTENV`.
+- New tests: `tests/test_m10_smoke.py` (4 DB-gated assertions),
+  `tests/test_m10_e2e.py` (dry-run e2e + 0-real-push audit sentinel).
+
+## Current milestone: M11 — authorized CTF/lab workflow (planned)
+
+_Renumbered 2026-05-24: the old M10 (authorized CTF/lab) became M11 to
+make room for the notebook-submission regression M10, now ✓ done._
+
+Status: planned (M10 exited 2026-05-28; see `docs/m10-final-review.md`,
+26 PASS / 1 SKIP / 0 FAIL). M11 brings the platform's authorized
+CTF/lab challenge workflow online — challenge metadata + container lab
++ writeup — inside explicitly authorized sandbox environments only (no
+third-party scanning, no real targets, no credential theft). See
+`docs/milestones.md §M11` and `docs/handoffs/m10-handoff.md` for the
+read-first list and carried-forward items.
+
+Cross-cutting follow-ups status after M10:
+
+- **B** — Secrets-file hygiene in pytest subprocess (issue #11, P0):
+  **RESOLVED** during M10 (`KCA_SKIP_DOTENV` guard in
+  `tools/kca/db.py`); issue #11 CLOSED.
+- **A** — `competitions.repo_url` schema drift (`area:kaggle`,
+  `type:bug`) — still open.
+- **C** — `decision_api`: no `GET /decisions` endpoint
+  (`area:supabase`, `type:feature`) — still open.
+- **D** — `reviewer_decision` literal event_type not emitted
+  (`area:worker`, `type:docs`) — still open.
+- **E** — Migration 0004 optional columns
+  (`submissions.public_lb_score`, `submissions.run_id`) not applied to
+  the local DB (`area:supabase`, `type:bug`) — still open.
+
+M10-surfaced follow-ups:
+
+- **#34** — M10-T004 needs a future approved re-push to record a public
+  LB score (notebook is push-ready after the py2nb kernelspec fix).
+- **#35** — kernel-run queue-stall robustness + slug/title fix
+  (kernelspec fix landed in the M10 PR).
+
+See `docs/handoffs/m10-handoff.md` for the M10→M11 read-first list
+(`docs/handoffs/m9-handoff.md` and earlier preserved for history).
 
 ## Open decisions
 - Decision API multi-user auth (per-user JWT via Supabase auth vs continued

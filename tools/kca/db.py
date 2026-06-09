@@ -25,12 +25,22 @@ from typing import Any, Iterable
 
 # Load .env from repo root automatically if python-dotenv is installed.
 # This is a no-op when .env doesn't exist or dotenv isn't installed.
-try:
-    from dotenv import load_dotenv as _load_dotenv
+# KCA_SKIP_DOTENV lets a caller (e.g. a test subprocess that scrubbed its env)
+# opt out, so the repo-root secrets file is not silently re-injected regardless
+# of cwd — see issue #11 (Kaggle leaderboard pollution).
+if not os.environ.get("KCA_SKIP_DOTENV"):
+    try:
+        from dotenv import load_dotenv as _load_dotenv
 
-    _load_dotenv(Path(__file__).resolve().parent.parent.parent / ".env", override=False)
-except ImportError:
-    pass
+        _repo_root = Path(__file__).resolve().parent.parent.parent
+        # `.vscode/.env` is the authoritative dev config (user-curated VS Code
+        # workspace env, e.g. cloud Supabase DSN) — load with override=True so
+        # a stale inherited shell env cannot shadow the intended value. The
+        # root `.env` then fills in any keys not already set.
+        _load_dotenv(_repo_root / ".vscode" / ".env", override=True)
+        _load_dotenv(_repo_root / ".env", override=False)
+    except ImportError:
+        pass
 
 try:
     import psycopg

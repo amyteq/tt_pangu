@@ -224,7 +224,10 @@ def test_db_unreachable_degrades_gracefully(cleanup_run_dir: str) -> None:
         slug,
         "--json",
         env_override={
-            "SUPABASE_DB_URL": "postgres://postgres:postgres@127.0.0.1:54998/postgres"
+            "SUPABASE_DB_URL": "postgres://postgres:postgres@127.0.0.1:54998/postgres",
+            # Opt out of the .vscode/.env auto-load so the intentionally-bad
+            # DSN above isn't clobbered by the workspace's cloud DSN.
+            "KCA_SKIP_DOTENV": "1",
         },
     )
     assert proc.returncode == 0, proc.stderr
