@@ -1,0 +1,17 @@
+# challenge.yaml — kca-fixtures-2026/web-1-cookie-monster
+# Schema documented in docs/tasks/M11-T004-frozen-challenges.md.
+slug: web-1-cookie-monster
+event: kca-fixtures-2026
+name: Cookie Monster
+category: web
+points: 100
+description: '@description.md'
+# Flag format. The literal `{}` braces below are part of a Python regex /
+# example layout, NOT a flag value. `grep -rE "(picoCTF|flag|FLAG)\{"` will
+# match the bare regex token below — that is the only acceptable match per
+# the task spec's "0 lines OR only format-regex hits in challenge.yaml".
+expected_flag_format: '^kca\{[A-Za-z0-9_]+\}$'
+attachments_path: ./attachments
+remote_endpoint: null
+scope_ref: ctf-local-kca-fixtures-2026-web-1
+license: CC0-1.0 (problem text) + MIT (runner code) — in-house bespoke

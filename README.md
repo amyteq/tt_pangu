@@ -76,15 +76,25 @@ runs/                        Run outputs — do not commit
 5. Never read `.env`, `kaggle.json`, `secrets/`, or private keys.
 6. Never submit to Kaggle, push kernels, or perform any remote write without explicit human approval.
 
-## Current milestone: M11 — authorized CTF/lab workflow (planned)
+## Current milestone: M11 — authorized CTF / lab workflow (PARTIAL)
 
-Status: planned (M10 exited 2026-05-28). M11 brings the platform's authorized CTF/lab challenge workflow online (challenge metadata + container lab + writeup), inside explicitly authorized sandbox environments only — no third-party scanning, no real targets, no credential theft. See `docs/milestones.md §M11` and `docs/handoffs/m10-handoff.md`.
+Status: **M11 PARTIAL** — T000–T006 + T008 done (2026-06-09); T007 deferred pending
+human-supplied live-event credentials + approval comment. Next: file M12 planning
+or resume M11-T007 with credentials. See `docs/m11-final-review.md` for the
+23 PASS / 1 SKIP-BLOCKED / 0 FAIL validation matrix and `docs/handoffs/m11-handoff.md`
+for the M11 → M12 handoff. Seven cross-cutting follow-ups A–G filed in the handoff
+(schema drift, flag-submit gate ordering, audit-trail crypto flag, web sha256 churn,
+gh CLI hook, httpx-interceptor, per-challenge rate-limit).
+
+M11 shipped (partial): first CTF / authorized-lab regression for this platform.
+Deliverables: `supabase/migrations/0008_m11_ctf.sql` (4 ctf_* tables), `src/db/ctf.py`
+(6 helpers), `tools/kca/ctf.py` (12 subcommands), `data/ctf/kca-fixtures-2026/` (web-1
++ crypto-1 bespoke fixtures), ADR-0016 + ADR-0017, `docs/architecture/m11-ctf-workflow.md`,
+3 permission-profile extensions, 3 new approval ops, 169 tests / 0 failures.
 
 M10 (notebook-submission Kaggle regression — Petals to the Metal) shipped on 2026-05-28: validation matrix **26 PASS / 1 SKIP / 0 FAIL**. The kernel-push loop ran end-to-end correctly under the approval gates (baseline MobileNetV2 local-slice holdout **0.4310**; alt EfficientNetB0 **0.3966**, −3.4pp within the 10pp guard). **One material deviation: no public LB score was recorded** — the single approved real `kaggle kernels push` stalled QUEUED ~66 min (push #1) and the approved re-push #2 errored on a now-fixed missing `metadata.kernelspec`; per the single-push policy the human chose "accept and continue" (`submissions=03b5d080-…`, `public_score` NULL; re-push tracked by issues #34 / #35; notebook is push-ready). Issue #11 (dotenv-leak / Kaggle LB pollution) was fixed and CLOSED during M10. See `docs/m10-final-review.md` and `docs/handoffs/m10-handoff.md`.
 
-M9 (live end-to-end Kaggle regression — Spaceship Titanic) shipped on 2026-05-24: LR baseline CV **0.79144 ±0.0086**, HGB + FE CV **0.81192 ±0.00753** (+0.02048), one approved real Kaggle submission (public LB **0.78676**), two new test files (`tests/test_m9_smoke.py`, `tests/test_m9_e2e.py`). See `docs/m9-final-review.md` for the 30-check validation matrix and `docs/handoffs/m9-handoff.md` for the M9 → M10 handoff (including five cross-cutting follow-ups A–E; item B is now tracked as issue #11 and is a hard pre-req for M10-T007).
-
-M9.3 (`memory-promotion` + `design-archaeology` skills) shipped on 2026-05-26. Replaces the unbuilt M9.1 hardening plan; retires `docs/m9_1-loop-prompts.md` with a deferred-scope notice. Codified in `docs/adr/0015-memory-promotion-model.md` (canonical-memory list + propose-only rule), `docs/architecture/memory-promotion.md`, and `docs/architecture/design-archaeology.md`. Dogfood evidence: `docs/archaeology/kkr.md` (multi-account quota-pool pattern surfaced as preserve-candidate `§8` open question) and `docs/proposals/memory-2026-05-26-m10-pr18.md` (memory-promotion proposal against PR #18). See `docs/m9_3-final-review.md`.
+M9 (live end-to-end Kaggle regression — Spaceship Titanic) shipped on 2026-05-24: LR baseline CV **0.79144 ±0.0086**, HGB + FE CV **0.81192 ±0.00753** (+0.02048), one approved real Kaggle submission (public LB **0.78676**), two new test files (`tests/test_m9_smoke.py`, `tests/test_m9_e2e.py`). See `docs/m9-final-review.md` for the 30-check validation matrix and `docs/handoffs/m9-handoff.md` for the M9 → M10 handoff.
 
 M8.5 (pre-M9 hardening) shipped on 2026-05-23 as three PRs (#4 CI repair, #5 engineering-practice + GitHub Issues/PR/labels interface, #6 M9 planning docs); see `docs/m8_5-final-review.md` for the 26-check roll-up. M8 (product UI shell + M7 follow-ups) shipped earlier on 2026-05-23; see `docs/m8-final-review.md` for the 28-check validation matrix. The UI shell is documented in `docs/architecture/m8-ui-shell.md`; the underlying KCA CLI architecture in `docs/architecture/kca-cli-architecture.md`. The collaboration model (label routing, AI pickup rule, PR closeout) is in `docs/engineering-practice.md`. See `docs/milestones.md` for the full product plan (M0–M13).
 

@@ -36,8 +36,22 @@ kaggle.json
 # Claude Code local state
 .claude/commands
 
-# competition data — mount locally, do not commit
-data/
+# competition data — mount locally, do not commit, EXCEPT for the
+# `data/ctf/` frozen-challenge bundles below (M11-T004). The blanket
+# `data/*` ignore here uses a glob (not `data/`) so a re-include line can
+# re-add `!data/ctf/` — gitignore re-includes do not penetrate a fully-
+# ignored directory.
+data/*
+!data/ctf/
+
+# M11-T004: re-ignore oversize / binary attachments inside data/ctf/. The
+# pre-existing top-level rules (`*.bin`, `*.ckpt`, etc.) still apply.
+data/ctf/*/*/attachments/*.pcap
+data/ctf/*/*/attachments/*.iso
+data/ctf/*/*/attachments/*.img
+# Files >1MB anywhere under data/ctf/ should NOT be committed. There is no
+# native .gitignore size predicate, so this constraint is documented + a
+# pre-commit hook (TODO, filed as M11-followup) will enforce it.
 
 # generated run artifacts and outputs — do not commit unless explicitly reviewed
 artifacts/
