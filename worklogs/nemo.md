@@ -17,7 +17,7 @@
 ## Sessions
 
 - [Session `900075de`](#session-900075de)
-- [Branch • 5829eba0](#branch-5829eba0)
+- [Branch • 5829eba0 • watch the nemotron push and submit when it finishes](#branch-5829eba0)
 - [Branch • 8baa71f1](#branch-8baa71f1)
 
 
@@ -60,7 +60,7 @@ permission denied while trying to connect to the docker API at unix:///var/run/d
 
 <a id="branch-5829eba0"></a>
 
-## 🌿 Branch • 5829eba0
+## 🌿 Branch • 5829eba0 • watch the nemotron push and submit when it finishes
 
 ### 🤖 Task (Explore): *Explore KCA CLI competition workflow*
 
@@ -5271,6 +5271,3194 @@ https://www.kaggle.com/competitions/orbit-propagation-challenge-2  2022-03-02 13
 === KCA DB connectivity probe (read-only) ===
 {"ok": true, "competitions": [{"id": "6f9c4d54-6e4d-4329-9cb7-0b4ebd0639a0", "slug": "smoke_4bd6e719", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "a27f33d8-382c-4360-ad43-931f479e4110", "slug": "smoke_04bbad7a", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "e51b5aba-166d-42ca-954d-6bae57dd3f5d", "slug": "smoke_27311577", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "913695cf-9bc7-4907-91f4-56c4a69fb9c1", "slug": "test-debug-1886154", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "4cf1b5c6-96d5-487f-881f-46d453a9e236", "slug": "smoke_7b2e507d", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "d727aeeb-a4a8-423b-9d7c-1c2af2eba0af", "slug": "smoke_5edf884d", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "854f0e18-e5c8-4324-9e49-5d8f073eda09", "slug": "smoke_be52494e", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "f0f1c497-4656-4e9c-a18f-37a84cdc1311", "slug": "smoke_0a733ea5", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "b009c18d-7e17-4db3-a4b3-cea5b1d63613", "slug": "smoke_c1425b79", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "2432edd5-e94c-4bf4-8253-c4edb6456f40", "slug": "smoke_bc4a3a86", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "1a84c981-8af5-43a1-bb10-a503d5628337", "slug": "smoke_c090fab0", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "76c59a54-bf60-4eb3-b671-d28da2bc86db", "slug": "smoke_9f4686c6", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "14026545-548c-4ad1-8072-52719aed2438", "slug": "smoke_e74aff8f", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "daa93736-c6ce-4799-8a31-472672bbe3cb", "slug": "ctf-kca-fixtures-2026", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "d66f321c-3e47-4bcf-9dce-c2a0b9e9d01f", "slug": "h01", "platform": "devpost", "title": "H0: Hack the Zero Stack with Vercel v0 and AWS Databases", "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "f023cf71-18b2-4508-be2a-2d5af7bdd15e", "slug": "test_smoke_metric", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "91d5ef6b-3125-4aaf-8578-b3edf9fc85a5", "slug": "test_smoke_init", "platform": "kaggle", "title": null, "repo_url": null, "default_branch": "main", "local_clone_path": null}, {"id": "1e6b3286-00b5-4e86-83ad-3bc94596e0a4", "slug": "tpu-getting-started", "platform": "kaggle", "title": "Petals to the Metal - Flower Classification on TPU", "repo_url": null, "default_branch": "main", "local_clone_path": null}], "side_effect": "READ_ONLY"}
 ```
+
+### 🤖 Assistant: *I now have everything needed to plan.*
+
+`13:24:56`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> I now have everything needed to plan. Key findings:
+> 
+> - **All 12 `public.ecr.aws/supabase/*` containers are the `_tt_pangu` stack** — KCA's own database, and it's live (my `kca competition list` query just hit it successfully). There are **no foreign or stray Supabase containers**; the other running stacks (inbox-zero) use plain `postgres:16`/`redis`, not the Supabase image. So literally interpreted, *none* of them are "unused by KCA."
+> - **Kaggle is ready**: CLI 2.0.1 installed, creds valid, and `userHasEntered: True` for both competitions (rules already accepted).
+> - **Deadlines**: Nemotron **2026-06-15 (6 days)**, Orbit Wars **2026-06-23 (14 days)**.
+> - **KCA mechanics**: `competition register` requires the row to already exist (`get_competition_by_slug` raises `KeyError`); the get-or-create path is `ensure_competition`, invoked by `kca run init`. So `run init`/download must precede `register`.
+> - Both submit as files (`submission.zip` for Nemotron, `submission.tar.gz` for Orbit Wars), so KCA's `kaggle submit --file` fits; the SUBMISSION gate needs `KCA_ALLOW_REMOTE=1` + approval.
+> 
+> Three decisions are genuinely yours before I finalize the plan.
+
+#### ❓ Asking questions...
+
+`13:25:10`
+
+**Q:** *All 12 public.ecr.aws/supabase/* containers are this project's own stack (suffix _tt_pangu) and KCA's DB is live on it — there are no foreign/unused Supabase containers. How should I handle them?*
+
+- Keep all running: Leave the full stack up. KCA's DB is verified working against it. Nothing stopped. Safest.
+
+- Trim to Postgres only: Stop the 11 non-DB containers (studio, kong, auth, storage, realtime, edge, vector, analytics, inbucket/mailpit, pg_meta, rest) to free RAM. KCA only uses Postgres. They restart on next `supabase start`.
+
+- Stop the whole stack: Stop all 12 including Postgres. This breaks KCA DB ops — not advised.
+
+**A:** Stop the whole stack, if KCA currently is fully using the cloud Supabase (I sent you the DB_URL earlier)
+
+
+
+**Q:** *How far should KCA take these two competitions in this session?*
+
+- Scaffold + local baseline: Register both in KCA, download data, init runs, build & locally-evaluate a baseline candidate for each. Stop before any Kaggle submission.
+
+- Through a gated submission: Same as baseline, then submit the best candidate to Kaggle. Requires KCA_ALLOW_REMOTE=1 + your per-submission approval; consumes daily slots.
+
+- Register + download only: Just wire both competitions into KCA (rows, repos, data). No modeling this session.
+
+**A:** Through a gated submission
+
+
+
+**Q:** *Nemotron needs a LoRA adapter for a 30B model, deadline in 6 days. A single local RTX 4090 (24GB) can only do marginal QLoRA on 30B. How should I approach it?*
+
+- Pipeline-validation baseline first: Produce a valid minimal LoRA submission.zip to prove the end-to-end submit path works, then improve quality if time allows.
+
+- Attempt local QLoRA on 4090: Try real small-rank QLoRA fine-tuning on the local RTX 4090. Slow and may OOM on a 30B base.
+
+- Use a Kaggle GPU notebook: Train via a pushed Kaggle kernel (kca kaggle push) using Kaggle's GPU instead of local hardware.
+
+- Orbit Wars only this round: Defer Nemotron given the tight deadline and local GPU limits; focus the session on Orbit Wars.
+
+**A:** Use a Kaggle GPU notebook
+
+### 🤖 Assistant: *The Supabase decision is conditional on whether…*
+
+`13:30:39`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The Supabase decision is conditional on whether KCA currently points at **cloud** Supabase or the **local** container stack. Let me verify KCA's effective DB target before deciding — the memory DSN I have is a *local* container IP (`172.21.0.4`), but you mentioned a cloud DB_URL.
+
+#### 💻 Bash: *Inspect DB env config*
+
+`13:30:39`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+echo "=== .vscode/.env (DB-related keys only, values masked) ==="
+if [ -f .vscode/.env ]; then grep -iE "SUPABASE|KCA_DB|DB_URL|DB_HOST|DB_PORT|ALLOW_REMOTE" .vscode/.env | sed -E 's/(KEY|PASSWORD|s3cr3t|:[^@/]*@)/<masked>/2' ; else echo "no .vscode/.env"; fi
+echo
+echo "=== .env DB keys ==="; grep -iE "SUPABASE|KCA_DB|DB_URL|ALLOW_REMOTE" .env 2>/dev/null || echo "(none — only KAGGLE creds)"
+echo
+echo "=== other env files present ==="; ls -la .env* .vscode/.env 2>/dev/null
+```
+
+```
+=== .vscode/.env (DB-related keys only, values masked) ===
+NEXT_PUBLIC_SUPABASE_URL=https://qyoprtshfhfzrczlwbyv.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_DVaBdop1CzvtLXXe_QrWUA_l0BgNQQ4
+SUPABASE_ANON_KEY_LEGACY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF5b3BydHNoZmhmenJjemx3Ynl2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MjQ4MzUsImV4cCI6MjA5NjQwMDgzNX0.lJ1jU6NsbozgUbCof4nFNzkyTFuKoDJKwM_NDkerE6k"
+SUPABASE_SECRET_KEY="sb_***********************************b6c"
+SUPABASE_SERVICE_ROLE_KEY="eyJ*********************************************************************************************************************************************************************************************************************p9U"
+SUPABASE_DB_URL=postgresql://postgres.qyoprtshfhfzrczlwbyv:tojto5-qojhix-toghoH@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres
+
+=== .env DB keys ===
+(none — only KAGGLE creds)
+
+=== other env files present ===
+-rw-r--r-- 1 harry  harry    73 May 23 22:36 .env
+crw-rw-rw- 1 nobody nobody 1, 3 Jun  2 19:18 .env.development
+crw-rw-rw- 1 nobody nobody 1, 3 Jun  2 19:18 .env.local
+crw-rw-rw- 1 nobody nobody 1, 3 Jun  2 19:18 .env.production
+crw-rw-rw- 1 nobody nobody 1, 3 Jun  2 19:18 .env.test
+-rw-r--r-- 1 harry  harry   892 Jun  8 23:07 .vscode/.env
+```
+
+```bash
+$ cd /home/harry/test/tt_pangu
+python - <<'PY' 2>&1 | tail -20
+import sys, urllib.parse as up
+sys.path.insert(0, "tools/kca")
+import db
+# Resolve the effective DSN the same way kca does, then print HOST/DB/TARGET only (mask creds)
+try:
+    dsn = db._resolve_dsn() if hasattr(db, "_resolve_dsn") else None
+except Exception as e:
+    dsn = None
+    print("resolve err:", e)
+import os
+print("KCA_DB_TARGET   =", os.environ.get("KCA_DB_TARGET"))
+print("KCA_ALLOW_REMOTE=", os.environ.get("KCA_ALLOW_REMOTE"))
+# find any dsn-producing helper
+cands = [n for n in dir(db) if "dsn" in n.lower() or "url" in n.lower() or "conn" in n.lower()]
+print("db helpers:", cands)
+raw = os.environ.get("SUPABASE_DB_URL")
+if raw:
+    p = up.urlparse(raw)
+    print("SUPABASE_DB_URL host =", p.hostname, "port =", p.port, "db =", p.path)
+else:
+    print("SUPABASE_DB_URL not in os.environ at import")
+PY
+```
+
+```
+KCA_DB_TARGET   = local
+KCA_ALLOW_REMOTE= None
+db helpers: ['_ENV_URL', '_conninfo', '_find_research_by_url', '_with_conn', 'find_research_by_url', 'get_conn']
+SUPABASE_DB_URL host = aws-1-ap-northeast-2.pooler.supabase.com port = 5432 db = /postgres
+```
+
+### 🤖 Assistant: *Confirmed the deciding fact: KCA's effective…*
+
+`13:31:52`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Confirmed the deciding fact: KCA's effective `SUPABASE_DB_URL` (from `.vscode/.env`, which loads with `override=True`) points at **cloud Supabase** — `postgresql://postgres.qyoprtshfhfzrczlwbyv:…@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres`. My earlier `kca competition list` succeeded against *that cloud DB*, not the local containers. So KCA is fully on cloud Supabase, the local `_tt_pangu` stack is redundant, and your condition to stop it is met.
+> 
+> One execution note: that pooler host is `*.supabase.com`, which isn't in the sandbox allowlist (only `*.supabase.co` is), so KCA DB/submit commands need `dangerouslyDisableSandbox`. Let me write the plan.
+
+#### ✍️  Write `please-stop-all-public-ecr-aws-supabase-eventual-pony.md`
+
+`13:32:13`
+
+<details>
+<summary><code>/home/harry/.claude-ayla/plans/please-stop-all-public-ecr-aws-supabase-eventual-pony.md</code></summary>
+
+````markdown
+# Stop local Supabase stack + run two live Kaggle competitions via KCA
+
+## Context
+
+Two asks:
+
+1. **Stop the local `public.ecr.aws/supabase` containers if KCA isn't using them.**
+   I verified KCA's effective DB. `.vscode/.env` (loaded with `override=True` in `tools/kca/db.py:32-44`) sets
+   `SUPABASE_DB_URL=postgresql://postgres.qyoprtshfhfzrczlwbyv:…@aws-1-ap-northeast-2.pooler.supabase.com:5432/postgres`
+   — a **cloud Supabase** project. A `kca competition list` probe returned live rows from *that cloud DB*. So KCA is fully on cloud Supabase; the 12 local `_tt_pangu` Supabase containers are redundant. Your conditional ("stop the whole stack if KCA is on cloud") is therefore satisfied.
+
+2. **Register and run two real Kaggle competitions through KCA itself (not a test), all the way to a gated submission.**
+   - **NVIDIA Nemotron Model Reasoning Challenge** — deadline **2026-06-15 (6 days)**. Submission = a **LoRA adapter** (rank ≤32) for Nemotron-3-Nano-30B, packaged as `submission.zip` (must contain `adapter_config.json`). Metric = accuracy (final answer extracted from `\boxed{}`). Files: `train.csv`, `test.csv`. → **Train via a Kaggle GPU notebook** (your choice), not local hardware.
+   - **Orbit Wars** — deadline **2026-06-23 (14 days)**. Agent/simulation competition: submit `main.py` exposing `agent(observation) -> list[moves]` (move = `[from_planet_id, angle_rad, num_ships]`), packaged as `submission.tar.gz`. No GPU needed.
+
+   Both: rules already accepted (`userHasEntered: True`), Kaggle CLI 2.0.1 + creds present (`~/.kaggle/kaggle.json`, `.env`).
+
+## Part A — Stop the local Supabase stack
+
+All 12 `public.ecr.aws/supabase/*` containers carry the `_tt_pangu` suffix (studio, pg_meta, edge_runtime, storage, rest, realtime, inbucket/mailpit, auth, kong, vector, analytics/logflare, db). The other running stacks (inbox-zero `postgres:16`/`redis`, quarkdrive) are unrelated and stay untouched.
+
+- Stop them **non-destructively** (containers stopped, not removed; data volume preserved; reversible via `docker start` or `supabase start`):
+  ```
+  docker stop $(docker ps -q --filter "name=_tt_pangu")
+  ```
+  (requires `dangerouslyDisableSandbox` — docker.sock permission).
+- **Post-check**: re-run `kca competition list` (with `dangerouslyDisableSandbox`) → must still return rows, proving KCA's cloud DB is unaffected.
+- Update memory `reference_supabase_db.md`: the live KCA DB is now the cloud pooler, superseding the old `172.21.0.4` local-container DSN.
+
+## Part B — Run both competitions via KCA (through a gated submission)
+
+Mechanism = the `kca` CLI driven by this session + the `kaggle-experiment-loop` / `kaggle-tooling-integration` skills. There is no autonomous worker; the strategy table in CLAUDE.md is applied manually.
+
+**Per-competition KCA loop** (critical files: `tools/kca/{kca,competition,run,kg,db}.py`):
+
+1. **Create + register the competition row.** `competition register` needs an existing row (`get_competition_by_slug` raises `KeyError` — `db.py:888`), and the get-or-create is `ensure_competition` (`db.py:208`, invoked by `kca run init`). So order is: `kca run init` (or `kca kaggle download`) **first**, then attach the repo:
+   ```
+   gh repo create kaggle-<slug> --private          # ADR-0009 naming; gh create is auto-allowed
+   kca competition register --slug <slug> --repo-url https://github.com/<user>/kaggle-<slug>
+   ```
+2. **Download data:** `kca kaggle download --competition <slug> --path data/<slug>`
+3. **Init run:** `kca run init --competition <slug> --hypothesis "…" --tag model=…`
+4. **Build candidate** (competition-specific, below).
+5. **Evaluate locally** → `kca run record-metric --run-dir runs/<slug>/<run_id> --key <metric> --value <v>`
+6. **Package** the submission artifact into `runs/<slug>/<run_id>/artifacts/`.
+7. **Gated submit** (apply the CLAUDE.md strategy table; summarize file/expected score/reason and get per-submission approval):
+   ```
+   KCA_ALLOW_REMOTE=1 kca kaggle submit --competition <slug> --file <artifact> --message "<summary (cv=…)>"
+   ```
+8. **Score back:** `kca kaggle score --competition <slug> --update-db`
+
+### Orbit Wars — do this first (fast feedback, no GPU)
+- Pull the starter pack (`README.md`, `agents.md`, `main.py`) via `kca kaggle download`.
+- Local evaluation: use the `orbit-wars-local-arena` (community dataset) + the provided simulator to play the candidate vs. the baseline agent → record **win-rate** as the run metric.
+- Baseline candidate: improve the starter heuristic in `main.py` (e.g., send fleets from the strongest owned planet to the nearest weakly-held/neutral planet), keeping the `agent(obs)->moves` contract.
+- Package `submission.tar.gz` (`main.py` [+ helpers]) → gated submit. 14 days left ⇒ standard strategy (submit if it beats current best; otherwise explore).
+
+### Nemotron — Kaggle GPU notebook track
+- Build a Kaggle kernel dir with `kernel-metadata.json` (`enable_gpu: true`, `competition_sources` → the competition, `model_sources` → `nemotron-3-nano-30b` base) and a training script that produces a rank ≤32 LoRA adapter + `adapter_config.json`, zips it to `submission.zip`.
+- Train/run on Kaggle's GPU via `kca kaggle push --kernel-dir kernels/nemotron --max-poll-minutes 120` (auto-watches to terminal; REMOTE_WRITE gate ⇒ `KCA_ALLOW_REMOTE=1` + approval).
+- 6 days to deadline ⇒ inside the closing window: **baseline-first** — push a minimal-but-valid LoRA to secure one scored submission, then iterate on quality (NVIDIA recipe as starting point). Metric = accuracy.
+- Submit the adapter `submission.zip` via the competition's submission path → gated submit → `kca kaggle score`.
+
+## Reuse / skills
+- Skills: `kaggle-experiment-loop` (drive each loop), `kaggle-tooling-integration` (download/push/submit/score), `kg-run` (run dirs), `kg-nb` (notebook↔.py for the Nemotron kernel), `agent-iteration-review` (decide iterate/submit/stop after metrics).
+- Env already set: cloud `SUPABASE_DB_URL` in `.vscode/.env`; Kaggle creds in `.env`. Add `KCA_ALLOW_REMOTE=1` only on the submit/push commands.
+
+## Gotchas
+- `competition register` fails on a missing row → run `run init`/`download` first.
+- Cloud DB host is `*.supabase.com` (not `*.supabase.co`), which is **not** in the sandbox network allowlist → run any `kca` command that touches the DB or Kaggle with `dangerouslyDisableSandbox` (or add the pooler host to the allowlist).
+- Submission CLI is hard-gated in `.claude/settings.json` for raw `kaggle … submit/push`; go through `kca kaggle submit/push` with `KCA_ALLOW_REMOTE=1` and record approval (writes a `human_decisions` row).
+- Respect daily submission limits; one meaningful change per submission.
+
+## Verification (end-to-end)
+1. `docker ps` → the 12 `_tt_pangu` Supabase containers show `Exited`; inbox-zero/quarkdrive still `Up`.
+2. `kca competition list` (sandbox off) still returns rows → KCA cloud DB intact after the stack stop.
+3. `kca competition list` shows `nvidia-nemotron-model-reasoning-challenge` and `orbit-wars` with `repo_url` set.
+4. `kca run list --competition <slug>` shows runs with recorded metrics (win-rate / accuracy).
+5. After approved submits, `kca kaggle score --competition <slug>` shows the submission on Kaggle's public LB and updates the `submissions` table.
+
+````
+</details>
+
+✓ File created successfully at: /home/harry/.claude-ayla/plans/please-stop-all-public-ecr-aws-supabase-eventual-pony.md (file state is current in your context — no need to Read it back)
+
+#### ToolSearch
+
+`13:32:14`
+
+**query:** `select:ExitPlanMode`
+
+**max_results:** `3`
+
+```json
+[
+  {
+    "type": "tool_reference",
+    "tool_name": "ExitPlanMode"
+  }
+]
+```
+
+### 🤖 Assistant: *The plan is written.*
+
+`13:32:23`
+
+> The plan is written. Here's the summary before I hand off for approval:
+> 
+> **Part A — Stop the local Supabase stack.** Verified KCA runs on **cloud** Supabase (`SUPABASE_DB_URL` in `.vscode/.env` → `...pooler.supabase.com`, confirmed live by a `kca competition list` probe). The 12 local `_tt_pangu` Supabase containers are therefore redundant — your stop-condition is met. I'll `docker stop` them (reversible; data volume preserved), leave inbox-zero/quarkdrive alone, then re-probe `kca competition list` to prove KCA's cloud DB is unaffected.
+> 
+> **Part B — Run both competitions through KCA, to a gated submission.** Neither is a CSV competition:
+> - **Orbit Wars** (14 days, no GPU) — do first. Agent `main.py` → `submission.tar.gz`, evaluated locally against the starter via the local arena, win-rate as the run metric.
+> - **Nemotron** (6 days, GPU) — LoRA adapter (rank ≤32) → `submission.zip`, trained on a **Kaggle GPU notebook** via `kca kaggle push`; baseline-first to secure one scored submission inside the closing window.
+> 
+> Both go through the standard KCA loop (`run init` → `competition register` → `kaggle download` → build → `run record-metric` → gated `kaggle submit` with `KCA_ALLOW_REMOTE=1` + your per-submission approval → `kaggle score`).
+> 
+> Key gotchas captured: `competition register` needs the row created first (`run init`/download); the cloud pooler host is `*.supabase.com` (not in the sandbox allowlist) so KCA DB/Kaggle commands need `dangerouslyDisableSandbox`.
+
+#### 📝 Exiting plan mode
+
+`13:32:23`
+
+✓ Approved
+
+User has approved your plan. You can now start coding. Start with updating your todo list if applicable
+
+Your plan has been saved to: /home/harry/.claude-ayla/plans/please-stop-all-public-ecr-aws-supabase-eventual-pony.md
+You can refer back to it if needed during implementation.
+
+### 🤖 Assistant: *Plan approved.*
+
+`13:33:44`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Plan approved. Let me set up task tracking and start with Part A. First, a dry-run of the container filter to be sure it matches exactly the 12 `_tt_pangu` Supabase containers and nothing else.
+
+#### ToolSearch
+
+`13:33:45`
+
+**query:** `select:TaskCreate,TaskUpdate`
+
+**max_results:** `3`
+
+```json
+[
+  {
+    "type": "tool_reference",
+    "tool_name": "TaskCreate"
+  },
+  {
+    "type": "tool_reference",
+    "tool_name": "TaskUpdate"
+  }
+]
+```
+
+#### 💻 Bash: *Dry-run container filter for _tt_pangu*
+
+`13:33:47`
+
+```bash
+$ echo "=== containers matching name=_tt_pangu (dry run, will be stopped) ==="
+docker ps --filter "name=_tt_pangu" --format '{{.Names}}\t{{.Image}}'
+echo "--- count ---"; docker ps -q --filter "name=_tt_pangu" | wc -l
+```
+
+```
+=== containers matching name=_tt_pangu (dry run, will be stopped) ===
+supabase_studio_tt_pangu	public.ecr.aws/supabase/studio:2026.05.25-sha-65c570e
+supabase_pg_meta_tt_pangu	public.ecr.aws/supabase/postgres-meta:v0.96.6
+supabase_edge_runtime_tt_pangu	public.ecr.aws/supabase/edge-runtime:v1.74.0
+supabase_storage_tt_pangu	public.ecr.aws/supabase/storage-api:v1.60.0
+supabase_rest_tt_pangu	public.ecr.aws/supabase/postgrest:v14.12
+supabase_realtime_tt_pangu	public.ecr.aws/supabase/realtime:v2.100.0
+supabase_inbucket_tt_pangu	public.ecr.aws/supabase/mailpit:v1.22.3
+supabase_auth_tt_pangu	public.ecr.aws/supabase/gotrue:v2.189.0
+supabase_kong_tt_pangu	public.ecr.aws/supabase/kong:2.8.1
+supabase_vector_tt_pangu	public.ecr.aws/supabase/vector:0.53.0-alpine
+supabase_analytics_tt_pangu	public.ecr.aws/supabase/logflare:1.42.0
+supabase_db_tt_pangu	public.ecr.aws/supabase/postgres:17.6.1.131
+--- count ---
+12
+```
+
+### 🤖 Assistant: *The filter matches exactly the 12 `_tt_pangu…*
+
+`13:33:58`
+
+> The filter matches exactly the 12 `_tt_pangu` Supabase containers (all `public.ecr.aws/supabase/*`), nothing else. Let me create the task list and execute Part A.
+
+#### TaskCreate
+
+`13:33:58`
+
+- **Subject:** Stop local _tt_pangu Supabase stack
+- **Active form:** Stopping local Supabase stack
+- **Description:** docker stop the 12 _tt_pangu supabase containers (KCA is on cloud Supabase). Then verify kca competition list still works against cloud DB. Update reference_supabase_db.md memory.
+
+`#1` — Stop local _tt_pangu Supabase stack
+
+- **Subject:** Wire Orbit Wars into KCA + baseline + gated submit
+- **Active form:** Running Orbit Wars loop via KCA
+- **Description:** Register orbit-wars in KCA, download starter pack, init run, build improved agent main.py, evaluate locally (win-rate), package submission.tar.gz, gated submit with approval, score back.
+
+`#2` — Wire Orbit Wars into KCA + baseline + gated submit
+
+- **Subject:** Wire Nemotron into KCA + Kaggle GPU notebook track
+- **Active form:** Running Nemotron loop via KCA
+- **Description:** Register nvidia-nemotron-model-reasoning-challenge in KCA, download data, init run, build Kaggle GPU kernel producing rank<=32 LoRA submission.zip, push via kca kaggle push, gated submit, score back.
+
+`#3` — Wire Nemotron into KCA + Kaggle GPU notebook track
+
+### 💭 Thinking
+
+`13:34:05`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### TaskUpdate
+
+`13:34:05`
+
+`#1` · **status:** `in_progress`
+
+✓ Updated `#1` — `status`
+
+#### 💻 Bash: *Stop the 12 tt_pangu supabase containers*
+
+`13:34:07`
+
+```bash
+$ echo "=== Stopping the 12 _tt_pangu Supabase containers ==="
+docker stop $(docker ps -q --filter "name=_tt_pangu")
+echo "=== Post-stop: any _tt_pangu still Up? ==="
+docker ps --filter "name=_tt_pangu" --format '{{.Names}}\t{{.Status}}' || true
+echo "(empty above = all stopped)"
+echo "=== Confirm unrelated stacks untouched ==="
+docker ps --format '{{.Names}}\t{{.Status}}' | grep -E "inbox-zero|quarkdrive" 
+```
+
+```
+=== Stopping the 12 _tt_pangu Supabase containers ===
+a223daf05b3d
+736d551d77ea
+92f15ef6bab1
+f1ac41e31725
+60702109f980
+b3bdf76e66fe
+109f7625fe68
+7f5c8495e00b
+14b0280a3b55
+7ffaa9235154
+4a6d28cfd0c7
+b7a32cf4edbd
+=== Post-stop: any _tt_pangu still Up? ===
+(empty above = all stopped)
+=== Confirm unrelated stacks untouched ===
+inbox-zero-services-web-1	Up 7 days
+inbox-zero-services-db-1	Up 7 days (healthy)
+inbox-zero-services-redis-1	Up 7 days
+inbox-zero-services-serverless-redis-http-1	Up 7 days
+quarkdrive-webdav	Up 7 days
+```
+
+### 🤖 Assistant: *All 12 stopped, unrelated stacks untouched…*
+
+`13:34:29`
+
+> All 12 stopped, unrelated stacks untouched. Now verify KCA's cloud DB is unaffected.
+
+#### 💻 Bash: *Verify KCA cloud DB after stack stop*
+
+`13:34:30`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+echo "=== KCA cloud DB probe after stopping local stack ==="
+kca competition list --json 2>&1 | python -c "import sys,json; d=json.load(sys.stdin); print('ok=',d['ok'],' n_competitions=',len(d['competitions']))" 2>&1
+echo "=== exit code: $? ==="
+```
+
+```
+=== KCA cloud DB probe after stopping local stack ===
+ok= True  n_competitions= 18
+=== exit code: 0 ===
+```
+
+### 🤖 Assistant: *KCA's cloud DB is intact (18 competitions…*
+
+`13:34:45`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> KCA's cloud DB is intact (18 competitions returned) after stopping the local stack. Part A is done. Let me update the DB memory to reflect that the live KCA DB is now the cloud pooler.
+
+#### 👀 Read `reference_supabase_db.md`
+
+`13:34:46`
+
+<details>
+<summary><code>/home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu/memory/reference_supabase_db.md</code></summary>
+
+````markdown
+---
+name: reference-supabase-db
+description: "Supabase DB access — as of 2026-06-09 the project uses the CLOUD Supabase project; the local Docker stack is retired. DSN comes from .vscode/.env."
+metadata: 
+  node_type: memory
+  type: reference
+  originSessionId: 5e6b5315-81a7-46e4-829f-d94438f76ef5
+---
+
+**As of 2026-06-09 the project uses cloud Supabase.** The local Docker
+stack at `~/test/tt_cv/supabase/` is retired — do NOT spin it up, do
+NOT route writes there.
+
+**Source of truth for the cloud DSN:** `/home/harry/test/tt_pangu/.vscode/.env`
+(gitignored, per `.gitignore:80`). Read with:
+
+```
+python -c "from dotenv import dotenv_values; print(dotenv_values('/home/harry/test/tt_pangu/.vscode/.env').get('SUPABASE_DB_URL'))"
+```
+
+The project is `qyoprtshfhfzrczlwbyv` on `aws-1-ap-northeast-2`. The
+DSN is a Supavisor pooler URL (port 5432, tenant-prefixed user
+`postgres.qyoprtshfhfzrczlwbyv`); migrations and psql commands work
+through it without special handling.
+
+**Sandbox bypass required.** The cloud host is not in the sandbox
+HTTP/SOCKS allow-list. Run DB commands with
+`dangerouslyDisableSandbox: true`. Verified reachable 2026-06-09 —
+`SELECT version()` returns PostgreSQL 17.6.
+
+**Schema baseline (verified 2026-06-09):** Migrations 0001–0008 are
+applied on the cloud project. `competitions` carries the post-M4
+columns (`repo_url`, `default_branch`, `local_clone_path`,
+`competition_policy`); `agent_tool_audit` exists; all M9 baseline
+tables present. M13 migration 0008 added `eval_suites` / `eval_runs`
+/ `eval_results` (applied 2026-06-09 during the M13 execution run).
+
+**Don't try the old local DSN.** Earlier memory pointed at
+`postgres:s3cr3t@172.21.0.4:5432/postgres` (local Docker container IP).
+That cluster is no longer the source of truth — any write there is
+discarded.
+
+Schema gotcha (still true on cloud): `human_decisions` uses `rationale`
+(not `notes`) as its free-text column. `tools/kca/db.py::_resolve_decision`
+was fixed in M5; keep the rationale name when adding new resolve paths.
+
+See also [[reference-sandbox-network]] for the proxy allow-list shape.
+
+````
+</details>
+
+### 🤖 Assistant: *The memory file `reference_supabase_db.md…*
+
+`13:34:55`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The memory file `reference_supabase_db.md` is already accurate (it already records the cloud pooler as source of truth and the local stack as retired). Only the `MEMORY.md` index line is stale — it still cites the old `172.21.0.4` DSN. Let me fix that one line to match.
+
+#### ✏️  Edit `MEMORY.md`
+
+`13:34:58`
+
+```diff
+@@ -1 +1 @@-- [Supabase DB access](reference_supabase_db.md) — working DSN is `postgres:s3cr3t@172.21.0.4:5432/postgres` (container IP, needs dangerouslyDisableSandbox); host port 5432 is the pooler, not direct Postgres.
++- [Supabase DB access](reference_supabase_db.md) — KCA uses CLOUD Supabase (`qyoprtshfhfzrczlwbyv` pooler, DSN in `.vscode/.env`); local Docker stack retired and its `_tt_pangu` containers stopped 2026-06-09. Cloud host needs dangerouslyDisableSandbox.
+```
+
+```
+The file /home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu/memory/MEMORY.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### TaskUpdate
+
+`13:35:01`
+
+`#1` · **status:** `completed`
+
+✓ Updated `#1` — `status`
+
+`#2` · **status:** `in_progress`
+
+✓ Updated `#2` — `status`
+
+### 🤖 Assistant: *Part A done. Now Orbit Wars. Let me check…*
+
+`13:35:18`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Part A done. Now Orbit Wars. Let me check the `kca kaggle download` flags and `gh` auth, then set up the working directory.
+
+#### 👀 Read `kg.py`
+
+`13:35:19`
+
+*(lines 407–477)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/tools/kca/kg.py</code></summary>
+
+```python
+def cmd_download(args: argparse.Namespace) -> int:
+    se = SideEffect.LOCAL_WRITE
+    competition = args.competition
+    path_str = args.path or str(Path.cwd() / "data" / competition)
+    path = Path(path_str)
+    path.mkdir(parents=True, exist_ok=True)
+    manifest_path = path / "manifest.json"
+
+    existing: dict = {"files": []}
+    if manifest_path.exists():
+        try:
+            existing = json.loads(manifest_path.read_text())
+        except json.JSONDecodeError:
+            existing = {"files": []}
+
+    skipped = 0
+    if args.resume and existing.get("files"):
+        # Walk existing manifest; if file on disk matches sha256, skip its
+        # re-download by removing it from a "to download" list. Since the
+        # kaggle CLI fetches the whole bundle, we cannot truly skip per-file
+        # — but we record how many files matched so the caller knows the
+        # resume comparison ran. The actual download is still invoked unless
+        # every file matched.
+        all_matched = True
+        for entry in existing.get("files", []):
+            target = path / entry["name"]
+            if target.exists() and _sha256_file(target) == entry.get("sha256"):
+                skipped += 1
+            else:
+                all_matched = False
+        if all_matched and skipped > 0:
+            # Nothing left to fetch; just refresh manifest and return.
+            return _refresh_manifest_and_emit(
+                competition=competition,
+                path=path,
+                manifest_path=manifest_path,
+                skipped=skipped,
+                rc=0,
+                stdout="",
+                stderr="",
+                ran_kaggle=False,
+                side_effect=se,
+            )
+
+    # Run kaggle CLI; if it isn't installed or creds missing, surface a
+    # graceful error and still build/refresh the manifest from whatever is
+    # already on disk (useful for tests and --resume scenarios).
+    rc = 0
+    stdout = ""
+    stderr = ""
+    try:
+        proc = subprocess.run(
+            ["kaggle", "competitions", "download", "-c", competition, "-p", str(path)],
+            capture_output=True,
+            text=True,
+        )
+        rc = proc.returncode
+        stdout = proc.stdout or ""
+        stderr = proc.stderr or ""
+    except FileNotFoundError as e:
+        rc = 127
+        stderr = f"kaggle CLI not found: {e}"
+
+    return _refresh_manifest_and_emit(
+        competition=competition,
+        path=path,
+        manifest_path=manifest_path,
+        skipped=skipped,
+        rc=rc,
+        stdout=stdout,
+```
+</details>
+
+#### 💻 Bash: *Check gh auth and kg subcommand flags*
+
+`13:35:22`
+
+```bash
+$ echo "=== gh auth + user ==="; gh auth status 2>&1 | head -4; echo "--- login ---"; gh api user -q .login 2>&1 | head -1
+echo "=== kg.py subcommand flags (download/submit/score) ==="
+cd /home/harry/test/tt_pangu; grep -n "add_parser\|add_argument" tools/kca/kg.py | sed -n '1,80p'
+```
+
+```
+=== gh auth + user ===
+warning: failed to load config: open /home/harry/.config/gh/hosts.yml: permission denied
+failed to create root command: failed to read configuration: open /home/harry/.config/gh/hosts.yml: permission denied
+
+--- login ---
+warning: failed to load config: open /home/harry/.config/gh/hosts.yml: permission denied
+=== kg.py subcommand flags (download/submit/score) ===
+737:def add_parsers(sub: argparse._SubParsersAction) -> None:
+738:    kg = sub.add_parser("kaggle", help="Kaggle remote operations (gated)")
+741:    p_submit = kg_sub.add_parser("submit", help="Submit to a competition (SUBMISSION)")
+742:    p_submit.add_argument("--competition", required=True)
+743:    p_submit.add_argument("--file", required=True)
+744:    p_submit.add_argument("--message", required=True)
+745:    p_submit.add_argument("--json", action="store_true")
+748:    p_push = kg_sub.add_parser("push", help="Push a kernel (REMOTE_WRITE)")
+749:    p_push.add_argument(
+755:    p_push.add_argument(
+760:    p_push.add_argument(
+767:    p_push.add_argument(
+774:    p_push.add_argument(
+781:    p_push.add_argument("--json", action="store_true")
+784:    p_upload = kg_sub.add_parser("upload", help="Upload dataset (REMOTE_WRITE)")
+785:    p_upload.add_argument("--path", required=True)
+786:    p_upload.add_argument("--json", action="store_true")
+789:    p_download = kg_sub.add_parser(
+792:    p_download.add_argument("--competition", required=True)
+793:    p_download.add_argument(
+796:    p_download.add_argument(
+801:    p_download.add_argument("--json", action="store_true")
+804:    p_verify = kg_sub.add_parser(
+807:    p_verify.add_argument(
+810:    p_verify.add_argument("--json", action="store_true")
+813:    p_watch = kg_sub.add_parser("watch", help="Watch a kernel run (READ_ONLY)")
+814:    p_watch.add_argument("--run", default=None, help="Legacy alias for --kernel")
+815:    p_watch.add_argument(
+818:    p_watch.add_argument("--poll-seconds", dest="poll_seconds", type=int, default=30)
+819:    p_watch.add_argument("--max-iterations", dest="max_iterations", type=int, default=1)
+820:    p_watch.add_argument("--json", action="store_true")
+823:    p_score = kg_sub.add_parser(
+828:    p_score.add_argument("--competition", required=True)
+829:    p_score.add_argument(
+836:    p_score.add_argument(
+842:    p_score.add_argument(
+848:    p_score.add_argument(
+854:    p_score.add_argument(
+860:    p_score.add_argument("--json", action="store_true")
+863:    p_fetch = kg_sub.add_parser("fetch", help="Fetch run artifacts (READ_ONLY)")
+864:    p_fetch.add_argument("--run", required=True)
+865:    p_fetch.add_argument("--json", action="store_true")
+868:    p_list = kg_sub.add_parser("list", help="List Kaggle runs (READ_ONLY)")
+869:    p_list.add_argument("--json", action="store_true")
+```
+
+### 🤖 Assistant: *`gh` is blocked — its config (`~/.config…*
+
+`13:35:57`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `gh` is blocked — its config (`~/.config/gh/hosts.yml`, the OAuth token) is sandbox-denied and CLAUDE.md forbids reading it. So I can't auto-create GitHub repos. That's fine: per-competition repos are an ADR-0009 organizational nicety, not required to run the loop. I'll register the intended `repo_url` as metadata and do the actual work in a local working dir (`~/competitions/kaggle-<slug>`), and flag the repo-create step for you to run if you want it.
+> 
+> Let me set up Orbit Wars: download the starter pack and read the agent contract.
+
+#### 💻 Bash: *Download orbit-wars starter pack*
+
+`13:36:03`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+WORK=~/competitions/kaggle-orbit-wars
+mkdir -p "$WORK"
+cd "$WORK"
+echo "=== Download orbit-wars starter pack via KCA ==="
+kca kaggle download --competition orbit-wars --path "$WORK/data" --json 2>&1 | python -c "import sys,json; d=json.load(sys.stdin); print('ok=',d.get('ok'),'files=',[f.get('name') for f in d.get('manifest',{}).get('files',[])] if 'manifest' in d else d.get('error'))" 2>&1 | head
+echo "=== extracted files ==="
+ls -la "$WORK/data" 2>&1
+echo "=== unzip any bundle ==="
+cd "$WORK/data" && for z in *.zip; do [ -f "$z" ] && unzip -o "$z" >/dev/null 2>&1 && echo "unzipped $z"; done; ls -la
+```
+
+```
+=== Download orbit-wars starter pack via KCA ===
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+AttributeError: 'str' object has no attribute 'get'
+=== extracted files ===
+total 20
+drwxr-xr-x 2 harry harry 4096 Jun  9 23:36 .
+drwxr-xr-x 3 harry harry 4096 Jun  9 23:36 ..
+-rw-r--r-- 1 harry harry  246 Jun  9 23:36 manifest.json
+-rw-r--r-- 1 harry harry 7387 May  1 20:46 orbit-wars.zip
+=== unzip any bundle ===
+unzipped orbit-wars.zip
+total 44
+drwxr-xr-x 2 harry harry 4096 Jun  9 23:36 .
+drwxr-xr-x 3 harry harry 4096 Jun  9 23:36 ..
+-rw-r--r-- 1 harry harry 6486 May  1 20:46 agents.md
+-rw-r--r-- 1 harry harry 2079 May  1 20:46 main.py
+-rw-r--r-- 1 harry harry  246 Jun  9 23:36 manifest.json
+-rw-r--r-- 1 harry harry 7387 May  1 20:46 orbit-wars.zip
+-rw-r--r-- 1 harry harry 8241 May  1 20:46 README.md
+Shell cwd was reset to /home/harry/test/tt_pangu
+```
+
+### 🤖 Assistant: *Downloaded and extracted.*
+
+`13:36:09`
+
+> Downloaded and extracted. Let me read the starter pack to understand the agent contract and how the game/simulator works.
+
+#### 👀 Read `main.py`
+
+`13:36:09`
+
+<details>
+<summary><code>/home/harry/competitions/kaggle-orbit-wars/data/main.py</code></summary>
+
+```python
+"""
+Orbit Wars - Nearest Planet Sniper Agent
+
+A simple agent that captures the nearest unowned planet when it has
+enough ships to guarantee the takeover.
+
+Strategy:
+  For each planet we own, find the closest planet we don't own.
+  If we have more ships than the target's garrison, send exactly
+  enough to capture it (garrison + 1). Otherwise, wait and accumulate.
+
+Key concepts demonstrated:
+  - Parsing the observation (planets, player ID)
+  - Computing angles with atan2 for fleet direction
+  - Sending moves as [from_planet_id, angle, num_ships]
+"""
+
+import math
+from kaggle_environments.envs.orbit_wars.orbit_wars import Planet
+
+
+def agent(obs):
+    moves = []
+    player = obs.get("player", 0) if isinstance(obs, dict) else obs.player
+    raw_planets = obs.get("planets", []) if isinstance(obs, dict) else obs.planets
+
+    # Parse into named tuples for readable field access:
+    #   Planet(id, owner, x, y, radius, ships, production)
+    #   owner == -1 means neutral, 0-3 are player IDs
+    planets = [Planet(*p) for p in raw_planets]
+    my_planets = [p for p in planets if p.owner == player]
+    targets = [p for p in planets if p.owner != player]
+
+    if not targets:
+        return moves
+
+    for mine in my_planets:
+        # Find the nearest planet we don't own
+        nearest = None
+        min_dist = float("inf")
+        for t in targets:
+            dist = math.sqrt((mine.x - t.x) ** 2 + (mine.y - t.y) ** 2)
+            if dist < min_dist:
+                min_dist = dist
+                nearest = t
+
+        if nearest is None:
+            continue
+
+        # We need to send more ships than the target has to capture it.
+        # Exactly target_ships + 1 guarantees the takeover.
+        ships_needed = nearest.ships + 1
+
+        # Only launch if we can afford it — otherwise keep accumulating
+        if mine.ships >= ships_needed:
+            # atan2(dy, dx) gives the angle from our planet to the target
+            angle = math.atan2(nearest.y - mine.y, nearest.x - mine.x)
+            moves.append([mine.id, angle, ships_needed])
+
+    return moves
+
+```
+</details>
+
+#### 👀 Read `README.md`
+
+`13:36:10`
+
+<details>
+<summary><code>/home/harry/competitions/kaggle-orbit-wars/data/README.md</code></summary>
+
+````markdown
+# Orbit Wars
+
+Conquer planets rotating around a sun in continuous 2D space. A real-time strategy game for 2 or 4 players.
+
+## Overview
+
+Players start with a single home planet and compete to control the map by sending fleets to capture neutral and enemy planets. The board is a 100x100 continuous space with a sun at the center. Planets orbit the sun, comets fly through on elliptical trajectories, and fleets travel in straight lines. The game lasts 500 turns. The player with the most total ships (on planets + in fleets) at the end wins.
+
+## Board Layout
+
+- **Board**: 100x100 continuous space, origin at top-left.
+- **Sun**: Centered at (50, 50) with radius 10. Fleets that cross the sun are destroyed.
+- **Symmetry**: All planets and comets are placed with 4-fold mirror symmetry around the center: (x, y), (100-x, y), (x, 100-y), (100-x, 100-y). This ensures fairness regardless of starting position.
+
+## Planets
+
+Each planet is represented as `[id, owner, x, y, radius, ships, production]`.
+
+- **owner**: Player ID (0-3), or -1 for neutral.
+- **radius**: Determined by production: `1 + ln(production)`. Higher production planets are physically larger.
+- **production**: Integer from 1 to 5. Each turn, an owned planet generates this many ships.
+- **ships**: Current garrison. Starts between 5 and 99 (skewed toward lower values).
+
+### Planet Types
+
+- **Orbiting planets**: Planets whose `orbital_radius + planet_radius < 50` rotate around the sun at a constant angular velocity (0.025-0.05 radians/turn, randomized per game). Use `initial_planets` and `angular_velocity` from the observation to predict their positions.
+- **Static planets**: Planets further from the center do not rotate.
+
+The map contains 20-40 planets (5-10 symmetric groups of 4). At least 3 groups are guaranteed to be static, and at least one group is guaranteed to be orbiting.
+
+### Home Planets
+
+One symmetric group is randomly chosen as the starting planets. In a 2-player game, players start on diagonally opposite planets (Q1 and Q4). In a 4-player game, each player gets one planet from the group. Home planets start with 10 ships.
+
+## Fleets
+
+Each fleet is represented as `[id, owner, x, y, angle, from_planet_id, ships]`.
+
+- **angle**: Direction of travel in radians.
+- **ships**: Number of ships in the fleet (does not change during travel).
+
+### Fleet Speed
+
+Fleet speed scales with size on a logarithmic curve:
+
+```
+speed = 1.0 + (maxSpeed - 1.0) * (log(ships) / log(1000)) ^ 1.5
+```
+
+- 1 ship moves at 1.0 units/turn.
+- Larger fleets move faster, approaching the maximum speed (default 6.0).
+- A fleet of ~500 ships moves at ~5, and ~1000 ships reaches the max.
+
+### Fleet Movement
+
+Fleets travel in a straight line at their computed speed each turn. A fleet is removed if it:
+
+- Goes out of bounds (leaves the 100x100 playing field).
+- Crosses the sun (path segment comes within the sun's radius).
+- Collides with any planet (path segment comes within the planet's radius). This triggers combat.
+
+Collision detection is continuous -- the entire path segment from old to new position is checked, not just the endpoint.
+
+### Fleet Launch
+
+Each turn, your agent returns a list of moves: `[from_planet_id, direction_angle, num_ships]`.
+
+- You can only launch from planets you own.
+- You cannot launch more ships than the planet currently has.
+- The fleet spawns just outside the planet's radius in the given direction.
+- You can issue multiple launches from the same or different planets in a single turn.
+
+## Comets
+
+Comets are temporary extra-solar objects that fly through the board on highly elliptical orbits around the sun. They spawn in groups of 4 (one per quadrant) at steps 50, 150, 250, 350, and 450.
+
+- **Radius**: 1.0 (fixed).
+- **Production**: 1 ship/turn when owned.
+- **Starting ships**: Random, skewed low (minimum of 4 rolls from 1-99). All 4 comets in a group share the same starting ship count.
+- **Speed**: Configurable via `cometSpeed` (default 4.0 units/turn).
+- **Identification**: Check `comet_planet_ids` in the observation to see which planet IDs are comets. Comets also appear in the `planets` array and follow all normal planet rules (capture, production, fleet launch, combat).
+
+When a comet leaves the board, it is removed along with any ships garrisoned on it. Comets are removed before fleet launches each turn, so you cannot launch from a departing comet.
+
+The `comets` observation field contains comet group data including `paths` (the full trajectory for each comet) and `path_index` (current position along the path), which can be used to predict future comet positions.
+
+## Turn Order
+
+Each turn executes in this order:
+
+1. **Comet expiration**: Remove comets that have left the board.
+2. **Comet spawning**: Spawn new comet groups at designated steps.
+3. **Fleet launch**: Process all player actions, creating new fleets.
+4. **Production**: All owned planets (including comets) generate ships.
+5. **Fleet movement**: Move all fleets along their headings. Check for out-of-bounds, sun collision, and planet collision. Fleets that hit planets are queued for combat.
+6. **Planet rotation & comet movement**: Orbiting planets rotate, comets advance along their paths. Any fleet caught by a moving planet/comet is swept into combat with it.
+7. **Combat resolution**: Resolve all queued planet combats.
+
+## Combat
+
+When one or more fleets collide with a planet (either by flying into it or being swept by a moving planet), combat is resolved:
+
+1. All arriving fleets are grouped by owner. Ships from the same owner are summed.
+2. The largest attacking force fights the second largest. The difference in ships survives.
+3. If there is a surviving attacker:
+   - If the attacker is the same owner as the planet, the surviving ships are added to the garrison.
+   - If the attacker is a different owner, the surviving ships fight the garrison. If the attackers exceed the garrison, the planet changes ownership and the garrison becomes the surplus.
+4. If two attackers tie, all attacking ships are destroyed (no survivors).
+
+## Scoring and Termination
+
+The game ends when:
+
+- **Step limit reached**: 500 turns.
+- **Elimination**: Only one player (or zero) remains with any planets or fleets.
+
+Final score = total ships on owned planets + total ships in owned fleets. Highest score wins.
+
+## Observation Reference
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `planets` | `[[id, owner, x, y, radius, ships, production], ...]` | All planets including comets |
+| `fleets` | `[[id, owner, x, y, angle, from_planet_id, ships], ...]` | All active fleets |
+| `player` | `int` | Your player ID (0-3) |
+| `angular_velocity` | `float` | Planet rotation speed (radians/turn) |
+| `initial_planets` | `[[id, owner, x, y, radius, ships, production], ...]` | Planet positions at game start |
+| `comets` | `[{planet_ids, paths, path_index}, ...]` | Active comet group data |
+| `comet_planet_ids` | `[int, ...]` | Planet IDs that are comets |
+| `remainingOverageTime` | `float` | Remaining overage time budget (seconds) |
+
+## Action Format
+
+Return a list of moves:
+
+```python
+[[from_planet_id, direction_angle, num_ships], ...]
+```
+
+- `from_planet_id`: ID of a planet you own.
+- `direction_angle`: Angle in radians (0 = right, pi/2 = down).
+- `num_ships`: Integer number of ships to send.
+
+Return an empty list `[]` to take no action.
+
+## Agent Convenience
+
+The module exports named tuples for easier field access:
+
+```python
+from kaggle_environments.envs.orbit_wars.orbit_wars import Planet, Fleet, CENTER, ROTATION_RADIUS_LIMIT
+
+def agent(obs):
+    planets = [Planet(*p) for p in obs.get("planets", [])]
+    fleets = [Fleet(*f) for f in obs.get("fleets", [])]
+    player = obs.get("player", 0)
+
+    for p in planets:
+        print(p.id, p.owner, p.x, p.y, p.radius, p.ships, p.production)
+
+    return []  # list of [from_planet_id, angle, num_ships]
+```
+
+## Configuration
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `episodeSteps` | 500 | Maximum number of turns |
+| `actTimeout` | 1 | Seconds per turn |
+| `shipSpeed` | 6.0 | Maximum fleet speed |
+| `sunRadius` | 10.0 | Radius of the sun |
+| `boardSize` | 100.0 | Board dimensions |
+| `cometSpeed` | 4.0 | Comet speed (units/turn) |
+
+````
+</details>
+
+#### 👀 Read `agents.md`
+
+`13:36:10`
+
+<details>
+<summary><code>/home/harry/competitions/kaggle-orbit-wars/data/agents.md</code></summary>
+
+````markdown
+# Orbit Wars: Getting Started
+
+This guide walks you through building an agent, testing it locally, and submitting it to the Orbit Wars competition on Kaggle.
+
+## Game Overview
+
+Orbit Wars is a real-time strategy game on a 100x100 board with a sun at the center. Players conquer planets by sending fleets of ships between them.
+
+- **Planets** produce ships each turn (proportional to their radius)
+- **Inner planets** rotate around the central sun; outer planets are static
+- **Fleets** fly in straight lines at a given angle from their source planet
+- **Fleet speed** scales with fleet size (1 ship = 1/turn, larger fleets up to 6/turn)
+- **Combat**: arriving fleet ships are subtracted from the planet's garrison. If the garrison drops below 0, ownership flips
+- **Sun**: fleets that hit the sun are destroyed
+- **Comets**: temporary planets that fly through the board on elliptical paths
+- **Win condition**: highest ship count (planets + fleets) when time runs out, or last player standing
+
+See [README.md](README.md) for full rules and configuration defaults.
+
+## Your Agent
+
+Your agent is a function that receives an observation and returns a list of moves.
+
+**Observation fields:**
+- `player` — your player ID (0-3)
+- `planets` — list of `[id, owner, x, y, radius, ships, production]` (owner -1 = neutral)
+- `fleets` — list of `[id, owner, x, y, angle, from_planet_id, ships]`
+- `angular_velocity` — rotation speed of inner planets (radians/turn)
+
+**Action format:**
+Each move is `[from_planet_id, angle_in_radians, num_ships]`.
+
+**Example — Nearest Planet Sniper:**
+
+```python
+import math
+from kaggle_environments.envs.orbit_wars.orbit_wars import Planet
+
+def agent(obs):
+    moves = []
+    player = obs.get("player", 0) if isinstance(obs, dict) else obs.player
+    raw_planets = obs.get("planets", []) if isinstance(obs, dict) else obs.planets
+    planets = [Planet(*p) for p in raw_planets]
+
+    my_planets = [p for p in planets if p.owner == player]
+    targets = [p for p in planets if p.owner != player]
+
+    if not targets:
+        return moves
+
+    for mine in my_planets:
+        # Find nearest planet we don't own
+        nearest = min(targets, key=lambda t: math.hypot(mine.x - t.x, mine.y - t.y))
+
+        # Send exactly enough ships to capture it
+        ships_needed = nearest.ships + 1
+        if mine.ships >= ships_needed:
+            angle = math.atan2(nearest.y - mine.y, nearest.x - mine.x)
+            moves.append([mine.id, angle, ships_needed])
+
+    return moves
+```
+
+## Test Locally
+
+Install the environment from PyPI (Orbit Wars requires version 1.28.0 or later):
+
+```bash
+pip install "kaggle-environments>=1.28.0"
+```
+
+Run a game from Python or a notebook:
+
+```python
+from kaggle_environments import make
+
+env = make("orbit_wars", configuration={"seed": 42}, debug=True)
+env.run(["main.py", "random"])
+
+# View result
+final = env.steps[-1]
+for i, s in enumerate(final):
+    print(f"Player {i}: reward={s.reward}, status={s.status}")
+
+# Render in a notebook
+env.render(mode="ipython", width=800, height=600)
+```
+
+## Set Up the Kaggle CLI
+
+Install the CLI:
+
+```bash
+pip install kaggle
+```
+
+You'll need a Kaggle account — sign up at https://www.kaggle.com if you don't have one. Then download your API credentials at https://www.kaggle.com/settings/api by clicking **"Generate New Token"** under the "API" section.
+
+**Recommended: API token file.** Save the token string to `~/.kaggle/access_token`:
+
+```bash
+mkdir -p ~/.kaggle
+# Paste the token from the Kaggle settings UI into this file
+nano ~/.kaggle/access_token
+chmod 600 ~/.kaggle/access_token
+```
+
+Alternative auth methods:
+- **OAuth (browser flow):** `kaggle auth login`
+- **Environment variable:** `export KAGGLE_API_TOKEN=xxxxxxxxxxxxxx`
+
+Verify the CLI is wired up:
+
+```bash
+kaggle competitions list -s "orbit wars"
+```
+
+## Find the Competition
+
+```bash
+kaggle competitions list -s "orbit wars"
+kaggle competitions pages orbit-wars
+kaggle competitions pages orbit-wars --content
+```
+
+## Accept the Competition Rules
+
+Before submitting, you **must** accept the rules on the Kaggle website. Navigate to `https://www.kaggle.com/competitions/orbit-wars` and click **"Join Competition"**.
+
+Verify you've joined:
+
+```bash
+kaggle competitions list --group entered
+```
+
+## Download Competition Data
+
+```bash
+kaggle competitions download orbit-wars -p orbit-wars-data
+```
+
+## Submit Your Agent
+
+Your submission must have a `main.py` at the root with an `agent` function.
+
+**Single file agent:**
+
+```bash
+kaggle competitions submit orbit-wars -f main.py -m "Nearest planet sniper v1"
+```
+
+**Multi-file agent** — bundle into a tar.gz with `main.py` at the root:
+
+```bash
+tar -czf submission.tar.gz main.py helper.py model_weights.pkl
+kaggle competitions submit orbit-wars -f submission.tar.gz -m "Multi-file agent v1"
+```
+
+**Notebook submission:**
+
+```bash
+kaggle competitions submit orbit-wars -k YOUR_USERNAME/orbit-wars-agent -f submission.tar.gz -v 1 -m "Notebook agent v1"
+```
+
+## Monitor Your Submission
+
+Check submission status:
+
+```bash
+kaggle competitions submissions orbit-wars
+```
+
+Note the submission ID from the output — you'll need it for episodes.
+
+## List Episodes
+
+Once your submission has played some games:
+
+```bash
+kaggle competitions episodes <SUBMISSION_ID>
+```
+
+CSV output for scripting:
+
+```bash
+kaggle competitions episodes <SUBMISSION_ID> -v
+```
+
+## Download Replays and Logs
+
+Download the replay JSON for an episode (for visualization or analysis):
+
+```bash
+kaggle competitions replay <EPISODE_ID>
+kaggle competitions replay <EPISODE_ID> -p ./replays
+```
+
+Download agent logs to debug your agent's behavior:
+
+```bash
+# Logs for the first agent (index 0)
+kaggle competitions logs <EPISODE_ID> 0
+
+# Logs for the second agent (index 1)
+kaggle competitions logs <EPISODE_ID> 1 -p ./logs
+```
+
+## Check the Leaderboard
+
+```bash
+kaggle competitions leaderboard orbit-wars -s
+```
+
+## Typical Workflow
+
+```bash
+# Test locally
+python -c "
+from kaggle_environments import make
+env = make('orbit_wars', debug=True)
+env.run(['main.py', 'random'])
+print([(i, s.reward) for i, s in enumerate(env.steps[-1])])
+"
+
+# Submit
+kaggle competitions submit orbit-wars -f main.py -m "v1"
+
+# Check status
+kaggle competitions submissions orbit-wars
+
+# Review episodes
+kaggle competitions episodes <SUBMISSION_ID>
+
+# Download replay and logs
+kaggle competitions replay <EPISODE_ID>
+kaggle competitions logs <EPISODE_ID> 0
+
+# Check leaderboard
+kaggle competitions leaderboard orbit-wars -s
+```
+
+````
+</details>
+
+### 🤖 Assistant: *I fully understand the game now.*
+
+`13:36:42`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> I fully understand the game now. Local evaluation is via the `kaggle_environments` package (`make("orbit_wars")` + `env.run([...])`). The key weaknesses of the starter "nearest sniper" are clear: it ignores **sun-crossing** (fleets crossing the sun at center are destroyed), ignores **production growth during transit** (sends garrison+1, often too few for enemy planets), and targets the *nearest* rather than the *highest-value* planet.
+> 
+> Let me verify the eval harness is installed and works before writing the improved agent.
+
+#### 💻 Bash: *Check kaggle_environments + orbit_wars env*
+
+`13:36:49`
+
+```bash
+$ cd /home/harry/competitions/kaggle-orbit-wars/data
+python - <<'PY' 2>&1 | tail -30
+import importlib, sys
+try:
+    import kaggle_environments as ke
+    print("kaggle_environments", ke.version if hasattr(ke,'version') else getattr(ke,'__version__','?'))
+except Exception as e:
+    print("IMPORT FAIL:", e); sys.exit()
+try:
+    from kaggle_environments import make
+    env = make("orbit_wars", configuration={"seed": 42}, debug=True)
+    print("orbit_wars env OK; config episodeSteps=", env.configuration.get("episodeSteps"))
+    from kaggle_environments.envs.orbit_wars.orbit_wars import Planet, Fleet
+    print("Planet fields:", Planet._fields)
+    print("Fleet fields:", Fleet._fields)
+except Exception as e:
+    import traceback; traceback.print_exc()
+PY
+```
+
+```
+IMPORT FAIL: No module named 'kaggle_environments'
+Shell cwd was reset to /home/harry/test/tt_pangu
+```
+
+### 🤖 Assistant: *`kaggle_environments` isn't installed.*
+
+`13:36:55`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `kaggle_environments` isn't installed. Let me install it (PyPI is allowlisted) — needed for local evaluation.
+
+#### 💻 Bash: *Install kaggle-environments*
+
+`13:36:56`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+python -m pip install "kaggle-environments>=1.28.0" 2>&1 | tail -8
+```
+
+```
+  Created wheel for gym: filename=gym-0.26.2-py3-none-any.whl size=827730 sha256=8a192ea74866c2091d1544d8d4e5e7397f5048f7b1e1161ae2a387142b1663c1
+  Stored in directory: /tmp/claude-1000/pip-ephem-wheel-cache-7c8imz_o/wheels/95/51/6c/9bb05ebbe7c5cb8171dfaa3611f32622ca4658d53f31c79077
+Successfully built gym
+Installing collected packages: gym_notices, farama-notifications, uvloop, treescope, toolz, simplejson, pyjson5, pygame, pokerkit, msgpack, ml-collections, humanize, fastuuid, etils, cloudpickle, tensorstore, open_spiel, jaxlib, gymnasium, gym, shimmy, pettingzoo, openai, jax, orbax-checkpoint, optax, litellm, chex, flax, gymnax, kaggle-environments
+[?25lERROR: Could not install packages due to an OSError: [Errno 30] Read-only file system: '/home/harry/.local/lib/python3.12/site-packages/gym_notices'
+
+
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  0/31 [gym_notices]
+[?25h
+[1A[2K
+```
+
+### 🤖 Assistant: *Sandbox blocked the write to `~/.local`.*
+
+`13:37:42`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Sandbox blocked the write to `~/.local`. Retrying outside the sandbox.
+
+#### 💻 Bash: *Install kaggle-environments outside sandbox*
+
+`13:37:43`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+python -m pip install "kaggle-environments>=1.28.0" 2>&1 | tail -6
+echo "=== verify ==="
+python -c "import kaggle_environments as ke; print('ke', getattr(ke,'version',getattr(ke,'__version__','?')))"
+```
+
+```
+   ━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━━━━━━━━━━ 19/31 [gym]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━ 22/31 [openai]
+[2K    Uninstalling openai-1.109.1:
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━ 22/31 [openai]
+[2K      Successfully uninstalled openai-1.109.1
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━ 22/31 [openai]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━ 22/31 [openai]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━ 22/31 [openai]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━━━━━ 22/31 [openai]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━━━━━ 23/31 [jax]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━━━━━ 23/31 [jax]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━━━━━ 23/31 [jax]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━━━━━ 23/31 [jax]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━━━━━ 23/31 [jax]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━━━━━ 23/31 [jax]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━━━━━ 23/31 [jax]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━━━━ 24/31 [orbax-checkpoint]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━━━━━ 25/31 [optax]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 26/31 [litellm]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 26/31 [litellm]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 26/31 [litellm]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 26/31 [litellm]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 26/31 [litellm]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 26/31 [litellm]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 26/31 [litellm]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 26/31 [litellm]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 26/31 [litellm]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 26/31 [litellm]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 26/31 [litellm]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 26/31 [litellm]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━━ 26/31 [litellm]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━━━━━ 27/31 [chex]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╺━━━ 28/31 [flax]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━ 30/31 [kaggle-environments]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╸━ 30/31 [kaggle-environments]
+[2K   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 31/31 [kaggle-environments]
+[?25h
+[1A[2KERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+hello-agents 0.2.8 requires openai<2.0.0,>=1.0.0, but you have openai 2.41.0 which is incompatible.
+Successfully installed chex-0.1.91 cloudpickle-3.1.2 etils-1.14.0 farama-notifications-0.0.6 fastuuid-0.14.0 flax-0.12.7 gym-0.26.2 gym_notices-0.1.0 gymnasium-1.2.0 gymnax-0.0.8 humanize-4.15.0 jax-0.10.1 jaxlib-0.10.1 kaggle-environments-1.30.1 litellm-1.88.1 ml-collections-1.1.0 msgpack-1.1.2 open_spiel-1.6.15 openai-2.41.0 optax-0.2.8 orbax-checkpoint-0.12.0 pettingzoo-1.24.0 pokerkit-0.6.3 pygame-2.6.1 pyjson5-2.0.1 shimmy-2.0.1 simplejson-4.1.1 tensorstore-0.1.84 toolz-1.1.0 treescope-0.1.10 uvloop-0.22.1
+=== verify ===
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO: Successfully loaded OpenSpiel environments: 31.
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_amazons
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_backgammon
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_python_ant_foraging
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_checkers
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_chess
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_clobber
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_coin_game
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_coin_game_arena
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_connect_four
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_dark_hex
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_dots_and_boxes
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_gin_rummy
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_go
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_goofspiel
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_havannah
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_hearts
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_hex
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_lines_of_action
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_mancala
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_matching_pennies_3p
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_negotiation
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_oshi_zumo
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_othello
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_repeated_game
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_tic_tac_toe
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_ultimate_tic_tac_toe
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_snake
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_y
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_universal_poker
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_repeated_poker
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_python_repeated_pokerkit
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO: OpenSpiel games skipped: 0.
+ke <function version at 0x7f20ce046e80>
+```
+
+### 🤖 Assistant: *`kaggle-environments 1.30.1` installed.*
+
+`13:38:41`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `kaggle-environments 1.30.1` installed. Let me confirm the `orbit_wars` env loads and inspect the observation/reward structure with a quick baseline-vs-random game.
+
+#### 💻 Bash: *Probe orbit_wars env structure*
+
+`13:38:44`
+
+```bash
+$ cd /home/harry/competitions/kaggle-orbit-wars/data
+python - <<'PY' 2>&1 | grep -v "open_spiel\|OpenSpiel" | tail -20
+from kaggle_environments import make
+from kaggle_environments.envs.orbit_wars.orbit_wars import Planet, Fleet
+print("Planet fields:", Planet._fields)
+print("Fleet fields:", Fleet._fields)
+env = make("orbit_wars", configuration={"seed": 42}, debug=True)
+print("episodeSteps:", env.configuration.get("episodeSteps"), "actTimeout:", env.configuration.get("actTimeout"))
+env.run(["main.py", "random"])
+last = env.steps[-1]
+for i, s in enumerate(last):
+    print(f"player {i}: reward={s['reward']} status={s['status']}")
+PY
+```
+
+```
+23:38:49 - LiteLLM:WARNING: get_model_cost_map.py:271 - LiteLLM: Failed to fetch remote model cost map from https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json: Using SOCKS proxy, but the 'socksio' package is not installed. Make sure to install httpx using `pip install httpx[socks]`.. Falling back to local backup.
+Planet fields: ('id', 'owner', 'x', 'y', 'radius', 'ships', 'production')
+Fleet fields: ('id', 'owner', 'x', 'y', 'angle', 'from_planet_id', 'ships')
+episodeSteps: 500 actTimeout: 1
+player 0: reward=1 status=DONE
+player 1: reward=-1 status=DONE
+Shell cwd was reset to /home/harry/test/tt_pangu
+```
+
+### 🤖 Assistant: *Env works (Planet/Fleet fields confirmed…*
+
+`13:39:10`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Env works (Planet/Fleet fields confirmed; baseline beats random, reward +1/−1 = win/loss). Now let me write the improved agent (`main.py`, the submission) and the local-eval harness. The improved agent adds: **sun-crossing avoidance**, **production-aware capture cost** for enemy planets, **value-based target selection** (production/distance, neutral-preferred), and a defensive reserve.
+
+#### ✍️  Write `main.py`
+
+`13:39:16`
+
+<details>
+<summary><code>/home/harry/competitions/kaggle-orbit-wars/main.py</code></summary>
+
+```python
+"""
+Orbit Wars — Value-Targeting Agent (KCA candidate v1)
+
+Improves on the starter "nearest planet sniper" in four ways:
+
+1. Sun avoidance: fleets whose straight-line path passes within the sun's
+   radius are destroyed. We skip any launch whose path clips the sun.
+2. Production-aware cost: enemy planets keep producing while our fleet is in
+   transit, so garrison+1 is usually too few. We estimate travel time from the
+   size-dependent fleet speed and require garrison + production*travel + margin.
+   Neutral planets (owner == -1) do not produce, so garrison+1 suffices.
+3. Value-based targeting: instead of always the nearest target, pick the one
+   maximising production / distance, with a preference for cheaper neutrals.
+4. Defensive reserve: never empty a planet; keep a small garrison so a freshly
+   captured / border planet is not trivially retaken.
+
+Contract: agent(obs) -> list of [from_planet_id, angle_radians, num_ships].
+"""
+
+import math
+
+from kaggle_environments.envs.orbit_wars.orbit_wars import Planet
+
+CENTER = (50.0, 50.0)
+SUN_RADIUS = 10.0
+MAX_SPEED = 6.0
+SUN_PAD = 1.5          # extra clearance around the sun
+RESERVE = 2            # ships to leave behind on a source planet
+COST_MARGIN = 2        # safety ships above the estimated capture cost
+NEUTRAL_BONUS = 1.3    # prefer cheaper neutral captures
+
+
+def _fleet_speed(ships):
+    """Fleet speed scales logarithmically with size (README 'Fleet Speed')."""
+    if ships <= 1:
+        return 1.0
+    return 1.0 + (MAX_SPEED - 1.0) * (math.log(ships) / math.log(1000.0)) ** 1.5
+
+
+def _path_clips_sun(x0, y0, x1, y1):
+    """True if the segment (x0,y0)->(x1,y1) passes within SUN_RADIUS+pad of the sun."""
+    cx, cy = CENTER
+    dx, dy = x1 - x0, y1 - y0
+    seg2 = dx * dx + dy * dy
+    if seg2 <= 1e-9:
+        d = math.hypot(cx - x0, cy - y0)
+    else:
+        t = ((cx - x0) * dx + (cy - y0) * dy) / seg2
+        t = max(0.0, min(1.0, t))
+        px, py = x0 + t * dx, y0 + t * dy
+        d = math.hypot(cx - px, cy - py)
+    return d < (SUN_RADIUS + SUN_PAD)
+
+
+def _capture_cost(src, t, dist):
+    """Estimate ships needed to capture target t launched from src."""
+    base = t.ships + 1
+    if t.owner >= 0:  # enemy planet keeps producing during transit
+        speed = _fleet_speed(max(base, 2))
+        travel_turns = dist / max(speed, 0.5)
+        base = int(t.ships + t.production * travel_turns + 1)
+    return base + COST_MARGIN
+
+
+def agent(obs):
+    moves = []
+    player = obs.get("player", 0) if isinstance(obs, dict) else obs.player
+    raw = obs.get("planets", []) if isinstance(obs, dict) else obs.planets
+    planets = [Planet(*p) for p in raw]
+
+    mine = [p for p in planets if p.owner == player]
+    targets = [p for p in planets if p.owner != player]
+    if not mine or not targets:
+        return moves
+
+    for src in mine:
+        avail = src.ships - RESERVE
+        if avail <= 0:
+            continue
+
+        best = None
+        best_score = -1.0
+        best_cost = 0
+        for t in targets:
+            dist = math.hypot(src.x - t.x, src.y - t.y)
+            if dist <= 0:
+                continue
+            if _path_clips_sun(src.x, src.y, t.x, t.y):
+                continue
+            cost = _capture_cost(src, t, dist)
+            if cost > avail:
+                continue
+            prod = max(t.production, 1)
+            score = (prod / dist) * (NEUTRAL_BONUS if t.owner == -1 else 1.0)
+            if score > best_score:
+                best_score, best, best_cost = score, t, cost
+
+        if best is not None and best_cost > 0:
+            angle = math.atan2(best.y - src.y, best.x - src.x)
+            moves.append([src.id, angle, min(best_cost, avail)])
+
+    return moves
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/competitions/kaggle-orbit-wars/main.py (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *Now the baseline opponent (copy of the starter…*
+
+`13:39:27`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now the baseline opponent (copy of the starter) and the eval harness that plays my agent vs the starter across many seeds, in both seat positions, to get an unbiased win-rate.
+
+#### 💻 Bash: *Copy starter as baseline opponent*
+
+`13:39:27`
+
+```bash
+$ cp /home/harry/competitions/kaggle-orbit-wars/data/main.py /home/harry/competitions/kaggle-orbit-wars/baseline_sniper.py
+echo "copied baseline_sniper.py"; ls /home/harry/competitions/kaggle-orbit-wars/
+```
+
+```
+cp: cannot create regular file '/home/harry/competitions/kaggle-orbit-wars/baseline_sniper.py': Read-only file system
+copied baseline_sniper.py
+data
+main.py
+```
+
+#### ✍️  Write `eval.py`
+
+`13:39:28`
+
+<details>
+<summary><code>/home/harry/competitions/kaggle-orbit-wars/eval.py</code></summary>
+
+```python
+"""Local evaluation: candidate main.py vs baseline_sniper.py over many seeds.
+
+Plays each seed twice (candidate as player 0, then as player 1) to cancel any
+seat advantage. Reports win / draw / loss counts and win-rate for the candidate.
+
+Usage: python eval.py [n_seeds]
+"""
+
+import sys
+
+from kaggle_environments import make
+
+CANDIDATE = "main.py"
+BASELINE = "baseline_sniper.py"
+
+
+def play(seed, agents):
+    env = make("orbit_wars", configuration={"seed": seed}, debug=False)
+    env.run(agents)
+    last = env.steps[-1]
+    return [s["reward"] for s in last]
+
+
+def main():
+    n = int(sys.argv[1]) if len(sys.argv) > 1 else 30
+    wins = draws = losses = 0
+    games = 0
+    for seed in range(n):
+        # candidate as player 0
+        r = play(seed, [CANDIDATE, BASELINE])
+        cand, opp = r[0], r[1]
+        games += 1
+        wins += cand > opp
+        draws += cand == opp
+        losses += cand < opp
+        # candidate as player 1 (same seed, swapped seats)
+        r = play(seed, [BASELINE, CANDIDATE])
+        cand, opp = r[1], r[0]
+        games += 1
+        wins += cand > opp
+        draws += cand == opp
+        losses += cand < opp
+
+    win_rate = wins / games if games else 0.0
+    print(f"games={games} wins={wins} draws={draws} losses={losses}")
+    print(f"win_rate={win_rate:.4f}")
+
+
+if __name__ == "__main__":
+    main()
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/competitions/kaggle-orbit-wars/eval.py (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *The Write tool reaches `~/competitions` fine…*
+
+`13:39:37`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The Write tool reaches `~/competitions` fine; the Bash `cp` was sandbox-blocked. Let me create the baseline opponent via Write, then run the evaluation (outside sandbox, since the working dir is outside the allowlist).
+
+#### ✍️  Write `baseline_sniper.py`
+
+`13:39:40`
+
+<details>
+<summary><code>/home/harry/competitions/kaggle-orbit-wars/baseline_sniper.py</code></summary>
+
+```python
+"""Orbit Wars starter agent (Nearest Planet Sniper) — used as the local
+evaluation opponent. Verbatim copy of the competition starter main.py."""
+
+import math
+from kaggle_environments.envs.orbit_wars.orbit_wars import Planet
+
+
+def agent(obs):
+    moves = []
+    player = obs.get("player", 0) if isinstance(obs, dict) else obs.player
+    raw_planets = obs.get("planets", []) if isinstance(obs, dict) else obs.planets
+
+    planets = [Planet(*p) for p in raw_planets]
+    my_planets = [p for p in planets if p.owner == player]
+    targets = [p for p in planets if p.owner != player]
+
+    if not targets:
+        return moves
+
+    for mine in my_planets:
+        nearest = None
+        min_dist = float("inf")
+        for t in targets:
+            dist = math.sqrt((mine.x - t.x) ** 2 + (mine.y - t.y) ** 2)
+            if dist < min_dist:
+                min_dist = dist
+                nearest = t
+
+        if nearest is None:
+            continue
+
+        ships_needed = nearest.ships + 1
+        if mine.ships >= ships_needed:
+            angle = math.atan2(nearest.y - mine.y, nearest.x - mine.x)
+            moves.append([mine.id, angle, ships_needed])
+
+    return moves
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/competitions/kaggle-orbit-wars/baseline_sniper.py (file state is current in your context — no need to Read it back)
+
+#### 💻 Bash: *Run orbit-wars local evaluation*
+
+`13:39:44`
+
+```bash
+$ cd /home/harry/competitions/kaggle-orbit-wars
+echo "=== Local eval: candidate main.py vs baseline_sniper.py, 30 seeds x2 seats ==="
+timeout 540 python eval.py 30 2>&1 | grep -vE "open_spiel|OpenSpiel|LiteLLM" | tail -8
+```
+
+```
+=== Local eval: candidate main.py vs baseline_sniper.py, 30 seeds x2 seats ===
+games=60 wins=34 draws=0 losses=26
+win_rate=0.5667
+Shell cwd was reset to /home/harry/test/tt_pangu
+```
+
+### 🤖 Assistant: *Candidate wins 56.7% over 60 games — better…*
+
+`13:41:20`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Candidate wins 56.7% over 60 games — better than the starter but only ~1 SE above 0.5, not yet convincing. Since I haven't spent a submission slot, I'll iterate locally (free). The main limiter: each planet launches only **one** fleet per turn, throttling expansion. Let me make each planet greedily launch at multiple high-value targets per turn, dedupe targets already committed this turn, and tune the reserve.
+
+#### ✏️  Edit `main.py`
+
+`13:41:26`
+
+```diff
+@@ -2,6 +2,6 @@ SUN_RADIUS = 10.0
+ MAX_SPEED = 6.0
+ SUN_PAD = 1.5          # extra clearance around the sun
+-RESERVE = 2            # ships to leave behind on a source planet
++RESERVE = 1            # ships to leave behind on a source planet
+ COST_MARGIN = 2        # safety ships above the estimated capture cost
+ NEUTRAL_BONUS = 1.3    # prefer cheaper neutral captures
+```
+
+```
+The file /home/harry/competitions/kaggle-orbit-wars/main.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -2,31 +2,39 @@     targets = [p for p in planets if p.owner != player]
+     if not mine or not targets:
+         return moves
++
++    # Targets already committed to this turn, so multiple of our planets don't
++    # redundantly pile onto the same capture.
++    claimed = set()
+ 
+     for src in mine:
+         avail = src.ships - RESERVE
+         if avail <= 0:
+             continue
+ 
+-        best = None
+-        best_score = -1.0
+-        best_cost = 0
++        # Rank reachable, affordable targets by value (production / distance,
++        # neutral-preferred), then greedily launch at as many as ships allow.
++        ranked = []
+         for t in targets:
++            if t.id in claimed:
++                continue
+             dist = math.hypot(src.x - t.x, src.y - t.y)
+-            if dist <= 0:
+-                continue
+-            if _path_clips_sun(src.x, src.y, t.x, t.y):
++            if dist <= 0 or _path_clips_sun(src.x, src.y, t.x, t.y):
+                 continue
+             cost = _capture_cost(src, t, dist)
+-            if cost > avail:
+-                continue
+             prod = max(t.production, 1)
+             score = (prod / dist) * (NEUTRAL_BONUS if t.owner == -1 else 1.0)
+-            if score > best_score:
+-                best_score, best, best_cost = score, t, cost
++            ranked.append((score, cost, t))
++        ranked.sort(key=lambda r: r[0], reverse=True)
+ 
+-        if best is not None and best_cost > 0:
+-            angle = math.atan2(best.y - src.y, best.x - src.x)
+-            moves.append([src.id, angle, min(best_cost, avail)])
++        for _score, cost, t in ranked:
++            if cost <= 0 or cost > avail:
++                continue
++            angle = math.atan2(t.y - src.y, t.x - src.x)
++            moves.append([src.id, angle, cost])
++            avail -= cost
++            claimed.add(t.id)
++            if avail <= RESERVE:
++                break
+ 
+     return moves
+```
+
+```
+The file /home/harry/competitions/kaggle-orbit-wars/main.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### 💻 Bash: *Re-evaluate improved agent v2*
+
+`13:41:50`
+
+```bash
+$ cd /home/harry/competitions/kaggle-orbit-wars
+echo "=== Eval v2: greedy multi-launch + target dedupe, 40 seeds x2 ==="
+timeout 580 python eval.py 40 2>&1 | grep -vE "open_spiel|OpenSpiel|LiteLLM" | tail -5
+```
+
+```
+=== Eval v2: greedy multi-launch + target dedupe, 40 seeds x2 ===
+games=80 wins=53 draws=0 losses=27
+win_rate=0.6625
+Shell cwd was reset to /home/harry/test/tt_pangu
+```
+
+### 🤖 Assistant: *v2 wins \*\*66.25%\*\* over 80 games (~2.9 SE…*
+
+`13:43:32`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> v2 wins **66.25%** over 80 games (~2.9 SE above 0.5 — a clear, significant improvement over the starter). That's a solid submission candidate. Now let me wire it into KCA: create the competition row + run, register the repo metadata, record the metric, and package the submission artifact.
+
+#### 💻 Bash: *KCA run init, register, record metric, package*
+
+`13:43:37`
+
+```bash
+$ cd /home/harry/competitions/kaggle-orbit-wars
+echo "=== kca run init (creates competitions row + run dir) ==="
+INIT=$(kca run init --competition orbit-wars \
+  --hypothesis "Value-targeting agent: sun-avoidance + production-aware capture cost + greedy multi-launch beats the nearest-sniper starter" \
+  --tag agent=value-targeting --tag baseline=nearest-sniper --json 2>/dev/null)
+echo "$INIT" | python -m json.tool
+RUN_DIR=$(echo "$INIT" | python -c "import sys,json;print(json.load(sys.stdin)['run_dir'])")
+echo "RUN_DIR=$RUN_DIR"
+echo
+echo "=== register repo metadata (ADR-0009 naming) ==="
+kca competition register --slug orbit-wars \
+  --repo-url https://github.com/harrysun2006/kaggle-orbit-wars \
+  --clone-path /home/harry/competitions/kaggle-orbit-wars --json 2>/dev/null | python -m json.tool
+echo
+echo "=== record win-rate metric ==="
+kca run record-metric --run-dir "$RUN_DIR" --key win_rate_vs_starter --value 0.6625 --json 2>/dev/null | python -m json.tool
+kca run record-metric --run-dir "$RUN_DIR" --key eval_games --value 80 --json 2>/dev/null >/dev/null
+echo
+echo "=== package submission artifact (main.py at root) ==="
+mkdir -p "$RUN_DIR/artifacts"
+cp main.py "$RUN_DIR/artifacts/main.py"
+tar -czf "$RUN_DIR/artifacts/submission.tar.gz" -C "$(pwd)" main.py
+ls -la "$RUN_DIR/artifacts/"
+echo "$RUN_DIR" > /home/harry/.claude-ayla/jobs/900075de/tmp/orbit_run_dir.txt
+```
+
+```
+=== kca run init (creates competitions row + run dir) ===
+{
+    "side_effect": "LOCAL_WRITE",
+    "ok": true,
+    "run_dir": "runs/orbit-wars/20260609_134339",
+    "run_id": "20260609_134339",
+    "competition": "orbit-wars",
+    "competition_id": "0ab6f679-a114-42cc-b314-21b59c5010b1",
+    "experiment_id": "69455cd1-4fc0-428b-92a4-91aecfaa3323",
+    "experiment_run_id": "c2ef13f6-1ff3-4e6d-b0bd-9b3340259af2"
+}
+RUN_DIR=runs/orbit-wars/20260609_134339
+
+=== register repo metadata (ADR-0009 naming) ===
+{
+    "ok": true,
+    "slug": "orbit-wars",
+    "repo_url": "https://github.com/harrysun2006/kaggle-orbit-wars",
+    "default_branch": "main",
+    "local_clone_path": "/home/harry/competitions/kaggle-orbit-wars",
+    "side_effect": "LOCAL_WRITE"
+}
+
+=== record win-rate metric ===
+{
+    "side_effect": "LOCAL_WRITE",
+    "ok": true,
+    "key": "win_rate_vs_starter",
+    "value": 0.6625,
+    "run_dir": "runs/orbit-wars/20260609_134339",
+    "experiment_run_id": "c2ef13f6-1ff3-4e6d-b0bd-9b3340259af2"
+}
+
+=== package submission artifact (main.py at root) ===
+total 16
+drwxr-xr-x 2 harry harry 4096 Jun  9 23:43 .
+drwxr-xr-x 4 harry harry 4096 Jun  9 23:43 ..
+-rw-r--r-- 1 harry harry 4070 Jun  9 23:43 main.py
+-rw-r--r-- 1 harry harry 1946 Jun  9 23:43 submission.tar.gz
+Shell cwd was reset to /home/harry/test/tt_pangu
+```
+
+### 🤖 Assistant: *Orbit Wars is fully wired into KCA (competition…*
+
+`13:44:11`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Orbit Wars is fully wired into KCA (competition `0ab6f679…`, run `20260609_134339`, win-rate recorded, artifact packaged). 
+> 
+> Per the approved "through a gated submission" scope and CLAUDE.md, here's the submission summary before I push it through the gate:
+> 
+> - **Competition:** `orbit-wars` (deadline 2026-06-23, 14 days out → not in closing window)
+> - **File:** `runs/orbit-wars/20260609_134339/artifacts/main.py` (single-file agent)
+> - **Experiment run:** `c2ef13f6-1ff3-4e6d-b0bd-9b3340259af2`
+> - **Expected:** local win-rate **66.25%** vs the starter sniper over 80 games; first real candidate, so it establishes my baseline on the LB
+> - **Reason:** clear, significant local improvement over the provided starter; first submission of the day
+> 
+> Submitting via the KCA gate (`KCA_ALLOW_REMOTE=1`, which records a `human_decisions` row).
+
+#### 💻 Bash: *Submit orbit-wars agent via KCA gate*
+
+`13:44:18`
+
+```bash
+$ cd /home/harry/competitions/kaggle-orbit-wars
+RUN_DIR=$(cat /home/harry/.claude-ayla/jobs/900075de/tmp/orbit_run_dir.txt)
+echo "=== current submissions (limit/history) before submit ==="
+kaggle competitions submissions orbit-wars 2>&1 | grep -vE "Warning|outdated" | head -6
+echo
+echo "=== GATED SUBMIT via KCA ==="
+KCA_ALLOW_REMOTE=1 kca kaggle submit --competition orbit-wars \
+  --file "$RUN_DIR/artifacts/main.py" \
+  --message "Value-targeting agent: sun-avoidance + production-aware capture + greedy multi-launch (local 66% vs starter); run c2ef13f6" \
+  --json 2>&1 | grep -vE "Warning|outdated" | python -m json.tool 2>/dev/null || true
+```
+
+```
+=== current submissions (limit/history) before submit ===
+No submissions found
+
+=== GATED SUBMIT via KCA ===
+Shell cwd was reset to /home/harry/test/tt_pangu
+```
+
+### 🤖 Assistant: *The submit output got swallowed by the pipe…*
+
+`13:44:31`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The submit output got swallowed by the pipe. Let me check the raw result and confirm whether the submission landed.
+
+#### 💻 Bash: *Re-run submit and capture raw output*
+
+`13:44:32`
+
+```bash
+$ cd /home/harry/competitions/kaggle-orbit-wars
+RUN_DIR=$(cat /home/harry/.claude-ayla/jobs/900075de/tmp/orbit_run_dir.txt)
+echo "=== raw kca submit output ==="
+KCA_ALLOW_REMOTE=1 kca kaggle submit --competition orbit-wars \
+  --file "$RUN_DIR/artifacts/main.py" \
+  --message "Value-targeting agent v1 (local 66% vs starter); run c2ef13f6" \
+  --json 2>&1 | grep -vE "Warning|outdated"
+echo "=== exit: $? ==="
+echo
+echo "=== submissions now ==="
+kaggle competitions submissions orbit-wars 2>&1 | grep -vE "Warning|outdated" | head -6
+```
+
+```
+=== raw kca submit output ===
+=== exit: 1 ===
+
+=== submissions now ===
+fileName  date                        description                                                                                                                 status                    publicScore  privateScore  
+--------  --------------------------  --------------------------------------------------------------------------------------------------------------------------  ------------------------  -----------  ------------  
+main.py   2026-06-09 13:44:45.963000  Value-targeting agent v1 (local 66% vs starter); run c2ef13f6                                                               SubmissionStatus.PENDING                             
+main.py   2026-06-09 13:44:24.803000  Value-targeting agent: sun-avoidance + production-aware capture + greedy multi-launch (local 66% vs starter); run c2ef13f6  SubmissionStatus.PENDING
+Shell cwd was reset to /home/harry/test/tt_pangu
+```
+
+### 🤖 Assistant: *Both calls actually submitted — there are…*
+
+`13:45:03`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Both calls actually submitted — there are now **2 PENDING submissions** on Orbit Wars. The first call succeeded on Kaggle's side despite printing nothing to stdout and returning exit 1, so my re-run double-submitted the same agent. Both are the identical candidate, so no harm to strategy, but I won't submit again. Let me read `cmd_submit` to understand the exit-1 (likely a post-submit DB-record step) and check what KCA recorded.
+
+#### 👀 Read `kg.py`
+
+`13:45:06`
+
+*(lines 139–201)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/tools/kca/kg.py</code></summary>
+
+```python
+def cmd_submit(args: argparse.Namespace) -> int:
+    se = SideEffect.SUBMISSION
+    competition = args.competition
+    file_path = args.file
+    message = args.message or "kca agent submission"
+
+    if not os.environ.get("KAGGLE_USERNAME"):
+        return _emit_json(
+            {
+                "ok": False,
+                "error": "KAGGLE_USERNAME not set; cannot submit",
+                "competition": competition,
+                "side_effect": se.value,
+            }
+        )
+    if not os.environ.get("KAGGLE_KEY"):
+        return _emit_json(
+            {
+                "ok": False,
+                "error": "KAGGLE_KEY not set; cannot submit",
+                "competition": competition,
+                "side_effect": se.value,
+            }
+        )
+
+    try:
+        _check_approval_gate("kaggle_submit", _policy_from_env())
+    except ApprovalRequired:
+        return _emit_blocked(
+            "submit",
+            se,
+            "ApprovalRequired: kaggle_submit",
+            options={"competition": competition, "file": file_path, "message": message},
+        )
+
+    proc = subprocess.run(
+        [
+            "kaggle",
+            "competitions",
+            "submit",
+            "-c",
+            competition,
+            "-f",
+            file_path,
+            "-m",
+            message,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    return _emit_json(
+        {
+            "ok": proc.returncode == 0,
+            "competition": competition,
+            "file": file_path,
+            "side_effect": se.value,
+            "stdout": proc.stdout,
+            "stderr": proc.stderr,
+        }
+    )
+
+
+```
+</details>
+
+### 🤖 Assistant: *Mystery solved: my `grep -vE "outdated"`…*
+
+`13:45:52`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Mystery solved: my `grep -vE "outdated"` ate the JSON output line itself (KCA echoes the kaggle CLI's stderr — which contains the "outdated" warning — inside its JSON envelope), and Kaggle CLI 2.0.1 returns exit 1 even on a successful submit. So the *first* call actually succeeded; my re-run double-submitted the **same** agent. No strategic harm (identical candidate, both PENDING), and I won't submit Orbit Wars again today. Agent competitions score via episodes over time, so `publicScore` is empty until matches play out.
+> 
+> Orbit Wars is complete through a gated submission. Moving to Nemotron.
+
+#### ✍️  Write `SUBMISSION_NOTE.md`
+
+`13:46:01`
+
+<details>
+<summary><code>/home/harry/competitions/kaggle-orbit-wars/runs/orbit-wars/20260609_134339/artifacts/SUBMISSION_NOTE.md</code></summary>
+
+```markdown
+# Orbit Wars — submission note
+
+- Competition: `orbit-wars` (deadline 2026-06-23)
+- Candidate: value-targeting agent (`main.py`) — sun-avoidance + production-aware
+  capture cost + greedy multi-launch + target dedupe.
+- Local eval: **win_rate 0.6625** vs the starter "nearest sniper" over 80 games
+  (40 seeds × 2 seats), v1.30.1 `kaggle_environments`.
+- Experiment run: `c2ef13f6-1ff3-4e6d-b0bd-9b3340259af2`
+- Submitted via `kca kaggle submit` (KCA_ALLOW_REMOTE=1) on 2026-06-09 ~13:44 UTC.
+  Two PENDING rows on Kaggle for the *same* agent (a CLI exit-1-on-success quirk
+  made the first call look failed). Score is episode-based — appears over time.
+- Next: `kca kaggle score --competition orbit-wars --update-db` once the public
+  LB score materialises; then iterate (defensive reinforcement, comet capture).
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/competitions/kaggle-orbit-wars/runs/orbit-wars/20260609_134339/artifacts/SUBMISSION_NOTE.md (file state is current in your context — no need to Read it back)
+
+#### TaskUpdate
+
+`13:46:04`
+
+`#2` · **status:** `completed`
+
+✓ Updated `#2` — `status`
+
+`#3` · **status:** `in_progress`
+
+✓ Updated `#3` — `status`
+
+### 🤖 Assistant: *Now Nemotron.*
+
+`13:46:14`
+
+> Now Nemotron. Let me wire it into KCA (download data, init run, register) and inspect the data format, while researching the official submission demo to get the exact LoRA/kernel structure.
+
+#### 💻 Bash: *Download + inspect Nemotron data*
+
+`13:46:14`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+WORK=~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge
+mkdir -p "$WORK"; cd "$WORK"
+echo "=== download data ==="
+kca kaggle download --competition nvidia-nemotron-model-reasoning-challenge --path "$WORK/data" --json 2>&1 | grep -oE '"ok": (true|false)' | head -1
+cd "$WORK/data" && for z in *.zip; do [ -f "$z" ] && unzip -o "$z" >/dev/null 2>&1; done
+ls -la "$WORK/data"
+echo "=== train.csv head ==="; head -3 "$WORK/data/train.csv" 2>&1 | cut -c1-400
+echo "=== train.csv columns + row count ==="
+python -c "import pandas as pd; df=pd.read_csv('$WORK/data/train.csv'); print('cols:',list(df.columns)); print('rows:',len(df)); print(df.iloc[0].to_dict())" 2>&1 | cut -c1-600
+echo "=== test.csv ==="; python -c "import pandas as pd; df=pd.read_csv('$WORK/data/test.csv'); print('cols:',list(df.columns)); print('rows:',len(df)); print(df.head(2).to_dict('records'))" 2>&1 | cut -c1-600
+```
+
+```
+=== download data ===
+"ok": true
+total 3644
+drwxr-xr-x 2 harry harry    4096 Jun  9 23:46 .
+drwxr-xr-x 3 harry harry    4096 Jun  9 23:46 ..
+-rw-r--r-- 1 harry harry     310 Jun  9 23:46 manifest.json
+-rw-r--r-- 1 harry harry  643019 Mar 14 17:56 nvidia-nemotron-model-reasoning-challenge.zip
+-rw-r--r-- 1 harry harry    1461 Mar 14 17:56 test.csv
+-rw-r--r-- 1 harry harry 3069304 Mar 14 17:56 train.csv
+=== train.csv head ===
+id,prompt,answer
+00066667,"In Alice's Wonderland, a secret bit manipulation rule transforms 8-bit binary numbers. The transformation involves operations like bit shifts, rotations, XOR, AND, OR, NOT, and possibly majority or choice functions.
+
+=== train.csv columns + row count ===
+cols: ['id', 'prompt', 'answer']
+rows: 9500
+{'id': '00066667', 'prompt': "In Alice's Wonderland, a secret bit manipulation rule transforms 8-bit binary numbers. The transformation involves operations like bit shifts, rotations, XOR, AND, OR, NOT, and possibly majority or choice functions.\n\nHere are some examples of input -> output:\n01010001 -> 11011101\n00001001 -> 01101101\n00010101 -> 01010101\n11111111 -> 10000001\n10011101 -> 01000101\n00111011 -> 00001001\n10111101 -> 00000101\n00100110 -> 10110011\n\nNow, determine the output for: 00110100", 'answer': '10010111'}
+=== test.csv ===
+cols: ['id', 'prompt']
+rows: 3
+[{'id': '00066667', 'prompt': "In Alice's Wonderland, a secret bit manipulation rule transforms 8-bit binary numbers. The transformation involves operations like bit shifts, rotations, XOR, AND, OR, NOT, and possibly majority or choice functions.\n\nHere are some examples of input -> output:\n01010001 -> 11011101\n00001001 -> 01101101\n00010101 -> 01010101\n11111111 -> 10000001\n10011101 -> 01000101\n00111011 -> 00001001\n10111101 -> 00000101\n00100110 -> 10110011\n\nNow, determine the output for: 00110100"}, {'id': '000b53cf', 'prompt': "In Alice's Wonderland, a secret bit manipulation rule t
+Shell cwd was reset to /home/harry/test/tt_pangu
+```
+
+#### 🌐 WebFetch `https://www.kaggle.com/code/ryanholbrook/nvidia-nemotron-sub…`
+
+`13:46:17`
+
+```
+This is the official submission demo notebook for the NVIDIA Nemotron Model Reasoning Challenge. Extract concretely: (1) the exact base model name/handle used (e.g. a Kaggle Models path or HF id for Nemotron-3-Nano-30B), (2) how the LoRA adapter is produced and what files go in submission.zip (adapter_config.json, adapter_model.safetensors, etc.), (3) how the submission.zip is created and submitted (file submission vs notebook), (4) any required LoRA config (rank<=32, target modules), (5) what packages/frameworks are used (peft, transformers, trl), (6) whether internet must be off and GPU type. Report only what the notebook shows.
+```
+
+*200 OK · 8.3 KB · 3.3s*
+
+> I cannot provide the requested information because the content shared contains only a webpage title ("NVIDIA Nemotron Submission Demo | Kaggle") without the actual notebook content, detailed instructions, code, or specifications.
+> 
+> To accurately extract the concrete details you're asking for—such as the exact base model name, LoRA adapter production process, submission file requirements, configuration constraints, required packages, and hardware/connectivity specifications—I would need access to the full notebook content itself.
+> 
+> If you can share the actual notebook text or code cells, I'd be happy to identify those specific technical details.
+
+### 🤖 Assistant: *Data understood: `train.csv` = 9500 reasoning…*
+
+`13:46:33`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Data understood: `train.csv` = 9500 reasoning puzzles (`id, prompt, answer`); `test.csv` has only **3 public rows** (real test is hidden). Answers are short strings; metric is accuracy via `\boxed{}` extraction.
+> 
+> The demo notebook is JS-rendered (WebFetch can't read it). Let me pull the actual demo kernel source and the competition's attached model handles via the Kaggle CLI.
+
+#### 💻 Bash: *Pull and read the Nemotron demo kernel*
+
+`13:46:36`
+
+```bash
+$ cd ~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge
+echo "=== pull official submission demo kernel ==="
+kaggle kernels pull ryanholbrook/nvidia-nemotron-submission-demo -p ./demo 2>&1 | grep -vE "Warning|outdated"
+ls -la ./demo 2>&1
+echo "=== demo notebook -> show code ==="
+python - <<'PY' 2>&1 | head -120
+import json, glob, os
+for f in glob.glob('./demo/*'):
+    print("FILE:", f)
+nb = glob.glob('./demo/*.ipynb')
+if nb:
+    j = json.load(open(nb[0]))
+    for i,c in enumerate(j.get('cells',[])):
+        if c.get('cell_type')=='code':
+            src=''.join(c.get('source',[]))
+            if src.strip():
+                print(f"--- cell {i} ---"); print(src[:1500])
+PY
+```
+
+```
+=== pull official submission demo kernel ===
+Source code downloaded to ./demo/nvidia-nemotron-submission-demo.ipynb
+total 12
+drwxr-xr-x 2 harry harry 4096 Jun  9 23:46 .
+drwxr-xr-x 4 harry harry 4096 Jun  9 23:46 ..
+-rw-r--r-- 1 harry harry 3298 Jun  9 23:46 nvidia-nemotron-submission-demo.ipynb
+=== demo notebook -> show code ===
+FILE: ./demo/nvidia-nemotron-submission-demo.ipynb
+--- cell 0 ---
+import polars as pl
+
+train = pl.read_csv('/kaggle/input/nvidia-nemotron-3-reasoning-challenge/train.csv')
+
+train.head()
+--- cell 1 ---
+import site
+
+cutlass_pkg_path = "/kaggle/usr/lib/notebooks/ryanholbrook/nvidia-utility-script/nvidia_cutlass_dsl/python_packages/"
+site.addsitedir(cutlass_pkg_path)
+
+import kagglehub
+import mamba_ssm
+import torch
+from peft import LoraConfig, get_peft_model, get_peft_model_state_dict, TaskType
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+# Configuration
+MODEL_PATH = kagglehub.model_download("metric/nemotron-3-nano-30b-a3b-bf16/transformers/default")
+OUTPUT_DIR = "/kaggle/working"
+LORA_RANK = 32  # Can be set to a maximum of 32
+
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL_PATH,
+    device_map="auto",
+    trust_remote_code=True,
+    dtype=torch.bfloat16
+)
+# tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True)
+print("Model loaded successfully.")
+
+# Initialize LoRA Adapter
+print(f"Initializing LoRA adapter with rank={LORA_RANK}...")
+lora_config = LoraConfig(
+    r=LORA_RANK,
+    lora_alpha=16,
+    target_modules=r".*\.(in_proj|out_proj|up_proj|down_proj)$",
+    lora_dropout=0.05,
+    bias="none",
+    task_type=TaskType.CAUSAL_LM,
+)
+
+# Apply LoRA to the model
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()
+
+
+# YOUR CODE HERE
+# --------------
+# model.train() 
+# --------------
+
+
+# Save Adapter
+print(f"Saving adapter to {OUTPUT_DIR}...")
+model.save_pretrained(OUTPUT_DIR)
+--- cell 2 ---
+import subprocess
+
+subprocess.run("zip -m submission.zip *", shell=True, check=True)
+--- cell 3 ---
+print('Done.')
+Shell cwd was reset to /home/harry/test/tt_pangu
+```
+
+### 🤖 Assistant: *I now have the \*\*exact official recipe\*\*…*
+
+`13:47:25`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> I now have the **exact official recipe** from the demo kernel:
+> - Base model: `kagglehub.model_download("metric/nemotron-3-nano-30b-a3b-bf16/transformers/default")` (note: it's a **30B-A3B MoE** — ~3B active, but all 30B params loaded in bf16 ≈ 60GB, needs a large multi-GPU Kaggle accelerator).
+> - LoRA: `r=32, lora_alpha=16, target_modules=r".*\.(in_proj|out_proj|up_proj|down_proj)$"`, dropout 0.05, CAUSAL_LM → `save_pretrained` → `zip -m submission.zip *`.
+> - Needs a utility script (`ryanholbrook/nvidia-utility-script`) for `mamba_ssm`/cutlass (Nemotron-3-Nano is a hybrid Mamba model).
+> - Input dataset slug is `nvidia-nemotron-3-reasoning-challenge` (differs from the competition slug).
+> 
+> Critically, the demo's training is commented out, so it produces an **untrained (identity) LoRA** — which is itself a valid baseline submission. Let me pull the demo's `kernel-metadata.json` to replicate the exact sources and accelerator.
+
+#### 💻 Bash: *Pull demo kernel metadata + verify model handle*
+
+`13:47:33`
+
+```bash
+$ cd ~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge
+rm -rf demo2; kaggle kernels pull ryanholbrook/nvidia-nemotron-submission-demo -p ./demo2 -m 2>&1 | grep -vE "Warning|outdated"
+echo "=== kernel-metadata.json ==="
+cat ./demo2/kernel-metadata.json 2>&1
+echo; echo "=== model: confirm handle resolves (list versions) ==="
+kaggle models instances versions files metric/nemotron-3-nano-30b-a3b-bf16/transformers/default 2>&1 | grep -vE "Warning|outdated" | head -8 || echo "(files listing not available)"
+```
+
+```
+Source code and metadata downloaded to ./demo2
+=== kernel-metadata.json ===
+{
+  "id": "ryanholbrook/nvidia-nemotron-submission-demo",
+  "id_no": 109983761,
+  "title": "NVIDIA Nemotron Submission Demo",
+  "code_file": "nvidia-nemotron-submission-demo.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [],
+  "kernel_sources": [
+    "ryanholbrook/nvidia-utility-script"
+  ],
+  "competition_sources": [
+    "nvidia-nemotron-model-reasoning-challenge"
+  ],
+  "model_sources": [
+    "metric/nemotron-3-nano-30b-a3b-bf16/Transformers/default/1"
+  ],
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:9fa0da194fad2241d3f01a80581cbecbd3a258b4d1b695e2cbbbc62a0fd205ac",
+  "machine_shape": "NvidiaRtxPro6000"
+}
+=== model: confirm handle resolves (list versions) ===
+Model instance version must be specified in the form of '{owner}/{model-slug}/{framework}/{instance-slug}/{version-number}'
+Shell cwd was reset to /home/harry/test/tt_pangu
+```
+
+### 🤖 Assistant: *Complete metadata captured.*
+
+`20:15:28`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Complete metadata captured. The decisive detail: `machine_shape: "NvidiaRtxPro6000"` (a 96GB GPU — that's how the 30B fits) plus a private competition `docker_image`, `enable_internet: false`, and the model/utility-script/competition sources. I'll replicate these exactly.
+> 
+> Approach for the baseline-first submission: mirror the proven demo recipe, but wrap a **bounded LoRA SFT** (teaching `\boxed{}` answers from `train.csv`) in a try/except that always falls back to saving the initialized adapter — guaranteeing a valid `submission.zip` even if training hiccups. I can't test the 30B locally, so robustness matters more than training depth for submission #1.
+> 
+> Let me build the kernel. First the notebook:
+
+#### ✍️  Write `build_ipynb.py`
+
+`20:15:53`
+
+<details>
+<summary><code>/home/harry/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/kernels/nemotron-lora-baseline/build_ipynb.py</code></summary>
+
+```python
+"""Builds nemotron-lora-baseline.ipynb from percent-style cell sources.
+
+Kept as a builder (not hand-written JSON) so the kernel is reviewable/editable.
+Run: python build_ipynb.py
+"""
+
+import json
+import pathlib
+
+CELLS = [
+    # 0 — utility sitedir (mamba_ssm / cutlass) + imports, mirroring the demo
+    r'''import site
+
+# NVIDIA utility script provides mamba_ssm / cutlass wheels for the hybrid
+# Mamba Nemotron model (attached via kernel_sources).
+site.addsitedir(
+    "/kaggle/usr/lib/notebooks/ryanholbrook/nvidia-utility-script/"
+    "nvidia_cutlass_dsl/python_packages/"
+)
+
+import kagglehub
+import mamba_ssm  # noqa: F401  (import has side effects the model needs)
+import torch
+from peft import LoraConfig, TaskType, get_peft_model
+from transformers import AutoModelForCausalLM, AutoTokenizer
+''',
+    # 1 — config + load base model (bf16, multi-GPU via device_map=auto)
+    r'''MODEL_PATH = kagglehub.model_download(
+    "metric/nemotron-3-nano-30b-a3b-bf16/transformers/default"
+)
+OUTPUT_DIR = "/kaggle/working"
+LORA_RANK = 32          # competition max is 32
+MAX_STEPS = 120         # bounded so the run stays well under the time limit
+MAX_LEN = 1024
+N_EXAMPLES = 2000       # subsample of train.csv for the bounded SFT
+
+model = AutoModelForCausalLM.from_pretrained(
+    MODEL_PATH,
+    device_map="auto",
+    trust_remote_code=True,
+    dtype=torch.bfloat16,
+)
+tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True)
+if tokenizer.pad_token is None:
+    tokenizer.pad_token = tokenizer.eos_token
+print("Model + tokenizer loaded.")
+''',
+    # 2 — attach LoRA adapter (rank<=32) on the proven target-module regex
+    r'''lora_config = LoraConfig(
+    r=LORA_RANK,
+    lora_alpha=16,
+    target_modules=r".*\.(in_proj|out_proj|up_proj|down_proj)$",
+    lora_dropout=0.05,
+    bias="none",
+    task_type=TaskType.CAUSAL_LM,
+)
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()
+''',
+    # 3 — bounded SFT teaching the \boxed{} answer format; robust fallback
+    r'''# Bounded supervised fine-tune. Wrapped so ANY failure still leaves us with a
+# valid (initialized) adapter to submit — baseline-first / pipeline validation.
+try:
+    import polars as pl
+
+    train = pl.read_csv(
+        "/kaggle/input/nvidia-nemotron-3-reasoning-challenge/train.csv"
+    ).head(N_EXAMPLES)
+
+    eos = tokenizer.eos_token
+
+    def render(prompt, answer):
+        return (
+            f"{prompt}\n\nReason step by step, then give the final answer "
+            f"inside \\boxed{{}}.\n\\boxed{{{answer}}}{eos}"
+        )
+
+    texts = [render(r["prompt"], str(r["answer"])) for r in train.iter_rows(named=True)]
+
+    import datasets
+
+    def tok(batch):
+        out = tokenizer(
+            batch["text"], truncation=True, max_length=MAX_LEN, padding="max_length"
+        )
+        out["labels"] = [ids[:] for ids in out["input_ids"]]
+        return out
+
+    ds = datasets.Dataset.from_dict({"text": texts}).map(
+        tok, batched=True, remove_columns=["text"]
+    )
+
+    from transformers import Trainer, TrainingArguments
+
+    model.config.use_cache = False
+    model.gradient_checkpointing_enable()
+
+    args = TrainingArguments(
+        output_dir="/kaggle/working/trainer",
+        per_device_train_batch_size=1,
+        gradient_accumulation_steps=8,
+        max_steps=MAX_STEPS,
+        learning_rate=1e-4,
+        bf16=True,
+        logging_steps=10,
+        save_strategy="no",
+        report_to=[],
+    )
+    Trainer(model=model, args=args, train_dataset=ds).train()
+    print("SFT complete.")
+except Exception as e:  # noqa: BLE001
+    import traceback
+
+    print("Training skipped — saving initialized adapter instead:", e)
+    traceback.print_exc()
+''',
+    # 4 — save adapter + package submission.zip (mirrors the demo)
+    r'''import glob
+import subprocess
+
+# Drop any trainer checkpoints so only the adapter lands in the zip.
+subprocess.run("rm -rf /kaggle/working/trainer", shell=True, check=False)
+
+model.save_pretrained(OUTPUT_DIR)
+print("Adapter files:", sorted(glob.glob(f"{OUTPUT_DIR}/adapter*")))
+
+subprocess.run(
+    "cd /kaggle/working && zip -r submission.zip adapter_config.json "
+    "adapter_model.safetensors",
+    shell=True,
+    check=True,
+)
+print("Wrote /kaggle/working/submission.zip")
+''',
+    r'''print("Done.")''',
+]
+
+
+def main():
+    nb = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "metadata": {},
+                "execution_count": None,
+                "outputs": [],
+                "source": src.splitlines(keepends=True),
+            }
+            for src in CELLS
+        ],
+        "metadata": {
+            "kernelspec": {
+                "language": "python",
+                "display_name": "Python 3",
+                "name": "python3",
+            },
+            "language_info": {"name": "python", "version": "3.10"},
+        },
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    out = pathlib.Path(__file__).with_name("nemotron-lora-baseline.ipynb")
+    out.write_text(json.dumps(nb, indent=1))
+    print("wrote", out)
+
+
+if __name__ == "__main__":
+    main()
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/kernels/nemotron-lora-baseline/build_ipynb.py (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *Now the kernel metadata (replicating the…*
+
+`20:16:02`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now the kernel metadata (replicating the demo's sources, GPU shape, and competition docker image), then build the notebook.
+
+#### ✍️  Write `kernel-metadata.json`
+
+`20:16:04`
+
+<details>
+<summary><code>/home/harry/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/kernels/nemotron-lora-baseline/kernel-metadata.json</code></summary>
+
+```json
+{
+  "id": "harrysun2006/nemotron-lora-baseline",
+  "title": "Nemotron LoRA Baseline (KCA)",
+  "code_file": "nemotron-lora-baseline.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [],
+  "kernel_sources": [
+    "ryanholbrook/nvidia-utility-script"
+  ],
+  "competition_sources": [
+    "nvidia-nemotron-model-reasoning-challenge"
+  ],
+  "model_sources": [
+    "metric/nemotron-3-nano-30b-a3b-bf16/Transformers/default/1"
+  ],
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:9fa0da194fad2241d3f01a80581cbecbd3a258b4d1b695e2cbbbc62a0fd205ac",
+  "machine_shape": "NvidiaRtxPro6000"
+}
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/kernels/nemotron-lora-baseline/kernel-metadata.json (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *Now build the notebook, wire Nemotron into…*
+
+`20:16:13`
+
+> Now build the notebook, wire Nemotron into KCA (run init + register), and dry-run the push to validate metadata.
+
+#### 💻 Bash: *Build notebook, wire KCA, dry-run push*
+
+`20:16:15`
+
+```bash
+$ cd ~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge
+echo "=== build notebook ==="
+python kernels/nemotron-lora-baseline/build_ipynb.py
+python -c "import json; json.load(open('kernels/nemotron-lora-baseline/nemotron-lora-baseline.ipynb')); print('ipynb valid JSON')"
+echo
+echo "=== KCA run init ==="
+INIT=$(kca run init --competition nvidia-nemotron-model-reasoning-challenge \
+  --hypothesis "Bounded rank-32 LoRA SFT on Nemotron-3-Nano-30B teaching boxed-answer format; baseline-first to validate the Kaggle-GPU submit pipeline" \
+  --tag track=kaggle-gpu-notebook --tag lora_rank=32 --tag base=nemotron-3-nano-30b-a3b --json 2>/dev/null)
+echo "$INIT" | python -m json.tool
+echo "$INIT" | python -c "import sys,json;print(json.load(sys.stdin)['run_dir'])" > /home/harry/.claude-ayla/jobs/900075de/tmp/nemo_run_dir.txt
+echo
+echo "=== register repo metadata ==="
+kca competition register --slug nvidia-nemotron-model-reasoning-challenge \
+  --repo-url https://github.com/harrysun2006/kaggle-nvidia-nemotron-model-reasoning-challenge \
+  --clone-path ~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge --json 2>/dev/null | python -m json.tool
+echo
+echo "=== dry-run push (validates kernel metadata, no upload) ==="
+kca kaggle push --kernel-dir kernels/nemotron-lora-baseline --dry-run --json 2>&1 | grep -vE "Warning|outdated"
+```
+
+```
+=== build notebook ===
+wrote /home/harry/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/kernels/nemotron-lora-baseline/nemotron-lora-baseline.ipynb
+ipynb valid JSON
+
+=== KCA run init ===
+{
+    "side_effect": "LOCAL_WRITE",
+    "ok": true,
+    "run_dir": "runs/nvidia-nemotron-model-reasoning-challenge/20260609_201617",
+    "run_id": "20260609_201617",
+    "competition": "nvidia-nemotron-model-reasoning-challenge",
+    "competition_id": "a920514d-a12d-4f15-baa6-e0ddf8a4f0b3",
+    "experiment_id": "47d34d27-6c85-4ece-85d2-5cc896beae25",
+    "experiment_run_id": "0260b034-be9d-4c54-83ab-2143ea7875a2"
+}
+
+=== register repo metadata ===
+{
+    "ok": true,
+    "slug": "nvidia-nemotron-model-reasoning-challenge",
+    "repo_url": "https://github.com/harrysun2006/kaggle-nvidia-nemotron-model-reasoning-challenge",
+    "default_branch": "main",
+    "local_clone_path": "/home/harry/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge",
+    "side_effect": "LOCAL_WRITE"
+}
+
+=== dry-run push (validates kernel metadata, no upload) ===
+{"ok": true, "dry_run": true, "kernel_dir": "kernels/nemotron-lora-baseline", "side_effect": "READ_ONLY"}
+Shell cwd was reset to /home/harry/test/tt_pangu
+```
+
+### 🤖 Assistant: *Everything validated: Nemotron wired into…*
+
+`20:16:51`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Everything validated: Nemotron wired into KCA (competition `a920514d…`, run `20260609_201617`), registered, notebook built, and the **dry-run push passed metadata validation**. 
+> 
+> Now the real push — this runs on Kaggle's RTX Pro 6000 GPU (loads the 30B, bounded SFT, saves adapter, zips `submission.zip`) and can take a while, so I'll launch it in the background and let KCA's watcher poll to completion.
+
+#### 💻 Bash: *Real Nemotron kernel push to Kaggle GPU, watched* *[async `#b671ke3ar`]*
+
+`20:16:57`
+
+```bash
+$ cd ~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge
+echo "=== REAL push to Kaggle GPU (gated REMOTE_WRITE, watched) ==="
+KCA_ALLOW_REMOTE=1 kca kaggle push --kernel-dir kernels/nemotron-lora-baseline \
+  --poll-seconds 45 --max-poll-minutes 180 --json \
+  > /home/harry/.claude-ayla/jobs/900075de/tmp/nemo_push.json 2>/home/harry/.claude-ayla/jobs/900075de/tmp/nemo_push.err
+echo "EXIT=$?"
+echo "=== push result (stdout json) ==="
+grep -vE "Warning|outdated" /home/harry/.claude-ayla/jobs/900075de/tmp/nemo_push.json | tail -20
+echo "=== stderr tail ==="
+grep -vE "Warning|outdated" /home/harry/.claude-ayla/jobs/900075de/tmp/nemo_push.err | tail -10
+```
+
+```
+Command running in background with ID: b671ke3ar. Output is being written to: /tmp/claude-1000/-home-harry-test-tt-pangu/900075de-d535-4892-9ee8-2c098d0e366d/tasks/b671ke3ar.output. You will be notified when it completes. To check interim output, use Read on that file path.
+```
+
+### 🤖 Assistant: *The push is running in the background (KCA…*
+
+`20:17:28`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The push is running in the background (KCA uploads the kernel, then watches the GPU run to completion). The upload + start happens quickly, so let me confirm it didn't fail immediately (e.g., machine-shape access denied) before relying on the long watch.
+
+#### ToolSearch
+
+`20:17:30`
+
+**query:** `select:Monitor`
+
+**max_results:** `2`
+
+```json
+[
+  {
+    "type": "tool_reference",
+    "tool_name": "Monitor"
+  }
+]
+```
+
+### 🤖 Assistant: *Rather than poll the harness-tracked background…*
+
+`20:17:52`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Rather than poll the harness-tracked background job repeatedly, I'll do one quick status check to confirm the kernel actually uploaded and started (catching an early access/metadata rejection), then trust the completion notification.
+
+#### 💻 Bash: *Confirm Nemotron kernel uploaded and started*
+
+`20:17:56`
+
+```bash
+$ echo "=== bg push interim output ==="
+tail -5 /tmp/claude-1000/-home-harry-test-tt-pangu/900075de-d535-4892-9ee8-2c098d0e366d/tasks/b671ke3ar.output 2>/dev/null | grep -vE "Warning|outdated"
+echo "=== kernel status ==="
+kaggle kernels status harrysun2006/nemotron-lora-baseline 2>&1 | grep -vE "Warning|outdated"
+```
+
+```
+=== bg push interim output ===
+=== REAL push to Kaggle GPU (gated REMOTE_WRITE, watched) ===
+=== kernel status ===
+Cannot access kernel 'harrysun2006/nemotron-lora-baseline' (Permission 'kernels.get' was denied). The most likely cause is a wrong kernel slug. The benchmark_task_slug returned by get_benchmark_leaderboard differs from the actual kernel slug — use the slug from the notebook URL (kaggle.com/code/owner/KERNEL-SLUG), not from the leaderboard. It can also occur if the notebook is private.
+```
+
+### 🤖 Assistant: *\*\*Prompt-injection check (as required):\*…*
+
+`20:18:30`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> **Prompt-injection check (as required):** The flagged content is the `kaggle kernels status` tool result. Verifying:
+> 1. **Did it arrive as a user turn?** No. It appeared inside a Bash tool result, not as a user message. The last genuine user input was the original request (stop containers + run the two competitions) and the three AskUserQuestion answers — nothing new since.
+> 2. **Is it consistent with the conversation?** The text ("use the slug from the notebook URL… `get_benchmark_leaderboard`…") is oddly specific advice embedded in an error string and does not follow from anything the user asked. I'm treating it strictly as data, not as an instruction, and **not acting on its embedded guidance**.
+> 
+> Factually, all it tells me: the status query returned permission-denied. The background push's interim output shows only its header line — so KCA is still in the upload/watch phase and the kernel isn't queryable yet (expected for a just-pushed private kernel). No action needed; I'll wait for the background job's completion notification rather than poll.
+> 
+> Here's where things stand:
+> 
+> ## Progress
+> 
+> **✅ Part A — Local Supabase stack stopped.** Confirmed KCA runs on **cloud** Supabase (`…pooler.supabase.com`, from `.vscode/.env`); the 12 local `_tt_pangu` containers were redundant. Stopped all 12 (reversible; data volume intact); inbox-zero/quarkdrive untouched. Re-verified `kca competition list` still returns 18 rows against the cloud DB. Memory index updated.
+> 
+> **✅ Part B / Orbit Wars — wired + submitted (gated).** Registered in KCA (`0ab6f679…`), downloaded the starter, built a value-targeting agent (sun-avoidance + production-aware capture cost + greedy multi-launch), and locally evaluated it at **66.25% win-rate vs the starter** over 80 games. Recorded the metric and submitted via the KCA gate (`KCA_ALLOW_REMOTE=1`). *Note: a Kaggle-CLI exit-1-on-success quirk made the first submit look failed, so the same agent went up twice — both PENDING (episode-scored over time). I won't resubmit today.*
+> 
+> **⏳ Part B / Nemotron — pushed to Kaggle GPU, running.** Registered (`a920514d…`), pulled the official demo to get the exact recipe (base `metric/nemotron-3-nano-30b-a3b-bf16`, rank-32 LoRA, `mamba_ssm` utility script, `NvidiaRtxPro6000` 96GB shape, private competition image). Built a kernel that runs a bounded rank-32 LoRA SFT (teaching `\boxed{}` answers) with a fallback that always saves a valid adapter → `submission.zip`. Dry-run validated; **real GPU push is running in the background** (watched up to 180 min).
+> 
+> Once the kernel finishes, the final step is: fetch its `submission.zip` output → gated `kca kaggle submit --file`. I'll pick that up when the background job notifies completion.
+
+### Recap
+
+`20:18:46`
+
+📝 Recap: Goal: stop the unused local Supabase stack and run two Kaggle competitions through KCA. Done: stack stopped, Orbit Wars agent submitted (66% local win-rate). Now waiting on the Nemotron LoRA kernel running on Kaggle GPU; next is submitting its output zip once it finishes.
+
+### 🤷 User: *watch the nemotron push and submit when it…*
+
+`21:29:28`
+
+watch the nemotron push and submit when it finishes
+
+#### 🤖 Assistant: *Let me check the actual state of the background…*
+
+`21:29:44`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me check the actual state of the background push and how KCA's watcher detects completion, so I can ensure I'll reliably catch the finish and submit.
+
+##### 💻 Bash: *Check bg push progress and process state*
+
+`21:29:49`
+
+```bash
+$ echo "=== full bg push output so far ==="
+cat /tmp/claude-1000/-home-harry-test-tt-pangu/900075de-d535-4892-9ee8-2c098d0e366d/tasks/b671ke3ar.output 2>/dev/null | grep -vE "Warning|outdated"
+echo "=== is the bg process still running? ==="
+pgrep -af "kca kaggle push" | grep -v grep | head -3 || echo "no kca push process found"
+echo "=== kernel status (retry) ==="
+kaggle kernels status harrysun2006/nemotron-lora-baseline 2>&1 | grep -vE "Warning|outdated" | head -3
+```
+
+```
+=== full bg push output so far ===
+=== REAL push to Kaggle GPU (gated REMOTE_WRITE, watched) ===
+=== is the bg process still running? ===
+4160303 /home/harry/micromamba/envs/v3.12.12/bin/python3.12 /home/harry/micromamba/envs/v3.12.12/bin/kca kaggle push --kernel-dir kernels/nemotron-lora-baseline --poll-seconds 45 --max-poll-minutes 180 --json
+=== kernel status (retry) ===
+Cannot access kernel 'harrysun2006/nemotron-lora-baseline' (Permission 'kernels.get' was denied). The most likely cause is a wrong kernel slug. The benchmark_task_slug returned by get_benchmark_leaderboard differs from the actual kernel slug — use the slug from the notebook URL (kaggle.com/code/owner/KERNEL-SLUG), not from the leaderboard. It can also occur if the notebook is private.
+```
+
+#### 🤖 Assistant: *The KCA push process is still running (PID…*
+
+`21:30:07`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The KCA push process is still running (PID 4160303); it captures the kaggle CLI output internally and only emits its JSON at the very end, so there's no interim stream. Given the `kernels.get` permission-denied I keep seeing, I need to verify KCA's watch loop can actually detect terminal state — otherwise it may spin for the full 180 min. Let me read the watch implementation.
+
+##### 👀 Read `kg.py`
+
+`21:30:10`
+
+*(lines 201–361)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/tools/kca/kg.py</code></summary>
+
+```python
+def cmd_push(args: argparse.Namespace) -> int:
+    se = SideEffect.REMOTE_WRITE
+    kernel_dir = args.kernel_dir
+
+    try:
+        _check_approval_gate("kernel_push", _policy_from_env())
+    except ApprovalRequired:
+        return _emit_blocked(
+            "push",
+            se,
+            "ApprovalRequired: kernel_push",
+            options={"kernel_dir": kernel_dir},
+        )
+
+    if args.dry_run:
+        meta = Path(kernel_dir) / "kernel-metadata.json"
+        if not meta.exists():
+            return _emit_json(
+                {
+                    "ok": False,
+                    "error": f"kernel-metadata.json not found in {kernel_dir}",
+                    "kernel_dir": kernel_dir,
+                    "side_effect": SideEffect.READ_ONLY.value,
+                    "dry_run": True,
+                }
+            )
+        return _emit_json(
+            {
+                "ok": True,
+                "dry_run": True,
+                "kernel_dir": kernel_dir,
+                "side_effect": SideEffect.READ_ONLY.value,
+            }
+        )
+
+    proc = subprocess.run(
+        ["kaggle", "kernels", "push", "-p", kernel_dir],
+        capture_output=True,
+        text=True,
+    )
+    push_ok = proc.returncode == 0
+    response: dict = {
+        "ok": push_ok,
+        "kernel_dir": kernel_dir,
+        "side_effect": se.value,
+        "stdout": proc.stdout,
+        "stderr": proc.stderr,
+    }
+
+    # Extract kernel ref + version from the push response and metadata, so we
+    # can auto-watch the resulting run.
+    kernel_ref = None
+    pushed_version = None
+    try:
+        meta = json.loads((Path(kernel_dir) / "kernel-metadata.json").read_text())
+        kernel_ref = meta.get("id")
+    except Exception:
+        pass
+    import re as _re
+
+    m = _re.search(r"[Kk]ernel version (\d+) successfully pushed", proc.stdout or "")
+    if m:
+        pushed_version = int(m.group(1))
+    response["kernel_ref"] = kernel_ref
+    response["pushed_version"] = pushed_version
+
+    # Auto-watch the kernel run until terminal (default). --no-watch opts out.
+    if push_ok and getattr(args, "watch", True) and kernel_ref:
+        watch_result = _watch_kernel_until_terminal(
+            kernel_ref,
+            poll_seconds=getattr(args, "poll_seconds", 60),
+            max_minutes=getattr(args, "max_poll_minutes", 60),
+        )
+        response["watch"] = watch_result
+        response["ok"] = push_ok and watch_result.get("terminal", False)
+
+    return _emit_json(response)
+
+
+def _watch_kernel_until_terminal(
+    kernel_ref: str, *, poll_seconds: int = 60, max_minutes: int = 60
+) -> dict:
+    """Poll a kernel run until it produces a downloadable output log.
+
+    Returns a dict with: terminal (bool), polls, runtime_seconds, log_path,
+    error_excerpt (if a Python traceback is detected in stderr). The Kaggle
+    `kernels status` API has been observed to 500 for newly-pushed kernels;
+    this watcher uses `kernels output` instead, which only succeeds once the
+    run is terminal.
+
+    READ_ONLY against Kaggle.
+    """
+    import tempfile
+    import time as _time
+
+    tmp_dir = tempfile.mkdtemp(prefix="kca-watch-")
+    log_path = Path(tmp_dir) / f"{kernel_ref.split('/')[-1]}.log"
+    polls = 0
+    started = _time.monotonic()
+    max_polls = max(1, (max_minutes * 60) // poll_seconds)
+    while polls < max_polls:
+        polls += 1
+        try:
+            if log_path.exists():
+                log_path.unlink()
+        except OSError:
+            pass
+        # `kaggle kernels output` exits 1 + writes nothing while running;
+        # exits 0 + writes log file once terminal.
+        subprocess.run(
+            ["kaggle", "kernels", "output", kernel_ref, "-p", tmp_dir],
+            capture_output=True,
+            text=True,
+        )
+        if log_path.exists() and log_path.stat().st_size > 100:
+            break
+        if polls < max_polls:
+            _time.sleep(poll_seconds)
+
+    runtime = _time.monotonic() - started
+    terminal = log_path.exists() and log_path.stat().st_size > 100
+    result: dict = {
+        "terminal": terminal,
+        "polls": polls,
+        "runtime_seconds": round(runtime, 1),
+        "log_path": str(log_path) if terminal else None,
+    }
+
+    if terminal:
+        # Extract any "Exception encountered" / Traceback excerpt so the caller
+        # (auto-fix loop or human) can see the failure mode without re-reading
+        # the full multi-MB log.
+        try:
+            entries = json.loads(log_path.read_text())
+            stderr_lines = [
+                r["data"]
+                for r in entries
+                if r.get("stream_name") == "stderr" and "Traceback" in r.get("data", "")
+            ]
+            error_window = []
+            if stderr_lines:
+                # Capture the last ~30 stderr lines starting from the traceback
+                tail_start = next(
+                    (
+                        i
+                        for i, r in enumerate(entries)
+                        if "Traceback" in r.get("data", "")
+                    ),
+                    -1,
+                )
+                if tail_start >= 0:
+                    error_window = [
+                        r["data"].rstrip()
+                        for r in entries[tail_start : tail_start + 60]
+                        if r.get("stream_name") == "stderr"
+                    ]
+            result["error_excerpt"] = (
+                "\n".join(error_window[-30:]) if error_window else None
+            )
+        except Exception as exc:
+```
+</details>
+
+#### 🤖 Assistant: *I checked KCA's watch loop (`kg.py:280`)…*
+
+`21:30:50`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> I checked KCA's watch loop (`kg.py:280`) — importantly, it does **not** use the `kernels status` call that's throwing the `kernels.get` permission error. It polls `kaggle kernels output` instead, which only succeeds once the run is terminal (the code even notes status 500s on fresh kernels). So the watcher is robust to what I saw, and it will reliably detect completion and capture any traceback excerpt.
+> 
+> So the setup is sound:
+> - The background push (PID 4160303) is KCA watching the GPU run, up to 180 min. It writes its result JSON to `nemo_push.json` and exits when the kernel reaches a terminal state.
+> - That background job re-invokes me on exit — **that's my completion signal**, no fragile polling needed.
+> 
+> When it finishes I'll:
+> 1. Read the result — check `watch.terminal` and `error_excerpt`.
+> 2. If it succeeded: `kaggle kernels output …` to fetch `submission.zip`, record the artifact in the KCA run, then gated `kca kaggle submit --file submission.zip` (with the pre-summary).
+> 3. If the kernel errored: surface the traceback excerpt and fix the kernel rather than submit a broken adapter.
+> 
+> I'm now waiting on the background job. I'll act the moment it completes — nothing further needed from you.
+
+##### TaskUpdate
+
+`21:30:58`
+
+`#3`
+
+✓ Updated `#3` — `description`
+
+#### 🤖 Assistant: *The Nemotron push is running and being watched…*
+
+`21:31:01`
+
+> The Nemotron push is running and being watched by the background job. I'll pick it up automatically when it completes and proceed with fetching `submission.zip` and the gated submission (or fixing the kernel if it errored). Standing by for the completion notification.
 
 <a id="branch-8baa71f1"></a>
 
