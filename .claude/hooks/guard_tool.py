@@ -50,8 +50,23 @@ def path_is_protected(path: str) -> bool:
     under ~/.ctf/ (and ctf-credentials.json anywhere) is denied at the hook
     layer — the kca CTF flow opens the file via Python `open()` from inside
     the kca process, never via the Claude Code Read/Edit/Write tools.
+
+    M11 follow-up (two-tier credential model — ADR-0017 §"CTFtime platform
+    tier"): the CTFtime.org platform account (single account per user;
+    e.g., `CTFTIME_USERNAME=flyingfox`) lives in ~/.env and is loaded only
+    by `tools/kca/ctf.py::_load_ctftime_credentials`. Direct Read/Edit of
+    ~/.env via the Claude Code tools is denied at this hook layer. This is
+    distinct from the **project-root** `.env` (./env) which stays readable
+    per the dev-phase carve-out for SUPABASE_DB_URL / Kaggle test creds.
     """
     p = normalize_path(path)
+    home = normalize_path(os.environ.get("HOME", str(Path.home())))
+    home_env = f"{home}/.env" if home else ""
+    if home_env and p == home_env:
+        # M11 follow-up: ~/.env holds CTFtime platform credentials; deny
+        # direct Read/Edit/Write. Allow-listed loader is
+        # tools/kca/ctf.py::_load_ctftime_credentials.
+        return True
     protected_fragments = [
         "/secrets/",
         "/.ssh/",
@@ -130,11 +145,11 @@ def bash_decision(command: str) -> tuple[str | None, str | None]:
             "Refusing privileged Docker container.",
         ),
         (
-            r"\b(cat|less|more|head|tail|grep|rg|awk|sed|xxd|od|strings)\b.*(id_rsa|id_ed25519|\.aws|\.ssh|\.config/gcloud|secrets/|hosts\.yml|\.netrc|\.ctf/|ctf-credentials\.json)",
+            r"\b(cat|less|more|head|tail|grep|rg|awk|sed|xxd|od|strings)\b.*(id_rsa|id_ed25519|\.aws|\.ssh|\.config/gcloud|secrets/|hosts\.yml|\.netrc|\.ctf/|ctf-credentials\.json|(?:~|\$home|/home/[^/\s]+)/\.env(?![.A-Za-z0-9_-]))",
             "Refusing shell read of protected secrets.",
         ),
         (
-            r"\b(curl|wget|scp|rsync)\b.*(id_rsa|id_ed25519|\.aws|\.ssh|secrets/|metadata\.google|169\.254\.169\.254|\.ctf/|ctf-credentials\.json)",
+            r"\b(curl|wget|scp|rsync)\b.*(id_rsa|id_ed25519|\.aws|\.ssh|secrets/|metadata\.google|169\.254\.169\.254|\.ctf/|ctf-credentials\.json|(?:~|\$home|/home/[^/\s]+)/\.env(?![.A-Za-z0-9_-]))",
             "Refusing shell exfiltration/metadata access pattern.",
         ),
         (

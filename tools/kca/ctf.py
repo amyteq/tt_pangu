@@ -25,20 +25,26 @@ Side-effect classification (see COMMANDS.md):
                                        without --dry-run the flag is read from
                                        --flag-file and is NEVER printed.
 
-Credential / secret discipline:
+Credential / secret discipline (two-tier model — see ADR-0017):
 
-  - `_load_event_credentials(event_slug)` is the **single allow-listed
-    call-site** for the guard_tool deny exception added in M11-T002
-    (`.claude/hooks/guard_tool.py` denies any Read/Edit/Write under
-    ~/.ctf/). It reads either:
-      1) ~/.ctf/<slug>.json (object with `username`, `token`,
-         optional `team_id`), or
-      2) CTF_<EVENT>_USERNAME + CTF_<EVENT>_TOKEN env vars
-         (with optional CTF_<EVENT>_TEAM_ID).
-    The helper returns a dict with boolean-presence flags only when
-    used in stdout-bound paths; the raw values stay local to the
-    POSTing function in `flag submit` and are dropped from memory
-    immediately after.
+  Tier 1 — **CTFtime.org platform account** (single account per user;
+  used for events that accept CTFtime SSO and for the CTFtime calendar
+  / event-registration flow). Stored in `~/.env` as
+  `CTFTIME_USERNAME` and `CTFTIME_PASSWORD` (or `CTFTIME_TOKEN`).
+  Loaded ONLY by `_load_ctftime_credentials()` — the single allow-listed
+  call-site for the guard_tool deny exception on `~/.env`.
+
+  Tier 2 — **Per-event credentials** (used when an event requires its
+  own separate signup, distinct from the CTFtime account). Stored in
+  `~/.ctf/<slug>.json` (object with `username`, `token`, optional
+  `team_id`) OR `CTF_<EVENT>_USERNAME` + `CTF_<EVENT>_TOKEN` env vars.
+  Loaded ONLY by `_load_event_credentials(event_slug)` — the single
+  allow-listed call-site for the guard_tool deny exception on ~/.ctf/.
+
+  Both helpers return a dict with boolean-presence flags only when
+  used in stdout-bound paths; the raw values stay local to the
+  POSTing function in `flag submit` and are dropped from memory
+  immediately after.
 
   - The flag value is read from --flag-file. `cmd_flag_submit` opens
     the file, computes its length, and (in non-dry-run paths) hands
@@ -64,8 +70,10 @@ from _types import EXIT_BLOCKED, EXIT_OK, EXIT_RUNTIME, SideEffect
 _GATE_ENV = "KCA_ALLOW_REMOTE"
 
 # Cross-link: this module is the SINGLE intended caller of paths under
-# ~/.ctf/. Any other read site is denied at the hook layer (M11-T002).
+# ~/.ctf/ AND of ~/.env. Any other read site is denied at the hook layer
+# (M11-T002 for ~/.ctf/, M11 follow-up for ~/.env CTFtime tier).
 _CTF_CRED_DIR = Path.home() / ".ctf"
+_CTFTIME_ENV_PATH = Path.home() / ".env"
 
 
 # ---------------------------------------------------------------------------
@@ -210,6 +218,96 @@ def _safe_cred_presence(creds: dict[str, Any]) -> dict[str, Any]:
         "has_token": bool(creds.get("has_token")),
         "has_team_id": bool(creds.get("has_team_id")),
     }
+
+
+def _parse_dotenv(text: str) -> dict[str, str]:
+    """Tiny KEY=VALUE parser for ~/.env. Strips surrounding quotes; ignores
+    blank lines and `#` comments. Does NOT execute shell expansion.
+
+    Kept local to this module to avoid pulling in python-dotenv just for
+    two keys.
+    """
+    out: dict[str, str] = {}
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        k, _, v = line.partition("=")
+        k = k.strip()
+        if not k:
+            continue
+        v = v.strip()
+        if (len(v) >= 2) and v[0] == v[-1] and v[0] in ("'", '"'):
+            v = v[1:-1]
+        out[k] = v
+    return out
+
+
+def _load_ctftime_credentials() -> dict[str, Any]:
+    """Read the **CTFtime.org platform-level** account credentials.
+
+    Lookup order:
+      1) ~/.env file with `CTFTIME_USERNAME` and `CTFTIME_PASSWORD`
+         (or `CTFTIME_TOKEN`).
+      2) Process env vars with the same names (useful in CI).
+
+    Returns a dict::
+
+        {
+          "source":   "home_env" | "process_env",
+          "has_username": bool,
+          "has_token":    bool,    # True if password OR token present
+          "has_team_id":  False,   # not applicable to CTFtime account
+          "_username":    str,     # raw — never to be echoed
+          "_token":       str,     # raw — never to be echoed
+        }
+
+    Raises `CredentialsMissing` if neither path yields a complete
+    (username, password|token) pair. Callers MUST only forward the
+    `_safe_cred_presence(...)` result to stdout / JSON envelopes /
+    audit rows. Underscored fields are intended for in-memory POST
+    body construction only and should be dropped immediately after.
+    """
+    # Path 1: ~/.env
+    if _CTFTIME_ENV_PATH.exists():
+        try:
+            parsed = _parse_dotenv(_CTFTIME_ENV_PATH.read_text(encoding="utf-8"))
+        except OSError as exc:
+            raise CredentialsMissing(
+                f"~/.env unreadable: {type(exc).__name__}"
+            ) from exc
+        username = parsed.get("CTFTIME_USERNAME")
+        token = parsed.get("CTFTIME_PASSWORD") or parsed.get("CTFTIME_TOKEN")
+        if username and token:
+            return {
+                "source": "home_env",
+                "has_username": True,
+                "has_token": True,
+                "has_team_id": False,
+                "_username": username,
+                "_token": token,
+            }
+
+    # Path 2: process env vars (CI-friendly)
+    username = os.environ.get("CTFTIME_USERNAME")
+    token = os.environ.get("CTFTIME_PASSWORD") or os.environ.get("CTFTIME_TOKEN")
+    if username and token:
+        return {
+            "source": "process_env",
+            "has_username": True,
+            "has_token": True,
+            "has_team_id": False,
+            "_username": username,
+            "_token": token,
+        }
+
+    raise CredentialsMissing(
+        "no CTFtime platform credentials: expected ~/.env with "
+        "CTFTIME_USERNAME + CTFTIME_PASSWORD (or CTFTIME_TOKEN), "
+        "OR the same as process env vars"
+    )
 
 
 # ---------------------------------------------------------------------------

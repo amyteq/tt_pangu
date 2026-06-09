@@ -22,21 +22,66 @@ After registration the human:
 
 The `.claude/hooks/guard_tool.py` hook denies direct `~/.ctf/*.json` reads from any path except the allow-listed `kca ctf` flow. The credential is never echoed in logs, audit rows, or PRs.
 
-## 2. Credential file shape and load path
+## 2. Credential file shape and load path (two-tier model)
 
-Credential resolution order (first match wins):
+KCA distinguishes two credential tiers — the CTFtime platform account
+(single per user) and per-event accounts (one per event that requires
+its own signup). Each tier has its own storage location, loader, and
+hook carve-out.
+
+### Tier 1 — CTFtime.org platform account (`~/.env`)
+
+Used for the CTFtime calendar / event-registration flow and for events
+that accept CTFtime SSO (no separate per-event signup needed).
+
+Storage: `~/.env` (one file per user, single account).
+
+Required keys:
+
+| Key | Required | Notes |
+|---|---|---|
+| `CTFTIME_USERNAME` | yes | e.g. `flyingfox` |
+| `CTFTIME_PASSWORD` | yes (or `CTFTIME_TOKEN`) | session password |
+| `CTFTIME_TOKEN`    | alternative to `CTFTIME_PASSWORD` | API token, if the user prefers |
+
+Loader: `tools/kca/ctf.py::_load_ctftime_credentials()` — the single
+allow-listed call-site for the `.claude/hooks/guard_tool.py` carve-out on
+`~/.env`. Direct Read/Edit of `~/.env` via the Claude Code tools is
+**denied** at the hook layer; only the loader (running in-process inside
+the kca CLI) may open the file.
+
+Fallback: if `~/.env` is absent, the loader checks the same names in
+the process environment (`CTFTIME_USERNAME` + `CTFTIME_PASSWORD` /
+`CTFTIME_TOKEN`) for CI-friendliness.
+
+### Tier 2 — Per-event accounts (`~/.ctf/<slug>.json`)
+
+Used when an event requires its own signup distinct from CTFtime SSO.
+
+Storage: `~/.ctf/<event-slug>.json` (one file per event).
+
+Resolution order (first match wins):
 
 1. `~/.ctf/<event-slug>.json` — JSON object with `username`, `token`, optional `team_id`.
 2. Environment variables `CTF_<EVENT_SLUG_UPPER>_USERNAME` and `CTF_<EVENT_SLUG_UPPER>_TOKEN`.
 
-The `kca ctf flag submit` command calls `_load_event_credentials(slug)` which:
+Loader: `tools/kca/ctf.py::_load_event_credentials(slug)` — the single
+allow-listed call-site for the hook carve-out on `~/.ctf/`. Raises
+`CredentialsMissing` if neither path yields a complete pair; exit code 1
+with a redacted message (no credential value emitted).
 
-- reads the JSON file via a guarded path (`.claude/hooks/guard_tool.py` carve-out);
-- or reads the env vars;
-- raises `CredentialsError` if neither is found, returning exit code 1 with the message "CTF credentials not found — set `~/.ctf/<slug>.json` or env vars" (no credential value emitted).
+### Common discipline
 
-The credential is held in memory only for the duration of the HTTP call.
-It is never written to `ctf_attempts` or any other DB row.
+- Credentials are held in memory only for the duration of the HTTP call
+  inside the POSTing function (`cmd_flag_submit`).
+- The raw values are dropped from memory immediately after the request
+  body is built.
+- The values are NEVER written to `ctf_attempts`, `agent_reviews`,
+  `human_decisions`, `agent_tool_audit`, stdout, stderr, PR bodies, or
+  GitHub comments.
+- `_safe_cred_presence(creds)` strips both loaders' output to
+  `{source, has_username, has_token, has_team_id}` for any stdout-bound
+  use; only those booleans cross the function boundary.
 
 ## 3. Challenge inventory and category triage
 

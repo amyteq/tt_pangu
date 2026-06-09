@@ -127,6 +127,45 @@ hard-asking on every `bash` call under `default.yaml` and by the M11-T005
 solver flow running `docker-compose up` against a *local* network only —
 the live event egress is gated to T007's single approved call.
 
+### 3a. CTFtime platform credential tier (`~/.env`)
+
+_Added 2026-05-27 in response to PR #45 reviewer feedback._
+
+Background: the user pointed out that the M11-T002/T003 credential model
+only covered **per-event** signups (`~/.ctf/<slug>.json`). It did not
+have a place for the **CTFtime.org platform account** (single account
+per user; used for the CTFtime calendar / event-registration flow and
+for events that accept CTFtime SSO).
+
+**Decision:** treat CTFtime as a separate, single-account credential
+tier with its own canonical location, loader, and hook carve-out —
+parallel to the per-event tier.
+
+| Aspect | CTFtime platform tier | Per-event tier |
+|---|---|---|
+| When to use | CTFtime calendar / SSO-enabled events | Events requiring separate signup |
+| Storage | `~/.env` (one file per user) | `~/.ctf/<slug>.json` (one file per event) |
+| Keys | `CTFTIME_USERNAME`, `CTFTIME_PASSWORD` (or `CTFTIME_TOKEN`) | `username`, `token`, optional `team_id` |
+| Loader | `tools/kca/ctf.py::_load_ctftime_credentials()` | `tools/kca/ctf.py::_load_event_credentials(slug)` |
+| Hook carve-out | `~/.env` denied at hook; loader is sole allow-listed caller | `~/.ctf/*` denied at hook; loader is sole allow-listed caller |
+| CI fallback | process env `CTFTIME_USERNAME` + `CTFTIME_PASSWORD`/`_TOKEN` | process env `CTF_<EVENT>_USERNAME` + `CTF_<EVENT>_TOKEN` |
+
+`~/.env` is **distinct** from the project root `.env`. The project root
+`.env` (e.g., `./.env`, `./.env.local`, `./.env.development`) remains
+readable per the dev-phase carve-out documented in
+`.claude/hooks/guard_tool.py::path_is_protected` — it holds `SUPABASE_DB_URL`
+and similar local DSNs. Only `~/.env` (HOME-dir scope) is the protected
+CTFtime tier.
+
+The hook's path-protection check distinguishes them by absolute path
+equality (`p == "{HOME}/.env"`) so `./env` style relative paths still
+fall through to the dev-phase carve-out.
+
+The shell-read deny patterns additionally cover `cat ~/.env`,
+`grep ... ~/.env`, `curl -d "$(cat ~/.env)" ...`, and `/home/<user>/.env`
+absolute variants — using a tightened look-ahead `(?![.A-Za-z0-9_-])` so
+that `~/.env.local` does NOT match (we don't claim that path).
+
 ### 4. Audit row shape
 
 For each gated operation, the worker writes:

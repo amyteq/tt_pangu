@@ -174,6 +174,88 @@ def test_load_event_credentials_missing(tmp_path, monkeypatch) -> None:
 
 
 # ---------------------------------------------------------------------------
+# 2b. CTFtime platform-tier credential loader (~/.env)
+# ---------------------------------------------------------------------------
+
+
+def _clear_ctftime_env(monkeypatch) -> None:
+    for k in ("CTFTIME_USERNAME", "CTFTIME_PASSWORD", "CTFTIME_TOKEN"):
+        monkeypatch.delenv(k, raising=False)
+
+
+def test_load_ctftime_credentials_from_home_env_file(tmp_path, monkeypatch) -> None:
+    fake_env = tmp_path / ".env"
+    fake_env.write_text(
+        f"# CTFtime platform account\n"
+        f"CTFTIME_USERNAME={_SENTINEL_USER}\n"
+        f'CTFTIME_PASSWORD="{_SENTINEL_TOKEN}"\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ctf_mod, "_CTFTIME_ENV_PATH", fake_env)
+    _clear_ctftime_env(monkeypatch)
+    creds = ctf_mod._load_ctftime_credentials()
+    assert creds["source"] == "home_env"
+    assert creds["has_username"] is True
+    assert creds["has_token"] is True
+    assert creds["has_team_id"] is False
+    # _safe_cred_presence must NOT echo the underlying values
+    safe_dump = json.dumps(ctf_mod._safe_cred_presence(creds))
+    assert _SENTINEL_USER not in safe_dump
+    assert _SENTINEL_TOKEN not in safe_dump
+
+
+def test_load_ctftime_credentials_token_alias(tmp_path, monkeypatch) -> None:
+    fake_env = tmp_path / ".env"
+    fake_env.write_text(
+        f"CTFTIME_USERNAME={_SENTINEL_USER}\n"
+        f"CTFTIME_TOKEN={_SENTINEL_TOKEN}\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ctf_mod, "_CTFTIME_ENV_PATH", fake_env)
+    _clear_ctftime_env(monkeypatch)
+    creds = ctf_mod._load_ctftime_credentials()
+    assert creds["source"] == "home_env"
+    assert creds["_token"] == _SENTINEL_TOKEN
+
+
+def test_load_ctftime_credentials_from_process_env(tmp_path, monkeypatch) -> None:
+    # No ~/.env file; fall through to process env vars.
+    monkeypatch.setattr(ctf_mod, "_CTFTIME_ENV_PATH", tmp_path / ".env")
+    _clear_ctftime_env(monkeypatch)
+    monkeypatch.setenv("CTFTIME_USERNAME", _SENTINEL_USER)
+    monkeypatch.setenv("CTFTIME_PASSWORD", _SENTINEL_TOKEN)
+    creds = ctf_mod._load_ctftime_credentials()
+    assert creds["source"] == "process_env"
+    assert creds["has_username"] is True
+    assert creds["has_token"] is True
+
+
+def test_load_ctftime_credentials_missing(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(ctf_mod, "_CTFTIME_ENV_PATH", tmp_path / ".env")
+    _clear_ctftime_env(monkeypatch)
+    with pytest.raises(ctf_mod.CredentialsMissing):
+        ctf_mod._load_ctftime_credentials()
+
+
+def test_parse_dotenv_basic_shapes() -> None:
+    parsed = ctf_mod._parse_dotenv(
+        "# comment\n"
+        "EMPTY=\n"
+        "BARE=value\n"
+        'DQUOTED="quoted value"\n'
+        "SQUOTED='single quoted'\n"
+        "  WHITESPACE_KEY  =  spaced  \n"
+    )
+    assert parsed["BARE"] == "value"
+    assert parsed["DQUOTED"] == "quoted value"
+    assert parsed["SQUOTED"] == "single quoted"
+    assert parsed["WHITESPACE_KEY"] == "spaced"
+    assert parsed["EMPTY"] == ""
+    assert "# comment" not in parsed
+    # Comments and blank lines silently skipped — no exception.
+
+
+# ---------------------------------------------------------------------------
 # 3. Scope coverage helper
 # ---------------------------------------------------------------------------
 
