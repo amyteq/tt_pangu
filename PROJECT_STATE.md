@@ -1,6 +1,6 @@
 # Kaggle Code Agent — Project State
 
-_Last updated: 2026-06-09 (M11 partial close)_
+_Last updated: 2026-06-09 (M12 close + M11 partial close; M10 close on 2026-05-28)_
 
 ## Product intent
 Build a hybrid human + AI competition engineering workbench. The first target is Kaggle-style competitions, with future support for authorized CTF/lab challenges. The system should research, discuss ideas with humans, edit code, run tests/evaluations, analyze results, iterate, and prepare submissions under human-approved guardrails.
@@ -54,15 +54,18 @@ authoritative.
 - **M9.4**: Discovery / Debate Gate agents (planning + scaffolding) ✓
 - **M10**: notebook-submission Kaggle regression — Petals to the Metal (kernel-push path) ✓ — one approved real `kaggle kernels push` attempted; no public LB recorded (queue stall + now-fixed kernelspec bug; single-push policy, "accept and continue"); issue #11 (dotenv-leak) closed during M10.
 - **M11**: authorized CTF / lab workflow — PARTIAL (T000–T006 + T008 done 2026-06-09; T007 deferred pending human-supplied live-event credentials + approval)
+- **M12**: Devpost / hackathon workflow ✓ (with T007 real-submit DEFERRED — see open items below)
 
 See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP
 checks PASS), `docs/m8_5-final-review.md` for the M8.5 roll-up (all 26
 non-SKIP checks PASS; three PRs landed on `main` as #4, #5, #6),
 `docs/m9-final-review.md` for the M9 roll-up (30 PASS / 1 SKIP / 0 FAIL;
-the SKIP is UI pnpm gates — M9 did not modify UI), and
+the SKIP is UI pnpm gates — M9 did not modify UI),
 `docs/m9_4-final-review.md` for the M9.4 roll-up (17 PASS / 1 SKIP /
 0 FAIL; the SKIP is the `design-archaeology` skill loader, deferred to
-M9.3-T001 by design).
+M9.3-T001 by design), and `docs/m12-final-review.md` for the M12 roll-up
+(46 PASS / 0 SKIP / 0 FAIL / 1 DEFERRED — T007 real-submit pending 3
+blocked artefacts).
 
 M9 metrics snapshot:
 - LR baseline (M9-T002): CV accuracy **0.79144 ±0.0086** (5-fold stratified, seed=42).
@@ -89,14 +92,33 @@ M9 metrics snapshot:
 - New tests: `tests/test_m10_smoke.py` (4 DB-gated assertions),
   `tests/test_m10_e2e.py` (dry-run e2e + 0-real-push audit sentinel).
 
+## Current milestone: M13 — evaluation, reliability, and regression suite
 
-## Current milestone: M11 — authorized CTF / lab workflow (PARTIAL)
+_M12 exited 2026-06-09 with T007 real-submit deferred (pending 3 artefacts).
+M11 exited 2026-06-09 PARTIAL with T007 deferred pending live-event credentials.
+M10 closed 2026-05-28. M13 does not depend on M11-T007 or M12-T007 completing._
 
-_M11 partial exit: T000–T006 + T008 done (2026-06-09); T007 deferred pending
-human-supplied live-event credentials + approval comment._
+Status: planned (M12 exited 2026-06-09; M11 exited PARTIAL 2026-06-09). See
+`docs/m13-loop-prompts.md` and commit `c53bbaa` for the M13 planning docs
+(already landed on main).
 
-Status: **PARTIAL**. Next: file M12 planning issues OR resume M11-T007 with
-credentials + `decision:confirmed` on the closing issue.
+### Open items at M12 + M11 exit
+
+**M12-T007 deferred real Devpost submit** (P0 — `policy:approval-required`):
+
+- `human_decisions.id=754cadda-3e08-4072-8bd0-2a088dbd4a06` is pending.
+- 3 blocked artefacts needed: demo video, Vercel deployment link, screenshots.
+- Resume command once artefacts are ready:
+  ```
+  kca devpost submit --slug h01 --run-id r-20260608_154243 \
+    --message "<your submit message>"
+  ```
+  then: `kca decisions approve --id 754cadda-3e08-4072-8bd0-2a088dbd4a06`
+- Approval comment: #42#issuecomment-4650855888.
+- File as a follow-up issue (`type:feature`, `area:tools`, `priority:P0`,
+  `policy:approval-required`, `ai:blocked`) once artefacts are available.
+
+Cross-cutting follow-ups status (post-M10, post-M11, post-M12):
 
 M11 partial deliverables shipped:
 - `supabase/migrations/0008_m11_ctf.sql` — 4 ctf_* tables; cloud applied.
@@ -138,20 +160,33 @@ See `docs/m11-final-review.md` (23 PASS / 1 SKIP-BLOCKED / 0 FAIL) and
 - **#35** — kernel-run queue-stall robustness + slug/title fix
   (kernelspec fix landed in the M10 PR).
 
-Issue #11 (dotenv-leak / Kaggle LB pollution; M9 follow-up B) was
-**CLOSED during M10** via `KCA_SKIP_DOTENV` guard in `tools/kca/db.py`.
+### Cross-cutting follow-ups carried forward from M9 (unchanged after M10/M11/M12)
 
-### Cross-cutting follow-ups carried forward from M9
+- **M9-A** — `competitions.repo_url` schema drift (`area:kaggle`, `type:bug`) — still open.
+- **M9-B** — Secrets-file hygiene in pytest subprocess (issue #11, P0) — **RESOLVED in M10** via `KCA_SKIP_DOTENV` guard in `tools/kca/db.py`; issue #11 CLOSED.
+- **M9-C** — `decision_api`: no `GET /decisions` endpoint (`area:supabase`, `type:feature`) — still open.
+- **M9-D** — `reviewer_decision` literal event_type not emitted (`area:worker`, `type:docs`) — still open.
+- **M9-E** — Migration 0004 optional columns not applied to local DB (`area:supabase`, `type:bug`) — still open.
 
-- **M9-A** — `competitions.repo_url` schema drift (`area:kaggle`, `type:bug`).
-- **M9-B** — Secrets-file hygiene in pytest subprocess (issue #11, P0).
-- **M9-C** — `decision_api`: no `GET /decisions` endpoint (`area:supabase`, `type:feature`).
-- **M9-D** — `reviewer_decision` literal event_type not emitted (`area:worker`, `type:docs`).
-- **M9-E** — Migration 0004 optional columns not applied to local DB (`area:supabase`, `type:bug`).
+### M12 ADR-0018 follow-ups (from `docs/adr/0018-generalized-competition-type.md`)
 
-See `docs/handoffs/m11-handoff.md` for the full handoff context.
+- **F1** — jsonb type-check for `submission_format` (P2 tech-debt).
+- **F2** — `approved_by_user_id` FK on `human_decisions` (P1).
+- **F3** — resolver `profile_fallback` event type in `permission_policy.py`.
+- **F4** — `ctf-runner.yaml` permission profile — **DONE in M11** (M11 shipped CTF permission-profile extensions; M12 ADR-0018 F4 is superseded).
+
+See `docs/handoffs/m12-handoff.md` for the M12→M13 read-first list
+and `docs/handoffs/m11-handoff.md` for the M11 PARTIAL→M12 handoff
+(`docs/handoffs/m10-handoff.md` and earlier preserved for history).
 
 ## Open decisions
+- **ADR-0018** (resolved, M12-T001, 2026-06-09): generalized
+  `competition_type` enum on `competitions` — Alternative A (folded enum)
+  picked. Enum literal `('kaggle', 'devpost', 'hackathon_devpost',
+  'ctf', 'generic')`. ADR-0006 + ADR-0009 referenced, not superseded.
+  Renumbered from 0016→0018 during PR #46 merge (M11 took 0016 + 0017).
+  Follow-ups F1–F4 listed in Open items above. See
+  `docs/adr/0018-generalized-competition-type.md`.
 - Decision API multi-user auth (per-user JWT via Supabase auth vs continued
   shared token).
 - Artifact storage signed-URL strategy (Supabase storage vs local artifact
