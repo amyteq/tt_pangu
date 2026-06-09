@@ -6,8 +6,12 @@ Builds on the conventions of scripts/save_claude_session_log.py:
   `claude agents --json`. Does NOT read .env*, kaggle.json, ~/.ssh,
   ~/.aws, ~/.config/gcloud, ~/.config/gh, or secrets/.
 - Renders through `uvx claude-code-log@latest --format md --compact`.
+- Writes Markdown dumps to `worklogs/` under the repo root by default
+  (override with --output-dir).
 - Refuses to write transcripts containing secret-like patterns unless
-  --allow-secret-like is passed.
+  --allow-secret-like is passed; with that flag the matched secrets are
+  masked (first/last 3 chars kept, the rest replaced with '*') so the
+  dumped worklog never carries the raw value.
 
 Differences from scripts/save_claude_session_log.py:
 - `--all` (default) exports every session discoverable for the project.
@@ -40,29 +44,55 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
 
 TERMINAL_STATUSES = {"completed", "complete", "stopped", "stop"}
 
-SECRET_PATTERNS: list[tuple[str, str]] = [
-    (r"github_pat_[A-Za-z0-9_]{20,}", "GitHub fine-grained PAT"),
-    (r"\bgh[opsu]_[A-Za-z0-9_]{20,}", "GitHub token"),
-    (r"\bsk-ant-[A-Za-z0-9_\-]{20,}", "Anthropic API key"),
-    (r"\bsk-[A-Za-z0-9_\-]{32,}", "generic sk-* API key"),
-    (r"BEGIN (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY", "private key block"),
-    (r"\bANTHROPIC_API_KEY\s*=\s*['\"]?[A-Za-z0-9_\-]{16,}", "Anthropic env key"),
-    (r"\bOPENAI_API_KEY\s*=\s*['\"]?[A-Za-z0-9_\-]{16,}", "OpenAI env key"),
-    (r"\bKAGGLE_KEY\s*=\s*['\"]?[A-Za-z0-9_\-]{8,}", "Kaggle key"),
-    (r"\bSUPABASE_[A-Z0-9_]*KEY\s*=\s*['\"]?[A-Za-z0-9_\-.]{16,}", "Supabase key"),
+# Number of leading/trailing characters of a secret body left in the clear
+# when masking (everything between them becomes '*'). Keep small so that the
+# masked value remains recognisable without disclosing the secret.
+MASK_KEEP = 3
+
+# Each rule is (regex, label, value_group). value_group selects the portion of
+# the match that is the actual secret body to mask: 0 = mask the whole match;
+# a positive index masks only that capturing group (so for `KEY=value` style
+# assignments the variable name stays visible and only the value is masked).
+SECRET_PATTERNS: list[tuple[str, str, int]] = [
+    (r"github_pat_[A-Za-z0-9_]{20,}", "GitHub fine-grained PAT", 0),
+    (r"\bgh[opsu]_[A-Za-z0-9_]{20,}", "GitHub token", 0),
+    (r"\bsk-ant-[A-Za-z0-9_\-]{20,}", "Anthropic API key", 0),
+    (r"\bsk-[A-Za-z0-9_\-]{32,}", "generic sk-* API key", 0),
+    (r"BEGIN (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY", "private key block", 0),
     (
-        r"\b(?:password|passwd|secret|token)\s*[:=]\s*['\"]?[A-Za-z0-9_\-.]{16,}",
+        r"(\bANTHROPIC_API_KEY\s*=\s*['\"]?)([A-Za-z0-9_\-]{16,})",
+        "Anthropic env key",
+        2,
+    ),
+    (r"(\bOPENAI_API_KEY\s*=\s*['\"]?)([A-Za-z0-9_\-]{16,})", "OpenAI env key", 2),
+    (r"(\bKAGGLE_KEY\s*=\s*['\"]?)([A-Za-z0-9_\-]{8,})", "Kaggle key", 2),
+    (
+        r"(\bSUPABASE_[A-Z0-9_]*KEY\s*=\s*['\"]?)([A-Za-z0-9_\-.]{16,})",
+        "Supabase key",
+        2,
+    ),
+    (
+        r"(\b(?:password|passwd|secret|token)\s*[:=]\s*['\"]?)([A-Za-z0-9_\-.]{16,})",
         "generic secret assignment",
+        2,
     ),
 ]
+
+# Full `-----BEGIN ... PRIVATE KEY-----` ... `-----END ... PRIVATE KEY-----`
+# block, masked in one shot so the base64 body never reaches the output.
+PRIVATE_KEY_BLOCK_RE = re.compile(
+    r"-----BEGIN (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----.*?"
+    r"-----END (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----",
+    flags=re.DOTALL,
+)
 
 
 @dataclass(frozen=True)
@@ -328,6 +358,28 @@ def select_candidate(
     return best[0]
 
 
+def safe_glob(base: Path, pattern: str) -> list[Path]:
+    """Recursive glob that tolerates unreadable siblings. Under a shared
+    config dir (e.g. ~/.claude/projects with per-project 0700 dirs that a CI
+    runner is only partially ACL'd into), a plain Path.glob can raise
+    PermissionError mid-walk; swallow those and return what is reachable."""
+    try:
+        return list(base.glob(pattern))
+    except (PermissionError, OSError):
+        out: list[Path] = []
+        try:
+            children = list(base.iterdir())
+        except (PermissionError, OSError):
+            return out
+        for child in children:
+            if child.is_dir():
+                try:
+                    out.extend(child.rglob(pattern.removeprefix("**/")))
+                except (PermissionError, OSError):
+                    continue
+        return out
+
+
 def find_transcript_from_state(candidate: Candidate, config_dir: Path) -> Path | None:
     for path in collect_jsonl_paths(candidate.raw):
         if not path.is_absolute():
@@ -338,14 +390,12 @@ def find_transcript_from_state(candidate: Candidate, config_dir: Path) -> Path |
             return path.resolve()
 
     if candidate.session_id:
-        matches = list(
-            (config_dir / "projects").glob(f"**/{candidate.session_id}.jsonl")
-        )
+        matches = safe_glob(config_dir / "projects", f"**/{candidate.session_id}.jsonl")
         if matches:
             return matches[0].resolve()
 
     if candidate.job_id:
-        matches = list((config_dir / "projects").glob(f"**/*{candidate.job_id}*.jsonl"))
+        matches = safe_glob(config_dir / "projects", f"**/*{candidate.job_id}*.jsonl")
         if matches:
             return matches[0].resolve()
 
@@ -357,6 +407,47 @@ def safe_filename(name: str) -> str:
     text = re.sub(r"[^\w.\-]+", "-", text, flags=re.UNICODE)
     text = re.sub(r"-{2,}", "-", text).strip(".-")
     return text[:120] or "claude-session"
+
+
+def base_output_name(candidate: Candidate) -> str:
+    return safe_filename(
+        candidate.name or candidate.job_id or candidate.session_id or "claude-session"
+    )
+
+
+def short_disambiguator(candidate: Candidate) -> str:
+    """A short, stable suffix for a candidate. Prefer the session id, then the
+    job id, so the same session keeps the same filename across runs (date-based
+    suffixes would mint a new file every day and defeat byte-stability)."""
+    raw = candidate.session_id or candidate.job_id
+    return safe_filename(raw)[:8] if raw else ""
+
+
+def assign_output_names(candidates: list[Candidate]) -> list[str]:
+    """Return one filename stem per candidate, aligned by index, guaranteeing
+    no two candidates share a stem. Names that are unique keep the clean
+    `<name>` form; only colliding names get a `<name>_<short id>` suffix, so a
+    second session sharing a name never silently overwrites the first."""
+    bases = [base_output_name(c) for c in candidates]
+    counts = Counter(bases)
+    used: set[str] = set()
+    names: list[str] = []
+    for candidate, base in zip(candidates, bases):
+        if counts[base] > 1:
+            suffix = short_disambiguator(candidate)
+            name = f"{base}_{suffix}" if suffix else base
+        else:
+            name = base
+        # Final guard: if the disambiguated name still clashes (e.g. two
+        # sessions with the same name and no usable id), append a counter.
+        unique = name
+        n = 2
+        while unique in used:
+            unique = f"{name}_{n}"
+            n += 1
+        used.add(unique)
+        names.append(unique)
+    return names
 
 
 def run_claude_code_log(transcript: Path, tmp_md: Path, detail: str) -> None:
@@ -438,7 +529,7 @@ def scan_secret_like_lines(text: str) -> list[dict[str, Any]]:
     locations: list[dict[str, Any]] = []
     seen: set[tuple[int, str]] = set()
     for lineno, line in enumerate(text.splitlines(), start=1):
-        for pattern, label in SECRET_PATTERNS:
+        for pattern, label, _value_group in SECRET_PATTERNS:
             m = re.search(pattern, line, flags=re.IGNORECASE)
             if not m:
                 continue
@@ -456,14 +547,54 @@ def scan_secret_like_lines(text: str) -> list[dict[str, Any]]:
     return locations
 
 
+def mask_secret_body(s: str, *, keep: int = MASK_KEEP) -> str:
+    """Mask the middle of a secret, leaving `keep` chars at each end in the
+    clear and replacing the rest with '*'. Secrets too short to keep both
+    ends without overlap are masked in full."""
+    if not s:
+        return s
+    if len(s) <= keep * 2:
+        return "*" * len(s)
+    return s[:keep] + "*" * (len(s) - keep * 2) + s[-keep:]
+
+
+def mask_secret_like_text(text: str) -> str:
+    """Return `text` with every secret-like match masked in place.
+
+    Private-key blocks are collapsed to a single redaction marker; every
+    other rule masks only its secret body (the whole match, or the captured
+    value group for `KEY=value` assignments) so the surrounding markdown and
+    variable names stay readable. Idempotent: re-masking masked text is a
+    no-op because the patterns no longer match the '*'-filled bodies."""
+    text = PRIVATE_KEY_BLOCK_RE.sub(
+        "-----BEGIN PRIVATE KEY----- [REDACTED] -----END PRIVATE KEY-----", text
+    )
+
+    for pattern, _label, value_group in SECRET_PATTERNS:
+
+        def repl(m: re.Match[str], vg: int = value_group) -> str:
+            whole = m.group(0)
+            if vg == 0 or m.group(vg) is None:
+                return mask_secret_body(whole)
+            start = m.start(vg) - m.start(0)
+            end = m.end(vg) - m.start(0)
+            return whole[:start] + mask_secret_body(m.group(vg)) + whole[end:]
+
+        text = re.sub(pattern, repl, text, flags=re.IGNORECASE)
+
+    return text
+
+
 def build_header(candidate: Candidate, transcript: Path, output_path: Path) -> str:
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    # No "Exported at" / wall-clock timestamp on purpose: the header must be a
+    # pure function of the session content so an unchanged session re-exports to
+    # byte-identical Markdown and the daily worklogs routine produces no commit.
+    # The git commit time already records when a dump happened.
     title = (
         candidate.name or candidate.job_id or candidate.session_id or "Claude session"
     )
     return (
         f"# Claude session log: {title}\n\n"
-        f"- Exported at: `{now}`\n"
         f"- Session name: `{candidate.name or ''}`\n"
         f"- Job id: `{candidate.job_id or ''}`\n"
         f"- Session id: `{candidate.session_id or ''}`\n"
@@ -480,6 +611,7 @@ def export_one(
     root: Path,
     config_dir: Path,
     output_dir: Path,
+    output_name: str,
     detail: str,
     allow_any_state: bool,
     allow_secret_like: bool,
@@ -522,10 +654,7 @@ def export_one(
             ),
         }
 
-    out_name = safe_filename(
-        candidate.name or candidate.job_id or candidate.session_id or "claude-session"
-    )
-    output_path = output_dir / f"{out_name}.md"
+    output_path = output_dir / f"{output_name}.md"
 
     with tempfile.TemporaryDirectory(prefix="export-claude-log-") as tmp_dir_s:
         tmp_dir = Path(tmp_dir_s)
@@ -560,12 +689,18 @@ def export_one(
                     f"Refused to write {output_path}: secret-like patterns "
                     f"detected on {len(locations)} line(s): "
                     f"{', '.join(labels)}. Inspect manually and rerun with "
-                    "--allow-secret-like to override."
+                    "--allow-secret-like to write a masked copy."
                 ),
                 "transcript": str(transcript),
                 "secret_labels": labels,
                 "secret_locations": locations,
             }
+
+        # When writing despite secret-like hits (--allow-secret-like), mask the
+        # secret bodies first so the dumped worklog never carries the raw value.
+        masked = bool(locations)
+        if masked:
+            final_text = mask_secret_like_text(final_text)
 
         tmp_out = output_path.with_suffix(".tmp.md")
         tmp_out.write_text(final_text, encoding="utf-8")
@@ -585,6 +720,7 @@ def export_one(
         "secret_labels": labels,
         "secret_locations": locations,
         "secret_override_applied": bool(locations and allow_secret_like),
+        "secret_masked": masked,
     }
 
 
@@ -602,7 +738,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  python temp/export_claude_session_logs.py\n"
             "  python temp/export_claude_session_logs.py --name M7\n"
             "  python temp/export_claude_session_logs.py --id 01F8ABC\n"
-            "  python temp/export_claude_session_logs.py --json --output-dir logs\n"
+            "  python temp/export_claude_session_logs.py --json --output-dir worklogs\n"
             "  python temp/export_claude_session_logs.py --allow-any-state --detail high\n"
         ),
     )
@@ -634,7 +770,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--allow-secret-like",
         action="store_true",
-        help="Write even if secret-like patterns are found in the rendered transcript.",
+        help="Write even if secret-like patterns are found in the rendered "
+        "transcript; matched secrets are masked (first/last "
+        f"{MASK_KEEP} chars kept, the rest replaced with '*').",
     )
     parser.add_argument(
         "--detail",
@@ -644,8 +782,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--output-dir",
-        default="logs",
-        help="Output directory, relative to repo root (default: logs).",
+        default="worklogs",
+        help="Output directory, relative to repo root (default: worklogs).",
     )
     parser.add_argument(
         "--json",
@@ -667,7 +805,7 @@ def emit_human(result: dict[str, Any]) -> None:
         if result.get("secret_override_applied") and locations:
             eprint(
                 f"          WARN: --allow-secret-like override applied; "
-                f"{len(locations)} secret-like line(s) written:"
+                f"{len(locations)} secret-like line(s) masked and written:"
             )
             for loc in locations:
                 eprint(
@@ -736,13 +874,16 @@ def main() -> int:
     output_dir = (root / args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    output_names = assign_output_names(targets)
+
     results: list[dict[str, Any]] = []
-    for c in targets:
+    for c, output_name in zip(targets, output_names):
         result = export_one(
             c,
             root=root,
             config_dir=config_dir,
             output_dir=output_dir,
+            output_name=output_name,
             detail=args.detail,
             allow_any_state=args.allow_any_state,
             allow_secret_like=args.allow_secret_like,
