@@ -35,7 +35,7 @@ proposal issue has the budget cap recorded in a
 6. The project auto-memory entries for local LLM endpoints
    (snorlax RTX 4090 / may RTX 3090).
 7. `docs/architecture/eval-regression-suite.md` (route selector
-   contract from ADR-0016).
+   contract from ADR-0019).
 8. `tools/kca/eval/suites/*/` (the five suites this task adapts).
 
 ## Scope

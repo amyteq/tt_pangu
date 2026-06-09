@@ -1,0 +1,6 @@
+{
+  "n": 5575186299632655975374177906973657465624151,
+  "e": 65537,
+  "c": 4856625253521748853391005533178422483401569,
+  "_note": "n is 143-bit; sympy.factorint cracks it in <1s. Pedagogical only — do NOT reuse."
+}

@@ -88,13 +88,74 @@ def load_policy(
     return PermissionPolicy(profile=profile, records=records)
 
 
+# M12 / ADR-0016: registry of competition_type -> policy profile filename
+# (without the .yaml extension). Order matters only for documentation: this
+# is a flat dict. Profiles that don't exist yet (e.g. hackathon-runner ships
+# in M12-T004, ctf-runner in M11) fall back to `default` at resolve time so
+# this map stays additive and forward-compatible.
+COMPETITION_TYPE_PROFILES: dict[str, str] = {
+    "kaggle": "competition-runner",
+    "devpost": "hackathon-runner",
+    "hackathon_devpost": "hackathon-runner",
+    "ctf": "ctf-runner",
+    "generic": "default",
+}
+
+
+def _resolve_profile_for_competition_type(
+    competition_type: str | None,
+    *,
+    permissions_root: Path | None = None,
+) -> str | None:
+    """Return the profile name to load for a given competition_type.
+
+    Routing rules (ADR-0016 + ADR-0006 four-level hierarchy):
+      1. Look up the type-specific profile in COMPETITION_TYPE_PROFILES.
+      2. If that profile file does not exist on disk, fall back to None
+         so the caller can use its skill-derived or default profile.
+      3. Unknown competition_type -> None (fall back to default).
+    """
+    if not competition_type:
+        return None
+    profile = COMPETITION_TYPE_PROFILES.get(competition_type)
+    if profile is None:
+        return None
+    root = permissions_root or _default_permissions_root()
+    if not (root / f"{profile}.yaml").is_file():
+        return None
+    return profile
+
+
 def resolve_for_skill(
     skill_meta: SkillMeta,
     operation: str,
     mode: str = "default",
     *,
     permissions_root: Path | None = None,
+    competition_type: str | None = None,
 ) -> str:
-    profile = skill_meta.approval_policy or "default"
-    policy = load_policy(profile, permissions_root=permissions_root)
+    """Resolve allow / ask / deny for an operation.
+
+    Resolution order (ADR-0006 four-level hierarchy, generalized in ADR-0016):
+      1. If `competition_type` is provided AND a matching profile file
+         exists, load that profile first and return its decision if the
+         operation is recorded there.
+      2. Otherwise (or if the type-specific profile has no record for
+         the operation), fall back to the skill's declared profile
+         (`skill_meta.approval_policy`) or `default`.
+      3. `ToolSpec.approval_label` is the final fallback inside
+         `PermissionPolicy.resolve`.
+
+    Backwards compatibility: callers that omit `competition_type` get the
+    pre-M12 behaviour byte-for-byte (skill profile only).
+    """
+    type_profile = _resolve_profile_for_competition_type(
+        competition_type, permissions_root=permissions_root
+    )
+    if type_profile is not None:
+        policy = load_policy(type_profile, permissions_root=permissions_root)
+        if policy.get_record(operation) is not None:
+            return policy.resolve(operation, mode=mode)
+    fallback_profile = skill_meta.approval_policy or "default"
+    policy = load_policy(fallback_profile, permissions_root=permissions_root)
     return policy.resolve(operation, mode=mode)

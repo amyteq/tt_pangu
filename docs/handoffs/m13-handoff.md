@@ -38,7 +38,7 @@ by user prioritization. M11 and M12 are still planned but not yet started.
 7. `docs/engineering-practice.md` — the GitHub interface model.
 8. `docs/architecture/eval-regression-suite.md` — M13's eval framework
    architecture (reuse as-is for M11 CTF eval cases once M11 lands).
-9. `docs/adr/0016-eval-regression-suite.md` — ADR for the eval framework.
+9. `docs/adr/0019-eval-regression-suite.md` — ADR for the eval framework.
 10. Latest ADRs in `docs/adr/`.
 
 ## State at M13 exit
@@ -58,7 +58,7 @@ by user prioritization. M11 and M12 are still planned but not yet started.
     `run_id=b89f2f89-7b7b-4842-ba4f-ccc2bd418c4e`; 5 PASS / 0 FAIL /
     20 SKIP / 0 ERROR; cost $0.00.
 - New tables in cloud Supabase: `eval_suites`, `eval_runs`,
-  `eval_results` (migration 0008 applied).
+  `eval_results` (migration 0010 applied).
 - New DB helpers in `tools/kca/db.py`: `register_eval_suite`,
   `start_eval_run`, `finish_eval_run`, `record_eval_result`,
   `list_eval_suites`, `list_eval_runs`, `get_eval_run`,
@@ -108,7 +108,7 @@ Issue #11 ("dotenv-leak / Kaggle LB pollution") remains CLOSED.
    values; M14+ can add pass/fail thresholds so a regression in, e.g.,
    the Titanic replay RMSLE blocks the PR.
 
-4. **Cloud Supabase migration hygiene.** M13 applied migration 0008
+4. **Cloud Supabase migration hygiene.** M13 applied migration 0010
    directly to cloud; the local container was not used. A future task
    should re-apply all migrations to the local container and verify
    parity, or retire the local-container workflow.

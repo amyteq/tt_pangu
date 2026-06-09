@@ -34,13 +34,13 @@ decision — the directive covers the full M13 sequence (T001–T009).
 
 | # | Check | Result | Notes |
 |---|---|---|---|
-| 1 | M13-T000 — `docs/adr/0016-eval-regression-suite.md` exists and carries canonical acceptance line | PASS | File at `docs/adr/0016-eval-regression-suite.md`; canonical line verbatim. |
+| 1 | M13-T000 — `docs/adr/0019-eval-regression-suite.md` exists and carries canonical acceptance line | PASS | File at `docs/adr/0019-eval-regression-suite.md`; canonical line verbatim. |
 | 2 | M13-T000 — `docs/architecture/eval-regression-suite.md` exists | PASS | Companion architecture doc exists alongside the ADR. |
 | 3 | M13-T000 — `docs/evidence/m13/T000/discovery/SKIP-NOTE.md` (legacy-archaeologist skip) | PASS | `SKIP-NOTE.md` documents the greenfield skip; accepted per the gate rules. |
 | 4 | M13-T000 — `docs/evidence/m13/T000/discovery/requirements-skeptic.md` present | PASS | Requirements-skeptic transcript present with canonical acceptance line. |
 | 5 | M13-T000 — `docs/evidence/m13/T000/discovery/design-red-team.md` present | PASS | Design-red-team transcript present with canonical acceptance line. |
-| 6 | M13-T000 — Decision / Debate Gate ran before implementation (arch: protocol §7) | PASS | Three evidence transcripts in place; ADR-0016 cites them. Implementation tasks (T001+) began after T000 PASS. |
-| 7 | M13-T001 — `supabase/migrations/0008_m13_eval.sql` applied to cloud Supabase | PASS | Migration is idempotent (`CREATE TABLE IF NOT EXISTS`). Tables `eval_suites`, `eval_runs`, `eval_results` verified present in cloud. Cloud switch noted in deviation §3. |
+| 6 | M13-T000 — Decision / Debate Gate ran before implementation (arch: protocol §7) | PASS | Three evidence transcripts in place; ADR-0019 cites them. Implementation tasks (T001+) began after T000 PASS. |
+| 7 | M13-T001 — `supabase/migrations/0010_m13_eval.sql` applied to cloud Supabase | PASS | Migration is idempotent (`CREATE TABLE IF NOT EXISTS`). Tables `eval_suites`, `eval_runs`, `eval_results` verified present in cloud. Cloud switch noted in deviation §3. |
 | 8 | M13-T001 — 7 DB helpers in `tools/kca/db.py` (register_eval_suite, start_eval_run, finish_eval_run, record_eval_result, list_eval_suites, list_eval_runs, fetch_eval_results) | PASS | All 7 + `get_eval_run` (T007 addition) confirmed via `grep -n "def ..."` at lines 2046–2360. |
 | 9 | M13-T001 — `kca eval` CLI scaffold: `list`, `run`, `show`, `report` verbs | PASS | `python tools/kca/kca.py eval --help` shows `{list,run,show,report}`. |
 | 10 | M13-T001 — `kca eval run` refuses with `NO_SUITES_REGISTERED` when list is empty | PASS | Refusal confirmed; `cli.py` raises `SystemExit(1)` with `NO_SUITES_REGISTERED` when no suites are importable. |
@@ -84,14 +84,14 @@ The 4 SKIPs are:
 
 M13's DB-bearing validation ran against **Cloud Supabase** (`SUPABASE_DB_URL`
 read from `/home/harry/test/tt_pangu/.vscode/.env`), accessed via
-`dangerouslyDisableSandbox=true`. Migration 0008 was applied directly to
+`dangerouslyDisableSandbox=true`. Migration 0010 was applied directly to
 cloud Supabase. This is a **deviation from M9 / M10** which used the local
 `supabase-db` container (`172.21.0.4:5432`). The switch to cloud happened
 mid-milestone at T001; see Deviation §3 and memory file
 `reference_supabase_db.md`.
 
 DB-bearing checks that needed `dangerouslyDisableSandbox=true`:
-- `supabase/migrations/0008_m13_eval.sql` application.
+- `supabase/migrations/0010_m13_eval.sql` application.
 - `kca eval run` + `kca eval report` round-trip (T007 canonical snapshot).
 - `tests/test_m13_smoke.py` DB-gated subset (4 tests).
 - Full pytest sweep (149 passed / 8 skipped against cloud).
@@ -101,9 +101,9 @@ Issue #11 (dotenv-leak / LB pollution) remains **CLOSED**. The
 
 ## What landed
 
-### M13-T000 — Regression-suite design + ADR-0016 (arch:)
+### M13-T000 — Regression-suite design + ADR-0019 (arch:)
 
-- `docs/adr/0016-eval-regression-suite.md` — canonical ADR for the eval
+- `docs/adr/0019-eval-regression-suite.md` — canonical ADR for the eval
   framework; cites all three Discovery / Debate Gate transcripts.
 - `docs/architecture/eval-regression-suite.md` — companion architecture doc.
 - `docs/evidence/m13/T000/discovery/SKIP-NOTE.md` — legacy-archaeologist
@@ -114,9 +114,9 @@ Issue #11 (dotenv-leak / LB pollution) remains **CLOSED**. The
   transcript.
 - Proposal issue #43 filed (gate-bypass deviation per §1 below).
 
-### M13-T001 — Migration 0008 + `kca eval` CLI scaffold
+### M13-T001 — Migration 0010 + `kca eval` CLI scaffold
 
-- `supabase/migrations/0008_m13_eval.sql` — three new tables (`eval_suites`,
+- `supabase/migrations/0010_m13_eval.sql` — three new tables (`eval_suites`,
   `eval_runs`, `eval_results`); idempotent; applied to cloud Supabase.
 - `tools/kca/db.py` — 8 eval helpers added (7 from T001 + `get_eval_run`
   from T007): `register_eval_suite`, `start_eval_run`, `finish_eval_run`,
@@ -190,7 +190,7 @@ Issue #11 (dotenv-leak / LB pollution) remains **CLOSED**. The
 
 ### M13-T008 — CI nightly cron + smoke + e2e tests
 
-- `tests/test_m13_smoke.py` — 6 tests: 4 DB-gated (migration 0008 applied,
+- `tests/test_m13_smoke.py` — 6 tests: 4 DB-gated (migration 0010 applied,
   db helpers roundtrip, `kca eval run` creates a row, `kca eval report`
   JSON shape, audit-grep sentinel) + 2 no-DB (suite registration, CLI
   `kca eval list` without DB).
@@ -227,7 +227,7 @@ Issue #11 (dotenv-leak / LB pollution) remains **CLOSED**. The
 
 3. **Cloud Supabase switch mid-execution.** T000 assumed the local DSN
    (`172.21.0.4:5432`). T001 onward used the cloud DSN from
-   `.vscode/.env`. Migration 0008 was applied directly to cloud Supabase.
+   `.vscode/.env`. Migration 0010 was applied directly to cloud Supabase.
    No local DB was used in M13's DB-bearing validation. Memory updated in
    `reference_supabase_db.md`.
 
@@ -289,7 +289,7 @@ Issue #11 (dotenv-leak / LB pollution) remains **CLOSED**. The
    the Titanic replay RMSLE or the reasoning shape-check count blocks
    the PR.
 
-4. **Cloud Supabase migration hygiene.** M13 applied migration 0008
+4. **Cloud Supabase migration hygiene.** M13 applied migration 0010
    directly to cloud; the local container was not used. A future task
    should re-apply all migrations to the local container and verify
    parity, or retire the local-container workflow in favour of the

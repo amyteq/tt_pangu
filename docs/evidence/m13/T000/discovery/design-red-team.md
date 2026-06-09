@@ -1,6 +1,6 @@
 # design-red-team report for M13-T000 (eval regression-suite framework)
 
-Source: strawman `docs/adr/0016-eval-regression-suite.md`,
+Source: strawman `docs/adr/0019-eval-regression-suite.md`,
 companion `docs/architecture/eval-regression-suite.md`,
 spec `docs/tasks/M13-T000-eval-architecture.md`.
 
@@ -12,7 +12,7 @@ _Produced under the M9.4 Discovery / Debate Gate. The agent body
 lives in `.claude/agents/design-red-team.md`; this artefact is a
 manual execution of that agent's protocol, following the precedent
 set by `docs/evidence/m9_4-kkr-replay/design-red-team.md`. The
-"proposed design" being refuted is the ADR-0016 strawman + the
+"proposed design" being refuted is the ADR-0019 strawman + the
 companion architecture doc at HEAD of branch `worktree-m13-execution`._
 
 Acceptance line (verbatim):
@@ -141,7 +141,7 @@ Acceptance line (verbatim):
 
 - **Per-case `human_decisions` row.** ADR-0006 (`docs/adr/0006-configurable-approval-gates.md:111-118`)
   pairs every approval-gated operation with a `human_decisions`
-  row. ADR-0016 §"Cost gate" explicitly chooses per-invocation
+  row. ADR-0019 §"Cost gate" explicitly chooses per-invocation
   gating to avoid N×decision-row spam, which means the per-case
   audit trail of "which case ran under approval id X" is lost — a
   query "for which case was the budget exceeded" requires
@@ -227,17 +227,17 @@ blast_radius:      If the eval framework breaks: (i) the CI nightly
   capability above argues this trades away per-case auditability.
   Next step: ask the human (on the M13 proposal issue) whether
   per-invocation gating is acceptable for T006, and if so,
-  document the trade explicitly in ADR-0016's "Consequences" so
+  document the trade explicitly in ADR-0019's "Consequences" so
   later auditors do not relitigate it.
 
 - **OTEL-spans-as-storage vs new tables.** Alternative 2 is the
   closest competing design and has the lowest schema-cost. The
   proposal's argument for new tables (per-suite metric keys are
-  heterogeneous; ADR-0016 §1) is real, but the OTEL exporter
+  heterogeneous; ADR-0019 §1) is real, but the OTEL exporter
   already accepts arbitrary attribute dicts. Next step: write a
   spike — implement one suite (T002 tool-smoke) BOTH ways and
   compare the report aggregator's SQL surface, then update
-  ADR-0016 with the chosen path. If the spike shows OTEL-as-storage
+  ADR-0019 with the chosen path. If the spike shows OTEL-as-storage
   is feasible, the milestone can deprecate `eval_results` entirely
   before T002 commits to its schema. Defer-to-follow-up-issue
   labels: `type:research`, `area:eval`, `area:supabase`,
@@ -277,7 +277,7 @@ blast_radius:      If the eval framework breaks: (i) the CI nightly
 - **`git_sha` recorded on `eval_runs`: worktree HEAD vs `main`.**
   The proposal records worktree HEAD; this is reproducible but
   not comparable across runs from different worktrees. Next step:
-  decide in ADR-0016's next revision (after the gate verdict)
+  decide in ADR-0019's next revision (after the gate verdict)
   whether to record both — `eval_runs.git_sha_worktree` and
   `eval_runs.git_sha_main_base` — or to commit to one. Defer
   decision to T001 owner; do not block T000.

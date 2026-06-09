@@ -1,7 +1,7 @@
 # SKIP-NOTE — legacy-archaeologist (M13-T000)
 
 Date: 2026-06-09
-Task: `M13-T000` — eval regression-suite architecture + ADR-0016.
+Task: `M13-T000` — eval regression-suite architecture + ADR-0019.
 Gate stage: 1 of 3 (legacy-archaeologist).
 Decision: **SKIPPED** as greenfield, per
 `docs/architecture/discovery-debate-gate.md` §"When the gate fires"
@@ -65,7 +65,7 @@ primitives that are themselves not changing.
 - The audit-grep sentinel from M10-T007 still applies. The "no
   legacy migration" argument does not weaken the "no real Kaggle
   CLI invocation from any suite process" guarantee that M10
-  established. ADR-0016 §"Fixture posture" and the architecture
+  established. ADR-0019 §"Fixture posture" and the architecture
   doc's "Audit-grep sentinel inheritance" section restate this
   obligation for M13.
 - If a future M13 sub-task ends up touching a legacy artefact (e.g.

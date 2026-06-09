@@ -6,7 +6,7 @@ notebook-submission flow.
 
 This script:
   1. Creates a real ``agent_jobs`` row for the M10 baseline notebook
-     (``runs/tpu-getting-started/baseline-tl/baseline.ipynb`` +
+     (``experiments/tpu-getting-started/baseline-tl/baseline.ipynb`` +
      ``kernel-metadata.json`` from M10-T002).
   2. Runs ``AgentWorker`` with a ``MockLiteLLMClient`` that emits one
      synthetic ``kernel_push`` tool call. ``tool_decisions["kernel_push"]="ask"``
@@ -65,8 +65,8 @@ def _single_kernel_push_client() -> MockLiteLLMClient:
                     arguments=json.dumps(
                         {
                             "competition": "tpu-getting-started",
-                            "notebook": "runs/tpu-getting-started/baseline-tl/baseline.ipynb",
-                            "kernel_metadata": "runs/tpu-getting-started/baseline-tl/kernel-metadata.json",
+                            "notebook": "experiments/tpu-getting-started/baseline-tl/baseline.ipynb",
+                            "kernel_metadata": "experiments/tpu-getting-started/baseline-tl/kernel-metadata.json",
                             "message": "M10-T002 baseline TL (M10-T003 reviewer gate)",
                         }
                     ),

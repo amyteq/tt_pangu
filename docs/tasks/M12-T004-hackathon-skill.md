@@ -24,7 +24,7 @@ Routine.
 1. `PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`
 2. `docs/milestones.md` §M12
 3. `docs/m12-loop-prompts.md` Loop Prompt 4
-4. `docs/adr/0016-generalized-competition-type.md` (T001 output)
+4. `docs/adr/0018-generalized-competition-type.md` (T001 output)
 5. `docs/architecture/kca-cli-architecture.md` — four-layer model
 6. `.kca/skills/kaggle-experiment-loop/SKILL.md` — skill body precedent
 7. `.kca/permissions/default.yaml`, `.kca/permissions/competition-runner.yaml`,
@@ -32,7 +32,7 @@ Routine.
 8. `tools/kca/agent/tool_executor.py` — tool registry / ToolSpec shape
 9. `src/worker/tools.py` — gate lookup path (post-T002 refactor)
 10. `tools/kca/devpost.py` (T003 output) — adapter surface
-11. `supabase/migrations/0008_m12_competition_type_teams.sql` (T002) —
+11. `supabase/migrations/0009_m12_competition_type_teams.sql` (T002) —
     `competitions.submission_format` jsonb shape
 
 ## Scope
@@ -139,7 +139,7 @@ M12-T004 closeout
 
 ## Related issues
 
-- ADR-0016 — referenced for the policy hierarchy.
+- ADR-0018 — referenced for the policy hierarchy.
 - Closing issue for M12 — gets a comment confirming the skill +
   profile + tool land without DB schema change.
 

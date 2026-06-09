@@ -95,8 +95,8 @@ def test_migration_0008_applied():
                 if regclass is None:
                     missing.append(table)
     assert not missing, (
-        f"migration 0008 not applied — missing tables: {missing}. "
-        "Apply supabase/migrations/0008_m13_eval.sql."
+        f"migration 0010 not applied — missing tables: {missing}. "
+        "Apply supabase/migrations/0010_m13_eval.sql."
     )
 
 

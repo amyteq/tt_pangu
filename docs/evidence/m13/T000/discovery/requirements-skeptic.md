@@ -1,7 +1,7 @@
 # requirements-skeptic report for M13-T000 (eval regression-suite framework)
 
 Source: `docs/tasks/M13-T000-eval-architecture.md`,
-strawman `docs/adr/0016-eval-regression-suite.md`,
+strawman `docs/adr/0019-eval-regression-suite.md`,
 companion `docs/architecture/eval-regression-suite.md`,
 parent `docs/milestones.md §M13`,
 parent `docs/m13-loop-prompts.md §"M13 at a glance"`.
@@ -30,7 +30,7 @@ Acceptance line (verbatim):
    Without an explicit retention policy, the table grows unboundedly
    and the report aggregator's `(eval_run_id, suite_id, route)` scan
    silently becomes slow.
-2. Does ADR-0016 commit to a metric-schema versioning convention so
+2. Does ADR-0019 commit to a metric-schema versioning convention so
    the M13.1 / M13.2 / M14 suites can add `metrics_jsonb` keys
    without breaking the T007 report aggregator? — consequence: the
    first downstream suite that emits a new key either crashes the
@@ -42,13 +42,13 @@ Acceptance line (verbatim):
    compete for the same budget); run-level caps reset per invocation
    (a malicious or buggy caller can run the suite 100 times in a row
    each at the cap). ADR-0006's per-project / per-job hierarchy
-   exists but ADR-0016 does not explicitly name which level wins.
+   exists but ADR-0019 does not explicitly name which level wins.
 4. What does "≤ ~5 MB per fixture" cumulatively mean across the
    ~5–7 suites M13 ships, plus the deferred M13.1 / M13.2 suites? —
    consequence: 5 MB × 10 fixtures = 50 MB in the repo, which is fine;
    5 MB × 30 fixtures (after CTF + Devpost land) = 150 MB, which
    begins to matter for shallow clones, Codespaces start-up time,
-   and the GitHub UI's per-blob 10 MB rendering cap. ADR-0016
+   and the GitHub UI's per-blob 10 MB rendering cap. ADR-0019
    §"Fixture posture" says ≤ ~5 MB *per fixture*; the total budget
    is not pinned.
 5. Is the `git_sha` recorded on `eval_runs` the worktree SHA, the
@@ -93,7 +93,7 @@ Acceptance line (verbatim):
    consequence: a single-process harness inherits `os.environ`
    exactly as it was at `kca eval run` time, which means a stray
    `KAGGLE_USERNAME` or `OPENAI_API_KEY` from a sibling shell leaks
-   into the run. ADR-0016 does not commit to the boundary.
+   into the run. ADR-0019 does not commit to the boundary.
 4. Are M13's eval rows readable by Supabase RLS roles the platform
    already defines, or does the migration add a new role? —
    consequence: without an explicit policy, anonymous-role reads
@@ -129,7 +129,7 @@ Acceptance line (verbatim):
 3. T006's route-comparison run may make 5 routes × 5 cases = 25 live
    LLM calls in a single dispatch. What is the failure mode if the
    network drops mid-run? — consequence: the harness aborts cleanly
-   per ADR-0016, but the `eval_runs` row is left in `status=running`
+   per ADR-0019, but the `eval_runs` row is left in `status=running`
    forever unless a heartbeat or timeout exists. Does the harness
    have a "running for >N seconds → aborted_on_error" sweeper?
 4. The nightly cron pushes a `gh issue comment` with the rolling
@@ -150,10 +150,10 @@ Acceptance line (verbatim):
 
 1. What happens when `kca eval run --suite kaggle_replay_titanic
    --route mocked` is invoked against a Supabase that does not have
-   migration 0008 applied (e.g. a stale local container)? —
+   migration 0010 applied (e.g. a stale local container)? —
    consequence: insert fails on missing table. Does the harness
    fail-fast with a friendly error, or does it crash mid-run with
-   leftover state? ADR-0016 implies fail-fast; the architecture doc
+   leftover state? ADR-0019 implies fail-fast; the architecture doc
    does not say.
 2. Two `kca eval run` invocations launched concurrently against the
    same project — are they serialised by `eval_runs.status=running`,
@@ -190,7 +190,7 @@ Acceptance line (verbatim):
 ## rollback
 
 1. What proves a `kca eval` deployment can be reverted? — consequence:
-   migration 0008 adds three new tables; a revert needs `DROP TABLE
+   migration 0010 adds three new tables; a revert needs `DROP TABLE
    IF EXISTS eval_results, eval_runs, eval_suites CASCADE`. There is
    no `0008_revert.sql` convention in the repo today. Is the answer
    "revert via PR + rerun the prior migration head", or is a
@@ -198,7 +198,7 @@ Acceptance line (verbatim):
 2. What state would block a clean revert? — consequence: a foreign
    key from a future migration (say M14 adds an
    `eval_run_attribution` table that points at `eval_runs.id`)
-   would make the cascade harder. Today no such FK exists; ADR-0016
+   would make the cascade harder. Today no such FK exists; ADR-0019
    does not commit to "no inbound FKs to eval_* until T008
    stabilises".
 3. If T008's nightly cron starts spuriously failing CI on a known-
@@ -218,7 +218,7 @@ Acceptance line (verbatim):
 ## explicit_unknowns
 
 - Budget-cap scoping: project-level vs run-level. ADR-0006's
-  hierarchy exists but ADR-0016 must name which level the
+  hierarchy exists but ADR-0019 must name which level the
   `external_llm` gate consults.
 - `eval_results` retention / partition policy. Indefinite growth is
   the implicit default; M13 should either accept it explicitly or

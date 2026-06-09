@@ -40,3 +40,20 @@
   default_decision: allow
 - operation: litellm_call
   default_decision: allow
+# M11 — CTF approval operations (ADR-0017). Defaults: ask for executor
+# operations, deny-default for egress (widen the ctf_scopes.target_urls
+# row to widen access).
+- operation: challenge_run
+  default_decision: ask
+  reason: Executing a solver against an authorized CTF target — gate by default.
+  audit_required: true
+- operation: flag_submit
+  default_decision: ask
+  reason: Submitting a flag to a CTF event API — external side effect.
+  audit_required: true
+- operation: network_egress
+  default_decision: deny
+  reason: Egress outside ctf_scopes.target_urls is denied; widen scope row to allow.
+  audit_required: true
+  conditional_allow:
+    when_in_scope: ask   # if request URL ∈ ctf_scopes.target_urls

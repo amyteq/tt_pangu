@@ -1,8 +1,8 @@
 # Eval regression-suite architecture
 
 Status: M13 (2026-06-09). Companion to
-[`ADR-0016`](../adr/0016-eval-regression-suite.md). T000 lands this
-doc; T001 lands migration 0008 + the `kca eval` CLI scaffold;
+[`ADR-0019`](../adr/0019-eval-regression-suite.md). T000 lands this
+doc; T001 lands migration 0010 + the `kca eval` CLI scaffold;
 T002–T007 fill the individual suites; T008 wires the nightly cron;
 T009 is the milestone close.
 
@@ -89,8 +89,8 @@ The mocked route is the default in every path that does not set
 
 ## Per-table layout
 
-Migration 0008 lands these three tables. The columns below are the
-ADR-0016 commitment; column nullability and FK lines are the
+Migration 0010 lands these three tables. The columns below are the
+ADR-0019 commitment; column nullability and FK lines are the
 to-be-enforced shape for T001's migration to honour byte-for-byte.
 
 ### `eval_suites` — registry of registered suites
@@ -308,7 +308,7 @@ machine-readable JSON envelope; `run` refuses with
 
 ## Cross-references
 
-- ADR-0016 — the decision record this architecture realises.
+- ADR-0019 — the decision record this architecture realises.
 - ADR-0006 (approval gates) — `external_llm` gate plumbing.
 - ADR-0008 (artifact storage local-first) — `runs/m13-eval/<ts>/`
   layout precedent.
@@ -319,4 +319,4 @@ machine-readable JSON envelope; `run` refuses with
 - `docs/architecture/kca-cli-architecture.md` — the four-layer CLI
   shape `kca eval` slots into.
 - `docs/evidence/m13/T000/discovery/` — Discovery / Debate Gate
-  transcripts that shaped the six decisions in ADR-0016.
+  transcripts that shaped the six decisions in ADR-0019.

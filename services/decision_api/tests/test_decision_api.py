@@ -92,6 +92,51 @@ def test_decision_api_404_for_unknown(client: TestClient) -> None:
     assert r.status_code == 404
 
 
+def test_submission_pack_endpoint_read_only(client: TestClient) -> None:
+    """M12-T005: GET /runs/<run_id>/submission_pack returns the checklist.
+
+    Uses a stub `submission_pack_provider` so the test never touches
+    Supabase or the local runs/ tree. Verifies (a) the endpoint is
+    HTTP GET, (b) it returns the checklist shape the UI expects, and
+    (c) HTTP POST against the same path returns 405 Method Not Allowed
+    (i.e. the endpoint is READ_ONLY).
+    """
+    fake = FakeDB()
+    payload = {
+        "ok": True,
+        "run_id": "r-1",
+        "slug": "demo-hack",
+        "checklist": [
+            {
+                "item": "README.md",
+                "status": "done",
+                "evidence": "runs/demo-hack/r-1/submission_pack/README.md",
+            },
+            {"item": "demo-plan.md", "status": "todo", "evidence": ""},
+        ],
+    }
+    app = make_app(
+        decisions_module=fake,
+        audit_logger=lambda **_: None,
+        submission_pack_provider=lambda _run_id: payload,
+    )
+    c = TestClient(app)
+
+    r = c.get("/runs/r-1/submission_pack")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["ok"] is True
+    assert body["slug"] == "demo-hack"
+    assert isinstance(body["checklist"], list)
+    assert body["checklist"][0]["item"] == "README.md"
+    assert body["checklist"][0]["status"] == "done"
+
+    # READ_ONLY: POST must NOT mutate. FastAPI returns 405 for an
+    # undeclared verb on a registered route.
+    r_post = c.post("/runs/r-1/submission_pack", json={})
+    assert r_post.status_code == 405
+
+
 def test_decision_api_token_required(monkeypatch) -> None:
     fake = FakeDB()
     monkeypatch.setenv("KCA_DECISION_API_TOKEN", "secret")
