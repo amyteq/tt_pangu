@@ -1082,7 +1082,7 @@ a human when the idea well is dry.
 Planned tasks:
 
 - T000 [`arch:`] Goal-driven loop architecture + ADR-0017 + Discovery / Debate Gate
-- T001 Migration 0009 (`goals` table + `competitions.max_*` + `experiment_runs.analysis.exploration_batch_id`)
+- T001 Migration 0011 (`goals` table + `competitions.max_*` + `experiment_runs.analysis.exploration_batch_id`)
 - T002 `kca goal {init, show, update}` + `goal.md` workspace artefact (issue #51)
 - T003 `kca explore {init, run, rank}` + local-screening fan-out (issue #52)
 - T004 Per-competition concurrency enforcement + daily-budget gate (issue #53)
