@@ -1,6 +1,6 @@
 # kaggle-code-agent Milestones
 
-Status: M0–M10 done; M9.2 ✓ done (/save-log operator-tooling skill); M11 in planning (authorized CTF/lab workflow)  
+Status: M0–M10 done; M9.2 ✓ done (/save-log operator-tooling skill); M11 PARTIAL (T000–T006 + T008 done 2026-06-09; T007 deferred pending human action)  
 Created: 2026-05-16  
 Scope: hybrid human + AI code competition platform
 
