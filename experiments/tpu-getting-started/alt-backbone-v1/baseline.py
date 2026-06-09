@@ -53,10 +53,12 @@ tf.random.set_seed(SEED)
 #
 # Try Kaggle's GCS-backed dataset path first (kernel runner). Fall back to the local M10-T002 slice.
 
+
 # %%
 def _resolve_gcs_path() -> str | None:
     try:
         from kaggle_datasets import KaggleDatasets  # type: ignore
+
         return KaggleDatasets().get_gcs_path(COMPETITION)
     except Exception:
         return None
@@ -72,7 +74,9 @@ def _resolve_kaggle_input_path() -> str | None:
 def _resolve_local_slice() -> str | None:
     for candidate in [
         Path.cwd() / "data" / COMPETITION / "local-slice",
-        Path("/home/harry/test/tt_pangu/.claude/worktrees/m10-petals-to-the-metal/data") / COMPETITION / "local-slice",
+        Path("/home/harry/test/tt_pangu/.claude/worktrees/m10-petals-to-the-metal/data")
+        / COMPETITION
+        / "local-slice",
     ]:
         if candidate.exists():
             return str(candidate)
@@ -122,7 +126,9 @@ UNLABELED_TFREC_FORMAT = {
 def decode_image(image_bytes):
     image = tf.image.decode_jpeg(image_bytes, channels=3)
     image = tf.image.resize(image, IMAGE_SIZE)
-    image = tf.cast(image, tf.float32)  # keep [0, 255]; EfficientNet normalizes internally
+    image = tf.cast(
+        image, tf.float32
+    )  # keep [0, 255]; EfficientNet normalizes internally
     image = tf.reshape(image, [*IMAGE_SIZE, 3])
     return image
 
@@ -146,7 +152,9 @@ def _split_glob(split: str) -> str:
 def load_dataset(split: str, labeled: bool):
     files = tf.io.gfile.glob(_split_glob(split))
     if not files:
-        raise RuntimeError(f"No TFRecords found for split={split} glob={_split_glob(split)}")
+        raise RuntimeError(
+            f"No TFRecords found for split={split} glob={_split_glob(split)}"
+        )
     ds = tf.data.TFRecordDataset(files, num_parallel_reads=tf.data.AUTOTUNE)
     ds = ds.with_options(tf.data.Options())
     ds = ds.map(
@@ -182,9 +190,11 @@ def get_test_dataset():
 # %% [markdown]
 # ## Dataset sizing
 
+
 # %%
 def count_data_items(filenames):
     import re
+
     total = 0
     for fn in filenames:
         m = re.search(r"-(\d+)\.tfrec$", fn)
@@ -221,6 +231,7 @@ except (ValueError, tf.errors.NotFoundError, Exception):
 
 # %% [markdown]
 # ## Model — EfficientNetB0 (the single axis varied vs M10-T002)
+
 
 # %%
 def build_model():
@@ -334,7 +345,9 @@ if test_files:
             f.write(f"{i},{int(p)}\n")
     print(f"submission written to {out_path} (n={len(ids)})")
 else:
-    print("no test/ split available locally — skipping submission.csv (Kaggle kernel will produce it)")
+    print(
+        "no test/ split available locally — skipping submission.csv (Kaggle kernel will produce it)"
+    )
 
 # %% [markdown]
 # ## Done.
