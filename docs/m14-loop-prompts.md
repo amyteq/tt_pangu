@@ -27,13 +27,24 @@ the idea well is dry.
 The five user-surfaced bullets from PR #44 each become a numbered task in this
 milestone, tracked by an `ai:triage` GitHub issue:
 
-| Bullet | Issue | M14 task |
+| Bullet / topic | Issue | M14 task |
 |---|---|---|
 | Goal setting at start of competition | #51 | T002 |
 | Parallel exploration with local GPU screening | #52 | T003 |
 | Multi-push concurrency within Kaggle rules | #53 | T004 |
 | Smart polling: backoff + batched status reads | #54 | T005 |
 | Human-in-the-loop escalation when stuck | #55 | T007 |
+| Competition-rules ingestion (quota / accelerators / internet / deadlines / format) | #8 (parent), #7 (submission-format sub-task) | T001 |
+| `cmd_push` missing `KAGGLE_USERNAME`/`KAGGLE_KEY` pre-check (M13 deviation) | #62 | T004 |
+| Gate PRs on eval score-delta (per `docs/m13-final-review.md` follow-up 3) | #63 | T009 |
+
+Related but **not** in M14's deliverable surface (cross-referenced from
+the relevant Loop Prompt read-lists for context, no work scheduled):
+
+- #21 — per-account quota pool. M14 ships the **single-account** primitive
+  (T004); the multi-account variant is M15+.
+- #60 — `approved_by_user_id` FK on `human_decisions`. M14-T007 inserts
+  new rows of this type; the FK hardening is a separate audit task.
 
 Direct entry into M14 is blocked until **all** are true:
 
@@ -163,21 +174,30 @@ Read also (background context):
 - supabase/migrations/0010_m13_eval.sql (most recent migration on main, from M13-T001)
 - tools/kca/db.py (existing helpers: ensure_competition, create_experiment_m2, update_submission)
 - docs/architecture/goal-driven-kaggle-loop.md
+- Issue #8 (competition-rules ingestion — parent issue this task absorbs)
+- Issue #7 (submission-format awareness — #8's sub-task, also absorbed here)
 
 Mission:
 Write `supabase/migrations/0011_m14_goal_loop.sql` (next free number — M11/M12/M13 occupy 0008/0009/0010 on main) with:
   - `goals` table (id, competition_id FK, target_lb_score, target_lb_rank,
     deadline, exit_strategy, status, created_at, closed_at, closed_reason)
   - `competitions` columns: `max_daily_submissions`, `max_concurrent_pushes`,
-    `rules_summary_url`, `last_rules_fetch_at`
+    `rules_summary_url`, `last_rules_fetch_at`, `submission_format`
+    (per #7: jsonb with `kind` ∈ `csv|notebook|kernel-output|zip` + format-specific keys),
+    `accelerators_allowed` (text[]), `internet_allowed` (boolean), `deadline_at`
   - `experiment_runs.analysis` keys (no schema change — these are JSONB
     fields documented in ADR-0020): `exploration_batch_id`, `parent_run_id`,
     `queue_time_seconds`, `running_time_seconds`, `escalation_id`
   - `goals.id` FK on `submissions.goal_id` (nullable)
 Add matching helpers in `tools/kca/db.py`: `create_goal`, `update_goal`,
-`get_active_goal`, `count_active_pushes`, `count_today_submissions`.
-No CLI surface yet; that is T002+. Migration must apply cleanly against
-the cloud Supabase pooler.
+`get_active_goal`, `count_active_pushes`, `count_today_submissions`,
+`refresh_competition_rules` (calls `kaggle.api.competition_view` + parses the
+public rules page best-effort, writes to the new columns).
+Extend `tools/kca/competition.py::cmd_register` to populate the new columns
+at register time (per #8) and add `kca competition refresh-rules --slug ...`
+for on-demand refresh.
+No `kca goal` / `kca explore` CLI surface yet; that is T002+. Migration must
+apply cleanly against the cloud Supabase pooler.
 ```
 
 ---
@@ -253,17 +273,22 @@ Read also (background context):
 - tools/kca/kg.py::cmd_push (M10 single-push path)
 - tools/kca/kg.py::cmd_score (auto-watch loop entry)
 - kaggle.api.competition_view (per-competition limits)
-- Issue #21 (per-account-pool variant — out of scope here)
+- Issue #21 (per-account-pool variant — out of scope here; M15+)
+- Issue #62 (cmd_push missing KAGGLE_USERNAME/KAGGLE_KEY pre-check — bundled
+  into this task since the pre-flight gating shape is what's being touched
+  anyway; mirrors cmd_submit's existing check at tools/kca/kg.py:145-162)
 
 Mission:
-Populate `competitions.max_daily_submissions` + `max_concurrent_pushes` from
-`competition_view` at `kca competition register` time (and via a new
-`kca competition refresh-rules --slug ...`).
-In `cmd_push`: count current active kernel runs for this competition that
-KCA owns (latest version per slug, status != TERMINAL); refuse cleanly when
-the limit is reached; emit the active-runs list in the JSON response.
+The new competition rules columns are already populated by T001 (per #8).
+In `cmd_push`: add a `KAGGLE_USERNAME` / `KAGGLE_KEY` pre-check that
+short-circuits with the same error envelope shape `cmd_submit` uses, BEFORE
+the approval gate fires (per #62). Then count current active kernel runs
+for this competition that KCA owns (latest version per slug, status !=
+TERMINAL); refuse cleanly when the limit is reached; emit the active-runs
+list in the JSON response.
 In `cmd_push` and `cmd_submit`: count today's submissions for this comp;
-refuse past `max_daily_submissions`; back off until the 24h rolling window opens.
+refuse past `max_daily_submissions`; back off until the 24h rolling window
+opens.
 No real Kaggle push in this Loop Prompt — exercise the enforcement against
 a fixture / fake competition row.
 ```
@@ -347,6 +372,9 @@ Read also (background context):
 - services/decision_api/app.py (Approval Inbox surface)
 - ui/src/pages/ApprovalInbox.tsx
 - docs/tasks/M9-T003 / M10-T003 (the kaggle_submit / kernel_push escalation precedents)
+- Issue #60 (`approved_by_user_id` FK on `human_decisions`) — T007 inserts
+  new rows of this type; the FK hardening is tracked separately but the new
+  rows here should be FK-ready (write the column if present, ignore otherwise).
 
 Mission:
 Implement the stuck detector — fires when N consecutive submissions show no
@@ -419,6 +447,12 @@ Read also (background context):
 - docs/m8_5-final-review.md (layout precedent)
 - `milestone-final-review` skill
 - `worktree-milestone-pr` skill
+- Issue #63 (gate PRs on eval score-delta — absorbed by this task per
+  docs/m13-final-review.md M14+ follow-up 3)
+- docs/adr/0019-eval-regression-suite.md (the M13 suite definitions this
+  task adds CI gating on top of)
+- runs/m13-eval/<ts>/report.json (the diffable artefact produced by
+  `kca eval report`)
 
 Mission:
 Add `tests/test_m14_*.py` covering:
@@ -426,10 +460,23 @@ Add `tests/test_m14_*.py` covering:
   - kca explore init / run / rank against a fake search space (dry-run; no
     real training)
   - cmd_push concurrency refusal when limit reached (fixture-driven)
+  - cmd_push credentials pre-check refusal (matches cmd_submit's envelope
+    shape; per #62 + T004)
   - _watch_kernel_until_terminal state machine: QUEUED → RUNNING → TERMINAL
     cadence (mocked clock)
   - stuck detector triggers when 3 non-improving submissions land
   - escalation row + escalation doc written
+
+Eval-suite CI gating (per #63):
+  - Define per-suite `failure_threshold` in `docs/adr/0019-eval-regression-suite.md`
+    (absolute for shape-checks, relative for metric deltas).
+  - Add a GitHub Actions step `eval-delta-check` that runs `kca eval run`
+    against the baselined snapshot and fails the PR if any suite regresses
+    past its threshold. Reuses the existing M13 nightly job's runner.
+  - Document the bypass: a `eval:waive-delta` PR label (human-only) skips
+    the gate with a mandatory rationale comment, recorded in
+    `agent_tool_audit`.
+
 Run the milestone validation matrix, then `milestone-final-review` writes
 `docs/m14-final-review.md` mirroring the M10 / M8.5 layout. Update
 PROJECT_STATE / README / milestones / handoffs per the protocol §5 source
@@ -444,15 +491,15 @@ worktree branch, and opens the final M14 PR against `main`.
 | Task | Issue | Labels at file time |
 |---|---|---|
 | M14-T000 | (new — `arch:`) | `type:feature ai:triage area:agent-sdk area:kaggle priority:P1` |
-| M14-T001 | (new) | `type:feature ai:triage area:supabase area:agent-sdk priority:P1` |
+| M14-T001 | #8 (parent) + #7 (sub-task) | `type:feature ai:triage area:supabase area:agent-sdk priority:P1` |
 | M14-T002 | #51 | `type:feature ai:triage area:kaggle area:agent-sdk priority:P1` |
 | M14-T003 | #52 | `type:feature ai:triage area:worker area:kaggle priority:P1` |
-| M14-T004 | #53 | `type:feature ai:triage area:kaggle priority:P1` |
+| M14-T004 | #53 + #62 | `type:feature ai:triage area:kaggle priority:P1` |
 | M14-T005 | #54 | `type:feature ai:triage area:kaggle priority:P1` |
 | M14-T006 | (new — paired with #51/#52) | `type:feature ai:triage area:kaggle area:agent-sdk priority:P2` |
 | M14-T007 | #55 | `type:feature ai:triage area:agent-sdk area:ui priority:P1` |
 | M14-T008 | (new — `policy:approval-required`) | `type:feature ai:blocked policy:approval-required decision:needed area:kaggle priority:P0` |
-| M14-T009 | (new) | `type:test-gap ai:triage area:testing area:release area:docs priority:P1` |
+| M14-T009 | #63 + (new test-gap issue) | `type:test-gap ai:triage area:testing area:release area:docs area:eval priority:P1` |
 
 T008 is the only task that starts `ai:blocked` and requires a
 `decision:confirmed` comment with an explicit "approved to run multi-push

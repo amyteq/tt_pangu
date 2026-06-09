@@ -1070,7 +1070,9 @@ Exit criteria met (34 PASS / 4 SKIP / 0 FAIL):
 ## M14: goal-driven Kaggle workflow
 
 _Filed 2026-06-09 from PR #44 follow-up. Five user-surfaced bullets become
-GitHub issues #51 #52 #53 #54 #55 + M14 tasks T002 T003 T004 T005 T007._
+GitHub issues #51 #52 #53 #54 #55 + M14 tasks T002 T003 T004 T005 T007.
+Post-merge triage on 2026-06-09 also folded #7, #8, #62, #63 into the
+plan (see task list below); #21 + #60 cross-referenced but deferred._
 
 Goal: lift the platform from M10's single-shot, human-approved push into a
 goal-tracking loop. Declare a target up front, fan out candidate experiments
@@ -1081,16 +1083,16 @@ a human when the idea well is dry.
 
 Planned tasks:
 
-- T000 [`arch:`] Goal-driven loop architecture + ADR-0017 + Discovery / Debate Gate
-- T001 Migration 0011 (`goals` table + `competitions.max_*` + `experiment_runs.analysis.exploration_batch_id`)
+- T000 [`arch:`] Goal-driven loop architecture + ADR-0020 + Discovery / Debate Gate
+- T001 Migration 0011 (`goals` table + `competitions.max_*` + `submission_format` + `accelerators_allowed` + `experiment_runs.analysis.exploration_batch_id`) — absorbs #8 (competition-rules ingestion) + #7 (submission-format awareness)
 - T002 `kca goal {init, show, update}` + `goal.md` workspace artefact (issue #51)
 - T003 `kca explore {init, run, rank}` + local-screening fan-out (issue #52)
-- T004 Per-competition concurrency enforcement + daily-budget gate (issue #53)
+- T004 Per-competition concurrency enforcement + daily-budget gate + `cmd_push` credentials pre-check (issues #53, #62)
 - T005 Smart polling: Fibonacci backoff QUEUED, stable RUNNING, batched `kernels list` (issue #54)
 - T006 Idea-sourcing reader + `kca explore propose-next`
-- T007 Stuck detector + human escalation via Approval Inbox (issue #55)
+- T007 Stuck detector + human escalation via Approval Inbox (issue #55; cross-ref #60)
 - T008 Live end-to-end on Kaggle: goal set, explore, push, poll, record LB, iterate or escalate
-- T009 Regression tests + exit criteria + final review
+- T009 Regression tests + eval-suite CI gating (per-suite `failure_threshold` from M13's ADR-0019) + exit criteria + final review (issue #63)
 
 Pre-requisite: M10 merged on `main` (✓); PR #44 follow-up merged (cloud
 Supabase + `kca kaggle score` + `kca kaggle push --watch`); issues #51 #52
@@ -1115,8 +1117,11 @@ Exit criteria:
 
 Out of scope for M14:
 
-- Cross-account quota pooling (issue #21) — single-account primitive here;
-  multi-account is a separate milestone.
+- Cross-account quota pooling (issue #21) — M14 ships the single-account
+  primitive; multi-account is a separate milestone (M15+).
+- `approved_by_user_id` FK on `human_decisions` (issue #60) — T007 writes
+  new rows of this decision_type but the FK hardening is a separate audit
+  task; M14 writes the column if present and tolerates its absence.
 - Kaggle dataset / model uploads — kernel pushes only.
 - A new Kaggle competition portfolio — `tpu-getting-started` is the
   default T008 surface unless T000 picks a smaller competition.
