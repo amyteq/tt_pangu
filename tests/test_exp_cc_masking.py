@@ -124,15 +124,24 @@ def test_default_output_dir_is_worklogs():
 # --- filename disambiguation (no overwrite on same name) --------------------
 
 
-def _cand(name="", job_id="", session_id="", status="completed"):
+def _cand(
+    name="",
+    job_id="",
+    session_id="",
+    status="completed",
+    source="test",
+    state_path=None,
+):
+    from pathlib import Path
+
     return exp_cc.Candidate(
-        source="test",
+        source=source,
         job_id=job_id,
         session_id=session_id,
         name=name,
         status=status,
         cwd="",
-        state_path=None,
+        state_path=Path(state_path) if state_path else None,
         raw={},
     )
 
@@ -163,14 +172,54 @@ def test_same_name_no_id_falls_back_to_counter():
     assert len(set(names)) == 2
 
 
-# --- header has no wall-clock timestamp -------------------------------------
+# --- dedupe merges the same session from different sources ------------------
 
 
-def test_header_has_no_export_timestamp():
+def test_dedupe_merges_same_session_id_across_sources():
+    # The exact bug: one record from `claude agents --json` (session id, no job
+    # id, non-terminal) and one from state.json (both ids, terminal). Same
+    # session -> must collapse to ONE, not two dump files.
+    cli = _cand(
+        name="fix1",
+        job_id="",
+        session_id="12f67fe6-f215",
+        status="working",
+        source="claude agents --json",
+    )
+    state = _cand(
+        name="fix1",
+        job_id="12f67fe6",
+        session_id="12f67fe6-f215",
+        status="completed",
+        source="state.json",
+        state_path="/jobs/12f67fe6/state.json",
+    )
+    merged = exp_cc.dedupe([cli, state])
+    assert len(merged) == 1
+    m = merged[0]
+    assert m.session_id == "12f67fe6-f215"
+    assert m.job_id == "12f67fe6"  # filled from the state.json record
+    assert m.status == "completed"  # terminal status preferred
+    # ...and it now yields a single clean filename, no _<id> / _2 suffix.
+    assert exp_cc.assign_output_names(merged) == ["fix1"]
+
+
+def test_dedupe_keeps_genuinely_distinct_sessions():
+    a = _cand(name="loop", session_id="aaaa-1")
+    b = _cand(name="loop", session_id="bbbb-2")
+    merged = exp_cc.dedupe([a, b])
+    assert len(merged) == 2  # different session ids -> not merged
+
+
+# --- header is content-only (no timestamp, no output path) ------------------
+
+
+def test_header_has_no_timestamp_or_output():
     from pathlib import Path
 
-    header = exp_cc.build_header(_cand(name="M7"), Path("/x/t.jsonl"), Path("/o/M7.md"))
+    header = exp_cc.build_header(_cand(name="M7"), Path("/x/t.jsonl"))
     assert "Exported at" not in header
+    assert "Output" not in header  # output path varied per run -> churn
     assert "Session name: `M7`" in header
 
 
