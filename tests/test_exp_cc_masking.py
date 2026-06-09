@@ -121,5 +121,58 @@ def test_default_output_dir_is_worklogs():
     assert args.output_dir == "worklogs"
 
 
+# --- filename disambiguation (no overwrite on same name) --------------------
+
+
+def _cand(name="", job_id="", session_id="", status="completed"):
+    return exp_cc.Candidate(
+        source="test",
+        job_id=job_id,
+        session_id=session_id,
+        name=name,
+        status=status,
+        cwd="",
+        state_path=None,
+        raw={},
+    )
+
+
+def test_unique_names_keep_clean_stem():
+    cands = [_cand(name="M7"), _cand(name="M8")]
+    assert exp_cc.assign_output_names(cands) == ["M7", "M8"]
+
+
+def test_same_name_sessions_do_not_collide():
+    cands = [
+        _cand(name="loop", session_id="aaaaaaaa1111"),
+        _cand(name="loop", session_id="bbbbbbbb2222"),
+        _cand(name="solo"),
+    ]
+    names = exp_cc.assign_output_names(cands)
+    assert len(set(names)) == 3  # no overwrite
+    assert names[2] == "solo"  # unique name stays clean
+    assert names[0].startswith("loop_") and names[1].startswith("loop_")
+    # Stable: derived from the session id, so re-running yields the same stems.
+    assert names[0] == "loop_aaaaaaaa"
+    assert names[1] == "loop_bbbbbbbb"
+
+
+def test_same_name_no_id_falls_back_to_counter():
+    cands = [_cand(name="dup"), _cand(name="dup")]
+    names = exp_cc.assign_output_names(cands)
+    assert len(set(names)) == 2
+
+
+# --- header has no wall-clock timestamp -------------------------------------
+
+
+def test_header_has_no_export_timestamp():
+    from pathlib import Path
+
+    header = exp_cc.build_header(_cand(name="M7"), Path("/x/t.jsonl"), Path("/o/M7.md"))
+    assert "Exported at" not in header
+    assert "Session name: `M7`" in header
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))

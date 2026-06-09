@@ -44,8 +44,8 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -67,7 +67,11 @@ SECRET_PATTERNS: list[tuple[str, str, int]] = [
     (r"\bsk-ant-[A-Za-z0-9_\-]{20,}", "Anthropic API key", 0),
     (r"\bsk-[A-Za-z0-9_\-]{32,}", "generic sk-* API key", 0),
     (r"BEGIN (?:RSA |OPENSSH |EC |DSA )?PRIVATE KEY", "private key block", 0),
-    (r"(\bANTHROPIC_API_KEY\s*=\s*['\"]?)([A-Za-z0-9_\-]{16,})", "Anthropic env key", 2),
+    (
+        r"(\bANTHROPIC_API_KEY\s*=\s*['\"]?)([A-Za-z0-9_\-]{16,})",
+        "Anthropic env key",
+        2,
+    ),
     (r"(\bOPENAI_API_KEY\s*=\s*['\"]?)([A-Za-z0-9_\-]{16,})", "OpenAI env key", 2),
     (r"(\bKAGGLE_KEY\s*=\s*['\"]?)([A-Za-z0-9_\-]{8,})", "Kaggle key", 2),
     (
@@ -354,6 +358,28 @@ def select_candidate(
     return best[0]
 
 
+def safe_glob(base: Path, pattern: str) -> list[Path]:
+    """Recursive glob that tolerates unreadable siblings. Under a shared
+    config dir (e.g. ~/.claude/projects with per-project 0700 dirs that a CI
+    runner is only partially ACL'd into), a plain Path.glob can raise
+    PermissionError mid-walk; swallow those and return what is reachable."""
+    try:
+        return list(base.glob(pattern))
+    except (PermissionError, OSError):
+        out: list[Path] = []
+        try:
+            children = list(base.iterdir())
+        except (PermissionError, OSError):
+            return out
+        for child in children:
+            if child.is_dir():
+                try:
+                    out.extend(child.rglob(pattern.removeprefix("**/")))
+                except (PermissionError, OSError):
+                    continue
+        return out
+
+
 def find_transcript_from_state(candidate: Candidate, config_dir: Path) -> Path | None:
     for path in collect_jsonl_paths(candidate.raw):
         if not path.is_absolute():
@@ -364,14 +390,12 @@ def find_transcript_from_state(candidate: Candidate, config_dir: Path) -> Path |
             return path.resolve()
 
     if candidate.session_id:
-        matches = list(
-            (config_dir / "projects").glob(f"**/{candidate.session_id}.jsonl")
-        )
+        matches = safe_glob(config_dir / "projects", f"**/{candidate.session_id}.jsonl")
         if matches:
             return matches[0].resolve()
 
     if candidate.job_id:
-        matches = list((config_dir / "projects").glob(f"**/*{candidate.job_id}*.jsonl"))
+        matches = safe_glob(config_dir / "projects", f"**/*{candidate.job_id}*.jsonl")
         if matches:
             return matches[0].resolve()
 
@@ -383,6 +407,47 @@ def safe_filename(name: str) -> str:
     text = re.sub(r"[^\w.\-]+", "-", text, flags=re.UNICODE)
     text = re.sub(r"-{2,}", "-", text).strip(".-")
     return text[:120] or "claude-session"
+
+
+def base_output_name(candidate: Candidate) -> str:
+    return safe_filename(
+        candidate.name or candidate.job_id or candidate.session_id or "claude-session"
+    )
+
+
+def short_disambiguator(candidate: Candidate) -> str:
+    """A short, stable suffix for a candidate. Prefer the session id, then the
+    job id, so the same session keeps the same filename across runs (date-based
+    suffixes would mint a new file every day and defeat byte-stability)."""
+    raw = candidate.session_id or candidate.job_id
+    return safe_filename(raw)[:8] if raw else ""
+
+
+def assign_output_names(candidates: list[Candidate]) -> list[str]:
+    """Return one filename stem per candidate, aligned by index, guaranteeing
+    no two candidates share a stem. Names that are unique keep the clean
+    `<name>` form; only colliding names get a `<name>_<short id>` suffix, so a
+    second session sharing a name never silently overwrites the first."""
+    bases = [base_output_name(c) for c in candidates]
+    counts = Counter(bases)
+    used: set[str] = set()
+    names: list[str] = []
+    for candidate, base in zip(candidates, bases):
+        if counts[base] > 1:
+            suffix = short_disambiguator(candidate)
+            name = f"{base}_{suffix}" if suffix else base
+        else:
+            name = base
+        # Final guard: if the disambiguated name still clashes (e.g. two
+        # sessions with the same name and no usable id), append a counter.
+        unique = name
+        n = 2
+        while unique in used:
+            unique = f"{name}_{n}"
+            n += 1
+        used.add(unique)
+        names.append(unique)
+    return names
 
 
 def run_claude_code_log(transcript: Path, tmp_md: Path, detail: str) -> None:
@@ -521,13 +586,15 @@ def mask_secret_like_text(text: str) -> str:
 
 
 def build_header(candidate: Candidate, transcript: Path, output_path: Path) -> str:
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    # No "Exported at" / wall-clock timestamp on purpose: the header must be a
+    # pure function of the session content so an unchanged session re-exports to
+    # byte-identical Markdown and the daily worklogs routine produces no commit.
+    # The git commit time already records when a dump happened.
     title = (
         candidate.name or candidate.job_id or candidate.session_id or "Claude session"
     )
     return (
         f"# Claude session log: {title}\n\n"
-        f"- Exported at: `{now}`\n"
         f"- Session name: `{candidate.name or ''}`\n"
         f"- Job id: `{candidate.job_id or ''}`\n"
         f"- Session id: `{candidate.session_id or ''}`\n"
@@ -544,6 +611,7 @@ def export_one(
     root: Path,
     config_dir: Path,
     output_dir: Path,
+    output_name: str,
     detail: str,
     allow_any_state: bool,
     allow_secret_like: bool,
@@ -586,10 +654,7 @@ def export_one(
             ),
         }
 
-    out_name = safe_filename(
-        candidate.name or candidate.job_id or candidate.session_id or "claude-session"
-    )
-    output_path = output_dir / f"{out_name}.md"
+    output_path = output_dir / f"{output_name}.md"
 
     with tempfile.TemporaryDirectory(prefix="export-claude-log-") as tmp_dir_s:
         tmp_dir = Path(tmp_dir_s)
@@ -809,13 +874,16 @@ def main() -> int:
     output_dir = (root / args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    output_names = assign_output_names(targets)
+
     results: list[dict[str, Any]] = []
-    for c in targets:
+    for c, output_name in zip(targets, output_names):
         result = export_one(
             c,
             root=root,
             config_dir=config_dir,
             output_dir=output_dir,
+            output_name=output_name,
             detail=args.detail,
             allow_any_state=args.allow_any_state,
             allow_secret_like=args.allow_secret_like,

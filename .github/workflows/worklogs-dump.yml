@@ -1,16 +1,21 @@
 name: Worklogs Dump
 
-# Dump Claude Code session transcripts for this project to Markdown and merge
+# Dump Claude Code session transcripts for THIS project to Markdown and merge
 # them into main, once per day at ~02:00 Australia/Melbourne.
 #
-# Runs on the self-hosted Arch runner (vars.CI_RUNNER = arch-ci, hostname
-# HARRY-ARCH). It reads the HOST Claude state (read-only) and commits via a
-# fresh token clone of the repo, so the human's live checkout is never touched.
+# The self-hosted runner (vars.CI_RUNNER = arch-ci, hostname HARRY-ARCH) runs as
+# a NATIVE systemd service under user `gha-runner` — it is not containerised.
+# So the runner only needs read-only filesystem access to the human's Claude
+# state; it never writes there. The exporter reads the host transcripts but
+# writes the Markdown into the gha-runner-owned Actions checkout, which is what
+# gets committed and pushed. See docs/tooling/worklogs-routine.md for the exact
+# ACLs the host needs ("broaden permissions").
 #
-# Prerequisites on the self-hosted runner (see docs/tooling/worklogs-routine.md):
-#   - read access to ${{ vars.HOST_CLAUDE_DIR }} (default /home/harry/.claude)
-#     and ${{ vars.HOST_REPO_DIR }} (default /home/harry/test/tt_pangu)
-#   - micromamba env ${{ vars.WORKLOG_MAMBA_ENV }} (default v3.12.12) with uv
+# Prerequisites on the self-hosted host (docs/tooling/worklogs-routine.md):
+#   - read+traverse ACLs for `gha-runner` on ${{ vars.HOST_CLAUDE_DIR }}
+#     (default /home/harry/.claude -> .claude-ayla) and traverse to
+#     ${{ vars.HOST_REPO_DIR }} (default /home/harry/test/tt_pangu)
+#   - micromamba env ${{ vars.WORKLOG_MAMBA_ENV }} (default v3.12.12), with uv
 #   - network egress to github.com
 #
 # GitHub Actions cron is UTC-only with no DST handling. 02:00 Melbourne is
@@ -43,43 +48,57 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - name: Gate (DST-correct 02:00 Melbourne + host availability)
+      - name: Gate (DST-correct 02:00 Melbourne + host readability)
         id: gate
         run: |
-          set -euo pipefail
-          # Manual runs always proceed.
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "should_run=true" >> "$GITHUB_OUTPUT"
-          else
+          set -uo pipefail
+          should_run=true
+
+          # 1. Time gate. Manual runs always proceed; scheduled runs only at
+          #    02:00 Melbourne local (covers both UTC cron ticks across DST).
+          if [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
             HOUR="$(TZ=Australia/Melbourne date +%H)"
-            if [ "$HOUR" = "02" ]; then
-              echo "should_run=true" >> "$GITHUB_OUTPUT"
-            else
+            if [ "$HOUR" != "02" ]; then
               echo "Melbourne local hour is ${HOUR}, not 02 — skipping this cron tick."
-              echo "should_run=false" >> "$GITHUB_OUTPUT"
+              should_run=false
             fi
           fi
-          # Even when scheduled at the right time, only the self-hosted host has
-          # the Claude state to dump. On any other runner, skip gracefully.
-          if [ ! -d "${HOST_CLAUDE_DIR}/projects" ] && [ ! -d "${HOST_CLAUDE_DIR}/jobs" ]; then
-            echo "No Claude state under ${HOST_CLAUDE_DIR} — skipping (not the host runner?)."
-            echo "should_run=false" >> "$GITHUB_OUTPUT"
+
+          # 2. Readability gate. Only the self-hosted host has the Claude state,
+          #    and only if the runner has been granted read ACLs. If we cannot
+          #    read it, skip with a pointer instead of failing.
+          if [ "$should_run" = "true" ]; then
+            if [ ! -r "${HOST_CLAUDE_DIR}/jobs" ] && [ ! -r "${HOST_CLAUDE_DIR}/projects" ]; then
+              echo "::warning::Cannot read Claude state under ${HOST_CLAUDE_DIR}."
+              echo "If this IS the self-hosted host, grant gha-runner read ACLs —"
+              echo "see docs/tooling/worklogs-routine.md (Runner permissions)."
+              should_run=false
+            fi
           fi
 
-      - name: Resolve micromamba env bin
+          echo "should_run=${should_run}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout (gha-runner-owned, for the commit)
+        if: steps.gate.outputs.should_run == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Resolve micromamba env bin + ensure uv
         id: pyenv
         if: steps.gate.outputs.should_run == 'true'
         run: |
           set -euo pipefail
-          # Prefer `micromamba run` if available; otherwise fall back to the
-          # known env bin path used by the self-hosted-smoke workflow.
+          # Prefer `micromamba run`; fall back to the env bin path used by the
+          # self-hosted-smoke workflow.
           if command -v micromamba >/dev/null 2>&1; then
-            BIN="$(micromamba run -n "${MAMBA_ENV}" python -c 'import sys,os;print(os.path.dirname(sys.executable))')"
+            BIN="$(micromamba run -n "${MAMBA_ENV}" python -c 'import os,sys;print(os.path.dirname(sys.executable))')"
           else
             BIN="${HOME}/micromamba/envs/${MAMBA_ENV}/bin"
           fi
           if [ ! -x "${BIN}/python" ]; then
-            echo "::error::Could not find python for micromamba env '${MAMBA_ENV}' (looked in ${BIN})."
+            echo "::error::No python for micromamba env '${MAMBA_ENV}' (looked in ${BIN})."
             exit 1
           fi
           echo "bin=${BIN}" >> "$GITHUB_OUTPUT"
@@ -93,60 +112,47 @@ jobs:
       - name: Dump session transcripts to Markdown (masked)
         if: steps.gate.outputs.should_run == 'true'
         env:
-          # Point discovery at the HOST Claude state + project dir. The cwd
-          # filter in exp_cc.py matches sessions whose cwd is the project root,
-          # so this must be the path where the sessions actually ran.
+          # Discovery reads the HOST Claude state. CLAUDE_PROJECT_DIR is the path
+          # where the sessions actually ran — exp_cc.py filters candidates to
+          # sessions whose cwd is within it, so ONLY this project's transcripts
+          # are dumped (not every project on the host).
           CLAUDE_CONFIG_DIR: ${{ env.HOST_CLAUDE_DIR }}
           CLAUDE_PROJECT_DIR: ${{ env.HOST_REPO_DIR }}
           PYBIN: ${{ steps.pyenv.outputs.bin }}
         run: |
-          # Note: no `-e` — exp_cc.py exits non-zero when there is simply
-          # nothing to export (1 = all candidates failed, 2 = none found), and
-          # an idle day must not turn the workflow red. The commit step no-ops
-          # when no worklogs were produced.
+          # No `-e`: exp_cc.py exits non-zero when there is simply nothing to
+          # export (1 = all failed, 2 = none found); an idle day must not turn
+          # the workflow red. The commit step no-ops when nothing was produced.
           set -uo pipefail
           export PATH="${PYBIN}:${PATH}"
-          cd "${HOST_REPO_DIR}"
-          # exp_cc.py is on PATH in the human's host shell but usually not on the
-          # runner's PATH, so fall back to the repo copy run with the env python.
+          OUT="${GITHUB_WORKSPACE}/${WORKLOG_DIR}"
+          mkdir -p "${OUT}"
+          # exp_cc.py is on PATH in the human's host shell but not the runner's,
+          # so fall back to the repo copy run with the env python.
           if command -v exp_cc.py >/dev/null 2>&1; then
             EXP=(exp_cc.py)
           else
-            EXP=(python "${HOST_REPO_DIR}/scripts/exp_cc.py")
+            EXP=(python "${GITHUB_WORKSPACE}/scripts/exp_cc.py")
           fi
-          # Dump every project session, including still-running ones, masking any
-          # secret-like bodies before writing.
-          "${EXP[@]}" --all --allow-any-state --allow-secret-like
+          # Dump every project session, incl. still-running ones, masking any
+          # secret-like bodies. Absolute --output-dir writes into the
+          # gha-runner-owned checkout, so the human's tree is never written to.
+          "${EXP[@]}" --all --allow-any-state --allow-secret-like --output-dir "${OUT}"
           echo "exp_cc.py exit code: $? (0=exported, 1=all failed, 2=no candidates)"
-          echo "Worklogs under ${HOST_REPO_DIR}/${WORKLOG_DIR}:"
-          ls -1 "${HOST_REPO_DIR}/${WORKLOG_DIR}" 2>/dev/null | head -50 || true
+          echo "Worklogs under ${OUT}:"
+          ls -1 "${OUT}" 2>/dev/null | head -50 || true
 
-      - name: Commit worklogs to main (fresh token clone)
+      - name: Commit worklogs to main
         if: steps.gate.outputs.should_run == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
-          SRC="${HOST_REPO_DIR}/${WORKLOG_DIR}"
-          if [ ! -d "${SRC}" ] || [ -z "$(ls -A "${SRC}" 2>/dev/null)" ]; then
-            echo "No worklogs produced — nothing to commit."
-            exit 0
-          fi
-
-          WORK="${RUNNER_TEMP}/worklog-commit"
-          rm -rf "${WORK}"
-          REPO="${GITHUB_REPOSITORY:-amyteq/tt_pangu}"
-          git clone --depth 1 --branch main \
-            "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" "${WORK}"
-
-          mkdir -p "${WORK}/${WORKLOG_DIR}"
-          # Copy the freshly dumped worklogs into the clean clone. Use cp -a so
-          # we never sweep up unrelated dirty files from the host checkout.
-          cp -a "${SRC}/." "${WORK}/${WORKLOG_DIR}/"
-
-          cd "${WORK}"
+          cd "${GITHUB_WORKSPACE}"
           git config user.name "tt-pangu-bot"
           git config user.email "bot@ayla-app.com"
+
           git add "${WORKLOG_DIR}"
           if git diff --cached --quiet; then
             echo "Worklogs unchanged since last run — nothing to commit."
@@ -158,7 +164,7 @@ jobs:
 
           # Prefer a direct push to main (no human approval, per request). If the
           # branch is protected, fall back to a PR that we auto-merge.
-          if git push origin HEAD:main; then
+          if git push origin "HEAD:main"; then
             echo "Pushed worklogs directly to main."
           else
             echo "Direct push rejected (protected branch?) — opening an auto-merged PR."
@@ -166,7 +172,7 @@ jobs:
             git push origin "HEAD:refs/heads/${BR}"
             gh pr create --repo "${REPO}" --base main --head "${BR}" \
               --title "chore(worklogs): daily Claude session dump (${STAMP})" \
-              --body "Automated daily worklogs dump from \`exp_cc.py\`. Secrets masked at write time. No human approval required."
+              --body "Automated daily worklogs dump from exp_cc.py. Secrets masked at write time. No human approval required."
             gh pr merge "${BR}" --repo "${REPO}" --squash --delete-branch --admin \
               || gh pr merge "${BR}" --repo "${REPO}" --squash --delete-branch
           fi

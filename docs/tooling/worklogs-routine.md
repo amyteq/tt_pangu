@@ -12,61 +12,108 @@ schedule and merges the dumps into `main`.
   once per day across AEDT/AEST.
 - **Runner:** `runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}`. With
   `vars.CI_RUNNER = arch-ci` this lands on the self-hosted Arch host
-  (`HARRY-ARCH`), the same machine the Claude Code CLI runs on. On any other
-  runner the gate finds no host Claude state and skips cleanly.
-- **Command:** `exp_cc.py --all --allow-any-state --allow-secret-like`
-  (default output dir is now `worklogs/`).
+  (`HARRY-ARCH`). On any other runner the gate finds no readable host Claude
+  state and skips cleanly.
+- **Command:** `exp_cc.py --all --allow-any-state --allow-secret-like
+  --output-dir "$GITHUB_WORKSPACE/worklogs"`. (`--output-dir` is the only
+  addition to the bare command — see "Why write into the checkout" below.)
 - **Merge:** commits the worklogs to `main` with no human approval — direct push
   to `main`, falling back to an auto-merged PR if `main` is protected.
 
-## Why a fresh clone instead of the host checkout
+## The runner is native, not a container
 
-The self-hosted runner runs as `gha-runner` inside a container; its home is
-`/home/gha-runner`, and the repo's `origin` is SSH (`git@github.com:...`), whose
-key belongs to the human and must not be used by the runner. So the workflow:
+The self-hosted runner runs as a **native systemd service** under user
+`gha-runner` (`/opt/actions-runner/kca/runsvc.sh`) — it is **not** a Docker
+container. So there is nothing to bind-mount; the only requirement is ordinary
+**read** access on the host filesystem for the `gha-runner` user. `gha-runner`
+is not a member of `harry`'s group, and `/home/harry` is mode `0700`, so out of
+the box the runner can see nothing under it. The instructions below grant the
+minimum read access with POSIX ACLs (the host is `ext4`, ACLs supported).
 
-1. Sets `CLAUDE_CONFIG_DIR=/home/harry/.claude` and
-   `CLAUDE_PROJECT_DIR=/home/harry/test/tt_pangu` and runs the exporter against
-   the **host** state (read-only). The project dir matters because `exp_cc.py`
-   filters sessions to those whose working directory is the project root.
-2. Commits via a **fresh `https://x-access-token:$GITHUB_TOKEN@github.com/...`
-   clone** of `main`, copying the dumped `worklogs/` in with `cp -a`. The human's
-   live working tree is never staged, branch-switched, or pushed from.
+## Why write into the checkout (not the human's tree)
 
-## Runner prerequisites (the "broaden permissions" question)
+`exp_cc.py` must *read* the host transcripts, but it *writes* into the
+gha-runner-owned Actions checkout (`$GITHUB_WORKSPACE`) via an absolute
+`--output-dir`. That checkout is what gets committed and pushed (with the job's
+`GITHUB_TOKEN`). Consequences:
 
-The runner only needs **read** access to the host state — it never writes to the
-human's home. Make sure the container/runner can:
+- the runner needs **read-only** access to the host paths — never write;
+- the human's live working tree at `HOST_REPO_DIR` is never staged, branched, or
+  pushed from;
+- `CLAUDE_PROJECT_DIR=HOST_REPO_DIR` is still required: `exp_cc.py` filters
+  candidates to sessions whose working directory is inside it, so **only this
+  project's** transcripts are dumped — not every project on the host.
 
-| Need | Path / item | Notes |
+## Runner permissions — exact setup ("broaden permissions")
+
+Run these **once on the host as `harry`** (or anyone who can `setfacl` the
+paths). They grant `gha-runner` read+traverse on just the Claude state and
+traverse to the repo — nothing else under `/home/harry` becomes readable.
+
+```bash
+RUNNER=gha-runner
+CLAUDE="$(readlink -f ~/.claude)"   # /home/harry/.claude-ayla
+
+# 1. Let the runner TRAVERSE (pass through, not list) the home dir + repo path.
+setfacl -m u:${RUNNER}:--x /home/harry
+setfacl -m u:${RUNNER}:--x "${CLAUDE}"
+setfacl -m u:${RUNNER}:--x /home/harry/test          # /home/harry/test/tt_pangu is already 0755
+
+# 2. Grant recursive read+traverse on the session state this project needs.
+#    Scoped to THIS project's transcript dirs (main + worktrees) so other
+#    projects' transcripts stay private. jobs/ holds the session index.
+setfacl -R -m  u:${RUNNER}:rX "${CLAUDE}/jobs"
+setfacl -R -d -m u:${RUNNER}:rX "${CLAUDE}/jobs"     # default ACL -> new files inherit
+setfacl -m u:${RUNNER}:r-x "${CLAUDE}/projects"      # list project dir names only
+for d in "${CLAUDE}"/projects/-home-harry-test-tt-pangu*; do
+  setfacl -R -m  u:${RUNNER}:rX "$d"
+  setfacl -R -d -m u:${RUNNER}:rX "$d"               # default ACL -> new transcripts inherit
+done
+
+# 3. Verify as the runner user.
+sudo -u ${RUNNER} bash -c 'ls ~harry/.claude/jobs >/dev/null && echo OK-jobs;
+  ls ~harry/.claude/projects/-home-harry-test-tt-pangu/ >/dev/null && echo OK-transcripts'
+```
+
+The **default ACLs** (`-d`) matter: Claude writes new transcript/job files
+continuously, and without an inherited ACL each new file would be unreadable to
+the runner until you re-run `setfacl`.
+
+Broader, simpler alternative (if scoping per-project dir is fiddly): grant
+`setfacl -R -m u:${RUNNER}:rX "${CLAUDE}/projects"` plus the matching `-d`
+default. **Security note:** that exposes *every* project's transcripts on the
+host to the runner (and thus to any workflow that runs on it), so prefer the
+scoped loop above. Either way the committed worklogs are limited to this
+project (the `CLAUDE_PROJECT_DIR` filter) and secrets are masked at write time.
+
+Other host requirements:
+
+| Need | Item | Notes |
 |---|---|---|
-| Read Claude sessions | `/home/harry/.claude/projects/**`, `/home/harry/.claude/jobs/**` | Bind-mount read-only into the container. |
-| Resolve project dir | `/home/harry/test/tt_pangu` | Used as the discovery root; read access is enough. |
-| Python env | micromamba env `v3.12.12` | Same env as `self-hosted-smoke.yml`; must contain (or be able to `pip install`) `uv`. |
-| Markdown render | `uvx` / `uv` | `exp_cc.py` shells out to `uvx claude-code-log@latest`. |
-| Push | `github.com` over HTTPS | Uses the job's `GITHUB_TOKEN`; no SSH key needed. |
+| Python env | micromamba env `v3.12.12` | Same env as `self-hosted-smoke.yml`. |
+| Markdown render | `uvx` / `uv` | Auto-installed into the env by the workflow if missing. |
+| Push | `github.com` over HTTPS | Uses the job `GITHUB_TOKEN`; no SSH key needed. |
+| Discovery (optional) | `claude` CLI | Improves named-agent discovery; absent → falls back to `jobs/*/state.json`. |
 
-The `claude` CLI is **optional** — it improves discovery of named agents, but
-`exp_cc.py` falls back to reading `jobs/*/state.json` directly when it is absent.
+## Repo variables to set
 
-If the container runs as a uid that can't read `/home/harry/.claude`, the simplest
-fixes (pick one):
+All host paths + the env name are overridable as repo (or org) **Variables**
+(Settings → Secrets and variables → Actions → Variables). Only `CI_RUNNER` is
+required for routing; the rest are only needed if the defaults below are wrong.
 
-- bind-mount those paths read-only and run the container with `--user harry` (or
-  a uid that matches the file owner), **or**
-- add the runner's user to a group that has `r-x` on `/home/harry/.claude` and the
-  relevant subtrees, **or**
-- mount a read-only snapshot/copy of `~/.claude` at the path the workflow expects.
+| Variable | Current / default value | Required? | Purpose |
+|---|---|---|---|
+| `CI_RUNNER` | `arch-ci` | yes (already set) | Self-hosted runner label. |
+| `HOST_REPO_DIR` | `/home/harry/test/tt_pangu` | no (default in workflow) | Discovery root / `CLAUDE_PROJECT_DIR`. |
+| `HOST_CLAUDE_DIR` | `/home/harry/.claude` | no (default in workflow) | `CLAUDE_CONFIG_DIR` (symlink → `.claude-ayla`). |
+| `WORKLOG_MAMBA_ENV` | `v3.12.12` | no (default in workflow) | micromamba env to use. |
 
-All host paths are overridable with repo/org **Variables** so nothing is
-hard-coded if the layout changes:
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `CI_RUNNER` | `ubuntu-latest` | Runner label (already `arch-ci`). |
-| `HOST_REPO_DIR` | `/home/harry/test/tt_pangu` | Discovery root / `CLAUDE_PROJECT_DIR`. |
-| `HOST_CLAUDE_DIR` | `/home/harry/.claude` | `CLAUDE_CONFIG_DIR`. |
-| `WORKLOG_MAMBA_ENV` | `v3.12.12` | micromamba env to activate. |
+```bash
+# To pin them explicitly (optional; matches the defaults):
+gh variable set HOST_REPO_DIR     --body /home/harry/test/tt_pangu
+gh variable set HOST_CLAUDE_DIR   --body /home/harry/.claude
+gh variable set WORKLOG_MAMBA_ENV --body v3.12.12
+```
 
 ## Secret masking
 
@@ -76,18 +123,19 @@ with `*` — and private-key blocks collapse to a single `[REDACTED]` marker. Th
 refusal-without-the-flag behaviour is unchanged, so interactive runs still get an
 explicit "inspect this" prompt; automation passes the flag and gets masked output.
 
-## Suggestions / caveats for the dump routine
+## Behaviour notes / caveats
 
-- **Every run produces a diff.** The dump re-exports all sessions and each file's
-  header carries an `Exported at` timestamp, so expect a commit most days even
-  when conversation content is unchanged. If that noise is unwanted, options are:
-  drop the timestamp from the header, or only commit files whose body (excluding
-  the header) changed.
-- **Filenames are by session name.** Two sessions sharing a name overwrite each
-  other within a run (pre-existing behaviour). Prefer `--id`-based naming if
-  collisions matter.
-- **Growth.** `worklogs/` accumulates one file per session indefinitely. Consider
-  a periodic prune (e.g. keep the last N days) if the directory gets large.
+- **No spurious commits.** The dump header carries no `Exported at` timestamp,
+  so an unchanged session re-exports to byte-identical Markdown — the commit
+  step no-ops and only real content changes produce a commit. (If the
+  `claude-code-log` renderer itself ever emits a generation timestamp, residual
+  churn would come from there, not this tool.)
+- **No filename collisions.** Sessions with the same name no longer overwrite
+  each other: the first keeps `<name>.md`, the rest get a stable
+  `<name>_<short session id>.md` (id-based, not date-based, so filenames are
+  stable across runs).
+- **Growth.** `worklogs/` accumulates one file per session indefinitely.
+  Consider a periodic prune (e.g. keep the last N days) if it gets large.
 - **Masking is heuristic.** It catches the known key/token shapes in
   `SECRET_PATTERNS`; it is a safety net, not a guarantee. Treat worklogs as
   internal even though they are masked.
