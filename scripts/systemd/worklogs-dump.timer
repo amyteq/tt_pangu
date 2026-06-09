@@ -1,0 +1,16 @@
+[Unit]
+Description=Run the Claude worklogs dump daily at 02:00 Australia/Melbourne
+Documentation=https://github.com/amyteq/tt_pangu/blob/main/docs/tooling/worklogs-systemd-timer.md
+
+[Timer]
+# systemd >= 252 honours an explicit timezone here, so DST is handled for us
+# (no UTC dual-cron hack needed). The host's local tz is also Australia/Melbourne.
+OnCalendar=*-*-* 02:00:00 Australia/Melbourne
+# Catch up if the machine was asleep/off at 02:00.
+Persistent=true
+# Spread load / avoid an exact-minute thundering herd.
+RandomizedDelaySec=120
+Unit=worklogs-dump.service
+
+[Install]
+WantedBy=timers.target

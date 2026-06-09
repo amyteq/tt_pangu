@@ -88,6 +88,10 @@ wiki/*
 **/logs/*
 !logs/
 !logs/**
+# Claude session worklog dumps (scripts/exp_cc.py default output). These ARE
+# committed — the worklogs-dump routine merges them to main. Keep them tracked.
+!worklogs/
+!worklogs/**
 **/run/*
 notebooks/generated/*
 

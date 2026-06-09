@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Git pre-push hook: ruff must be clean before any push (and therefore before a
+# PR). Covers HUMAN pushes — the Claude PreToolUse hook (.claude/hooks/
+# format_gate.py) only covers agent sessions. Mirrors the CI ruff job.
+#
+# Enable once per clone (hooks aren't shared automatically):
+#   git config core.hooksPath .githooks
+#
+# Bypass for a deliberate work-in-progress push:
+#   SKIP_RUFF_GATE=1 git push ...
+# or the git-native escape hatch:
+#   git push --no-verify ...
+set -uo pipefail
+
+if [ "${SKIP_RUFF_GATE:-}" = "1" ]; then
+  exit 0
+fi
+
+# If ruff isn't installed we can't enforce — don't block the push.
+if ! command -v ruff >/dev/null 2>&1; then
+  echo "pre-push: ruff not found; skipping format/lint gate." >&2
+  exit 0
+fi
+
+root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cd "$root" || exit 0
+
+fail=0
+if ! ruff format --check . >/tmp/.ruff_fmt_gate 2>&1; then
+  echo "pre-push: 'ruff format --check .' failed:" >&2
+  tail -n 15 /tmp/.ruff_fmt_gate >&2
+  fail=1
+fi
+if ! ruff check . >/tmp/.ruff_lint_gate 2>&1; then
+  echo "pre-push: 'ruff check .' failed:" >&2
+  tail -n 15 /tmp/.ruff_lint_gate >&2
+  fail=1
+fi
+rm -f /tmp/.ruff_fmt_gate /tmp/.ruff_lint_gate 2>/dev/null
+
+if [ "$fail" -ne 0 ]; then
+  echo "" >&2
+  echo "pre-push BLOCKED: fix with 'ruff format . && ruff check . --fix', then re-push." >&2
+  echo "(bypass: SKIP_RUFF_GATE=1 git push ...  or  git push --no-verify)" >&2
+  exit 1
+fi
+exit 0

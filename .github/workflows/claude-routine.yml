@@ -58,7 +58,26 @@ jobs:
             If this run was manually triggered, execute this task:
             ${{ inputs.task }}
 
-            If this run is scheduled:
+            If this run is scheduled, do BOTH of the following, in order:
+
+            (A) Review open issues against recently merged PRs and close the ones
+            that are already fixed:
+            - list PRs merged into the default branch in roughly the last 7 days
+              (`gh pr list --state merged --base main --limit 50`)
+            - for each open issue, check whether a merged PR already resolves it.
+              Only close an issue when the evidence is unambiguous, e.g. a merged
+              PR body / commit says "Closes #N" / "Fixes #N", or the issue's stated
+              acceptance criteria are demonstrably met by the merged diff.
+            - when closing, post a comment that cites the PR number/URL and the
+              specific acceptance criterion or `file:line` it satisfies, then
+              `gh issue close`.
+            - if resolution is ambiguous or the issue is only partially addressed,
+              do NOT close it — leave a comment noting the related PR instead, and
+              do not infer decisions from ambiguous human comments.
+            - never reopen issues, never strip decision:* gates, and never touch
+              issues labeled ai:blocked or decision:needed.
+
+            (B) Then pick up at most one issue to work on:
             - inspect open issues labeled ai:ready
             - choose at most one small, well-scoped issue
             - do not work on issues labeled ai:blocked or decision:needed
@@ -69,6 +88,7 @@ jobs:
             - do not perform Kaggle submissions, remote kernel pushes, production Supabase migrations, or destructive operations
 
             Always summarize:
+            - issues closed as already-fixed (cite the merged PR for each)
             - selected issue/task
             - changed files
             - tests run
