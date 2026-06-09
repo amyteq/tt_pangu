@@ -1,6 +1,6 @@
 # kaggle-code-agent Milestones
 
-Status: M0–M10 done; M9.2 ✓ done (/save-log operator-tooling skill); M11 in planning (authorized CTF/lab workflow)  
+Status: M0–M10 done; M9.2 ✓ done (/save-log operator-tooling skill); M11 in planning (authorized CTF/lab workflow); M12 in planning (Devpost / hackathon workflow); M13 in planning (eval / reliability / regression suite); M14 in planning (goal-driven Kaggle workflow — issues #51 #52 #53 #54 #55)  
 Created: 2026-05-16  
 Scope: hybrid human + AI code competition platform
 
@@ -997,6 +997,66 @@ Metrics:
 Exit criteria:
 
 - New platform changes can be evaluated against known workflows before use in real competitions.
+
+---
+
+## M14: goal-driven Kaggle workflow
+
+_Filed 2026-06-09 from PR #44 follow-up. Five user-surfaced bullets become
+GitHub issues #51 #52 #53 #54 #55 + M14 tasks T002 T003 T004 T005 T007._
+
+Goal: lift the platform from M10's single-shot, human-approved push into a
+goal-tracking loop. Declare a target up front, fan out candidate experiments
+locally, screen by holdout CV, push survivors to Kaggle under per-competition
+concurrency limits, poll with adaptive cadence + batched status reads, write
+LB scores back to the DB, and either iterate to the next batch or escalate to
+a human when the idea well is dry.
+
+Planned tasks:
+
+- T000 [`arch:`] Goal-driven loop architecture + ADR-0017 + Discovery / Debate Gate
+- T001 Migration 0009 (`goals` table + `competitions.max_*` + `experiment_runs.analysis.exploration_batch_id`)
+- T002 `kca goal {init, show, update}` + `goal.md` workspace artefact (issue #51)
+- T003 `kca explore {init, run, rank}` + local-screening fan-out (issue #52)
+- T004 Per-competition concurrency enforcement + daily-budget gate (issue #53)
+- T005 Smart polling: Fibonacci backoff QUEUED, stable RUNNING, batched `kernels list` (issue #54)
+- T006 Idea-sourcing reader + `kca explore propose-next`
+- T007 Stuck detector + human escalation via Approval Inbox (issue #55)
+- T008 Live end-to-end on Kaggle: goal set, explore, push, poll, record LB, iterate or escalate
+- T009 Regression tests + exit criteria + final review
+
+Pre-requisite: M10 merged on `main` (✓); PR #44 follow-up merged (cloud
+Supabase + `kca kaggle score` + `kca kaggle push --watch`); issues #51 #52
+#53 #54 #55 promoted to `ai:ready` after triage.
+
+Exit criteria:
+
+- `kca goal init` writes a `goal.md` + DB row; reviewer gate surfaces
+  `goal_remaining_delta`.
+- `kca explore run` fans out N candidates locally and ranks them.
+- `cmd_push` refuses cleanly when the per-competition concurrency or daily
+  limit is reached.
+- `_watch_kernel_until_terminal` classifies QUEUED vs RUNNING and adapts
+  cadence; batched read kicks in for ≥ 2 tracked slugs.
+- Stuck detector fires after N non-improving submissions and surfaces a
+  `kaggle.exploration_stuck` decision in the Approval Inbox.
+- T008's live end-to-end records ≥ 2 LB scores under the goal-driven loop,
+  with at least one iteration step (initial batch → idea-source → next batch
+  or escalation).
+- `docs/m14-final-review.md` exists; PROJECT_STATE / README / milestones
+  updated.
+
+Out of scope for M14:
+
+- Cross-account quota pooling (issue #21) — single-account primitive here;
+  multi-account is a separate milestone.
+- Kaggle dataset / model uploads — kernel pushes only.
+- A new Kaggle competition portfolio — `tpu-getting-started` is the
+  default T008 surface unless T000 picks a smaller competition.
+- CTF / Devpost / eval-suite integration of the goal/exploration/escalation
+  primitives — M11 / M12 / M13 own those surfaces.
+
+Loop prompts and full task scope: `docs/m14-loop-prompts.md`.
 
 ---
 
