@@ -29,6 +29,19 @@ def _final_scores(env):
     return s
 
 
+import sys
+
+
+def _ensure_on_path(*agents):
+    """Add each file-path agent's directory to sys.path so package-based agents
+    (e.g. kuni05's main.py that does `import orbit_lite`) import correctly."""
+    for a in agents:
+        if isinstance(a, str) and a.endswith(".py") and os.sep in a:
+            d = os.path.dirname(os.path.abspath(a))
+            if d not in sys.path:
+                sys.path.insert(0, d)
+
+
 def _play(task):
     a_seat, p0, p1, seed, overrides = task
     # Reset OW_* then apply this task's overrides so config is deterministic even
@@ -37,6 +50,7 @@ def _play(task):
         del os.environ[k]
     if overrides:
         os.environ.update({k: str(v) for k, v in overrides.items()})
+    _ensure_on_path(p0, p1)
     env = make("orbit_wars", configuration={"seed": seed})
     env.run([p0, p1])
     rewards = [s["reward"] for s in env.steps[-1]]

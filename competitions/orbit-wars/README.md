@@ -204,6 +204,82 @@ agent we found ~91% in 2p). The 4p arena is kept for robustness/optional, not th
 (Competition id 138420; deadline 2026-06-23, final eval ~2 weeks after; up to 5 submissions/day,
 latest 2 tracked, μ0=600 skill-rating ladder.)
 
+### REALITY CHECK — not competitive with top public agents (the 2p caveat above is now moot)
+
+Pulling agents whose titles state real LB ratings exposed our offline "dominance" as an
+artifact of weak opponents. Strongest agents are mostly package-based (`orbit_lite`) or load a
+private model; the cleanly-reconstructable one is **kuni05 "Producer Agent" (LB 1240.5)** →
+`agent/versions/kuni05/` (main.py + orbit_lite/, needs `torch`; arena adds its dir to sys.path).
+
+- **v2.1 vs kuni05: 0W-60L (0.0%), avg 0 vs 2489** — eliminated every game (~turn 100). v2.1
+  keeps pace ~40 turns, then kuni05 out-expands it (more planets faster) and overwhelms.
+- pub_tactical vs kuni05: 0-40 (also wiped). So **kuni05 is the real gate**; pub_tactical (we
+  beat 91%) was far too weak to be informative.
+
+Closing a 0% gap needs more than heuristic tweaks. Prior session's submissions topped out at
+693.1 (one adapted from romantamrazov LB-1224). Next: study kuni05's modules (planner_core,
+garrison_launch, intercept_aim) to learn its expansion, and/or a real lookahead planner.
+(debatreyabiswas-1300 = private model; romantamrazov agents import an unshipped orbit_lite —
+neither reconstructable from its notebook.)
+
+### Design study — why kuni05 (LB 1240.5) beats us (drives v3)
+
+kuni05 is a vectorized (torch) **one-step planner over an 18-turn forward simulation**, not a
+deep search. Source `agent/versions/kuni05/` (read planner_core.py / garrison_launch.py).
+
+- **Value = simulated differential.** Each candidate launch is scored by a forward flow
+  projection: `score = Δnet_me − Σ Δnet_opp`, net = (produced − combat-losses) over H=18,
+  diffed against the do-nothing baseline. (We use a static `prod/(needed·time)` ROI.)
+- **`safe_drain` sizing.** Send the MAX a source can shed while the projection keeps it held
+  over H (worst held-turn garrison ≥ 0) — maximal safe commitment, not "exactly needed".
+- **`capture_floor` per arrival turn** — defenders grow with k (production + reinforcement),
+  owner-aware (floor 1 if we'll own it).
+- **Forward model tracks in-flight enemy fleets** (so threats/defense are real, not guessed).
+- **Regroup** leftover ships up an enemy-pressure gradient toward stressed owned planets
+  (consolidation done right — gradient + still-owned-at-arrival check; ours was naive→rejected).
+- Greedy best ≤6 waves/turn, source-budget aware, role mutex (reinforced planet ≠ source).
+
+The gap is architectural. **v3 plan ("Forecast Planner"):** clean-room reimplement this in plain
+Python (no torch, keep single-file submission): (1) a do-nothing forward sim producing per-planet
+(owner, ships) trajectories over H using the exact engine rules; (2) touched-planet recompute +
+differential net-ship scorer; (3) candidate gen (nearest enemy/neutral + flipping-own) with
+safe_drain sizing + intercept aim + capture-floor gate; (4) greedy ≤W waves; (5) optional regroup.
+Gate every step vs the kuni05 snapshot in 2p (avg_rank/decisive W-L). Realistic goal: go from 0%
+to *competitive* (survive + win some), then climb — not necessarily beat kuni05 immediately.
+
+### v3a (safe_drain increment) — TRIED → REJECTED
+
+Adopted kuni05's `safe_drain` sizing + per-arrival-turn defender floor onto v2.1's greedy
+(`agent/versions/v3a.py`, env-gated, not promoted). Result: **vs v2.1 36.2%, vs kuni05 0%,
+vs starter 82.5% — worse across the board.** safe_drain frees too many ships for our
+ROI-ranked greedy → over-expands thin. Lesson: kuni05's pieces only work *with* its forward-sim
+differential value function, which gates launches to net-positive moves. **The value function is
+the irreducible core; heuristic increments (consolidation, safe_drain) regress without it.**
+main.py stays v2.1. Closing the kuni05 gap needs the full forward-sim differential planner
+(big build, uncertain vs a 1240 agent) — or pragmatically adapting a public agent.
+
+### Track 2 (adapt public) + Track 1 (build our own) — in progress
+
+Decision (user): ship an adapted public agent for a real LB score NOW, build our own planner meanwhile.
+
+- **Track 2 — DONE (submitted):** reconstructed **kuni05 (LB 1240.5)** repackaged as a tar.gz
+  (main.py + orbit_lite/, torch) with **clear attribution**, self-play-clean, submitted. Expect
+  it to climb toward ~1240. (v2.1's own ladder score came in at **601 ≈ baseline** — confirms our
+  heuristic is bottom-tier; this is the strong reference under our account.)
+- **Track 1 — "Forecast" planner v3: DONE, PROMOTED TO main, SUBMITTED.** `agent/main.py` is now
+  the Forecast planner (single-file; `forecast_sim` inlined). Architecture: bit-exact do-nothing
+  forward sim (per-planet owner/ships over H=18; `agent/versions/forecast_sim.py`, validated 0
+  error vs engine over 3672 cells) → per-candidate value = **differential TERMINAL net-ship
+  advantage** (replay the 2 touched planets with the launch, diff `Σ(my−opp ships at H)` vs the
+  do-nothing baseline) → sim-based defender floor at the arrival turn → v2.1's greedy/cap/sizing.
+  - **Key bug found & fixed:** scoring planet-ships over *all* k penalized ships-in-transit
+    (launch looked like a loss) → near-passive (2.5% vs v2.1). Switching to **terminal (k=H)**
+    advantage is conservation-correct (transit ships have landed by H; production preserves tempo).
+  - **Result:** beats v2.1 **88.8% (1000+) / 91.2% (held-out 5000+)**, 95-97% vs starter, ~4ms/turn,
+    self-play clean. Inlined main.py reproduces it (91.7%) and is ruff-clean.
+  - **Still 0% vs kuni05** (1240) — Forecast will land above v2.1's 601 but below kuni05; closing
+    that gap is the next goal (deeper value: multi-wave lookahead, opponent modeling, regroup).
+
 ## Running
 
 ```bash
