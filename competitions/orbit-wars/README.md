@@ -279,6 +279,15 @@ Decision (user): ship an adapted public agent for a real LB score NOW, build our
     self-play clean. Inlined main.py reproduces it (91.7%) and is ruff-clean.
   - **Still 0% vs kuni05** (1240) — Forecast will land above v2.1's 601 but below kuni05; closing
     that gap is the next goal (deeper value: multi-wave lookahead, opponent modeling, regroup).
+- **v3.1 "Forecast+Defense" (current main).** Adds **sim-based defensive reinforcement**: owned
+  planets the projection shows flipping to an enemy are added to the candidate set, sized to the
+  deficit, and the value fn chooses to defend them (stops the mid-game collapse we saw vs kuni05).
+  Beats v3 **62-66%** (held-out), 91.7% vs v2.1, 98% vs starter; self-play clean; still 0% vs kuni05.
+  Promoted to main + snapshot `agent/versions/v3_1.py`. **NOT resubmitted** — see below.
+  - **Submission trade-off (latest-2-tracked):** the comp only keeps your latest 2 submissions
+    active. Ours are [Forecast v3, adapted-kuni05 ~1120]. Resubmitting v3.1 would retire kuni05
+    (our top LB entry) for a bot that ladders below it. So we promote locally but hold resubmission;
+    submit our own line only once it's competitive with kuni05, or deliberately near the deadline.
 
 ## Running
 
