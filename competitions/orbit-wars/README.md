@@ -361,6 +361,24 @@ not via any single mechanism. The on-target unexplored lever is **opening-sequen
 (directly attacks the out-expansion we lose); beyond that, closing the strong-tier gap likely needs
 a full coordinated-planner rewrite (kuni05/evogen class), not increments.
 
+### Opening-sequence planner — TRIED → no gain (default OFF). Incremental path exhausted.
+
+Built an aggressive opening expander (`OW_OPENING`): first 25 turns, grab every reachable neutral
+with positive production-gain over a 50-turn opening horizon, bypassing the differential value-gate
+and in-flight cap. It DID fire more (9 launches in the first 25 turns vs 2) but win-rate **dropped**
+(evogen 15.6%→7.5%) and we still held only 1 planet at step 20 — the extra grabs are thin and don't
+stick. Defaulted OFF. (A `PROJ_H` horizon sweep also failed: 18→15.6%, 30→3.1%, 45/60→6% vs evogen.)
+
+**Conclusion — the incremental path is exhausted.** Five levers (consolidation, safe_drain, defense,
+multi-source, opening-planner), all measured on the ladder-predictive suite, **none close the
+strong-tier cliff**: we stay ~54% suite / ~561 ladder, 0-15% vs the strong tier. The strong agents
+(evogen 1093, kuni05 1240) win as integrated SYSTEMS; bolting any single mechanism onto our
+greedy-plus-sim planner does not transfer. Closing the gap needs a full coordinated-planner rewrite
+(opening search + multi-wave + supply + deeper lookahead, co-designed) — a multi-week, high-risk
+effort — OR accept the split: **kuni05 (~1114, attributed) as the competitive entry + Forecast v3.1
+(~561, our own from-scratch agent that beats every weak public agent and ~15% vs the weakest strong
+one).** Best current own-agent config: Forecast v3.1 (all experimental levers default OFF).
+
 ## Running
 
 ```bash

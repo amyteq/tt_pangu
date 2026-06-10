@@ -37,12 +37,19 @@ if _HERE not in _sys.path:
     _sys.path.insert(0, _HERE)
 from forecast_sim import project as _project, replay_planet as _replay, signed_adv as _adv
 
-PROJ_H = 18  # forward-simulation horizon (matches kuni05's 2p horizon)
+PROJ_H = int(_os.environ.get("OW_PROJ_H", 18))  # forward-sim horizon; 18 too short for slow opening fleets
 # Multi-source coordination (the strong-tier lever): pool ships from several friendly
 # planets onto one target, sized to capture AND hold (vs single-source minimal captures
 # that get retaken). Staggered waves grind the defender; total = needed * HOLD_MULT.
 MULTISRC = int(_os.environ.get("OW_MULTISRC", 0))  # default OFF: tried, no gain vs strong tier
 HOLD_MULT = float(_os.environ.get("OW_HOLD_MULT", 1.6))
+# Opening expander: the differential value-gate is too conservative early (we fire 2-3x
+# in the first 25 turns while strong agents grab 5 planets). In the opening, grab every
+# reachable neutral with positive production-gain over a long opening horizon, firing
+# aggressively (no value-gate, no in-flight cap) to win the land-grab.
+OPENING = int(_os.environ.get("OW_OPENING", 0))  # default OFF: fired more but win-rate dropped
+OPENING_TURNS = int(_os.environ.get("OW_OPENING_TURNS", 25))
+OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
 
 try:
     from kaggle_environments.envs.orbit_wars.orbit_wars import Planet, Fleet
@@ -313,6 +320,55 @@ def _agent(obs):
         if dn > 0:
             defense_need[mp.id] = dn
             targets.append(mp)
+
+    # --- Opening expander: aggressive land-grab for the first OPENING_TURNS turns ---
+    if OPENING and step < OPENING_TURNS:
+        op_avail = {mp.id: mp.ships - reserve.get(mp.id, 0) for mp in my_planets}
+        op_cands = []
+        for mp in my_planets:
+            if op_avail[mp.id] <= 0:
+                continue
+            for tgt in targets:
+                if tgt.id == mp.id or tgt.owner == player:
+                    continue  # opening grabs neutral/enemy; defense handled post-opening
+                ships_guess = max(1, tgt.ships + 1)
+                sol = None
+                needed = ships_guess
+                eta = 1
+                for _ in range(3):
+                    sol = _solve_intercept(mp.x, mp.y, tgt.id, ships_guess, step, init_by_id, ang_vel)
+                    if sol is None:
+                        break
+                    _, eta, _ = sol
+                    bt = base_traj.get(tgt.id)
+                    defn = bt["ships"][min(int(eta), PROJ_H)] if bt is not None else tgt.ships
+                    needed = int(defn) + (1 if tgt.owner == -1 else 1 + ENEMY_BUFFER)
+                    if needed == ships_guess:
+                        break
+                    ships_guess = needed
+                if sol is None:
+                    continue
+                angle, eta, pos = sol
+                if needed > op_avail[mp.id] or step + eta > EPISODE_STEPS - 2:
+                    continue
+                if _path_blocked(mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids):
+                    continue
+                gain = prod_by_id[tgt.id] * (OPENING_H - eta) - needed  # production won minus cost
+                if gain <= 0:
+                    continue
+                op_cands.append((gain, mp.id, tgt.id, angle, needed))
+        op_cands.sort(reverse=True, key=lambda c: c[0])
+        rem = dict(op_avail)
+        taken = set()
+        op_moves = []
+        for _g, src_id, tgt_id, angle, needed in op_cands:
+            if tgt_id in taken or rem.get(src_id, 0) < needed:
+                continue
+            op_moves.append([src_id, angle, int(needed)])
+            rem[src_id] -= needed
+            taken.add(tgt_id)
+        if op_moves:
+            return op_moves
 
     candidates = []
     for mp in my_planets:
