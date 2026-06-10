@@ -58,7 +58,7 @@ jobs:
           python-version: "3.12"
 
       - name: install kca
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,eval]"
 
       - name: locations
         id: locations
@@ -314,7 +314,7 @@ jobs:
           python-version: "3.12"
 
       - name: install kca
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,eval]"
 
       - name: run kca eval (mocked, dry-run) for this PR
         run: |
