@@ -120,12 +120,31 @@ def make_app(
         _db = _resolve_db()
         _db.resolve_decision(decision_id, "approved", notes=body.reason)
         _audit(decision="approve", decision_id=decision_id, reason=body.reason)
-        return {
+        resp: dict = {
             "ok": True,
             "decision_id": decision_id,
             "status": "approved",
             "job_id": row.get("job_id"),
         }
+        # M14-T007: a kaggle.exploration_stuck approval's reason/notes become
+        # the new exploration seed. Surface the parsed seed so the UI / loop
+        # can resume with it. Reuse tools/kca/stuck.resume_seed_from_notes so
+        # the CLI and the API parse the human direction identically.
+        if row.get("decision_type") == "kaggle.exploration_stuck":
+            try:
+                import sys
+                from pathlib import Path
+
+                sys.path.insert(
+                    0, str(Path(__file__).resolve().parents[2] / "tools" / "kca")
+                )
+                import stuck as _stuck  # type: ignore
+
+                resp["resume_seed"] = _stuck.resume_seed_from_notes(body.reason)
+                resp["escalation_id"] = decision_id
+            except Exception:
+                pass
+        return resp
 
     @app.post("/decision/{decision_id}/reject")
     def reject(

@@ -1,0 +1,68 @@
+{
+  "audit_grep_violations": 0,
+  "dry_run": true,
+  "route": "mocked",
+  "suites": [
+    {
+      "audit_grep_violations": 0,
+      "case_count": 1,
+      "error": 0,
+      "fail": 0,
+      "name": "kaggle-replay-house-prices",
+      "pass": 1,
+      "skip": 0
+    },
+    {
+      "audit_grep_violations": 0,
+      "case_count": 1,
+      "error": 0,
+      "fail": 0,
+      "name": "kaggle-replay-spaceship-titanic",
+      "pass": 1,
+      "skip": 0
+    },
+    {
+      "audit_grep_violations": 0,
+      "case_count": 1,
+      "error": 0,
+      "fail": 0,
+      "name": "kaggle-replay-titanic",
+      "pass": 1,
+      "skip": 0
+    },
+    {
+      "audit_grep_violations": 0,
+      "case_count": 4,
+      "error": 0,
+      "fail": 0,
+      "name": "kernel-dryrun",
+      "pass": 2,
+      "skip": 2
+    },
+    {
+      "audit_grep_violations": 0,
+      "case_count": 5,
+      "error": 0,
+      "fail": 0,
+      "name": "reasoning",
+      "pass": 5,
+      "skip": 0
+    },
+    {
+      "audit_grep_violations": 0,
+      "case_count": 10,
+      "error": 0,
+      "fail": 0,
+      "name": "tool-smoke",
+      "pass": 10,
+      "skip": 0
+    }
+  ],
+  "totals": {
+    "total_cases": 22,
+    "total_error": 0,
+    "total_fail": 0,
+    "total_pass": 20,
+    "total_skip": 2
+  }
+}

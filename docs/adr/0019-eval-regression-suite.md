@@ -236,11 +236,70 @@ Suites that NEED a non-zero seed (e.g. to stress-test a stochastic
 estimator's stability) can declare a per-case `seed_override` in
 their `CaseSpec`, recorded in `eval_results.context_jsonb`.
 
+## Addendum (M14-T009, issue #63): per-suite `failure_threshold` + PR gate
+
+M13 shipped the suites and the nightly *informational* diff. M14-T009
+adds a **blocking** PR gate (`eval-delta-check`) that compares a PR's
+mocked run against the checked-in baseline snapshot
+(`eval/baselines/mocked-baseline.json`) and fails the PR if any suite
+regresses past its threshold. Two threshold kinds:
+
+- **Absolute (shape-check suites).** `tool_smoke`, `kernel_dryrun`,
+  `reasoning`, and the deterministic shape of `kaggle_replay_*` are
+  pass/skip-deterministic under `--route mocked`. Their threshold is
+  absolute and strict:
+  - `fail` count MUST stay `0` (any new failing case regresses).
+  - `error` count MUST stay `0`.
+  - `audit_grep_violations` MUST stay `0` (M10-T007 sentinel inheritance).
+  - `pass` count MUST NOT drop below baseline (a case flipping
+    pass→skip is a regression unless the baseline is re-pinned).
+
+  | Suite | baseline pass | floor (`pass >=`) | `fail` | `error` | `audit_grep` |
+  |---|---:|---:|---:|---:|---:|
+  | `tool-smoke` | 10 | 10 | 0 | 0 | 0 |
+  | `reasoning` | 5 | 5 | 0 | 0 | 0 |
+  | `kernel-dryrun` | 2 | 2 | 0 | 0 | 0 |
+  | `kaggle-replay-titanic` | 1 | 1 | 0 | 0 | 0 |
+  | `kaggle-replay-spaceship-titanic` | 1 | 1 | 0 | 0 | 0 |
+  | `kaggle-replay-house-prices` | 1 | 1 | 0 | 0 | 0 |
+
+- **Relative (metric deltas).** When a `kaggle_replay_*` suite emits a
+  `cv_score` (live/non-mocked route), the gate allows a small relative
+  drift before flagging a regression. Direction is metric-aware:
+  - higher-is-better (`accuracy`, `auc`): fail if
+    `cv_score < baseline_cv_score * (1 - REL_TOL)`.
+  - lower-is-better (`rmsle`): fail if
+    `cv_score > baseline_cv_score * (1 + REL_TOL)`.
+  - `REL_TOL = 0.02` (2%) default, per-suite overridable in the baseline
+    snapshot's `metric_thresholds` block. Under `--route mocked` (the PR
+    gate's default) no `cv_score` is emitted, so only the absolute
+    shape thresholds apply; the relative rule arms only when a baseline
+    carries a recorded `cv_score`.
+
+**Bypass — `eval:waive-delta` (human-only).** A repository maintainer
+may add the `eval:waive-delta` label to a PR to skip the blocking gate
+(e.g. an intentional baseline change). The waiver is **not silent**:
+the gate requires a rationale comment on the PR and records the waiver
+in `agent_tool_audit` (tool `eval_delta_check`, decision `waived`, with
+the PR number, the actor, and the rationale) so the bypass is auditable.
+A waived run still computes and prints the delta for the record; it just
+does not fail the check.
+
+The gate **reuses the M13 nightly runner**: the same
+`kca eval run --all --route mocked --dry-run --json` invocation and the
+same clean-env / audit-grep guarantees; only the trigger (PR vs cron)
+and the comparison target (checked-in baseline vs previous nightly
+artefact) differ.
+
 ## Consequences
 
 - **Positive.** The platform gains a measurable baseline. Any future
   PR can run `kca eval run --all --route mocked` and produce a
   before/after diff. The CI nightly cron (T008) makes this automatic.
+- **Positive (M14-T009).** The `eval-delta-check` PR gate turns the
+  baseline from informational into blocking: a PR that regresses a
+  suite past its threshold cannot merge without an audited
+  `eval:waive-delta` waiver.
 - **Positive.** Per-suite Python modules make it easy to grep "what
   exactly is the tool-smoke suite checking" and to add a new suite
   in one place.

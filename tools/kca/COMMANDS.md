@@ -37,6 +37,9 @@ All commands emit a single JSON object to stdout. Exit codes: `0` ok, `1` runtim
 | `kca workspace init`          | `LOCAL_WRITE`  | `git worktree add`        | Creates detached-HEAD worktree under `.workspaces/<job_id>/` |
 | `kca workspace clean`         | `LOCAL_WRITE`  | `git worktree remove`     | Removes worktree; best-effort DB update     |
 | `kca workspace list`          | `READ_ONLY`    | `git worktree list`       | Lists active workspaces under `.workspaces/` |
+| `kca goal init`               | `LOCAL_WRITE`  | (native)                  | Create the active `goals` row + write `experiments/<comp>/goal.md`; refuses with `ACTIVE_GOAL_EXISTS` if one is active (M14-T002) |
+| `kca goal show`               | `READ_ONLY`    | (native)                  | Show the active goal + `goal_remaining_delta` (best LB vs `target_lb_score`); `--json` |
+| `kca goal update`             | `LOCAL_WRITE`  | (native)                  | Partial field update or `--close --reason ...`; rewrites `goal.md` |
 | `kca decisions list`          | `READ_ONLY`    | (native)                  | List pending human approval requests        |
 | `kca decisions approve`       | `LOCAL_WRITE`  | (native)                  | Approve a pending decision                  |
 | `kca decisions deny`          | `LOCAL_WRITE`  | (native)                  | Deny a pending decision                     |

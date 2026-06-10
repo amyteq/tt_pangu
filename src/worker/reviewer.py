@@ -31,6 +31,12 @@ DEFAULT_TRIGGER_OPS = (
     "challenge_run",
     "flag_submit",
     "network_egress",
+    # M14 (ADR-0020 §8): the goal-driven loop's stuck detector raises this
+    # decision_type when N consecutive non-improving submissions coincide with
+    # 0 fresh idea-sourcing candidates. It reuses the human_decisions /
+    # Approval Inbox surface — the escalation payload is redacted via
+    # tools/kca/stuck.redact_escalation_payload before it reaches any audit row.
+    "kaggle.exploration_stuck",
 )
 
 # Flag-substring sentinels we MUST NOT render into the reviewer prompt for
@@ -118,6 +124,23 @@ def _redact_tool_input(target_op: str, tool_input: dict) -> dict:
     return redacted
 
 
+def _goal_remaining_delta(req: ReviewRequest):
+    """Lift goal_remaining_delta out of a kernel_push tool_input, else None.
+
+    M14-T002 (ADR-0020 §1): the `kernel_push` gate prompt surfaces how far the
+    push could move the active goal so the approver sees the goal context. This
+    is a read-only enrichment — the caller (the loop) computes the delta via
+    `kca goal show` / `tools/kca/goal.goal_remaining_delta` and threads it into
+    `tool_input`; the reviewer never recomputes it and never blocks on it.
+    Tolerates a missing key (M10 pushes had no goal) and a non-dict input.
+    """
+    if req.target_op != "kernel_push":
+        return None
+    if not isinstance(req.tool_input, dict):
+        return None
+    return req.tool_input.get("goal_remaining_delta")
+
+
 def _render_prompt(req: ReviewRequest) -> str:
     trail = _trim_event_trail(req.event_trail)
     trail_json = json.dumps(trail, default=str, ensure_ascii=False)
@@ -141,6 +164,10 @@ def _render_prompt(req: ReviewRequest) -> str:
         "tool_input": _redact_tool_input(req.target_op, req.tool_input),
         "final_message": req.final_message,
     }
+    delta = _goal_remaining_delta(req)
+    if delta is not None:
+        # Surface the goal context for the kernel_push approver (M14-T002).
+        body["goal_remaining_delta"] = delta
     if summary_block is not None:
         body["event_trail_summary"] = summary_block
     else:

@@ -48,6 +48,8 @@ def _seed_registry() -> None:
     import decisions as decisions_mod
     import devpost as devpost_mod
     import eval as eval_mod
+    import explore as explore_mod
+    import goal as goal_mod
     import submission_checklist as submission_checklist_mod
     import kg as kg_mod
     import local as local_mod
@@ -110,6 +112,24 @@ def _seed_registry() -> None:
             "LOCAL_WRITE",
             True,
             competition_mod.add_parsers,
+        )
+    )
+    REGISTRY.register(
+        CommandSpec(
+            "goal",
+            "Goal-driven Kaggle loop: declare / inspect / update a goal (M14-T002).",
+            "LOCAL_WRITE",
+            True,
+            goal_mod.add_parsers,
+        )
+    )
+    REGISTRY.register(
+        CommandSpec(
+            "explore",
+            "Goal-driven Kaggle loop: exploration-batch init / run / rank / prune (M14-T003).",
+            "LOCAL_WRITE",
+            True,
+            explore_mod.add_parsers,
         )
     )
     REGISTRY.register(

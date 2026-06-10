@@ -1,0 +1,8 @@
+# M14-T003 search-space fixture — random sub-sample variant (ADR-0020 §4).
+# Same 12-cell product, but draw exactly 4 cells deterministically (seed 42).
+axes:
+  backbone:    [mobilenet_v2, efficientnet_b0, resnet50]
+  image_size:  [192, 224]
+  epochs:      [3, 6]
+sample:        {random: 4, seed: 42}
+seed_template: experiments/tpu-getting-started/baseline-tl/baseline.py
