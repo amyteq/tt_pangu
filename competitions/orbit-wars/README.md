@@ -305,6 +305,26 @@ Implications:
   sophistication (multi-wave value + opponent modeling + regroup). Self-play lever-grinding is
   proven low-yield (v3->v3.1 offline gains ≈ 0 ladder gain expected).
 
+### Diverse-opponent gate (`arena/suite_gate.py`) — ladder-predictive
+
+Built a fixed suite of public agents spanning the strength range so offline win-rate tracks the
+ladder (self-play did not). Usable members (vendored under `agent/versions/suite/`, gitignored,
+reconstruct via `arena/_extract_pub.py`): random, starter, **adilshamim** (weak, loses to starter),
+**pub_tactical**, **evogen1093** (LB 1093), **multifocus** (mid-strong), **kuni05** (LB 1240).
+(`adaptive`, `carbon_top1`, romantamrazov need the unshipped `orbit_lite` → dropped;
+debatreyabiswas-1300 = private model.)
+
+**Validated as a ladder proxy** (suite-average vs real ladder): v2.1 54.8% / 556, v3 54.2% / 561,
+v3.1 54.2% / (≈), kuni05 89.6% / 1114. The suite reproduces the ladder's verdict (ours all tied,
+kuni05 far above) — unlike self-play, which wrongly ranked v3 ≫ v2.1.
+
+**Diagnosis — a hard cliff:** our agents win ~100% vs every weak member (random/starter/adilshamim/
+pub_tactical) and **0-4% vs every strong member** (evogen1093, multifocus, kuni05). We beat everyone
+below and lose to everyone above → stuck at the boundary (~560). v3 and v3.1 are identical on the
+suite (54.2%) despite v3.1 beating v3 62% in self-play — proof that self-play gains don't transfer.
+**To climb, we must win games vs the strong tier; the gate now measures that. evogen1093 (1093) is
+the most beatable strong agent → the next target.**
+
 ## Running
 
 ```bash
