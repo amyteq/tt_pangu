@@ -289,6 +289,26 @@ def _agent(obs):
         t = base_traj.get(pid)
         return _term(t["owner"], t["ships"]) if t else 0.0
 
+    def _defense_needed(pid):
+        """Reinforcement to keep an owned planet held: replay its do-nothing arrivals;
+        at the first turn it flips to an enemy, return that enemy surplus (+1) — what we'd
+        need to have added to survive. 0 if the planet holds on its own."""
+        o_list, s_list = _replay(
+            owner0_by_id[pid], ships0_by_id[pid], prod_by_id[pid], base_arr.get(pid, []), PROJ_H
+        )
+        for k in range(1, PROJ_H + 1):
+            if o_list[k] != player and o_list[k] != -1:
+                return s_list[k] + 1.0
+        return 0.0
+
+    # Add our own planets the projection shows flipping to an enemy within H (reinforce).
+    defense_need = {}
+    for mp in my_planets:
+        dn = _defense_needed(mp.id)
+        if dn > 0:
+            defense_need[mp.id] = dn
+            targets.append(mp)
+
     candidates = []
     for mp in my_planets:
         avail = mp.ships - reserve.get(mp.id, 0)
@@ -296,30 +316,44 @@ def _agent(obs):
             continue
         base_src_adv = _base_adv(mp.id)
         for tgt in targets:
-            # Required force = the SIM's projected defender at the arrival turn (production
-            # growth + in-flight reinforcements baked in), iterating because size->eta.
-            ships_guess = max(1, tgt.ships + 1)
-            sol = None
-            needed = ships_guess
-            eta_k = 1
-            for _ in range(3):
+            if tgt.id == mp.id:
+                continue  # a planet can't reinforce itself
+            is_defense = tgt.id in defense_need
+            if is_defense:
+                # Reinforce an owned planet projected to flip: size = the deficit.
+                needed = max(1, int(math.ceil(defense_need[tgt.id])))
                 sol = _solve_intercept(
-                    mp.x, mp.y, tgt.id, ships_guess, step, init_by_id, ang_vel
+                    mp.x, mp.y, tgt.id, needed, step, init_by_id, ang_vel
                 )
                 if sol is None:
-                    break
+                    continue
                 _, t_ticks, _ = sol
                 eta_k = max(1, min(int(t_ticks), PROJ_H))
-                bt = base_traj.get(tgt.id)
-                if bt is not None and bt["owner"][eta_k] == player:
-                    needed = 1  # we'll already own it at arrival -> reinforce
-                else:
-                    defender = bt["ships"][eta_k] if bt is not None else tgt.ships
-                    buf = 1 if tgt.owner == -1 else 1 + ENEMY_BUFFER
-                    needed = int(defender) + buf
-                if needed == ships_guess:
-                    break
-                ships_guess = needed
+            else:
+                # Offensive: required force = the SIM's projected defender at the arrival
+                # turn (production + in-flight reinforcements baked in); iterate size->eta.
+                ships_guess = max(1, tgt.ships + 1)
+                sol = None
+                needed = ships_guess
+                eta_k = 1
+                for _ in range(3):
+                    sol = _solve_intercept(
+                        mp.x, mp.y, tgt.id, ships_guess, step, init_by_id, ang_vel
+                    )
+                    if sol is None:
+                        break
+                    _, t_ticks, _ = sol
+                    eta_k = max(1, min(int(t_ticks), PROJ_H))
+                    bt = base_traj.get(tgt.id)
+                    if bt is not None and bt["owner"][eta_k] == player:
+                        needed = 1  # we'll already own it at arrival -> reinforce
+                    else:
+                        defender = bt["ships"][eta_k] if bt is not None else tgt.ships
+                        buf = 1 if tgt.owner == -1 else 1 + ENEMY_BUFFER
+                        needed = int(defender) + buf
+                    if needed == ships_guess:
+                        break
+                    ships_guess = needed
             if sol is None:
                 continue
             angle, t_ticks, pos = sol
