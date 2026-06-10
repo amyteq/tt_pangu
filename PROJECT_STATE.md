@@ -1,6 +1,6 @@
 # Kaggle Code Agent — Project State
 
-_Last updated: 2026-06-09 (M13 close; M12 close + M11 partial close; M10 close on 2026-05-28)_
+_Last updated: 2026-06-10 (M14 close — goal-driven Kaggle workflow; M13 close + M12 close + M11 partial close on 2026-06-09; M10 close on 2026-05-28)_
 
 ## Product intent
 Build a hybrid human + AI competition engineering workbench. The first target is Kaggle-style competitions, with future support for authorized CTF/lab challenges. The system should research, discuss ideas with humans, edit code, run tests/evaluations, analyze results, iterate, and prepare submissions under human-approved guardrails.
@@ -56,6 +56,7 @@ authoritative.
 - **M11**: authorized CTF / lab workflow — PARTIAL (T000–T006 + T008 done 2026-06-09; T007 deferred pending human-supplied live-event credentials + approval)
 - **M12**: Devpost / hackathon workflow ✓ (with T007 real-submit DEFERRED — see open items below)
 - **M13**: evaluation, reliability, and regression suite ✓ — 6 suites (tool-smoke, kaggle-replay ×3, kernel-dryrun, reasoning), 5 routes, aggregator reports, nightly CI eval cron; 34 PASS / 4 SKIP / 0 FAIL; no paid LLM calls; no real Kaggle calls; `decision:confirmed` gate-bypass per `/goal` directive.
+- **M14**: goal-driven Kaggle workflow ✓ — `kca goal {init,show,update}` + `goal.md`, `kca explore {init,run,rank,prune,propose-next}` local fan-out + screening, per-competition concurrency + daily-budget gate + creds pre-check, smart poller (Fibonacci QUEUED / stable RUNNING / batched `kernels list`), stuck detector + `kaggle.exploration_stuck` escalation, migration 0011 (`goals` + rule columns + `submissions.goal_id` + `experiment_runs.analysis_jsonb`). 21 PASS / 3 SKIP / 0 FAIL. **T008 live = PASS-WITH-DEVIATION**: 2 real kernel pushes (gate/poll/approval/audit all worked) but **0 new LB scores** — push ≠ leaderboard submission (#77) + push #2 alt-backbone kernel data-mount error; best-known LB stays 0.76505. T009 fixed 5 cloud-schema bugs the live run surfaced + added the eval-suite PR gate (#63). Follow-ups #77 (submit step), #78 (refresh-rules port).
 
 See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP
 checks PASS), `docs/m8_5-final-review.md` for the M8.5 roll-up (all 26
@@ -66,8 +67,11 @@ the SKIP is UI pnpm gates — M9 did not modify UI),
 0 FAIL; the SKIP is the `design-archaeology` skill loader, deferred to
 M9.3-T001 by design),
 `docs/m12-final-review.md` for the M12 roll-up (46 PASS / 0 SKIP / 0 FAIL
-/ 1 DEFERRED — T007 real-submit pending 3 blocked artefacts), and
-`docs/m13-final-review.md` for the M13 roll-up (34 PASS / 4 SKIP / 0 FAIL).
+/ 1 DEFERRED — T007 real-submit pending 3 blocked artefacts),
+`docs/m13-final-review.md` for the M13 roll-up (34 PASS / 4 SKIP / 0 FAIL),
+and `docs/m14-final-review.md` for the M14 roll-up (21 PASS / 3 SKIP /
+0 FAIL; T008 live PASS-WITH-DEVIATION — 2 real pushes, 0 LB scores via
+the push≠submit gap #77).
 
 M9 metrics snapshot:
 - LR baseline (M9-T002): CV accuracy **0.79144 ±0.0086** (5-fold stratified, seed=42).
@@ -109,14 +113,19 @@ M9 metrics snapshot:
 - Post-merge pytest: **149 passed / 8 skipped / 0 failed** (cloud DSN).
 - No paid LLM calls. No real Kaggle calls. Cost: $0.00.
 
-## Current milestone: post-M13 — M11-T007 / M12-T007 unblock + M13.1 / M13.2 follow-ups
+## Current milestone: M15 next — goal-loop submit step (#77) + cross-account quota (#21) + FK hardening (#60)
 
-_M10 closed 2026-05-28. M11 PARTIAL + M12 + M13 closed 2026-06-09. All
-numbered milestones M0–M13 in `docs/milestones.md` are now ✓ done (M11
-with T007 deferred; M12 with T007 deferred)._
+_M10 closed 2026-05-28. M11 PARTIAL + M12 + M13 closed 2026-06-09. M14
+closed 2026-06-10. All numbered milestones M0–M14 in `docs/milestones.md`
+are now ✓ done (M11 with T007 deferred; M12 with T007 deferred; M14 with
+T008's "≥ 2 LB scores" PASS-WITH-DEVIATION via the push≠submit gap #77)._
 
 Next prioritised work, in approximate order:
 
+0. **M15 / #77** — add the explicit submit step (`kaggle competitions
+   submit` of the kernel output) so the goal loop advances on real LB
+   signal; the single hardest unmet M14 exit criterion. Plus **#78**
+   (port `refresh-rules` off the removed `competition_view`).
 1. **M11-T007** — live CTFtime event submit (deferred pending human-supplied
    credentials + approval). See M11 unblock checklist below.
 2. **M12-T007** — real Devpost submit (deferred pending 3 blocked artefacts:

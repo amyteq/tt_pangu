@@ -121,6 +121,17 @@ __all__ = [
     "list_eval_runs",
     "fetch_eval_results",
     "get_eval_run",
+    # M14 goal-driven loop (0011 schema)
+    "ActiveGoalExists",
+    "create_goal",
+    "update_goal",
+    "close_goal",
+    "get_active_goal",
+    "count_active_pushes",
+    "count_today_submissions",
+    "refresh_competition_rules",
+    "set_run_analysis_jsonb",
+    "get_run_analysis_jsonb",
 ]
 
 
@@ -136,6 +147,25 @@ class RemoteOperationBlocked(RuntimeError):
 
 class DBNotConfigured(RuntimeError):
     """Raised when no DB connection info is available."""
+
+
+class ActiveGoalExists(RuntimeError):
+    """Raised when create_goal is called while an active goal exists.
+
+    Mirrors the DB-level guard (the partial unique index
+    ``uq_goals_active_per_competition``); raised eagerly so callers get a
+    typed error instead of a raw IntegrityError on the unique violation.
+    """
+
+
+class KaggleApiUnsupported(RuntimeError):
+    """Raised when the installed Kaggle CLI lacks an API surface KCA needs.
+
+    M14-T009 finding #6: kaggle 2.0.1 removed ``KaggleApi.competition_view``,
+    so ``refresh_competition_rules`` cannot auto-ingest competition rules.
+    Surfacing this as a typed error lets callers degrade cleanly (clear
+    message, no AttributeError traceback) and fall back to manual limits.
+    """
 
 
 def current_side_effect() -> SideEffect:
@@ -559,6 +589,7 @@ def create_job(
     model: str = "claude-sonnet-4-6",
     competition_slug: str | None = None,
     session_id: str | None = None,
+    job_type: str = "agent",
     conn: "psycopg.Connection | None" = None,
 ) -> str:
     """Insert a new queued agent_jobs row. Returns job_id (uuid str)."""
@@ -571,6 +602,7 @@ def create_job(
         model,
         competition_slug,
         session_id,
+        job_type,
     )
 
 
@@ -582,7 +614,12 @@ def _create_job(
     model: str,
     competition_slug: str | None,
     session_id: str | None,
+    job_type: str,
 ) -> str:
+    # agent_jobs has no competition_id column on the live schema; the
+    # competition linkage rides inside payload.competition_id instead
+    # (resolved from the slug here). job_type is NOT NULL with no default.
+    # See M14-T009 finding #3.
     competition_id = None
     if competition_slug:
         with conn.cursor() as cur:
@@ -593,22 +630,23 @@ def _create_job(
             row = cur.fetchone()
             if row:
                 competition_id = row["id"]
+    payload = {"competition_id": competition_id, "competition_slug": competition_slug}
     with conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO agent_jobs
-              (project_id, session_id, competition_id, status, payload,
+              (project_id, session_id, status, job_type, payload,
                prompt, model, policy)
             VALUES
-              (%s::uuid, %s::uuid, %s::uuid, 'queued', %s::jsonb,
+              (%s::uuid, %s::uuid, 'queued', %s, %s::jsonb,
                %s, %s, %s::jsonb)
             RETURNING id::text
             """,
             (
                 project_id,
                 session_id,
-                competition_id,
-                json.dumps(policy),
+                job_type,
+                json.dumps(payload),
                 prompt,
                 model,
                 json.dumps(policy),
@@ -1269,16 +1307,31 @@ def _create_submission_m4(
     cv_score: float | None,
     note: str | None,
 ) -> str:
+    # submissions.project_id is NOT NULL on the live schema; derive it from
+    # the competition's owning project. See M14-T009 finding #3.
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT project_id::text FROM competitions WHERE id = %s::uuid",
+            (competition_id,),
+        )
+        crow = cur.fetchone()
+        if crow is None or crow.get("project_id") is None:
+            raise ValueError(
+                f"competition {competition_id} has no project_id; "
+                "cannot satisfy submissions.project_id NOT NULL"
+            )
+        project_id = crow["project_id"]
     with conn.cursor() as cur:
         cur.execute(
             """
             INSERT INTO submissions
-              (competition_id, run_id, job_id, file_path, cv_score, note, status)
+              (project_id, competition_id, run_id, job_id,
+               file_path, cv_score, note, status)
             VALUES
-              (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, 'prepared')
+              (%s::uuid, %s::uuid, %s::uuid, %s::uuid, %s, %s, %s, 'prepared')
             RETURNING id::text
             """,
-            (competition_id, run_id, job_id, file_path, cv_score, note),
+            (project_id, competition_id, run_id, job_id, file_path, cv_score, note),
         )
         row = cur.fetchone()
     conn.commit()
@@ -2350,6 +2403,528 @@ def _fetch_eval_results(conn: "psycopg.Connection", run_id: str) -> list[dict]:
         )
         rows = cur.fetchall()
     return [dict(r) for r in rows]
+
+
+# ---------------------------------------------------------------------------
+# M14: goal-driven loop (schema in 0011)
+# ---------------------------------------------------------------------------
+
+_GOAL_EXIT_STRATEGIES = {
+    "first_reached",
+    "all_required",
+    "score_only",
+    "rank_only",
+}
+_GOAL_STATUSES = {"active", "reached", "closed", "abandoned"}
+_GOAL_RANK_KINDS = {"percentile", "absolute"}
+
+# Submission statuses that no longer occupy a concurrency slot. A push is
+# "active" until it reaches one of these (ADR-0020 §7 / §6: TERMINAL or the
+# QUEUED-stall release marker). Anything else (prepared/queued/running/...)
+# still counts against max_concurrent_pushes.
+_PUSH_TERMINAL_STATUSES = {
+    "complete",
+    "error",
+    "failed",
+    "stalled",
+    "cancelled",
+    "canceled",
+}
+
+
+def create_goal(
+    competition_id: str,
+    *,
+    target_lb_score: float | None = None,
+    target_lb_rank: int | None = None,
+    target_rank_kind: str | None = None,
+    deadline=None,
+    exit_strategy: str = "first_reached",
+    max_total_pushes: int = 20,
+    stuck_threshold: int = 3,
+    conn: "psycopg.Connection | None" = None,
+) -> str:
+    """Insert a goals row for a competition. Returns the goal id (uuid str).
+
+    Refuses with ``ActiveGoalExists`` if the competition already has an
+    ``active`` goal — mirrors the partial unique index
+    ``uq_goals_active_per_competition`` (ADR-0020 §2). Validates
+    ``exit_strategy`` / ``target_rank_kind`` against the CHECK constraints so
+    callers get a clear ValueError before hitting the DB.
+    """
+    if exit_strategy not in _GOAL_EXIT_STRATEGIES:
+        raise ValueError(
+            f"exit_strategy must be one of {sorted(_GOAL_EXIT_STRATEGIES)}, "
+            f"got {exit_strategy!r}"
+        )
+    if target_rank_kind is not None and target_rank_kind not in _GOAL_RANK_KINDS:
+        raise ValueError(
+            f"target_rank_kind must be one of {sorted(_GOAL_RANK_KINDS)}, "
+            f"got {target_rank_kind!r}"
+        )
+    return _with_conn(
+        conn,
+        _create_goal,
+        competition_id,
+        target_lb_score,
+        target_lb_rank,
+        target_rank_kind,
+        deadline,
+        exit_strategy,
+        int(max_total_pushes),
+        int(stuck_threshold),
+    )
+
+
+def _create_goal(
+    conn: "psycopg.Connection",
+    competition_id: str,
+    target_lb_score: float | None,
+    target_lb_rank: int | None,
+    target_rank_kind: str | None,
+    deadline,
+    exit_strategy: str,
+    max_total_pushes: int,
+    stuck_threshold: int,
+) -> str:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id::text FROM goals
+             WHERE competition_id = %s::uuid AND status = 'active'
+             LIMIT 1
+            """,
+            (competition_id,),
+        )
+        existing = cur.fetchone()
+        if existing is not None:
+            raise ActiveGoalExists(
+                f"competition {competition_id} already has an active goal "
+                f"({existing['id']}); close it before creating another"
+            )
+        cur.execute(
+            """
+            INSERT INTO goals
+              (competition_id, target_lb_score, target_lb_rank, target_rank_kind,
+               deadline, exit_strategy, max_total_pushes, stuck_threshold)
+            VALUES
+              (%s::uuid, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING id::text
+            """,
+            (
+                competition_id,
+                target_lb_score,
+                target_lb_rank,
+                target_rank_kind,
+                deadline,
+                exit_strategy,
+                max_total_pushes,
+                stuck_threshold,
+            ),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    assert row is not None
+    return row["id"]
+
+
+def update_goal(
+    goal_id: str,
+    *,
+    target_lb_score: float | None = None,
+    target_lb_rank: int | None = None,
+    target_rank_kind: str | None = None,
+    deadline=None,
+    exit_strategy: str | None = None,
+    max_total_pushes: int | None = None,
+    stuck_threshold: int | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> None:
+    """Partial update of a goals row. Only non-None kwargs are written.
+
+    Use ``close_goal`` to change status / closed_at / closed_reason — this
+    helper intentionally does not touch the lifecycle columns.
+    """
+    if exit_strategy is not None and exit_strategy not in _GOAL_EXIT_STRATEGIES:
+        raise ValueError(
+            f"exit_strategy must be one of {sorted(_GOAL_EXIT_STRATEGIES)}, "
+            f"got {exit_strategy!r}"
+        )
+    if target_rank_kind is not None and target_rank_kind not in _GOAL_RANK_KINDS:
+        raise ValueError(
+            f"target_rank_kind must be one of {sorted(_GOAL_RANK_KINDS)}, "
+            f"got {target_rank_kind!r}"
+        )
+    fields: list[str] = []
+    params: list[Any] = []
+    if target_lb_score is not None:
+        fields.append("target_lb_score = %s")
+        params.append(target_lb_score)
+    if target_lb_rank is not None:
+        fields.append("target_lb_rank = %s")
+        params.append(target_lb_rank)
+    if target_rank_kind is not None:
+        fields.append("target_rank_kind = %s")
+        params.append(target_rank_kind)
+    if deadline is not None:
+        fields.append("deadline = %s")
+        params.append(deadline)
+    if exit_strategy is not None:
+        fields.append("exit_strategy = %s")
+        params.append(exit_strategy)
+    if max_total_pushes is not None:
+        fields.append("max_total_pushes = %s")
+        params.append(int(max_total_pushes))
+    if stuck_threshold is not None:
+        fields.append("stuck_threshold = %s")
+        params.append(int(stuck_threshold))
+    if not fields:
+        return
+    _with_conn(conn, _update_goal, goal_id, fields, params)
+
+
+def _update_goal(
+    conn: "psycopg.Connection",
+    goal_id: str,
+    fields: list[str],
+    params: list[Any],
+) -> None:
+    set_clause = ", ".join(fields)
+    params.append(goal_id)
+    with conn.cursor() as cur:
+        cur.execute(
+            f"UPDATE goals SET {set_clause} WHERE id = %s::uuid",
+            params,
+        )
+    conn.commit()
+
+
+def close_goal(
+    goal_id: str,
+    status: str = "closed",
+    reason: str | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> None:
+    """Transition a goal out of 'active': set status + closed_at + closed_reason.
+
+    ``status`` must be one of 'reached' / 'closed' / 'abandoned' (not
+    'active' — that would defeat the purpose). Sets ``closed_at = now()``.
+    """
+    if status not in _GOAL_STATUSES or status == "active":
+        raise ValueError(
+            f"status must be one of 'reached', 'closed', 'abandoned'; got {status!r}"
+        )
+    _with_conn(conn, _close_goal, goal_id, status, reason)
+
+
+def _close_goal(
+    conn: "psycopg.Connection",
+    goal_id: str,
+    status: str,
+    reason: str | None,
+) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE goals
+               SET status = %s,
+                   closed_at = now(),
+                   closed_reason = %s
+             WHERE id = %s::uuid
+            """,
+            (status, reason, goal_id),
+        )
+    conn.commit()
+
+
+def get_active_goal(
+    competition_id: str,
+    conn: "psycopg.Connection | None" = None,
+) -> dict | None:
+    """Return the active goals row for a competition, or None."""
+    return _with_conn(conn, _get_active_goal, competition_id)
+
+
+def _get_active_goal(conn: "psycopg.Connection", competition_id: str) -> dict | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT * FROM goals
+             WHERE competition_id = %s::uuid AND status = 'active'
+             LIMIT 1
+            """,
+            (competition_id,),
+        )
+        row = cur.fetchone()
+    return dict(row) if row else None
+
+
+def count_active_pushes(
+    competition_id: str,
+    conn: "psycopg.Connection | None" = None,
+) -> int:
+    """Count KCA-owned kernel runs still occupying a concurrency slot.
+
+    Counts the latest submission per kernel slug for this competition whose
+    status is NOT terminal/stalled (ADR-0020 §7). "Latest per slug" is keyed
+    by the kernel ref recorded in ``experiment_runs.analysis_jsonb`` (the
+    poller writes ``queue_time_seconds`` / ``running_time_seconds`` to the
+    same blob); falls back to the submission row when a run is not joined.
+    A NULL status is treated as still-active (conservative).
+    """
+    return _with_conn(conn, _count_active_pushes, competition_id)
+
+
+def _count_active_pushes(conn: "psycopg.Connection", competition_id: str) -> int:
+    # One row per submission file_path (the slug proxy), newest first; a
+    # file_path is "active" if its most recent submission is non-terminal.
+    terminal = tuple(_PUSH_TERMINAL_STATUSES)
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            WITH latest AS (
+              SELECT DISTINCT ON (file_path)
+                     file_path, status
+                FROM submissions
+               WHERE competition_id = %s::uuid
+               ORDER BY file_path, created_at DESC
+            )
+            SELECT count(*) AS n
+              FROM latest
+             WHERE status IS NULL
+                OR lower(split_part(status, '.', -1)) <> ALL (%s)
+            """,
+            (competition_id, list(terminal)),
+        )
+        row = cur.fetchone()
+    return int(row["n"]) if row else 0
+
+
+def count_today_submissions(
+    competition_id: str,
+    conn: "psycopg.Connection | None" = None,
+) -> int:
+    """Count submissions for a competition within the current UTC calendar day.
+
+    The window is [UTC-midnight today, UTC-midnight tomorrow), matching
+    CLAUDE.md's "00:00 UTC roll-over" KCA strategy and ADR-0020 §7. Counts
+    rows by ``submitted_at`` when present, else ``created_at`` (a prepared-
+    but-not-yet-submitted row does not consume the daily budget until it is
+    actually submitted, so only ``submitted_at`` is in scope here).
+    """
+    return _with_conn(conn, _count_today_submissions, competition_id)
+
+
+def _count_today_submissions(conn: "psycopg.Connection", competition_id: str) -> int:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT count(*) AS n
+              FROM submissions
+             WHERE competition_id = %s::uuid
+               AND submitted_at IS NOT NULL
+               AND submitted_at >= date_trunc('day', now() AT TIME ZONE 'UTC')
+                                     AT TIME ZONE 'UTC'
+               AND submitted_at <  (date_trunc('day', now() AT TIME ZONE 'UTC')
+                                     + interval '1 day') AT TIME ZONE 'UTC'
+            """,
+            (competition_id,),
+        )
+        row = cur.fetchone()
+    return int(row["n"]) if row else 0
+
+
+def set_run_analysis_jsonb(
+    run_id: str,
+    conn: "psycopg.Connection | None" = None,
+    **keys: Any,
+) -> None:
+    """Merge ``keys`` into experiment_runs.analysis_jsonb (additive jsonb merge).
+
+    Documented keys (ADR-0020 §3): ``exploration_batch_id``,
+    ``parent_run_id``, ``queue_time_seconds``, ``running_time_seconds``,
+    ``escalation_id``. Existing keys not in ``keys`` are preserved; passing a
+    key with value None overwrites it with JSON null.
+    """
+    if not keys:
+        return
+    _with_conn(conn, _set_run_analysis_jsonb, run_id, keys)
+
+
+def _set_run_analysis_jsonb(
+    conn: "psycopg.Connection",
+    run_id: str,
+    keys: dict,
+) -> None:
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE experiment_runs
+               SET analysis_jsonb = coalesce(analysis_jsonb, '{}'::jsonb) || %s::jsonb
+             WHERE id = %s::uuid
+            """,
+            (json.dumps(keys), run_id),
+        )
+    conn.commit()
+
+
+def get_run_analysis_jsonb(
+    run_id: str,
+    conn: "psycopg.Connection | None" = None,
+) -> dict | None:
+    """Return experiment_runs.analysis_jsonb for a run as a dict, or None."""
+    return _with_conn(conn, _get_run_analysis_jsonb, run_id)
+
+
+def _get_run_analysis_jsonb(conn: "psycopg.Connection", run_id: str) -> dict | None:
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT analysis_jsonb FROM experiment_runs WHERE id = %s::uuid",
+            (run_id,),
+        )
+        row = cur.fetchone()
+    if row is None:
+        return None
+    val = row["analysis_jsonb"]
+    return dict(val) if val else None
+
+
+def refresh_competition_rules(
+    slug: str,
+    conn: "psycopg.Connection | None" = None,
+) -> dict:
+    """READ-ONLY Kaggle rules ingestion → competitions rules/limit columns.
+
+    Calls ``kaggle.api.competition_view`` (no submit / push / download) and
+    best-effort parses the returned competition metadata into the 0011
+    columns: ``deadline_at``, ``internet_allowed``, ``accelerators_allowed``,
+    ``rules_summary_url``, ``submission_format``, ``max_daily_submissions``,
+    and ``last_rules_fetch_at = now()``. Missing fields are tolerated (left
+    NULL / unchanged). Returns the dict of columns written.
+
+    Side-effect: LOCAL_WRITE on the DB; READ_ONLY against Kaggle. This helper
+    never calls ``kaggle competitions submit`` or ``kaggle kernels push``.
+    """
+    parsed = _fetch_competition_view(slug)
+    return _with_conn(conn, _refresh_competition_rules, slug, parsed)
+
+
+def _fetch_competition_view(slug: str) -> dict:
+    """Call kaggle.api.competition_view and map fields to 0011 columns.
+
+    Isolated so tests can monkeypatch the Kaggle call. Kaggle's client prints
+    version chatter to stdout; suppress it so a JSON-emitting caller is not
+    corrupted.
+    """
+    import contextlib
+    import io as _io
+
+    from kaggle import api  # imported lazily so db.py stays import-safe
+
+    # kaggle 2.0.1 removed KaggleApi.competition_view (M14-T009 finding #6).
+    # Degrade cleanly with a typed error instead of an AttributeError traceback.
+    if not hasattr(api, "competition_view"):
+        import kaggle as _kaggle
+
+        ver = getattr(_kaggle, "__version__", "unknown")
+        raise KaggleApiUnsupported(
+            "kaggle.api has no 'competition_view' (removed in kaggle 2.0.x; "
+            f"installed version: {ver}). Cannot auto-ingest competition rules; "
+            "set max_daily_submissions / max_concurrent_pushes manually until "
+            "the rules fetch is ported to the current Kaggle API surface."
+        )
+
+    with contextlib.redirect_stdout(_io.StringIO()):
+        api.authenticate()
+        view = api.competition_view(slug)
+    return _map_competition_view(view, slug)
+
+
+def _map_competition_view(view: Any, slug: str) -> dict:
+    """Best-effort map of a Kaggle competition object to 0011 columns.
+
+    Tolerant of missing attributes: each field defaults to None when the
+    Kaggle object does not expose it.
+    """
+
+    def _attr(*names):
+        for n in names:
+            v = getattr(view, n, None)
+            if v not in (None, ""):
+                return v
+        return None
+
+    deadline = _attr("deadline", "deadline_at", "enabledDate")
+    max_daily = _attr("maxDailySubmissions", "max_daily_submissions")
+    rules_url = _attr("rulesUrl", "rules_url")
+    if rules_url is None:
+        ref = _attr("ref") or slug
+        rules_url = f"https://www.kaggle.com/competitions/{ref}/rules"
+    evaluation = _attr("evaluationMetric", "evaluation_metric", "metric")
+
+    out: dict[str, Any] = {
+        "deadline_at": str(deadline) if deadline is not None else None,
+        "max_daily_submissions": int(max_daily) if max_daily is not None else None,
+        "rules_summary_url": rules_url,
+        # submission_format / accelerators / internet are not reliably exposed
+        # by competition_view; recorded best-effort and left NULL otherwise.
+        "submission_format": (
+            {"kind": "csv", "evaluation_metric": str(evaluation)}
+            if evaluation is not None
+            else None
+        ),
+        "accelerators_allowed": None,
+        "internet_allowed": None,
+    }
+    return out
+
+
+def _refresh_competition_rules(
+    conn: "psycopg.Connection",
+    slug: str,
+    parsed: dict,
+) -> dict:
+    fields: list[str] = ["last_rules_fetch_at = now()"]
+    params: list[Any] = []
+    written: dict[str, Any] = {}
+
+    def _set(col: str, value: Any, cast: str = ""):
+        if value is None:
+            return
+        fields.append(f"{col} = %s{cast}")
+        params.append(value)
+        written[col] = value
+
+    _set("deadline_at", parsed.get("deadline_at"))
+    _set("max_daily_submissions", parsed.get("max_daily_submissions"))
+    _set("rules_summary_url", parsed.get("rules_summary_url"))
+    sub_fmt = parsed.get("submission_format")
+    if sub_fmt is not None:
+        fields.append("submission_format = %s::jsonb")
+        params.append(json.dumps(sub_fmt))
+        written["submission_format"] = sub_fmt
+    accel = parsed.get("accelerators_allowed")
+    if accel is not None:
+        fields.append("accelerators_allowed = %s")
+        params.append(list(accel))
+        written["accelerators_allowed"] = list(accel)
+    internet = parsed.get("internet_allowed")
+    if internet is not None:
+        fields.append("internet_allowed = %s")
+        params.append(bool(internet))
+        written["internet_allowed"] = bool(internet)
+
+    params.append(slug)
+    with conn.cursor() as cur:
+        cur.execute(
+            f"UPDATE competitions SET {', '.join(fields)} WHERE slug = %s",
+            params,
+        )
+        affected = cur.rowcount
+    conn.commit()
+    written["last_rules_fetch_at"] = "now()"
+    written["rows_updated"] = affected
+    return written
 
 
 # ---------------------------------------------------------------------------

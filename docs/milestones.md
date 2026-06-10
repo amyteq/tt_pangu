@@ -1,6 +1,6 @@
 # kaggle-code-agent Milestones
 
-Status: M0–M10 done; M11 PARTIAL (T000–T006 + T008 done 2026-06-09; T007 deferred pending human action); M12 ✓ done (T007 real-submit DEFERRED); M13 ✓ done (eval/reliability/regression suite — 34 PASS / 4 SKIP / 0 FAIL); M9.2 ✓ done (/save-log operator-tooling skill); M14 in planning (goal-driven Kaggle workflow — issues #51 #52 #53 #54 #55); post-M13 work: M11-T007 + M12-T007 unblock + M13.1/M13.2 follow-ups
+Status: M0–M10 done; M11 PARTIAL (T000–T006 + T008 done 2026-06-09; T007 deferred pending human action); M12 ✓ done (T007 real-submit DEFERRED); M13 ✓ done (eval/reliability/regression suite — 34 PASS / 4 SKIP / 0 FAIL); M9.2 ✓ done (/save-log operator-tooling skill); M14 ✓ done (goal-driven Kaggle workflow — 21 PASS / 3 SKIP / 0 FAIL; T008 live PASS-WITH-DEVIATION: 2 real pushes, 0 LB scores via the push≠submit gap #77; follow-ups #77 #78); post-M13 work: M11-T007 + M12-T007 unblock + M13.1/M13.2 follow-ups; M15 next (submit step #77; cross-account quota #21; FK hardening #60)
 Created: 2026-05-16
 Scope: hybrid human + AI code competition platform
 
@@ -1067,7 +1067,18 @@ Exit criteria met (34 PASS / 4 SKIP / 0 FAIL):
 
 ---
 
-## M14: goal-driven Kaggle workflow
+## M14: goal-driven Kaggle workflow ✓ done
+
+_Closed 2026-06-10 — 21 PASS / 3 SKIP / 0 FAIL (`docs/m14-final-review.md`).
+All exit criteria met EXCEPT T008's "≥ 2 LB scores": the sanctioned live
+series ran **2 real kernel pushes** (gate / poll / approval / audit all
+worked) but recorded **0 new LB scores** — a kernel push is not a leaderboard
+submission (architectural gap, issue #77) and push #2's alt-backbone kernel
+errored on a missing data mount. PASS-WITH-DEVIATION; best-known LB stays
+M10's 0.76505. T009 also fixed 5 cloud-schema correctness bugs the live run
+surfaced (run_status enum, submissions.project_id, agent_jobs schema, status
+casing, refresh-rules degradation) and added the eval-suite PR gate (#63).
+Follow-ups: #77 (submit step), #78 (refresh-rules port)._
 
 _Filed 2026-06-09 from PR #44 follow-up. Five user-surfaced bullets become
 GitHub issues #51 #52 #53 #54 #55 + M14 tasks T002 T003 T004 T005 T007.

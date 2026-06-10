@@ -25,7 +25,7 @@ Key files:
 - `AGENTS.md` — cross-tool instructions for ChatGPT, Codex, Cursor, and other agents
 - `CLAUDE.md` — Claude Code-specific instructions and safety boundaries
 - `docs/adr/` — architecture decision records
-- `docs/milestones.md` — product plan from M0 through M13
+- `docs/milestones.md` — product plan from M0 through M14
 
 ## Repository layout
 
@@ -46,7 +46,7 @@ INSTALL.md                   Local install, configure, and run guide
   permissions/               Policy profiles (default, permissive-dev, competition-runner)
 
 docs/
-  milestones.md              Product plan M0–M13
+  milestones.md              Product plan M0–M14
   architecture.md            Component architecture overview
   architecture/
     kca-cli-architecture.md  Commands vs Skills vs Tools vs Jobs (M7)
@@ -76,9 +76,11 @@ runs/                        Run outputs — do not commit
 5. Never read `.env`, `kaggle.json`, `secrets/`, or private keys.
 6. Never submit to Kaggle, push kernels, or perform any remote write without explicit human approval.
 
-## Current milestone: post-M13 — M11-T007 / M12-T007 unblock + M13.1 / M13.2 follow-ups
+## Current milestone: M15 next — goal-loop submit step (#77) + cross-account quota (#21)
 
-All numbered milestones M0–M13 in `docs/milestones.md` are now ✓ done (M11 with T007 deferred pending live-event credentials; M12 with T007 deferred pending 3 user artefacts). Next prioritised work is the unblock checklists + the M13.1 / M13.2 eval-case follow-ups.
+All numbered milestones M0–M14 in `docs/milestones.md` are now ✓ done (M11 with T007 deferred pending live-event credentials; M12 with T007 deferred pending 3 user artefacts; M14 with T008's "≥ 2 LB scores" PASS-WITH-DEVIATION). Next prioritised work is M15 (the goal-loop submit step #77) plus the M11/M12 unblock checklists + M13.1 / M13.2 eval-case follow-ups.
+
+M14 (goal-driven Kaggle workflow) shipped on 2026-06-10: validation matrix **21 PASS / 3 SKIP / 0 FAIL**. Delivered `kca goal {init,show,update}` + `goal.md`, `kca explore {init,run,rank,prune,propose-next}` local fan-out + holdout screening, per-competition concurrency + daily-budget gate + `cmd_push` creds pre-check, a smart kernel poller (Fibonacci QUEUED backoff / stable RUNNING / batched `kernels list`), a stuck detector with `kaggle.exploration_stuck` Approval-Inbox escalation, and migration `0011_m14_goal_loop.sql` (`goals` table + competition rule columns + `submissions.goal_id` + `experiment_runs.analysis_jsonb`) applied to cloud Supabase. The single sanctioned live series ran **2 real kernel pushes** (concurrency gate / smart poll / human approval / per-push audit all worked) but recorded **0 new LB scores** — a kernel push is not a leaderboard submission (architectural gap, issue #77) and push #2's alt-backbone kernel errored on a missing data mount; best-known LB stays M10's 0.76505. M14-T009 additionally fixed 5 cloud-schema correctness bugs the live run surfaced (run_status enum, `submissions.project_id`, `agent_jobs` schema, status casing, `refresh-rules` degradation on kaggle 2.0.1) and added the eval-suite PR gate (`eval-delta-check`, issue #63). See `docs/m14-final-review.md` and `docs/handoffs/m14-handoff.md`.
 
 M13 (evaluation, reliability, and regression suite) shipped on 2026-06-09: validation matrix **34 PASS / 4 SKIP / 0 FAIL**. Delivered 6 eval suites (tool-smoke, kaggle-replay ×3, kernel-dryrun, reasoning), 5 model routes, an aggregator producing diffable JSON + Markdown snapshots, and a nightly CI cron (`eval.yml` at 03:30 UTC). Canonical baseline snapshot at `runs/m13-eval/20260608T211005Z/`. Migration `0010_m13_eval.sql` (renumbered from 0008 — M11 took 0008 and M12 took 0009) applied to cloud Supabase. No paid LLM calls; no real Kaggle calls; cost $0.00. See `docs/m13-final-review.md` and `docs/handoffs/m13-handoff.md`.
 
@@ -90,7 +92,7 @@ M11 (authorized CTF/lab workflow) shipped PARTIAL on 2026-06-09 (T000–T006 + T
 
 M9 (live end-to-end Kaggle regression — Spaceship Titanic) shipped on 2026-05-24: LR baseline CV **0.79144 ±0.0086**, HGB + FE CV **0.81192 ±0.00753** (+0.02048), one approved real Kaggle submission (public LB **0.78676**), two new test files (`tests/test_m9_smoke.py`, `tests/test_m9_e2e.py`). See `docs/m9-final-review.md` for the 30-check validation matrix and `docs/handoffs/m9-handoff.md` for the M9 → M10 handoff.
 
-M8.5 (pre-M9 hardening) shipped on 2026-05-23 as three PRs (#4 CI repair, #5 engineering-practice + GitHub Issues/PR/labels interface, #6 M9 planning docs); see `docs/m8_5-final-review.md` for the 26-check roll-up. M8 (product UI shell + M7 follow-ups) shipped earlier on 2026-05-23; see `docs/m8-final-review.md` for the 28-check validation matrix. The UI shell is documented in `docs/architecture/m8-ui-shell.md`; the underlying KCA CLI architecture in `docs/architecture/kca-cli-architecture.md`. The collaboration model (label routing, AI pickup rule, PR closeout) is in `docs/engineering-practice.md`. See `docs/milestones.md` for the full product plan (M0–M13).
+M8.5 (pre-M9 hardening) shipped on 2026-05-23 as three PRs (#4 CI repair, #5 engineering-practice + GitHub Issues/PR/labels interface, #6 M9 planning docs); see `docs/m8_5-final-review.md` for the 26-check roll-up. M8 (product UI shell + M7 follow-ups) shipped earlier on 2026-05-23; see `docs/m8-final-review.md` for the 28-check validation matrix. The UI shell is documented in `docs/architecture/m8-ui-shell.md`; the underlying KCA CLI architecture in `docs/architecture/kca-cli-architecture.md`. The collaboration model (label routing, AI pickup rule, PR closeout) is in `docs/engineering-practice.md`. See `docs/milestones.md` for the full product plan (M0–M14).
 
 ## Install and configure
 

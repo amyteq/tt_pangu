@@ -1,0 +1,14 @@
+[
+  {
+    "source_kind": "arxiv",
+    "source_url": "https://arxiv.org/abs/2201.03545",
+    "title": "A ConvNeXt for the 2020s",
+    "text": "ConvNeXt modernizes a standard ResNet toward a vision transformer and is competitive on ImageNet classification."
+  },
+  {
+    "source_kind": "arxiv",
+    "source_url": "https://arxiv.org/abs/2104.00298",
+    "title": "EfficientNetV2: Smaller Models and Faster Training",
+    "text": "EfficientNetV2 trains faster and reaches higher accuracy with progressive learning at larger image sizes."
+  }
+]

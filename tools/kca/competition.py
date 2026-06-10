@@ -50,6 +50,8 @@ def cmd_register(args: argparse.Namespace) -> int:
     repo_url = args.repo_url
     branch = args.branch or "main"
     clone_path = args.clone_path or _default_clone_path(slug)
+    rules: dict = {}
+    rules_error: str | None = None
     try:
         _db = _load_db()
         comp = _db.get_competition_by_slug(slug)
@@ -59,6 +61,14 @@ def cmd_register(args: argparse.Namespace) -> int:
             default_branch=branch,
             local_clone_path=clone_path,
         )
+        # Best-effort rules ingestion at register time (#8 / #7). READ_ONLY
+        # against Kaggle; tolerate a missing CLI / creds / fields so register
+        # still succeeds offline.
+        if not getattr(args, "skip_rules", False):
+            try:
+                rules = _db.refresh_competition_rules(slug)
+            except Exception as exc:  # noqa: BLE001 - non-fatal best-effort
+                rules_error = str(exc)
     except Exception as exc:
         _emit(
             {
@@ -75,6 +85,43 @@ def cmd_register(args: argparse.Namespace) -> int:
             "repo_url": repo_url,
             "default_branch": branch,
             "local_clone_path": clone_path,
+            "rules_ingested": rules,
+            "rules_error": rules_error,
+            "side_effect": SideEffect.LOCAL_WRITE.value,
+        }
+    )
+    return EXIT_OK
+
+
+def cmd_refresh_rules(args: argparse.Namespace) -> int:
+    """On-demand competition-rules refresh (#8 / #7). READ_ONLY against Kaggle."""
+    slug = args.slug
+    try:
+        _db = _load_db()
+        # Surface a clear error if the competition is not registered yet.
+        _db.get_competition_by_slug(slug)
+        written = _db.refresh_competition_rules(slug)
+    except Exception as exc:
+        # M14-T009 finding #6: kaggle 2.0.x dropped competition_view. Degrade
+        # cleanly with a stable code so callers/agents can fall back to manual
+        # limits instead of crashing on an AttributeError.
+        unsupported = type(exc).__name__ == "KaggleApiUnsupported"
+        payload = {
+            "ok": False,
+            "error": str(exc),
+            "slug": slug,
+            "side_effect": SideEffect.LOCAL_WRITE.value,
+        }
+        if unsupported:
+            payload["error_code"] = "KAGGLE_API_UNSUPPORTED"
+            payload["degraded"] = True
+        _emit(payload)
+        return EXIT_RUNTIME
+    _emit(
+        {
+            "ok": True,
+            "slug": slug,
+            "rules_ingested": written,
             "side_effect": SideEffect.LOCAL_WRITE.value,
         }
     )
@@ -197,8 +244,22 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_reg.add_argument("--repo-url", dest="repo_url", required=True)
     p_reg.add_argument("--branch", default="main")
     p_reg.add_argument("--clone-path", dest="clone_path", default=None)
+    p_reg.add_argument(
+        "--skip-rules",
+        dest="skip_rules",
+        action="store_true",
+        help="Skip best-effort Kaggle rules ingestion at register time",
+    )
     p_reg.add_argument("--json", action="store_true")
     p_reg.set_defaults(func=cmd_register)
+
+    p_refresh = comp_sub.add_parser(
+        "refresh-rules",
+        help="Refresh competition rules/limits from Kaggle (READ_ONLY; LOCAL_WRITE)",
+    )
+    p_refresh.add_argument("--slug", required=True)
+    p_refresh.add_argument("--json", action="store_true")
+    p_refresh.set_defaults(func=cmd_refresh_rules)
 
     p_clone = comp_sub.add_parser(
         "clone", help="Clone competition repo locally (LOCAL_WRITE)"
