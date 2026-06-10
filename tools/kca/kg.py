@@ -171,26 +171,36 @@ def cmd_submit(args: argparse.Namespace) -> int:
             options={"competition": competition, "file": file_path, "message": message},
         )
 
-    proc = subprocess.run(
-        [
-            "kaggle",
-            "competitions",
-            "submit",
-            "-c",
-            competition,
-            "-f",
-            file_path,
-            "-m",
-            message,
-        ],
-        capture_output=True,
-        text=True,
-    )
+    # Code-competition submission: when --kernel is given, submit the kernel's
+    # OUTPUT file straight from Kaggle storage (-k/-v) instead of uploading a
+    # local file. --file is then the output filename (e.g. submission.zip), so
+    # large adapters never round-trip through the local disk.
+    kernel = getattr(args, "kernel", None)
+    version = getattr(args, "version", None)
+    cmd = [
+        "kaggle",
+        "competitions",
+        "submit",
+        "-c",
+        competition,
+        "-f",
+        file_path,
+        "-m",
+        message,
+    ]
+    if kernel:
+        cmd += ["-k", kernel]
+    if version is not None:
+        cmd += ["-v", str(version)]
+
+    proc = subprocess.run(cmd, capture_output=True, text=True)
     return _emit_json(
         {
             "ok": proc.returncode == 0,
             "competition": competition,
             "file": file_path,
+            "kernel": kernel,
+            "version": version,
             "side_effect": se.value,
             "stdout": proc.stdout,
             "stderr": proc.stderr,
@@ -740,8 +750,23 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
 
     p_submit = kg_sub.add_parser("submit", help="Submit to a competition (SUBMISSION)")
     p_submit.add_argument("--competition", required=True)
-    p_submit.add_argument("--file", required=True)
+    p_submit.add_argument(
+        "--file",
+        required=True,
+        help="Local file path, OR (with --kernel) the kernel output filename",
+    )
     p_submit.add_argument("--message", required=True)
+    p_submit.add_argument(
+        "--kernel",
+        default=None,
+        help="Code competition: submit this kernel's output from Kaggle storage "
+        "(no local download/upload), e.g. user/kernel-slug",
+    )
+    p_submit.add_argument(
+        "--version",
+        default=None,
+        help="Kernel version to submit (used with --kernel)",
+    )
     p_submit.add_argument("--json", action="store_true")
     p_submit.set_defaults(func=cmd_submit)
 
