@@ -1,8 +1,28 @@
 # Orbit Wars — KCA competition workspace
 
 Kaggle **Orbit Wars** ($50,000 Featured, deadline **2026-06-23**, ~4137 teams).
-Agent-vs-agent RTS on `kaggle_environments`; ranked by a rolling TrueSkill-style
-score (LB top ≈ 1732, top-10 ≈ 1500–1600 as of 2026-06-10).
+Agent-vs-agent RTS on `kaggle_environments`; **1v1 (2-player)** skill-rating ladder, μ0=600
+(LB top ≈ 1732, top-10 ≈ 1500–1600 as of 2026-06-10).
+
+## TL;DR — final status (closeout 2026-06-10)
+
+Two tracks; **accepted the split** after rigorously exhausting the incremental path.
+- **Live entries (the comp keeps your latest 2 active):**
+  - `adapted-kuni05` (LB 1240.5 public agent, **attributed**) — **~1124 and climbing** → our competitive entry.
+  - **`Forecast v3`** (our own, from scratch) — **~720** (well above v2.1's ~556; clearly beats every
+    weak public agent; ~15% vs the weakest strong one).
+- **Our own agent (`agent/main.py`) = Forecast v3.1**: bit-exact forward simulator (validated 0 error
+  vs the engine) + differential terminal net-ship value + sim-based defender floors + light defense.
+- **The wall:** a hard cliff — we win ~100% vs weak agents, **0–15% vs the strong tier** (evogen 1093,
+  multifocus, kuni05 1240). Five bolt-on levers (consolidation, safe_drain, defense, multi-source,
+  opening-planner), all measured on a **ladder-predictive opponent suite**, none cross it — the strong
+  tier wins as integrated *systems*, not via transplantable mechanisms. Closing it needs a multi-week
+  kuni05-class rewrite, judged not worth it vs the split.
+- **Reproduce:** `pip install "kaggle-environments>=1.28.0"`; vendored opponents are gitignored —
+  rebuild via `arena/_reconstruct_pkg.py` (kuni05) / `arena/_extract_pub.py` (suite) from the public
+  notebooks; then `python arena/suite_gate.py main --procs <cores>`.
+
+Detailed log below (chronological; experiments, dead-ends, and evidence).
 
 ## Layout
 
