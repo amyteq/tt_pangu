@@ -175,6 +175,13 @@ def cmd_submit(args: argparse.Namespace) -> int:
     # OUTPUT file straight from Kaggle storage (-k/-v) instead of uploading a
     # local file. --file is then the output filename (e.g. submission.zip), so
     # large adapters never round-trip through the local disk.
+    #
+    # NOTE on versions: the Kaggle API is latest-run-centric — `kaggle kernels
+    # output/status` only expose the LATEST run, so an older version's artifact
+    # cannot be downloaded/inspected via API. Submit therefore reliably targets
+    # the just-pushed (latest) version; omit --version for that. To keep an
+    # earlier candidate retrievable, push it as its own kernel (one kernel per
+    # candidate) rather than relying on stale version numbers.
     kernel = getattr(args, "kernel", None)
     version = getattr(args, "version", None)
     cmd = [
@@ -765,7 +772,9 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_submit.add_argument(
         "--version",
         default=None,
-        help="Kernel version to submit (used with --kernel)",
+        help="Kernel version to submit (used with --kernel). Omit to submit the "
+        "latest run — recommended, since the API only retrieves the latest run's "
+        "output (`kaggle kernels output/status` have no version selector)",
     )
     p_submit.add_argument("--json", action="store_true")
     p_submit.set_defaults(func=cmd_submit)
