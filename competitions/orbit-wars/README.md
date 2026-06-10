@@ -289,6 +289,22 @@ Decision (user): ship an adapted public agent for a real LB score NOW, build our
     (our top LB entry) for a bot that ladders below it. So we promote locally but hold resubmission;
     submit our own line only once it's competitive with kuni05, or deliberately near the deadline.
 
+### CRITICAL — self-play arena does NOT predict the ladder
+
+Ladder scores (μ0=600 start): adapted-kuni05 **1114**, Forecast v3 **561**, v2.1 **556**.
+Forecast v3 beat v2.1 **91% offline** but landed **~tied** with it on the ladder — and *below*
+the 600 baseline (both are net losers vs the real pool). The offline self-play gate (vs
+v2.1/v3/starter) has ~zero predictive value for ladder movement: our agents beat each other but
+all cluster ~555-561 against the diverse field, while kuni05 (genuinely strong) sits at 1114.
+
+Implications:
+- Promoting/resubmitting our own line (v3, v3.1, ...) is low-yield AND retires kuni05 (latest-2
+  rule) — net negative. Keep kuni05 as the live entry; develop our line locally.
+- To actually improve our OWN agent on the ladder we must gate against a DIVERSE pool of real
+  public agents (spanning the strength range), not self-play — or reach kuni05-class
+  sophistication (multi-wave value + opponent modeling + regroup). Self-play lever-grinding is
+  proven low-yield (v3->v3.1 offline gains ≈ 0 ladder gain expected).
+
 ## Running
 
 ```bash
