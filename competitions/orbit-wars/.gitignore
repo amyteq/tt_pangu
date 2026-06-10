@@ -1,0 +1,5 @@
+# Local arena/replay/log artifacts — keep code, not bulk outputs.
+replays/
+logs/
+*.json.gz
+__pycache__/
