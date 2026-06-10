@@ -3,3 +3,8 @@ replays/
 logs/
 *.json.gz
 __pycache__/
+
+*.tar.gz
+
+# Vendored third-party opponent (reconstruct via arena/_reconstruct_pkg.py from the public notebook)
+agent/versions/kuni05/

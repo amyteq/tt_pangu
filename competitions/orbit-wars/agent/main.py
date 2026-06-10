@@ -1,5 +1,5 @@
 """
-Orbit Wars agent — v1 "Intercept Economist".
+Orbit Wars agent — v3 "Forecast" (forward-sim differential planner).
 
 Strategy summary (see competitions/orbit-wars/README.md for the full design):
   - Predict every planet's exact future position from `initial_planets` +
@@ -25,6 +25,216 @@ move list (stay passive but ALIVE) rather than crashing — a crash forfeits.
 
 import math
 import os as _os
+
+# === inlined forward simulator (forecast_sim.py; bit-exact vs engine) ===
+BOARD = 100.0
+CENTER = 50.0
+SUN_R = 10.0
+ROT_LIMIT = 50.0
+MAX_SPEED = 6.0
+
+
+def fleet_speed(ships):
+    if ships <= 1:
+        return 1.0
+    return min(
+        MAX_SPEED, 1.0 + (MAX_SPEED - 1.0) * (math.log(ships) / math.log(1000.0)) ** 1.5
+    )
+
+
+def _seg_point_dist(px, py, ax, ay, bx, by):
+    l2 = (ax - bx) ** 2 + (ay - by) ** 2
+    if l2 == 0.0:
+        return math.hypot(px - ax, py - ay)
+    t = max(0.0, min(1.0, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / l2))
+    return math.hypot(px - (ax + t * (bx - ax)), py - (ay + t * (by - ay)))
+
+
+def _swept_hit(A, B, P0, P1, r):
+    """True iff a fleet moving A->B and a body moving P0->P1 come within r (engine's
+    swept_pair_hit: relative motion is linear over the tick)."""
+    d0x, d0y = A[0] - P0[0], A[1] - P0[1]
+    dvx = (B[0] - A[0]) - (P1[0] - P0[0])
+    dvy = (B[1] - A[1]) - (P1[1] - P0[1])
+    a = dvx * dvx + dvy * dvy
+    b = 2.0 * (d0x * dvx + d0y * dvy)
+    c = d0x * d0x + d0y * d0y - r * r
+    if a < 1e-12:
+        return c <= 0.0
+    disc = b * b - 4.0 * a * c
+    if disc < 0.0:
+        return False
+    sq = math.sqrt(disc)
+    return (-b + sq) / (2.0 * a) >= 0.0 and (-b - sq) / (2.0 * a) <= 1.0
+
+
+def _resolve_combat(garrison_owner, garrison_ships, arrivals):
+    """Engine combat at one planet. `arrivals` = list of (owner, ships).
+    Returns (new_owner, new_ships). Mirrors orbit_wars.interpreter step 5."""
+    by_owner = {}
+    for o, s in arrivals:
+        by_owner[o] = by_owner.get(o, 0.0) + s
+    if not by_owner:
+        return garrison_owner, garrison_ships
+    ranked = sorted(by_owner.items(), key=lambda kv: kv[1], reverse=True)
+    top_owner, top_ships = ranked[0]
+    if len(ranked) > 1:
+        second = ranked[1][1]
+        surv = 0.0 if top_ships == second else (top_ships - second)
+        surv_owner = top_owner if surv > 0 else -1
+    else:
+        surv_owner, surv = top_owner, top_ships
+    if surv <= 0:
+        return garrison_owner, garrison_ships
+    if garrison_owner == surv_owner:
+        return garrison_owner, garrison_ships + surv
+    ships = garrison_ships - surv
+    if ships < 0:
+        return surv_owner, abs(ships)
+    return garrison_owner, ships
+
+
+def _planet_pos(ix, iy, radius, ang_vel, step):
+    """Engine rotation: orbiting (orbital_r + radius < 50) rotate; else static."""
+    dx, dy = ix - CENTER, iy - CENTER
+    orb = math.hypot(dx, dy)
+    if orb + radius < ROT_LIMIT:
+        a = math.atan2(dy, dx) + ang_vel * step
+        return CENTER + orb * math.cos(a), CENTER + orb * math.sin(a)
+    return ix, iy
+
+
+def replay_planet(owner0, ships0, prod, arrivals, H):
+    """Single-planet trajectory given its per-turn arrival schedule.
+
+    `arrivals` = list of (k, owner, ships). Mirrors project()'s per-turn order for one
+    planet: production (if owned) then combat. Returns (owner_list[H+1], ships_list[H+1]).
+    Used to score a candidate by recomputing only the planets a launch touches.
+    """
+    by_k = {}
+    for k, o, s in arrivals:
+        by_k.setdefault(k, []).append((o, s))
+    owner, ships = owner0, float(ships0)
+    o_out, s_out = [owner], [ships]
+    for k in range(1, H + 1):
+        if owner != -1:
+            ships += prod
+        if k in by_k:
+            owner, ships = _resolve_combat(owner, ships, by_k[k])
+        o_out.append(owner)
+        s_out.append(ships)
+    return o_out, s_out
+
+
+def project(planets, fleets, ang_vel, init_by_id, step0, H, comet_ids=()):
+    """Do-nothing projection. Returns (traj, arrivals).
+
+    traj: pid -> {'owner':[H+1], 'ships':[H+1]}.
+    arrivals: pid -> list of (k, owner, ships) — fleets that hit it at turn k (the
+    combat schedule), so a candidate can be scored by recomputing only touched planets.
+
+    planets/fleets are tuples (id,owner,x,y,radius,ships,prod) / (id,owner,x,y,angle,from,ships).
+    Comets are dropped (their path-based motion isn't modeled here).
+    """
+    comet_ids = set(comet_ids)
+    pl = {
+        p[0]: {
+            "owner": p[1],
+            "x": p[2],
+            "y": p[3],
+            "r": p[4],
+            "ships": float(p[5]),
+            "prod": p[6],
+        }
+        for p in planets
+        if p[0] not in comet_ids
+    }
+    init = {
+        pid: (init_by_id[pid][2], init_by_id[pid][3]) for pid in pl if pid in init_by_id
+    }
+    fl = [
+        {"owner": f[1], "x": f[2], "y": f[3], "ang": f[4], "ships": float(f[6])}
+        for f in fleets
+        if f[6] > 0
+    ]
+    traj = {
+        pid: {"owner": [pl[pid]["owner"]], "ships": [pl[pid]["ships"]]} for pid in pl
+    }
+    arrivals = {pid: [] for pid in pl}
+
+    for k in range(1, H + 1):
+        step = step0 + k
+        # 1. production
+        for pid, p in pl.items():
+            if p["owner"] != -1:
+                p["ships"] += p["prod"]
+        # planet positions this tick (old=step-1, new=step)
+        old_pos, new_pos = {}, {}
+        for pid, p in pl.items():
+            ix, iy = init.get(pid, (p["x"], p["y"]))
+            old_pos[pid] = _planet_pos(ix, iy, p["r"], ang_vel, step - 1)
+            new_pos[pid] = _planet_pos(ix, iy, p["r"], ang_vel, step)
+        # 2. fleet movement + swept collision; queue combats
+        combat = {pid: [] for pid in pl}
+        alive_fl = []
+        for f in fl:
+            spd = fleet_speed(f["ships"])
+            A = (f["x"], f["y"])
+            B = (f["x"] + math.cos(f["ang"]) * spd, f["y"] + math.sin(f["ang"]) * spd)
+            hit = None
+            for pid, p in pl.items():
+                if _swept_hit(A, B, old_pos[pid], new_pos[pid], p["r"]):
+                    hit = pid
+                    break
+            if hit is not None:
+                combat[hit].append((f["owner"], f["ships"]))
+                continue
+            if not (0 <= B[0] <= BOARD and 0 <= B[1] <= BOARD):
+                continue  # out of bounds -> gone
+            if _seg_point_dist(CENTER, CENTER, A[0], A[1], B[0], B[1]) < SUN_R:
+                continue  # hit sun -> gone
+            f["x"], f["y"] = B
+            alive_fl.append(f)
+        fl = alive_fl
+        # 3. rotation (apply new positions)
+        for pid, p in pl.items():
+            p["x"], p["y"] = new_pos[pid]
+        # 4. combat
+        for pid, arr in combat.items():
+            if arr:
+                pl[pid]["owner"], pl[pid]["ships"] = _resolve_combat(
+                    pl[pid]["owner"], pl[pid]["ships"], arr
+                )
+                for o, s in arr:
+                    arrivals[pid].append((k, o, s))
+        # record
+        for pid, p in pl.items():
+            traj[pid]["owner"].append(p["owner"])
+            traj[pid]["ships"].append(p["ships"])
+    return traj, arrivals
+
+
+def signed_adv(owner_list, ships_list, me, H, gamma=0.97):
+    """Discounted advantage of one planet's trajectory: +my ships, -opponent ships,
+    0 for neutral, summed over k=1..H with a tempo discount."""
+    s = 0.0
+    g = 1.0
+    for k in range(1, H + 1):
+        g *= gamma
+        o = owner_list[k]
+        if o == me:
+            s += g * ships_list[k]
+        elif o != -1:
+            s -= g * ships_list[k]
+    return s
+
+
+# === aliases used by the planner ===
+_project = project
+_replay = replay_planet
+_adv = signed_adv
+
+PROJ_H = 18  # forward-simulation horizon (matches kuni05's 2p horizon)
 
 try:
     from kaggle_environments.envs.orbit_wars.orbit_wars import Planet, Fleet
@@ -257,16 +467,38 @@ def _agent(obs):
     # Targets: anything we don't own and isn't a comet (comets handled later versions).
     targets = [p for p in planets if p.owner != player and p.id not in comet_ids]
 
+    # --- Forecast: bit-exact do-nothing projection drives defender floors + value ---
+    base_traj, base_arr = _project(
+        raw_planets, raw_fleets, ang_vel, init_by_id, step, PROJ_H, comet_ids=comet_ids
+    )
+    prod_by_id = {p.id: p.production for p in planets}
+    owner0_by_id = {p.id: p.owner for p in planets}
+    ships0_by_id = {p.id: float(p.ships) for p in planets}
+
+    def _term(o_list, s_list):
+        # Terminal (k=H) signed advantage: +my ships, -opponent ships, 0 neutral.
+        # Conservation-correct (ships in transit have landed by H), so launching is not
+        # wrongly penalized; production accrued by H preserves tempo (earlier capture wins).
+        o, s = o_list[PROJ_H], s_list[PROJ_H]
+        return s if o == player else (-s if o != -1 else 0.0)
+
+    def _base_adv(pid):
+        t = base_traj.get(pid)
+        return _term(t["owner"], t["ships"]) if t else 0.0
+
     candidates = []
     for mp in my_planets:
         avail = mp.ships - reserve.get(mp.id, 0)
         if avail <= 0:
             continue
+        base_src_adv = _base_adv(mp.id)
         for tgt in targets:
-            # Estimate required force, iterating because ships affect travel time.
+            # Required force = the SIM's projected defender at the arrival turn (production
+            # growth + in-flight reinforcements baked in), iterating because size->eta.
             ships_guess = max(1, tgt.ships + 1)
             sol = None
             needed = ships_guess
+            eta_k = 1
             for _ in range(3):
                 sol = _solve_intercept(
                     mp.x, mp.y, tgt.id, ships_guess, step, init_by_id, ang_vel
@@ -274,10 +506,14 @@ def _agent(obs):
                 if sol is None:
                     break
                 _, t_ticks, _ = sol
-                if tgt.owner == -1:  # neutral: static garrison
-                    needed = tgt.ships + 1
-                else:  # enemy: grows by production while in flight
-                    needed = tgt.ships + tgt.production * t_ticks + 1 + ENEMY_BUFFER
+                eta_k = max(1, min(int(t_ticks), PROJ_H))
+                bt = base_traj.get(tgt.id)
+                if bt is not None and bt["owner"][eta_k] == player:
+                    needed = 1  # we'll already own it at arrival -> reinforce
+                else:
+                    defender = bt["ships"][eta_k] if bt is not None else tgt.ships
+                    buf = 1 if tgt.owner == -1 else 1 + ENEMY_BUFFER
+                    needed = int(defender) + buf
                 if needed == ships_guess:
                     break
                 ships_guess = needed
@@ -288,11 +524,35 @@ def _agent(obs):
                 continue
             if step + t_ticks > EPISODE_STEPS - 2:  # would arrive after game ends
                 continue
+            if t_ticks > PROJ_H:  # beyond the projection horizon -> can't score it
+                continue
             if _path_blocked(
                 mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids
             ):
                 continue
-            value = tgt.production / (needed * (1.0 + TIME_DISCOUNT * t_ticks))
+            # Value = simulated differential advantage: replay the two touched planets
+            # with this launch (source debited now, target gets my arrival at eta) and
+            # diff the signed (mine - opponent) advantage vs the do-nothing baseline.
+            sw_o, sw_s = _replay(
+                owner0_by_id[mp.id],
+                ships0_by_id[mp.id] - needed,
+                prod_by_id[mp.id],
+                base_arr.get(mp.id, []),
+                PROJ_H,
+            )
+            tw_arr = base_arr.get(tgt.id, []) + [(eta_k, player, float(needed))]
+            tw_o, tw_s = _replay(
+                owner0_by_id[tgt.id],
+                ships0_by_id[tgt.id],
+                prod_by_id[tgt.id],
+                tw_arr,
+                PROJ_H,
+            )
+            value = (_term(sw_o, sw_s) + _term(tw_o, tw_s)) - (
+                base_src_adv + _base_adv(tgt.id)
+            )
+            if value <= 0:
+                continue  # net-negative or pointless -> don't fire
             candidates.append((value, mp.id, tgt.id, angle, needed))
 
     candidates.sort(reverse=True, key=lambda c: c[0])

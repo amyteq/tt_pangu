@@ -27,6 +27,8 @@ def resolve(name):
         return os.path.join(VERSIONS, f"{name}.py")
     if name in ("pub", "pub_tactical", "tactical"):
         return os.path.join(VERSIONS, "pub_tactical.py")
+    if name in ("kuni", "kuni05"):
+        return os.path.join(VERSIONS, "kuni05", "main.py")
     return name
 
 

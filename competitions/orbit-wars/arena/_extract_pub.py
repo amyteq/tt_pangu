@@ -7,7 +7,7 @@ for c in nb["cells"]:
     if c["cell_type"] != "code":
         continue
     src = "".join(c["source"])
-    if "writefile submission.py" in src and "def agent" in src:
+    if ("writefile main.py" in src or "writefile submission.py" in src) and "def agent" in src:
         cell = src
         break
 assert cell, "agent cell not found"
