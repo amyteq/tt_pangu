@@ -38,6 +38,11 @@ if _HERE not in _sys.path:
 from forecast_sim import project as _project, replay_planet as _replay, signed_adv as _adv
 
 PROJ_H = 18  # forward-simulation horizon (matches kuni05's 2p horizon)
+# Multi-source coordination (the strong-tier lever): pool ships from several friendly
+# planets onto one target, sized to capture AND hold (vs single-source minimal captures
+# that get retaken). Staggered waves grind the defender; total = needed * HOLD_MULT.
+MULTISRC = int(_os.environ.get("OW_MULTISRC", 0))  # default OFF: tried, no gain vs strong tier
+HOLD_MULT = float(_os.environ.get("OW_HOLD_MULT", 1.6))
 
 try:
     from kaggle_environments.envs.orbit_wars.orbit_wars import Planet, Fleet
@@ -387,20 +392,70 @@ def _agent(obs):
             candidates.append((value, mp.id, tgt.id, angle, needed))
 
     candidates.sort(reverse=True, key=lambda c: c[0])
-
     remaining = {mp.id: mp.ships - reserve.get(mp.id, 0) for mp in my_planets}
     committed = set()
     moves = []
-    for _value, src_id, tgt_id, angle, needed in candidates:
-        if tgt_id in committed:
-            continue
-        if needed > launch_budget:  # respect the empire-wide in-flight cap
-            continue
-        if remaining.get(src_id, 0) >= needed:
-            moves.append([src_id, angle, int(needed)])
-            remaining[src_id] -= needed
-            launch_budget -= needed
-            committed.add(tgt_id)
+    pos_by_id = {p.id: (p.x, p.y) for p in planets}
+
+    if not MULTISRC:
+        # Single-source greedy (v3 behaviour; kept for A/B via OW_MULTISRC=0).
+        for _value, src_id, tgt_id, angle, needed in candidates:
+            if tgt_id in committed or needed > launch_budget:
+                continue
+            if remaining.get(src_id, 0) >= needed:
+                moves.append([src_id, angle, int(needed)])
+                remaining[src_id] -= needed
+                launch_budget -= needed
+                committed.add(tgt_id)
+    else:
+        # Multi-source coordination: per target (best-value first), pool ships from the
+        # nearest viable sources up to a hold force (capture + margin). Staggered waves
+        # grind the defender; the engine sums same-turn arrivals. This is what the strong
+        # tier does and our single-source minimal captures lacked.
+        by_tgt = {}
+        for value, src_id, tgt_id, angle, needed in candidates:
+            by_tgt.setdefault(tgt_id, []).append((value, src_id, needed))
+        # rank targets by their best single-source value
+        order = sorted(by_tgt, key=lambda t: max(v for v, _, _ in by_tgt[t]), reverse=True)
+        for tgt_id in order:
+            entries = by_tgt[tgt_id]
+            cap_needed = max(n for _, _, n in entries)              # single-source capture size
+            hold_force = math.ceil(cap_needed * HOLD_MULT)
+            tx, ty = pos_by_id[tgt_id]
+            # nearest viable sources first (minimise travel, tightest co-arrival)
+            srcs = sorted({s for _, s, _ in entries},
+                          key=lambda s: _hypot(pos_by_id[s][0], pos_by_id[s][1], tx, ty))
+            accum = 0
+            wave = []
+            for src_id in srcs:
+                if accum >= hold_force or launch_budget <= 0:
+                    break
+                give = int(min(remaining.get(src_id, 0), hold_force - accum, launch_budget))
+                if give < 1:
+                    continue
+                sol = _solve_intercept(
+                    pos_by_id[src_id][0], pos_by_id[src_id][1], tgt_id, give, step, init_by_id, ang_vel
+                )
+                if sol is None:
+                    continue
+                ang, t_ticks, pos = sol
+                if t_ticks > PROJ_H or step + t_ticks > EPISODE_STEPS - 2:
+                    continue
+                if _path_blocked(pos_by_id[src_id][0], pos_by_id[src_id][1],
+                                 pos[0], pos[1], src_id, tgt_id, planets, comet_ids):
+                    continue
+                wave.append([src_id, ang, give])
+                accum += give
+                remaining[src_id] -= give
+                launch_budget -= give
+            # only keep the wave if it can at least capture (>= the single-source need)
+            if accum >= cap_needed:
+                moves.extend(wave)
+                committed.add(tgt_id)
+            else:
+                for src_id, _ang, give in wave:  # refund partial commitment
+                    remaining[src_id] += give
+                    launch_budget += give
 
     # Consolidation pass: forward idle rear surplus toward the front.
     if CONSOLIDATE and targets:

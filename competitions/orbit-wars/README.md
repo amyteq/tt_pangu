@@ -345,6 +345,22 @@ multi-move* play; we plan one move at a time. **Next build: multi-source coordin
 (gather nearby friendly ships to co-arrive on a target, sized to capture-and-hold), gated on the
 SUITE (target: first >0% vs evogen1093). Then opening-sequence planning, then supply chains.
 
+### Multi-source coordination — TRIED → no gain vs strong tier (default OFF)
+
+Implemented multi-source pooling on Forecast (`agent/versions/forecast.py`, `OW_MULTISRC`,
+`OW_HOLD_MULT`): per target, pool the nearest viable sources up to `needed*HOLD_MULT` to
+capture-and-hold. Suite result: **still 0% vs evogen1093/multifocus/kuni05; suite avg 53.6%
+≈ v3's 54.2%** — no movement on the cliff (slightly negative). Refined diagnosis: pooling makes
+captures stick (retaking) but the strong tier beats us by **out-EXPANDING** (2× our planets), and
+pooling *reduces* how many targets we take → mistargeted. Defaulted OFF.
+
+**Pattern across 4 bolt-on levers** (consolidation ✗, safe_drain ✗, defense=self-play-only,
+multi-source ✗): incremental pieces transplanted from the strong tier don't transfer — those agents
+win as whole coordinated SYSTEMS (opening-sequence planning + supply + multi-wave + sim together),
+not via any single mechanism. The on-target unexplored lever is **opening-sequence planning**
+(directly attacks the out-expansion we lose); beyond that, closing the strong-tier gap likely needs
+a full coordinated-planner rewrite (kuni05/evogen class), not increments.
+
 ## Running
 
 ```bash
