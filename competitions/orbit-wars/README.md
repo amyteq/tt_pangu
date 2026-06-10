@@ -325,6 +325,26 @@ suite (54.2%) despite v3.1 beating v3 62% in self-play — proof that self-play 
 **To climb, we must win games vs the strong tier; the gate now measures that. evogen1093 (1093) is
 the most beatable strong agent → the next target.**
 
+### Design study — how the strong tier beats us (evogen1093 + kuni05)
+
+evogen1093 (LB 1093, single-file `OrbitCommander`): opening branch-and-bound DFS over capture
+*sequences* (best set+order of neutral grabs over an opening horizon); `plan_target_commitment`
+pools ships from MULTIPLE friendly sources until a target is captured/held; an objective loop +
+arrival ledger commits several coordinated waves/turn; supply chains mass ships rear→front; forward
+sim with both-sides arrival ledger.
+
+**Synthesis — the strong tier (evogen + kuni05) shares 3 things our Forecast lacks** (impact order):
+1. **Multi-source coordination ("synchronized strikes")** — pool several planets to co-arrive on one
+   target. We send ONE source, minimal force → single-source captures lose/retaken vs strong play.
+   Both strong agents do this; it's the likely #1 reason for our 0-4% cliff vs the strong tier.
+2. **Opening-sequence planning** — optimal early land-grab (we expand greedily and lose it).
+3. **Supply chains** — gradient/route-based rear→front massing (our naive consolidation failed; theirs works).
+
+Our forward sim + per-move value was necessary but not sufficient: the strong tier plans *coordinated
+multi-move* play; we plan one move at a time. **Next build: multi-source coordinated commitment**
+(gather nearby friendly ships to co-arrive on a target, sized to capture-and-hold), gated on the
+SUITE (target: first >0% vs evogen1093). Then opening-sequence planning, then supply chains.
+
 ## Running
 
 ```bash
