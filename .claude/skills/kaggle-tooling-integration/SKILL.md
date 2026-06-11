@@ -26,6 +26,13 @@ Before a Kaggle submission, present:
 
 Do not submit until explicit approval is given.
 
+## Kernel/version model, structure & concurrency
+For code-competition (notebook/kernel) work, follow `docs/tooling/kaggle-kernel-ops.md`. Key rules:
+- **Versions are latest-only via API** — `kaggle kernels output/status` expose only the latest run, and stale `-v` is unreliable. Submit the just-pushed (latest) version (omit `--version` in `kca kaggle submit --kernel …`).
+- **Flat structure**: one kernel per candidate/direction (variant in the slug, e.g. `nemotron-cot-r32-s400`) so every candidate stays retrievable and can run in parallel. Single-kernel-many-versions is for throwaway iteration only.
+- **Concurrency is per *account*, global**: ~1 concurrent GPU session + floating ~30 h/week quota (resets Sat 00:00 UTC). Submission limits are per competition team, per day. Maximise throughput with flat parallel kernels, bounded runs, keeping non-GPU work off the quota, and overflow compute (local 4090/3090 for models that fit; external GPU under evaluation).
+- **Pre-push hygiene**: static lint (`kca kaggle push` gate / `validate_kernel.py`), a fail-fast eval preflight, and isolating non-essential steps — never waste a multi-hour GPU run on a typo.
+
 ## Kaggle in-kernel data mount paths
 Inside a Kaggle kernel, **do not hardcode** the input mount. Since ~Feb 2026 Kaggle
 adds a slug chunk to the path, so the same competition data may appear under either
