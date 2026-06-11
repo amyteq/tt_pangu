@@ -33,5 +33,31 @@ For code-competition (notebook/kernel) work, follow `docs/tooling/kaggle-kernel-
 - **Concurrency is per *account*, global**: ~1 concurrent GPU session + floating ~30 h/week quota (resets Sat 00:00 UTC). Submission limits are per competition team, per day. Maximise throughput with flat parallel kernels, bounded runs, keeping non-GPU work off the quota, and overflow compute (local 4090/3090 for models that fit; external GPU under evaluation).
 - **Pre-push hygiene**: static lint (`kca kaggle push` gate / `validate_kernel.py`), a fail-fast eval preflight, and isolating non-essential steps — never waste a multi-hour GPU run on a typo.
 
+## Kaggle in-kernel data mount paths
+Inside a Kaggle kernel, **do not hardcode** the input mount. Since ~Feb 2026 Kaggle
+adds a slug chunk to the path, so the same competition data may appear under either
+form depending on the kernel's attached sources:
+
+- Competition data: `/kaggle/input/competitions/<competition-slug>/` (newer) or
+  `/kaggle/input/<competition-slug>/` (older).
+- Datasets / models: `/kaggle/input/<owner>/<dataset-slug>/` (and utility-script /
+  model mounts under `/kaggle/usr/lib/...` with the slug **slugified to underscores**,
+  e.g. `nvidia-utility-script` → `nvidia_utility_script`).
+
+Resolve robustly with a glob rather than a literal path, e.g.:
+
+```python
+import glob
+cands = (glob.glob("/kaggle/input/competitions/*/train.csv")
+         + glob.glob("/kaggle/input/*/train.csv")
+         + glob.glob("/kaggle/input/**/train.csv", recursive=True))
+train_csv = cands[0]  # raise if empty; print cands for diagnostics
+```
+
+A battle-tested resolver lives in `experiments/tpu-getting-started/baseline-tl/baseline.py`
+(`_resolve_kaggle_input_path`): try `/kaggle/input/<slug>` then
+`/kaggle/input/competitions/<slug>`, and on miss, list `/kaggle/input` contents so the
+failure shows the real layout instead of an opaque "not found".
+
 ## Safety
 Never print or read Kaggle credentials. Never commit API tokens. Never bypass daily submission limits or competition rules.
