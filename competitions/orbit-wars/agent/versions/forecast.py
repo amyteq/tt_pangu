@@ -37,7 +37,10 @@ if _HERE not in _sys.path:
     _sys.path.insert(0, _HERE)
 from forecast_sim import project as _project, replay_planet as _replay
 
-PROJ_H = int(_os.environ.get("OW_PROJ_H", 18))  # forward-sim horizon; 18 too short for slow opening fleets
+# T2-R2 BAKED (2026-06-12, issue #87): t14 config confirmed on two independent
+# 300-game blocks (snorlax 13000+: 17.7%, local 15000+: 19.0% vs baseline ~12%;
+# pooled +6.7pt, z~3.3). Defaults below = t14: H26/FF5/FD20/CE3.2/CL1.3.
+PROJ_H = int(_os.environ.get("OW_PROJ_H", 26))  # forward-sim horizon; 18 too short for slow opening fleets
 # Multi-source coordination (the strong-tier lever): pool ships from several friendly
 # planets onto one target, sized to capture AND hold (vs single-source minimal captures
 # that get retaken). Staggered waves grind the defender; total = needed * HOLD_MULT.
@@ -60,6 +63,13 @@ OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
 COARRIVAL = int(_os.environ.get("OW_COARRIVAL", 0))
 COARR_MAX_SRC = int(_os.environ.get("OW_COARR_MAX_SRC", 4))  # wave fragmentation cap
 COARR_HOLD = float(_os.environ.get("OW_COARR_HOLD", 1.0))  # extra force mult to hold
+# T11 — ledger-constrained availability (issue #87, ChatGPT §9-2 dynamic defense
+# reserve). avail = min(current rule, ledger slack), where slack = min projected
+# garrison over the do-nothing trajectory's HELD turns (kuni05's safe_drain bound).
+# CONSTRAINT-ONLY: never frees more ships than the static rule (v3a failed by using
+# the same bound to free MORE); a planet projected to flip has nothing to protect
+# (the defense module handles it) -> no cap.
+LEDGER = int(_os.environ.get("OW_LEDGER", 0))
 # K±tol merging (T8 v2): a share whose exact-size ETA lands at K+1..K+tol joins the
 # wave anyway (fires now, valued at its true arrival turn) instead of aborting the
 # whole wave; shares slower than K+tol are dropped, not wave-fatal. tol=0 ~= v1.
@@ -102,10 +112,10 @@ REAR_FLOOR = float(
     _os.environ.get("OW_REAR_FLOOR", 0)
 )  # garrison kept on a safe (rear) planet
 FRONTIER_FLOOR = float(
-    _os.environ.get("OW_FRONTIER_FLOOR", 10)
+    _os.environ.get("OW_FRONTIER_FLOOR", 5)
 )  # garrison kept on a planet near an enemy
 FRONTIER_DIST = float(
-    _os.environ.get("OW_FRONTIER_DIST", 28.0)
+    _os.environ.get("OW_FRONTIER_DIST", 20.0)
 )  # enemy planet within this distance => frontier
 GARRISON_PROD_MULT = float(
     _os.environ.get("OW_PROD_MULT", 0)
@@ -116,8 +126,8 @@ INFLIGHT_CAP_FRAC = float(
 # Phase-scaled cap: looser early (win the land-grab) -> tighter late (hold and bank).
 # Tuned via arena sweep vs the flat-1.2 v2 snapshot; mild scaling (2.0 -> 1.0) won,
 # aggressive scaling (2.5-3.0 early / 0.6-0.8 late) lost. Linearly interpolated by step.
-CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 2.0))
-CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.0))
+CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 3.2))
+CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.3))
 # Consolidation: forward an idle rear planet's surplus to the friendly planet nearest the
 # front (the getting-started tutorial's flaw #4). DEFAULT OFF — an arena sweep showed it
 # never beats v2.1: harmful when aggressive (min=12 -> 30% vs v2.1), at best neutral when
@@ -335,6 +345,32 @@ def _agent(obs):
             defense_need[mp.id] = dn
             targets.append(mp)
 
+    def _ledger_slack(pid):
+        """T11: max ships sheddable now while the do-nothing projection keeps the
+        planet held (min garrison over held turns). Flipping planet -> inf (nothing
+        to protect; defense module reinforces it instead)."""
+        t = base_traj.get(pid)
+        if t is None:
+            return float("inf")
+        slack = float("inf")
+        for k in range(1, PROJ_H + 1):
+            o = t["owner"][k]
+            if o == player:
+                slack = min(slack, t["ships"][k])
+            elif o != -1:
+                return float("inf")  # projected to flip -> doomed, no cap
+        return slack
+
+    ledger_cap = (
+        {mp.id: _ledger_slack(mp.id) for mp in my_planets} if LEDGER else {}
+    )
+
+    def _avail(mp):
+        a = mp.ships - reserve.get(mp.id, 0)
+        if LEDGER:
+            a = min(a, ledger_cap.get(mp.id, float("inf")))
+        return a
+
     # --- Opening expander: aggressive land-grab for the first OPENING_TURNS turns ---
     if OPENING and step < OPENING_TURNS:
         op_avail = {mp.id: mp.ships - reserve.get(mp.id, 0) for mp in my_planets}
@@ -386,7 +422,7 @@ def _agent(obs):
 
     candidates = []
     for mp in my_planets:
-        avail = mp.ships - reserve.get(mp.id, 0)
+        avail = _avail(mp)
         if avail <= 0:
             continue
         base_src_adv = _base_adv(mp.id)
@@ -462,7 +498,7 @@ def _agent(obs):
             candidates.append((value, mp.id, tgt.id, angle, needed))
 
     candidates.sort(reverse=True, key=lambda c: c[0])
-    remaining = {mp.id: mp.ships - reserve.get(mp.id, 0) for mp in my_planets}
+    remaining = {mp.id: _avail(mp) for mp in my_planets}
     committed = set()
     moves = []
     pos_by_id = {p.id: (p.x, p.y) for p in planets}

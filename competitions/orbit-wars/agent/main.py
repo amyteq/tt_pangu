@@ -1,5 +1,5 @@
 """
-Orbit Wars agent — v3.1 "Forecast+Defense" (forward-sim differential planner).
+Orbit Wars agent — v3.2 "Forecast" (t14-tuned forward-sim differential planner).
 
 Strategy summary (see competitions/orbit-wars/README.md for the full design):
   - Predict every planet's exact future position from `initial_planets` +
@@ -232,9 +232,50 @@ def signed_adv(owner_list, ships_list, me, H, gamma=0.97):
 # === aliases ===
 _project = project
 _replay = replay_planet
-_adv = signed_adv
 
-PROJ_H = 18  # forward-simulation horizon (matches kuni05's 2p horizon)
+# T2-R2 BAKED (2026-06-12, issue #87): t14 config confirmed on two independent
+# 300-game blocks (snorlax 13000+: 17.7%, local 15000+: 19.0% vs baseline ~12%;
+# pooled +6.7pt, z~3.3). Defaults below = t14: H26/FF5/FD20/CE3.2/CL1.3.
+PROJ_H = int(
+    _os.environ.get("OW_PROJ_H", 26)
+)  # forward-sim horizon; 18 too short for slow opening fleets
+# Multi-source coordination (the strong-tier lever): pool ships from several friendly
+# planets onto one target, sized to capture AND hold (vs single-source minimal captures
+# that get retaken). Staggered waves grind the defender; total = needed * HOLD_MULT.
+MULTISRC = int(
+    _os.environ.get("OW_MULTISRC", 0)
+)  # default OFF: tried, no gain vs strong tier
+HOLD_MULT = float(_os.environ.get("OW_HOLD_MULT", 1.6))
+# Opening expander: the differential value-gate is too conservative early (we fire 2-3x
+# in the first 25 turns while strong agents grab 5 planets). In the opening, grab every
+# reachable neutral with positive production-gain over a long opening horizon, firing
+# aggressively (no value-gate, no in-flight cap) to win the land-grab.
+OPENING = int(
+    _os.environ.get("OW_OPENING", 0)
+)  # default OFF: fired more but win-rate dropped
+OPENING_TURNS = int(_os.environ.get("OW_OPENING_TURNS", 25))
+OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
+# T8 — true co-arrival strikes (issue #87). Unlike MULTISRC (same-turn salvo: fleets
+# from different distances arrive on DIFFERENT turns and are defeated in detail), this
+# aligns ARRIVAL turns: pick an arrival turn K, fire the sources whose min ETA equals K
+# now, and RESERVE nearer sources (they re-derive their own fire turn on a later replan,
+# when the in-flight wave shows up in the do-nothing projection's arrival schedule and
+# their min ETA matches its arrival turn). The engine sums same-turn arrivals by owner,
+# so an aligned wave fights as one stack. Targets only planets no single source can take.
+COARRIVAL = int(_os.environ.get("OW_COARRIVAL", 0))
+COARR_MAX_SRC = int(_os.environ.get("OW_COARR_MAX_SRC", 4))  # wave fragmentation cap
+COARR_HOLD = float(_os.environ.get("OW_COARR_HOLD", 1.0))  # extra force mult to hold
+# T11 — ledger-constrained availability (issue #87, ChatGPT §9-2 dynamic defense
+# reserve). avail = min(current rule, ledger slack), where slack = min projected
+# garrison over the do-nothing trajectory's HELD turns (kuni05's safe_drain bound).
+# CONSTRAINT-ONLY: never frees more ships than the static rule (v3a failed by using
+# the same bound to free MORE); a planet projected to flip has nothing to protect
+# (the defense module handles it) -> no cap.
+LEDGER = int(_os.environ.get("OW_LEDGER", 0))
+# K±tol merging (T8 v2): a share whose exact-size ETA lands at K+1..K+tol joins the
+# wave anyway (fires now, valued at its true arrival turn) instead of aborting the
+# whole wave; shares slower than K+tol are dropped, not wave-fatal. tol=0 ~= v1.
+COARR_TOL = int(_os.environ.get("OW_COARR_TOL", 1))
 
 try:
     from kaggle_environments.envs.orbit_wars.orbit_wars import Planet, Fleet
@@ -273,10 +314,10 @@ REAR_FLOOR = float(
     _os.environ.get("OW_REAR_FLOOR", 0)
 )  # garrison kept on a safe (rear) planet
 FRONTIER_FLOOR = float(
-    _os.environ.get("OW_FRONTIER_FLOOR", 10)
+    _os.environ.get("OW_FRONTIER_FLOOR", 5)
 )  # garrison kept on a planet near an enemy
 FRONTIER_DIST = float(
-    _os.environ.get("OW_FRONTIER_DIST", 28.0)
+    _os.environ.get("OW_FRONTIER_DIST", 20.0)
 )  # enemy planet within this distance => frontier
 GARRISON_PROD_MULT = float(
     _os.environ.get("OW_PROD_MULT", 0)
@@ -287,8 +328,8 @@ INFLIGHT_CAP_FRAC = float(
 # Phase-scaled cap: looser early (win the land-grab) -> tighter late (hold and bank).
 # Tuned via arena sweep vs the flat-1.2 v2 snapshot; mild scaling (2.0 -> 1.0) won,
 # aggressive scaling (2.5-3.0 early / 0.6-0.8 late) lost. Linearly interpolated by step.
-CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 2.0))
-CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.0))
+CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 3.2))
+CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.3))
 # Consolidation: forward an idle rear planet's surplus to the friendly planet nearest the
 # front (the getting-started tutorial's flaw #4). DEFAULT OFF — an arena sweep showed it
 # never beats v2.1: harmful when aggressive (min=12 -> 30% vs v2.1), at best neutral when
@@ -510,9 +551,92 @@ def _agent(obs):
             defense_need[mp.id] = dn
             targets.append(mp)
 
+    def _ledger_slack(pid):
+        """T11: max ships sheddable now while the do-nothing projection keeps the
+        planet held (min garrison over held turns). Flipping planet -> inf (nothing
+        to protect; defense module reinforces it instead)."""
+        t = base_traj.get(pid)
+        if t is None:
+            return float("inf")
+        slack = float("inf")
+        for k in range(1, PROJ_H + 1):
+            o = t["owner"][k]
+            if o == player:
+                slack = min(slack, t["ships"][k])
+            elif o != -1:
+                return float("inf")  # projected to flip -> doomed, no cap
+        return slack
+
+    ledger_cap = {mp.id: _ledger_slack(mp.id) for mp in my_planets} if LEDGER else {}
+
+    def _avail(mp):
+        a = mp.ships - reserve.get(mp.id, 0)
+        if LEDGER:
+            a = min(a, ledger_cap.get(mp.id, float("inf")))
+        return a
+
+    # --- Opening expander: aggressive land-grab for the first OPENING_TURNS turns ---
+    if OPENING and step < OPENING_TURNS:
+        op_avail = {mp.id: mp.ships - reserve.get(mp.id, 0) for mp in my_planets}
+        op_cands = []
+        for mp in my_planets:
+            if op_avail[mp.id] <= 0:
+                continue
+            for tgt in targets:
+                if tgt.id == mp.id or tgt.owner == player:
+                    continue  # opening grabs neutral/enemy; defense handled post-opening
+                ships_guess = max(1, tgt.ships + 1)
+                sol = None
+                needed = ships_guess
+                eta = 1
+                for _ in range(3):
+                    sol = _solve_intercept(
+                        mp.x, mp.y, tgt.id, ships_guess, step, init_by_id, ang_vel
+                    )
+                    if sol is None:
+                        break
+                    _, eta, _ = sol
+                    bt = base_traj.get(tgt.id)
+                    defn = (
+                        bt["ships"][min(int(eta), PROJ_H)]
+                        if bt is not None
+                        else tgt.ships
+                    )
+                    needed = int(defn) + (1 if tgt.owner == -1 else 1 + ENEMY_BUFFER)
+                    if needed == ships_guess:
+                        break
+                    ships_guess = needed
+                if sol is None:
+                    continue
+                angle, eta, pos = sol
+                if needed > op_avail[mp.id] or step + eta > EPISODE_STEPS - 2:
+                    continue
+                if _path_blocked(
+                    mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids
+                ):
+                    continue
+                gain = (
+                    prod_by_id[tgt.id] * (OPENING_H - eta) - needed
+                )  # production won minus cost
+                if gain <= 0:
+                    continue
+                op_cands.append((gain, mp.id, tgt.id, angle, needed))
+        op_cands.sort(reverse=True, key=lambda c: c[0])
+        rem = dict(op_avail)
+        taken = set()
+        op_moves = []
+        for _g, src_id, tgt_id, angle, needed in op_cands:
+            if tgt_id in taken or rem.get(src_id, 0) < needed:
+                continue
+            op_moves.append([src_id, angle, int(needed)])
+            rem[src_id] -= needed
+            taken.add(tgt_id)
+        if op_moves:
+            return op_moves
+
     candidates = []
     for mp in my_planets:
-        avail = mp.ships - reserve.get(mp.id, 0)
+        avail = _avail(mp)
         if avail <= 0:
             continue
         base_src_adv = _base_adv(mp.id)
@@ -594,20 +718,259 @@ def _agent(obs):
             candidates.append((value, mp.id, tgt.id, angle, needed))
 
     candidates.sort(reverse=True, key=lambda c: c[0])
-
-    remaining = {mp.id: mp.ships - reserve.get(mp.id, 0) for mp in my_planets}
+    remaining = {mp.id: _avail(mp) for mp in my_planets}
     committed = set()
     moves = []
-    for _value, src_id, tgt_id, angle, needed in candidates:
-        if tgt_id in committed:
-            continue
-        if needed > launch_budget:  # respect the empire-wide in-flight cap
-            continue
-        if remaining.get(src_id, 0) >= needed:
-            moves.append([src_id, angle, int(needed)])
-            remaining[src_id] -= needed
-            launch_budget -= needed
-            committed.add(tgt_id)
+    pos_by_id = {p.id: (p.x, p.y) for p in planets}
+
+    def _flip_need(tgt, K):
+        """Min extra friendly ships arriving exactly at turn K to OWN tgt at K, given
+        the do-nothing arrival schedule (which already includes any of our in-flight
+        waves — so a replan naturally tops up an in-progress strike). None if the
+        projection already has us owning it at K."""
+        arr = base_arr.get(tgt.id, [])
+        bt = base_traj.get(tgt.id)
+        if bt is None or bt["owner"][K] == player:
+            return None
+        # pre-combat garrison at K: replay with arrivals strictly before K
+        o_pre, s_pre = _replay(
+            owner0_by_id[tgt.id],
+            ships0_by_id[tgt.id],
+            prod_by_id[tgt.id],
+            [a for a in arr if a[0] < K],
+            K,
+        )
+        if o_pre[K] == player:
+            return None
+        g = s_pre[K]
+        ours = sum(s for k, o, s in arr if k == K and o == player)
+        by_o = {}
+        for k, o, s in arr:
+            if k == K and o != player:
+                by_o[o] = by_o.get(o, 0.0) + s
+        rival = max(by_o.values()) if by_o else 0.0
+        buf = 1 + (ENEMY_BUFFER if o_pre[K] != -1 else 0)
+        x = int(math.ceil(max(0.0, g + rival - ours))) + buf
+        for _ in range(3):  # exact check (rank order / ties); bump if short
+            o_chk, _s = _replay(
+                owner0_by_id[tgt.id],
+                ships0_by_id[tgt.id],
+                prod_by_id[tgt.id],
+                arr + [(K, player, float(x))],
+                K,
+            )
+            if o_chk[K] == player:
+                return x
+            x += max(1, int(g * 0.1))
+        return None
+
+    # --- T8: co-arrival strikes on targets no single source can take ---
+    # For each such target, enumerate arrival turns K from the sources' min ETAs.
+    # Sources whose min ETA == K fire NOW; nearer sources are reserved and fire on a
+    # later replan when the in-flight wave (visible in base_arr) counts down to their
+    # own flight time — staggered launch, simultaneous arrival.
+    if COARRIVAL:
+        my_by_id = {mp.id: mp for mp in my_planets}
+        covered = {c[2] for c in candidates}
+        big = [
+            t
+            for t in targets
+            if t.id not in covered and t.owner != player and t.id not in defense_need
+        ]
+        big.sort(key=lambda t: -t.production)
+        for tgt in big:
+            if launch_budget < 1:
+                break
+            probes = {}  # source id -> min ETA at a representative size (path-clear)
+            for mp in my_planets:
+                avail = remaining.get(mp.id, 0)
+                if avail < 1:
+                    continue
+                probe = max(1, min(int(avail), int(tgt.ships) + 1))
+                sol = _solve_intercept(
+                    mp.x, mp.y, tgt.id, probe, step, init_by_id, ang_vel
+                )
+                if sol is None:
+                    continue
+                _a, t_ticks, pos = sol
+                if _path_blocked(
+                    mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids
+                ):
+                    continue
+                probes[mp.id] = max(1, int(t_ticks))
+            if len(probes) < 2:
+                continue
+            base_tgt_adv = _base_adv(tgt.id)
+            for K in sorted(set(probes.values())):
+                if K > PROJ_H or step + K > EPISODE_STEPS - 2:
+                    continue
+                need = _flip_need(tgt, K)
+                if need is None:
+                    continue
+                need = int(math.ceil(need * COARR_HOLD))
+                # fire-now members first (they define the wave), then largest garrison
+                elig = sorted(
+                    (m for m, eta in probes.items() if eta <= K),
+                    key=lambda m: (0 if probes[m] == K else 1, -remaining.get(m, 0)),
+                )[:COARR_MAX_SRC]
+                if sum(remaining.get(m, 0) for m in elig) < need:
+                    continue
+                shares = []
+                left = need
+                for mid in elig:
+                    if left <= 0:
+                        break
+                    give = int(min(remaining.get(mid, 0), left))
+                    if give >= 1:
+                        shares.append((mid, give))
+                        left -= give
+                if left > 0:
+                    continue
+                # exact ETA at each share's real size (speed is size-dependent).
+                # K±tol merging: ETA in (K, K+tol] still fires now (valued at its
+                # true arrival turn); ETA > K+tol drops the share, not the wave.
+                fire_now, hold, kept, ok = [], [], 0, True
+                for mid, give in shares:
+                    mp = my_by_id[mid]
+                    sol = _solve_intercept(
+                        mp.x, mp.y, tgt.id, give, step, init_by_id, ang_vel
+                    )
+                    if sol is None:
+                        ok = False
+                        break
+                    ang, t_ticks, pos = sol
+                    t_ticks = max(1, int(t_ticks))
+                    if t_ticks > K + COARR_TOL or t_ticks > PROJ_H:
+                        continue  # too slow even with tolerance -> stays home
+                    if t_ticks >= K:
+                        if _path_blocked(
+                            mp.x, mp.y, pos[0], pos[1], mid, tgt.id, planets, comet_ids
+                        ):
+                            ok = False
+                            break
+                        fire_now.append((mid, ang, give, t_ticks))
+                    else:
+                        hold.append((mid, give))  # waits; hits K on a later replan
+                    kept += give
+                if not ok or not fire_now or kept < need:
+                    continue
+                if sum(g for _m, _a, g, _t in fire_now) > launch_budget:
+                    continue
+                # joint value gate: shares debited; fire-now lands at its true turn
+                # (K..K+tol), held shares at K — the exact replay judges the spread.
+                val = 0.0
+                for mid, give in [(m, g) for m, _a, g, _t in fire_now] + hold:
+                    sw_o, sw_s = _replay(
+                        owner0_by_id[mid],
+                        ships0_by_id[mid] - give,
+                        prod_by_id[mid],
+                        base_arr.get(mid, []),
+                        PROJ_H,
+                    )
+                    val += _term(sw_o, sw_s) - _base_adv(mid)
+                tw_arr = (
+                    base_arr.get(tgt.id, [])
+                    + [(t, player, float(g)) for _m, _a, g, t in fire_now]
+                    + [(K, player, float(g)) for _m, g in hold]
+                )
+                tw_o, tw_s = _replay(
+                    owner0_by_id[tgt.id],
+                    ships0_by_id[tgt.id],
+                    prod_by_id[tgt.id],
+                    tw_arr,
+                    PROJ_H,
+                )
+                val += _term(tw_o, tw_s) - base_tgt_adv
+                if val <= 0:
+                    continue
+                for mid, ang, give, _t in fire_now:
+                    moves.append([mid, ang, int(give)])
+                    remaining[mid] -= give
+                    launch_budget -= give
+                for mid, give in hold:  # reserve so the greedy pass can't spend it
+                    remaining[mid] -= give
+                committed.add(tgt.id)
+                break
+
+    if not MULTISRC:
+        # Single-source greedy (v3 behaviour; kept for A/B via OW_MULTISRC=0).
+        for _value, src_id, tgt_id, angle, needed in candidates:
+            if tgt_id in committed or needed > launch_budget:
+                continue
+            if remaining.get(src_id, 0) >= needed:
+                moves.append([src_id, angle, int(needed)])
+                remaining[src_id] -= needed
+                launch_budget -= needed
+                committed.add(tgt_id)
+    else:
+        # Multi-source coordination: per target (best-value first), pool ships from the
+        # nearest viable sources up to a hold force (capture + margin). Staggered waves
+        # grind the defender; the engine sums same-turn arrivals. This is what the strong
+        # tier does and our single-source minimal captures lacked.
+        by_tgt = {}
+        for value, src_id, tgt_id, angle, needed in candidates:
+            by_tgt.setdefault(tgt_id, []).append((value, src_id, needed))
+        # rank targets by their best single-source value
+        order = sorted(
+            by_tgt, key=lambda t: max(v for v, _, _ in by_tgt[t]), reverse=True
+        )
+        for tgt_id in order:
+            entries = by_tgt[tgt_id]
+            cap_needed = max(n for _, _, n in entries)  # single-source capture size
+            hold_force = math.ceil(cap_needed * HOLD_MULT)
+            tx, ty = pos_by_id[tgt_id]
+            # nearest viable sources first (minimise travel, tightest co-arrival)
+            srcs = sorted(
+                {s for _, s, _ in entries},
+                key=lambda s: _hypot(pos_by_id[s][0], pos_by_id[s][1], tx, ty),
+            )
+            accum = 0
+            wave = []
+            for src_id in srcs:
+                if accum >= hold_force or launch_budget <= 0:
+                    break
+                give = int(
+                    min(remaining.get(src_id, 0), hold_force - accum, launch_budget)
+                )
+                if give < 1:
+                    continue
+                sol = _solve_intercept(
+                    pos_by_id[src_id][0],
+                    pos_by_id[src_id][1],
+                    tgt_id,
+                    give,
+                    step,
+                    init_by_id,
+                    ang_vel,
+                )
+                if sol is None:
+                    continue
+                ang, t_ticks, pos = sol
+                if t_ticks > PROJ_H or step + t_ticks > EPISODE_STEPS - 2:
+                    continue
+                if _path_blocked(
+                    pos_by_id[src_id][0],
+                    pos_by_id[src_id][1],
+                    pos[0],
+                    pos[1],
+                    src_id,
+                    tgt_id,
+                    planets,
+                    comet_ids,
+                ):
+                    continue
+                wave.append([src_id, ang, give])
+                accum += give
+                remaining[src_id] -= give
+                launch_budget -= give
+            # only keep the wave if it can at least capture (>= the single-source need)
+            if accum >= cap_needed:
+                moves.extend(wave)
+                committed.add(tgt_id)
+            else:
+                for src_id, _ang, give in wave:  # refund partial commitment
+                    remaining[src_id] += give
+                    launch_budget += give
 
     # Consolidation pass: forward idle rear surplus toward the front.
     if CONSOLIDATE and targets:
