@@ -2,41 +2,50 @@
 
 Catches the class of bugs that cost a full ~2h Kaggle run (e.g. the v7 `texts`
 NameError) before pushing:
-  1. Static undefined-name check (pyflakes F821/F811) over the assembled cells.
+  1. Static lint of the percent-format .py source (ruff: syntax E9 + pyflakes
+     F821/F811/F841) — the same check the `kca kaggle push` gate runs.
   2. Masking-logic sanity with a stub tokenizer on the real CoT csv: prompt
      tokens must be -100, response tokens must be trained, lengths must match.
+
+The kernel source of truth is the percent-format `.py`; build the notebook with
+`kca nb to-ipynb nemotron-lora-baseline.py`.
 
 Usage: python validate_kernel.py [path/to/problem_ids_matched.csv]
 Exit 0 = ok to push; non-zero = fix first.
 """
 
-import json
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-NB = HERE / "nemotron-lora-baseline.ipynb"
+SRC = HERE / "nemotron-lora-baseline.py"
 
 
-def check_undefined_names() -> bool:
-    nb = json.loads(NB.read_text())
-    code = "\n".join(
-        "".join(c.get("source", []))
-        for c in nb["cells"]
-        if c.get("cell_type") == "code"
-    )
-    tmp = HERE / "_assembled_kernel.py"
-    tmp.write_text(code)
+def _ruff() -> str | None:
+    ruff = shutil.which("ruff")
+    if not ruff:
+        cand = Path(sys.executable).with_name("ruff")
+        ruff = str(cand) if cand.exists() else None
+    return ruff
+
+
+def check_lint() -> bool:
+    ruff = _ruff()
+    if not ruff:
+        print("[1] lint check: SKIPPED (ruff not found)")
+        return True
     proc = subprocess.run(
-        ["ruff", "check", "--select", "F821,F811", str(tmp)],
+        [ruff, "check", "--select", "E9,F821,F811,F841", "--no-cache", str(SRC)],
         capture_output=True,
         text=True,
     )
-    tmp.unlink(missing_ok=True)
     ok = proc.returncode == 0
-    print("[1] undefined-name check:", "PASS" if ok else "FAIL\n" + proc.stdout)
+    print(
+        "[1] lint check (E9,F821,F811,F841):", "PASS" if ok else "FAIL\n" + proc.stdout
+    )
     return ok
 
 
@@ -87,7 +96,7 @@ def main() -> int:
         if len(sys.argv) > 1
         else str(HERE.parent.parent / "data" / "problem_ids_matched.csv")
     )
-    ok = check_undefined_names()
+    ok = check_lint()
     if Path(csv).exists():
         ok = check_masking(csv) and ok
     else:

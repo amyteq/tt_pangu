@@ -6,8 +6,9 @@ Kaggle GPU notebook that fine-tunes a **rank-32 LoRA** adapter for
 with `kca kaggle submit --kernel <slug> --version <v> --file submission.zip`.
 
 ## Files
-- `build_ipynb.py` — source of truth; run it to (re)generate the notebook.
-- `nemotron-lora-baseline.ipynb` — generated kernel (do not hand-edit).
+- `nemotron-lora-baseline.py` — **source of truth** (percent-format `# %%` cells).
+- `nemotron-lora-baseline.ipynb` — generated from the `.py` via `kca nb to-ipynb`
+  (same stem); build artifact, gitignored, do not hand-edit.
 - `kernel-metadata.json` — sources (competition + `dgxchen/nemotron-cot-tong` +
   `ryanholbrook/nvidia-utility-script`), `NvidiaRtxPro6000`, internet off.
 - `validate_kernel.py` — **pre-push, no-GPU** validation (run before every push).
@@ -45,6 +46,6 @@ templated (`… </think> \boxed{answer}`), **response-only loss masking**, seq 4
 
 ## Rebuild + validate
 ```
-python build_ipynb.py            # regenerate the .ipynb
-python validate_kernel.py <path/to/problem_ids_matched.csv>   # F821 + masking checks
+kca nb to-ipynb nemotron-lora-baseline.py        # regenerate the .ipynb (same stem)
+python validate_kernel.py <path/to/problem_ids_matched.csv>   # E9/F821 lint + masking
 ```

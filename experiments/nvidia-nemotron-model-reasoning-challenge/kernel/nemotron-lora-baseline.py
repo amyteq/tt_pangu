@@ -1,15 +1,6 @@
-"""Builds nemotron-lora-baseline.ipynb from percent-style cell sources.
-
-Kept as a builder (not hand-written JSON) so the kernel is reviewable/editable.
-Run: python build_ipynb.py
-"""
-
-import json
-import pathlib
-
-CELLS = [
-    # 0 — utility sitedir (mamba_ssm / cutlass) + imports, mirroring the demo
-    r"""import glob
+# %%
+# ruff: noqa: E402  (Kaggle kernel: imports follow env/ptxas setup)
+import glob
 import site
 
 # The NVIDIA utility script (attached via kernel_sources) ships mamba_ssm +
@@ -65,16 +56,16 @@ import mamba_ssm  # noqa: F401  (import has side effects the model needs)
 import torch
 from peft import LoraConfig, TaskType, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer
-""",
-    # 1 — config + load base model (bf16, multi-GPU via device_map=auto)
-    r"""MODEL_PATH = kagglehub.model_download(
+
+# %%
+MODEL_PATH = kagglehub.model_download(
     "metric/nemotron-3-nano-30b-a3b-bf16/transformers/default"
 )
 OUTPUT_DIR = "/kaggle/working"
-LORA_RANK = 32          # competition max is 32
-MAX_STEPS = 400         # v7: ~3.3x v6 (~4h training) for better CoT convergence
-MAX_LEN = 4096          # CoT reasoning traces are long
-N_EXAMPLES = 6000       # subsample of the CoT corpus for the bounded SFT
+LORA_RANK = 32  # competition max is 32
+MAX_STEPS = 400  # v7: ~3.3x v6 (~4h training) for better CoT convergence
+MAX_LEN = 4096  # CoT reasoning traces are long
+N_EXAMPLES = 6000  # subsample of the CoT corpus for the bounded SFT
 
 model = AutoModelForCausalLM.from_pretrained(
     MODEL_PATH,
@@ -86,9 +77,9 @@ tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH, trust_remote_code=True)
 if tokenizer.pad_token is None:
     tokenizer.pad_token = tokenizer.eos_token
 print("Model + tokenizer loaded.")
-""",
-    # 2 — attach LoRA adapter (rank<=32) on the proven target-module regex
-    r"""lora_config = LoraConfig(
+
+# %%
+lora_config = LoraConfig(
     r=LORA_RANK,
     lora_alpha=32,  # alpha == rank, per the LB-0.85 recipe
     target_modules=r".*\.(in_proj|out_proj|up_proj|down_proj)$",
@@ -98,9 +89,9 @@ print("Model + tokenizer loaded.")
 )
 model = get_peft_model(model, lora_config)
 model.print_trainable_parameters()
-""",
-    # 3 — bounded SFT teaching the \boxed{} answer format; robust fallback
-    r"""# Bounded supervised fine-tune. Wrapped so ANY failure still leaves us with a
+
+# %%
+# Bounded supervised fine-tune. Wrapped so ANY failure still leaves us with a
 # valid (initialized) adapter to submit — baseline-first / pipeline validation.
 TRAIN_OK = False
 TRAIN_INFO = {"trained": False}
@@ -123,8 +114,12 @@ try:
     # measure boxed-answer accuracy and catch overfitting at training time.
     val_df = _full.slice(N_EXAMPLES, 64)
     print(
-        "using CoT csv at:", _cands[0],
-        "| train rows:", df.height, "| val rows:", val_df.height,
+        "using CoT csv at:",
+        _cands[0],
+        "| train rows:",
+        df.height,
+        "| val rows:",
+        val_df.height,
     )
 
     SUFFIX = (
@@ -158,7 +153,9 @@ try:
             continue
         full, prompt_only = build_pair(r["prompt"], str(r["answer"]), cot)
         ids = tokenizer(full, truncation=True, max_length=MAX_LEN)["input_ids"]
-        plen = len(tokenizer(prompt_only, truncation=True, max_length=MAX_LEN)["input_ids"])
+        plen = len(
+            tokenizer(prompt_only, truncation=True, max_length=MAX_LEN)["input_ids"]
+        )
         plen = min(plen, len(ids))
         labels = [-100] * plen + ids[plen:]
         examples.append({"input_ids": ids, "labels": labels})
@@ -218,7 +215,10 @@ try:
             _gen_boxed(val_df.row(0, named=True)["prompt"])
             print("preflight: generate/eval path OK")
         except Exception as _pe:  # noqa: BLE001
-            print("preflight: eval path FAILED (held-out eval will be skipped):", repr(_pe))
+            print(
+                "preflight: eval path FAILED (held-out eval will be skipped):",
+                repr(_pe),
+            )
         model.config.use_cache = False
         model.train()
 
@@ -276,9 +276,9 @@ except Exception as e:  # noqa: BLE001
     TRAIN_INFO = {"trained": False, "error": repr(e)[:300]}
     print("Training skipped — saving initialized adapter instead:", e)
     traceback.print_exc()
-""",
-    # 4 — save adapter + package submission.zip (mirrors the demo)
-    r"""import glob
+
+# %%
+import glob
 import subprocess
 
 # Drop any trainer checkpoints so only the adapter lands in the zip.
@@ -309,38 +309,6 @@ for _f in glob.glob(f"{OUTPUT_DIR}/adapter_model.safetensors") + glob.glob(
         os.remove(_f)
     except OSError:
         pass
-""",
-    r"""print("Done.")""",
-]
 
-
-def main():
-    nb = {
-        "cells": [
-            {
-                "cell_type": "code",
-                "metadata": {},
-                "execution_count": None,
-                "outputs": [],
-                "source": src.splitlines(keepends=True),
-            }
-            for src in CELLS
-        ],
-        "metadata": {
-            "kernelspec": {
-                "language": "python",
-                "display_name": "Python 3",
-                "name": "python3",
-            },
-            "language_info": {"name": "python", "version": "3.10"},
-        },
-        "nbformat": 4,
-        "nbformat_minor": 5,
-    }
-    out = pathlib.Path(__file__).with_name("nemotron-lora-baseline.ipynb")
-    out.write_text(json.dumps(nb, indent=1))
-    print("wrote", out)
-
-
-if __name__ == "__main__":
-    main()
+# %%
+print("Done.")

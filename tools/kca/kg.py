@@ -203,7 +203,8 @@ def _lint_kernel(kernel_dir: str) -> tuple[bool, str | None]:
     errors in seconds, before a multi-hour GPU run wastes them.
 
     Assembles a notebook's code cells (or reads a .py code_file) and runs
-    `ruff check --select F821,F811,F841`. Graceful-degrade: returns (True, None)
+    `ruff check --select E9,F821,F811,F841` (syntax + undefined/redef/unused).
+    Graceful-degrade: returns (True, None)
     if ruff is missing, metadata/code is absent, or anything errors — the gate
     must never block a push for infrastructure reasons (mirrors format_gate).
     Returns (ok, ruff_output_on_failure).
@@ -248,7 +249,14 @@ def _lint_kernel(kernel_dir: str) -> tuple[bool, str | None]:
             tmp = Path(td) / "_kernel_assembled.py"
             tmp.write_text(code)
             proc = subprocess.run(
-                [ruff, "check", "--select", "F821,F811,F841", "--no-cache", str(tmp)],
+                [
+                    ruff,
+                    "check",
+                    "--select",
+                    "E9,F821,F811,F841",
+                    "--no-cache",
+                    str(tmp),
+                ],
                 capture_output=True,
                 text=True,
             )
