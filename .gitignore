@@ -102,3 +102,6 @@ notebooks/generated/*
 !.vscode/extensions.json
 
 ._*
+
+# per-job git worktree workspaces (transient; see .claude/worktrees)
+.claude/worktrees/
