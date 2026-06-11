@@ -60,6 +60,10 @@ OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
 COARRIVAL = int(_os.environ.get("OW_COARRIVAL", 0))
 COARR_MAX_SRC = int(_os.environ.get("OW_COARR_MAX_SRC", 4))  # wave fragmentation cap
 COARR_HOLD = float(_os.environ.get("OW_COARR_HOLD", 1.0))  # extra force mult to hold
+# K±tol merging (T8 v2): a share whose exact-size ETA lands at K+1..K+tol joins the
+# wave anyway (fires now, valued at its true arrival turn) instead of aborting the
+# whole wave; shares slower than K+tol are dropped, not wave-fatal. tol=0 ~= v1.
+COARR_TOL = int(_os.environ.get("OW_COARR_TOL", 1))
 
 try:
     from kaggle_environments.envs.orbit_wars.orbit_wars import Planet, Fleet
@@ -555,8 +559,10 @@ def _agent(obs):
                         left -= give
                 if left > 0:
                     continue
-                # exact ETA at each share's real size (speed is size-dependent)
-                fire_now, hold, ok = [], [], True
+                # exact ETA at each share's real size (speed is size-dependent).
+                # K±tol merging: ETA in (K, K+tol] still fires now (valued at its
+                # true arrival turn); ETA > K+tol drops the share, not the wave.
+                fire_now, hold, kept, ok = [], [], 0, True
                 for mid, give in shares:
                     mp = my_by_id[mid]
                     sol = _solve_intercept(mp.x, mp.y, tgt.id, give, step, init_by_id, ang_vel)
@@ -565,29 +571,34 @@ def _agent(obs):
                         break
                     ang, t_ticks, pos = sol
                     t_ticks = max(1, int(t_ticks))
-                    if t_ticks > K:
-                        ok = False  # too slow at this size -> wave can't align
-                        break
-                    if t_ticks == K:
+                    if t_ticks > K + COARR_TOL or t_ticks > PROJ_H:
+                        continue  # too slow even with tolerance -> stays home
+                    if t_ticks >= K:
                         if _path_blocked(mp.x, mp.y, pos[0], pos[1], mid, tgt.id, planets, comet_ids):
                             ok = False
                             break
-                        fire_now.append((mid, ang, give))
+                        fire_now.append((mid, ang, give, t_ticks))
                     else:
-                        hold.append((mid, give))
-                if not ok or not fire_now:
+                        hold.append((mid, give))  # waits; hits K on a later replan
+                    kept += give
+                if not ok or not fire_now or kept < need:
                     continue
-                if sum(g for _m, _a, g in fire_now) > launch_budget:
+                if sum(g for _m, _a, g, _t in fire_now) > launch_budget:
                     continue
-                # joint value gate: all shares debited, the whole wave lands at K
+                # joint value gate: shares debited; fire-now lands at its true turn
+                # (K..K+tol), held shares at K — the exact replay judges the spread.
                 val = 0.0
-                for mid, give in shares:
+                for mid, give in [(m, g) for m, _a, g, _t in fire_now] + hold:
                     sw_o, sw_s = _replay(
                         owner0_by_id[mid], ships0_by_id[mid] - give,
                         prod_by_id[mid], base_arr.get(mid, []), PROJ_H,
                     )
                     val += _term(sw_o, sw_s) - _base_adv(mid)
-                tw_arr = base_arr.get(tgt.id, []) + [(K, player, float(need))]
+                tw_arr = (
+                    base_arr.get(tgt.id, [])
+                    + [(t, player, float(g)) for _m, _a, g, t in fire_now]
+                    + [(K, player, float(g)) for _m, g in hold]
+                )
                 tw_o, tw_s = _replay(
                     owner0_by_id[tgt.id], ships0_by_id[tgt.id],
                     prod_by_id[tgt.id], tw_arr, PROJ_H,
@@ -595,7 +606,7 @@ def _agent(obs):
                 val += _term(tw_o, tw_s) - base_tgt_adv
                 if val <= 0:
                     continue
-                for mid, ang, give in fire_now:
+                for mid, ang, give, _t in fire_now:
                     moves.append([mid, ang, int(give)])
                     remaining[mid] -= give
                     launch_budget -= give
