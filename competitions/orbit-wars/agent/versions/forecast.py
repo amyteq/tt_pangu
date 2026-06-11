@@ -35,7 +35,7 @@ except NameError:
     _HERE = _os.getcwd()
 if _HERE not in _sys.path:
     _sys.path.insert(0, _HERE)
-from forecast_sim import project as _project, replay_planet as _replay, signed_adv as _adv
+from forecast_sim import project as _project, replay_planet as _replay
 
 PROJ_H = int(_os.environ.get("OW_PROJ_H", 18))  # forward-sim horizon; 18 too short for slow opening fleets
 # Multi-source coordination (the strong-tier lever): pool ships from several friendly
@@ -50,6 +50,16 @@ HOLD_MULT = float(_os.environ.get("OW_HOLD_MULT", 1.6))
 OPENING = int(_os.environ.get("OW_OPENING", 0))  # default OFF: fired more but win-rate dropped
 OPENING_TURNS = int(_os.environ.get("OW_OPENING_TURNS", 25))
 OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
+# T8 — true co-arrival strikes (issue #87). Unlike MULTISRC (same-turn salvo: fleets
+# from different distances arrive on DIFFERENT turns and are defeated in detail), this
+# aligns ARRIVAL turns: pick an arrival turn K, fire the sources whose min ETA equals K
+# now, and RESERVE nearer sources (they re-derive their own fire turn on a later replan,
+# when the in-flight wave shows up in the do-nothing projection's arrival schedule and
+# their min ETA matches its arrival turn). The engine sums same-turn arrivals by owner,
+# so an aligned wave fights as one stack. Targets only planets no single source can take.
+COARRIVAL = int(_os.environ.get("OW_COARRIVAL", 0))
+COARR_MAX_SRC = int(_os.environ.get("OW_COARR_MAX_SRC", 4))  # wave fragmentation cap
+COARR_HOLD = float(_os.environ.get("OW_COARR_HOLD", 1.0))  # extra force mult to hold
 
 try:
     from kaggle_environments.envs.orbit_wars.orbit_wars import Planet, Fleet
@@ -452,6 +462,147 @@ def _agent(obs):
     committed = set()
     moves = []
     pos_by_id = {p.id: (p.x, p.y) for p in planets}
+
+    def _flip_need(tgt, K):
+        """Min extra friendly ships arriving exactly at turn K to OWN tgt at K, given
+        the do-nothing arrival schedule (which already includes any of our in-flight
+        waves — so a replan naturally tops up an in-progress strike). None if the
+        projection already has us owning it at K."""
+        arr = base_arr.get(tgt.id, [])
+        bt = base_traj.get(tgt.id)
+        if bt is None or bt["owner"][K] == player:
+            return None
+        # pre-combat garrison at K: replay with arrivals strictly before K
+        o_pre, s_pre = _replay(
+            owner0_by_id[tgt.id], ships0_by_id[tgt.id], prod_by_id[tgt.id],
+            [a for a in arr if a[0] < K], K,
+        )
+        if o_pre[K] == player:
+            return None
+        g = s_pre[K]
+        ours = sum(s for k, o, s in arr if k == K and o == player)
+        by_o = {}
+        for k, o, s in arr:
+            if k == K and o != player:
+                by_o[o] = by_o.get(o, 0.0) + s
+        rival = max(by_o.values()) if by_o else 0.0
+        buf = 1 + (ENEMY_BUFFER if o_pre[K] != -1 else 0)
+        x = int(math.ceil(max(0.0, g + rival - ours))) + buf
+        for _ in range(3):  # exact check (rank order / ties); bump if short
+            o_chk, _s = _replay(
+                owner0_by_id[tgt.id], ships0_by_id[tgt.id], prod_by_id[tgt.id],
+                arr + [(K, player, float(x))], K,
+            )
+            if o_chk[K] == player:
+                return x
+            x += max(1, int(g * 0.1))
+        return None
+
+    # --- T8: co-arrival strikes on targets no single source can take ---
+    # For each such target, enumerate arrival turns K from the sources' min ETAs.
+    # Sources whose min ETA == K fire NOW; nearer sources are reserved and fire on a
+    # later replan when the in-flight wave (visible in base_arr) counts down to their
+    # own flight time — staggered launch, simultaneous arrival.
+    if COARRIVAL:
+        my_by_id = {mp.id: mp for mp in my_planets}
+        covered = {c[2] for c in candidates}
+        big = [
+            t for t in targets
+            if t.id not in covered and t.owner != player and t.id not in defense_need
+        ]
+        big.sort(key=lambda t: -t.production)
+        for tgt in big:
+            if launch_budget < 1:
+                break
+            probes = {}  # source id -> min ETA at a representative size (path-clear)
+            for mp in my_planets:
+                avail = remaining.get(mp.id, 0)
+                if avail < 1:
+                    continue
+                probe = max(1, min(int(avail), int(tgt.ships) + 1))
+                sol = _solve_intercept(mp.x, mp.y, tgt.id, probe, step, init_by_id, ang_vel)
+                if sol is None:
+                    continue
+                _a, t_ticks, pos = sol
+                if _path_blocked(mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids):
+                    continue
+                probes[mp.id] = max(1, int(t_ticks))
+            if len(probes) < 2:
+                continue
+            base_tgt_adv = _base_adv(tgt.id)
+            for K in sorted(set(probes.values())):
+                if K > PROJ_H or step + K > EPISODE_STEPS - 2:
+                    continue
+                need = _flip_need(tgt, K)
+                if need is None:
+                    continue
+                need = int(math.ceil(need * COARR_HOLD))
+                # fire-now members first (they define the wave), then largest garrison
+                elig = sorted(
+                    (m for m, eta in probes.items() if eta <= K),
+                    key=lambda m: (0 if probes[m] == K else 1, -remaining.get(m, 0)),
+                )[:COARR_MAX_SRC]
+                if sum(remaining.get(m, 0) for m in elig) < need:
+                    continue
+                shares = []
+                left = need
+                for mid in elig:
+                    if left <= 0:
+                        break
+                    give = int(min(remaining.get(mid, 0), left))
+                    if give >= 1:
+                        shares.append((mid, give))
+                        left -= give
+                if left > 0:
+                    continue
+                # exact ETA at each share's real size (speed is size-dependent)
+                fire_now, hold, ok = [], [], True
+                for mid, give in shares:
+                    mp = my_by_id[mid]
+                    sol = _solve_intercept(mp.x, mp.y, tgt.id, give, step, init_by_id, ang_vel)
+                    if sol is None:
+                        ok = False
+                        break
+                    ang, t_ticks, pos = sol
+                    t_ticks = max(1, int(t_ticks))
+                    if t_ticks > K:
+                        ok = False  # too slow at this size -> wave can't align
+                        break
+                    if t_ticks == K:
+                        if _path_blocked(mp.x, mp.y, pos[0], pos[1], mid, tgt.id, planets, comet_ids):
+                            ok = False
+                            break
+                        fire_now.append((mid, ang, give))
+                    else:
+                        hold.append((mid, give))
+                if not ok or not fire_now:
+                    continue
+                if sum(g for _m, _a, g in fire_now) > launch_budget:
+                    continue
+                # joint value gate: all shares debited, the whole wave lands at K
+                val = 0.0
+                for mid, give in shares:
+                    sw_o, sw_s = _replay(
+                        owner0_by_id[mid], ships0_by_id[mid] - give,
+                        prod_by_id[mid], base_arr.get(mid, []), PROJ_H,
+                    )
+                    val += _term(sw_o, sw_s) - _base_adv(mid)
+                tw_arr = base_arr.get(tgt.id, []) + [(K, player, float(need))]
+                tw_o, tw_s = _replay(
+                    owner0_by_id[tgt.id], ships0_by_id[tgt.id],
+                    prod_by_id[tgt.id], tw_arr, PROJ_H,
+                )
+                val += _term(tw_o, tw_s) - base_tgt_adv
+                if val <= 0:
+                    continue
+                for mid, ang, give in fire_now:
+                    moves.append([mid, ang, int(give)])
+                    remaining[mid] -= give
+                    launch_budget -= give
+                for mid, give in hold:  # reserve so the greedy pass can't spend it
+                    remaining[mid] -= give
+                committed.add(tgt.id)
+                break
 
     if not MULTISRC:
         # Single-source greedy (v3 behaviour; kept for A/B via OW_MULTISRC=0).
