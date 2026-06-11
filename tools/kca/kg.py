@@ -215,6 +215,75 @@ def cmd_submit(args: argparse.Namespace) -> int:
     )
 
 
+def _lint_kernel(kernel_dir: str) -> tuple[bool, str | None]:
+    """Static pre-push lint of a kernel's code: catch undefined-name / pyflakes
+    errors in seconds, before a multi-hour GPU run wastes them.
+
+    Assembles a notebook's code cells (or reads a .py code_file) and runs
+    `ruff check --select E9,F821,F811,F841` (syntax + undefined/redef/unused).
+    Graceful-degrade: returns (True, None)
+    if ruff is missing, metadata/code is absent, or anything errors — the gate
+    must never block a push for infrastructure reasons (mirrors format_gate).
+    Returns (ok, ruff_output_on_failure).
+    """
+    import shutil
+    import sys
+    import tempfile
+
+    try:
+        meta_path = Path(kernel_dir) / "kernel-metadata.json"
+        if not meta_path.exists():
+            return True, None
+        code_file = json.loads(meta_path.read_text()).get("code_file")
+        if not code_file:
+            return True, None
+        src_path = Path(kernel_dir) / code_file
+        if not src_path.exists():
+            return True, None
+
+        if src_path.suffix == ".ipynb":
+            nb = json.loads(src_path.read_text())
+            code = "\n".join(
+                "".join(c.get("source", []))
+                for c in nb.get("cells", [])
+                if c.get("cell_type") == "code"
+            )
+        elif src_path.suffix == ".py":
+            code = src_path.read_text()
+        else:
+            return True, None
+
+        # Find ruff on PATH, or next to the running interpreter (the env bin,
+        # where `kca`'s python lives even when PATH doesn't include it).
+        ruff = shutil.which("ruff")
+        if not ruff:
+            cand = Path(sys.executable).with_name("ruff")
+            ruff = str(cand) if cand.exists() else None
+        if not ruff:
+            return True, None
+
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td) / "_kernel_assembled.py"
+            tmp.write_text(code)
+            proc = subprocess.run(
+                [
+                    ruff,
+                    "check",
+                    "--select",
+                    "E9,F821,F811,F841",
+                    "--no-cache",
+                    str(tmp),
+                ],
+                capture_output=True,
+                text=True,
+            )
+        if proc.returncode == 0:
+            return True, None
+        return False, (proc.stdout or proc.stderr or "ruff reported errors")
+    except Exception:
+        return True, None
+
+
 def cmd_push(args: argparse.Namespace) -> int:
     se = SideEffect.REMOTE_WRITE
     kernel_dir = args.kernel_dir
@@ -228,6 +297,28 @@ def cmd_push(args: argparse.Namespace) -> int:
             "ApprovalRequired: kernel_push",
             options={"kernel_dir": kernel_dir},
         )
+
+    # Static lint gate: refuse to push a kernel whose code has undefined-name /
+    # pyflakes errors (caught in seconds, before any GPU time). Runs for both
+    # --dry-run and real push. Override: --skip-lint or KCA_SKIP_KERNEL_LINT=1.
+    if not (
+        getattr(args, "skip_lint", False)
+        or os.environ.get("KCA_SKIP_KERNEL_LINT") == "1"
+    ):
+        lint_ok, lint_out = _lint_kernel(kernel_dir)
+        if not lint_ok:
+            return _emit_json(
+                {
+                    "ok": False,
+                    "error": (
+                        "kernel lint failed (undefined names / pyflakes) — fix "
+                        "before pushing, or pass --skip-lint / KCA_SKIP_KERNEL_LINT=1"
+                    ),
+                    "kernel_dir": kernel_dir,
+                    "lint": lint_out,
+                    "side_effect": SideEffect.READ_ONLY.value,
+                }
+            )
 
     if args.dry_run:
         meta = Path(kernel_dir) / "kernel-metadata.json"
@@ -790,6 +881,12 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
         "--dry-run",
         action="store_true",
         help="Validate kernel-metadata.json without uploading",
+    )
+    p_push.add_argument(
+        "--skip-lint",
+        dest="skip_lint",
+        action="store_true",
+        help="Skip the pre-push static lint (undefined-name / pyflakes) check",
     )
     p_push.add_argument(
         "--no-watch",
