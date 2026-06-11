@@ -58,10 +58,13 @@ def main():
     )
     ap.add_argument("--procs", type=int, default=None)
     ap.add_argument("--rng", type=int, default=1)
+    ap.add_argument(
+        "--seed0", type=int, default=8000, help="fresh block per VALIDATION.md"
+    )
     args = ap.parse_args()
     procs = args.procs or max(1, (os.cpu_count() or 2) - 1)
-    evo_seeds = list(range(8000, 8000 + args.games))
-    st_seeds = list(range(8000, 8000 + max(6, args.games // 2)))
+    evo_seeds = list(range(args.seed0, args.seed0 + args.games))
+    st_seeds = list(range(args.seed0, args.seed0 + max(6, args.games // 2)))
     rng = random.Random(args.rng)
 
     configs = [("baseline", BASELINE)]
@@ -75,7 +78,7 @@ def main():
 
     print(
         f"=== T2 random search: {len(configs)} configs, evogen {len(evo_seeds)}x2 + "
-        f"starter {len(st_seeds)}x2 games each, procs={procs}, seeds 8000+ ==="
+        f"starter {len(st_seeds)}x2 games each, procs={procs}, seeds {args.seed0}+ ==="
     )
     results = []
     t0 = time.perf_counter()
