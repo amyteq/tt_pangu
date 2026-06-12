@@ -32,12 +32,18 @@ import numpy as np
 HERE = os.path.dirname(os.path.abspath(__file__))
 V = os.path.normpath(os.path.join(HERE, "..", "agent", "versions"))
 sys.path.insert(0, V)
-from forecast_sim import _planet_pos, _swept_hit, fleet_speed  # noqa: E402
+from forecast_sim import (  # noqa: E402
+    _planet_pos,
+    _swept_hit,
+    fleet_speed,
+    project,
+)
 
 BOARD = 100.0
 CENTER = 50.0
 SUN_R = 10.0
 FLIGHT_H = 80  # decode horizon (slow 1-ship fleets cross ~100 units in ~100 ticks)
+PROJ_H = 18  # forward-sim horizon for the v1 features
 FEATS = [
     "src_ships",
     "src_prod",
@@ -55,6 +61,13 @@ FEATS = [
     "ship_ratio",
     "my_planets",
     "opp_planets",
+    # v1: forward-sim features (T12 v1 — what the teacher actually reasons about)
+    "def_at_eta",  # projected garrison at our arrival turn
+    "mine_at_eta",  # we already own it at arrival (projection)
+    "enemy_at_eta",  # enemy owns it at arrival
+    "tgt_flips",  # target changes owner within PROJ_H in the do-nothing run
+    "fr_arr",  # friendly ships already scheduled to arrive (in-flight)
+    "en_arr",  # enemy ships already scheduled to arrive
 ]
 
 
@@ -138,6 +151,17 @@ def _process_file(args):
             n_my = len(mine)
             n_opp = sum(1 for p in planets if p[1] not in (-1, player))
             step_frac = obs["step"] / 500.0
+            init_by_id = {p[0]: p for p in obs["initial_planets"]}
+            comets = set(obs.get("comet_planet_ids", []) or [])
+            traj, sched = project(
+                planets,
+                fleets,
+                obs["angular_velocity"],
+                init_by_id,
+                obs["step"],
+                PROJ_H,
+                comet_ids=comets,
+            )
             for src in mine:
                 if src[5] < 1:
                     continue
@@ -145,6 +169,25 @@ def _process_file(args):
                     if tgt[0] == src[0]:
                         continue
                     mi, ei = _inbound(tgt, fleets, player)
+                    eta_v = _eta(src, tgt, int(src[5] // 2) or 1)
+                    k = max(1, min(PROJ_H, int(math.ceil(eta_v))))
+                    tt = traj.get(tgt[0])
+                    if tt is not None:
+                        def_eta = tt["ships"][k]
+                        o_eta = tt["owner"][k]
+                        flips = (
+                            1.0
+                            if any(
+                                tt["owner"][i] != tgt[1] for i in range(1, PROJ_H + 1)
+                            )
+                            else 0.0
+                        )
+                    else:
+                        def_eta, o_eta, flips = tgt[5], tgt[1], 0.0
+                    fr_arr = sum(s for _k, o, s in sched.get(tgt[0], []) if o == player)
+                    en_arr = sum(
+                        s for _k, o, s in sched.get(tgt[0], []) if o not in (player, -1)
+                    )
                     rows_X.append(
                         [
                             src[5],
@@ -156,13 +199,19 @@ def _process_file(args):
                             tgt[6],
                             tgt[4],
                             math.hypot(src[2] - tgt[2], src[3] - tgt[3]),
-                            _eta(src, tgt, int(src[5] // 2) or 1),
+                            eta_v,
                             mi,
                             ei,
                             step_frac,
                             min(10.0, my_tot / opp_tot),
                             n_my,
                             n_opp,
+                            def_eta,
+                            1.0 if o_eta == player else 0.0,
+                            1.0 if o_eta not in (-1, player) else 0.0,
+                            flips,
+                            fr_arr,
+                            en_arr,
                         ]
                     )
                     s = launched.get((src[0], tgt[0]), 0)

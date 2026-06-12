@@ -23,6 +23,9 @@ if _HERE not in _sys.path:
     _sys.path.insert(0, _HERE)
 from forecast import _path_blocked, _solve_intercept  # noqa: E402
 from forecast_sim import fleet_speed as _fspeed  # noqa: E402
+from forecast_sim import project as _project  # noqa: E402
+
+PROJ_H = 18  # must match arena/distill_prep.py
 
 try:
     from kaggle_environments.envs.orbit_wars.orbit_wars import Planet
@@ -93,6 +96,16 @@ def _agent(obs):
     n_opp = sum(1 for p in planets if p.owner not in (-1, player))
     step_frac = step / 500.0
 
+    traj, sched = _project(
+        raw_planets,
+        raw_fleets,
+        ang_vel,
+        {p[0]: p for p in (obs.get("initial_planets", []) or [])},
+        step,
+        PROJ_H,
+        comet_ids=comet_ids,
+    )
+
     feats, pairs = [], []
     for src in mine:
         if src.ships < 1:
@@ -103,6 +116,22 @@ def _agent(obs):
             mi, ei = _inbound(tgt, raw_fleets, player)
             d = math.hypot(src.x - tgt.x, src.y - tgt.y)
             eta = d / _fspeed(max(1, int(src.ships // 2) or 1))
+            k = max(1, min(PROJ_H, int(math.ceil(eta))))
+            tt = traj.get(tgt.id)
+            if tt is not None:
+                def_eta = tt["ships"][k]
+                o_eta = tt["owner"][k]
+                flips = (
+                    1.0
+                    if any(tt["owner"][i] != tgt.owner for i in range(1, PROJ_H + 1))
+                    else 0.0
+                )
+            else:
+                def_eta, o_eta, flips = tgt.ships, tgt.owner, 0.0
+            fr_arr = sum(s for _k, o, s in sched.get(tgt.id, []) if o == player)
+            en_arr = sum(
+                s for _k, o, s in sched.get(tgt.id, []) if o not in (player, -1)
+            )
             feats.append(
                 [
                     src.ships,
@@ -121,6 +150,12 @@ def _agent(obs):
                     min(10.0, my_tot / opp_tot),
                     n_my,
                     n_opp,
+                    def_eta,
+                    1.0 if o_eta == player else 0.0,
+                    1.0 if o_eta not in (-1, player) else 0.0,
+                    flips,
+                    fr_arr,
+                    en_arr,
                 ]
             )
             pairs.append((src, tgt))
