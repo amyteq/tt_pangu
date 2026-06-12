@@ -412,6 +412,21 @@ def run_training() -> None:
     replay_skipped = 0
     replay_truncated = 0
 
+    def _template_ids(msgs, add_gen):
+        # v14 v1 failed with "0 replay examples": on the current Kaggle image
+        # apply_chat_template(tokenize=True) returns a BatchEncoding, so
+        # len(full_ids) <= len(prompt_ids) compared DICT KEY COUNTS (2 <= 2)
+        # and silently skipped every row. Unwrap to a flat token list.
+        out = tokenizer.apply_chat_template(
+            msgs, tokenize=True, add_generation_prompt=add_gen
+        )
+        if hasattr(out, "keys"):
+            out = out["input_ids"]
+        if out and isinstance(out[0], (list, tuple)):
+            out = out[0]
+        return list(out)
+
+    _first_row_logged = False
     with open(MATH_REPLAY_PATH, encoding="utf-8") as replay_file:
         for line in replay_file:
             row = json.loads(line)
@@ -420,16 +435,14 @@ def run_training() -> None:
                 replay_skipped += 1
                 continue
 
-            prompt_ids = tokenizer.apply_chat_template(
-                messages[:-1],
-                tokenize=True,
-                add_generation_prompt=True,
-            )
-            full_ids = tokenizer.apply_chat_template(
-                messages,
-                tokenize=True,
-                add_generation_prompt=False,
-            )
+            prompt_ids = _template_ids(messages[:-1], True)
+            full_ids = _template_ids(messages, False)
+            if not _first_row_logged:
+                _first_row_logged = True
+                print(
+                    f"replay row 0: keys={sorted(row.keys())}, "
+                    f"prompt_ids={len(prompt_ids)}, full_ids={len(full_ids)}"
+                )
             if len(full_ids) <= len(prompt_ids):
                 replay_skipped += 1
                 continue
