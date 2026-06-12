@@ -1,0 +1,13 @@
+# Local arena/replay/log artifacts — keep code, not bulk outputs.
+replays/
+logs/
+*.json.gz
+__pycache__/
+
+*.tar.gz
+
+# Vendored third-party opponent (reconstruct via arena/_reconstruct_pkg.py from the public notebook)
+agent/versions/kuni05/
+
+# Vendored third-party gate opponents (reconstruct via arena/_extract_pub.py from public notebooks)
+agent/versions/suite/
