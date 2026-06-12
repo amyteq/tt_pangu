@@ -163,28 +163,35 @@ def main():
     print(f"=== episodes_prep: {len(tasks)} episodes, procs={procs} ===", flush=True)
 
     X, yl, yf, g = [], [], [], []
+    n_pairs = 0
     with Pool(procs) as pool:
         for i, res in enumerate(pool.imap_unordered(_process_episode, tasks)):
-            X += res[0]
-            yl += res[1]
-            yf += res[2]
-            g += res[3]
+            if res[0]:
+                # float32 per episode keeps peak memory ~2x the final array size
+                X.append(np.asarray(res[0], dtype=np.float32))
+                yl.append(np.asarray(res[1], dtype=np.float32))
+                yf.append(np.asarray(res[2], dtype=np.float32))
+                g.append(np.asarray(res[3], dtype=np.int32))
+                n_pairs += len(res[1])
             if (i + 1) % 25 == 0:
-                print(f"  {i + 1}/{len(tasks)} episodes, {len(X)} pairs", flush=True)
-    Xa = np.asarray(X, dtype=np.float32)
+                print(f"  {i + 1}/{len(tasks)} episodes, {n_pairs} pairs", flush=True)
+    Xa = np.vstack(X) if X else np.zeros((0, len(FEATS)), dtype=np.float32)
+    yla = np.concatenate(yl) if yl else np.zeros(0, dtype=np.float32)
+    yfa = np.concatenate(yf) if yf else np.zeros(0, dtype=np.float32)
+    ga = np.concatenate(g) if g else np.zeros(0, dtype=np.int32)
     np.savez_compressed(
         args.out,
         X=Xa,
-        y_launch=np.asarray(yl, dtype=np.float32),
-        y_frac=np.asarray(yf, dtype=np.float32),
-        game=np.asarray(g, dtype=np.int32),
-        won=np.ones(len(yl), dtype=np.float32),  # winner-side only by construction
+        y_launch=yla,
+        y_frac=yfa,
+        game=ga,
+        won=np.ones(len(yla), dtype=np.float32),  # winner-side only by construction
         feats=np.asarray(FEATS),
     )
-    pos = sum(yl)
+    pos = float(yla.sum())
     print(
         f"DONE: {Xa.shape[0]} pairs, {int(pos)} launches "
-        f"({100.0 * pos / max(1, len(yl)):.2f}% positive) -> {args.out}",
+        f"({100.0 * pos / max(1, len(yla)):.2f}% positive) -> {args.out}",
         flush=True,
     )
 
