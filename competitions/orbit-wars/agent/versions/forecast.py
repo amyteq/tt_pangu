@@ -74,6 +74,19 @@ LEDGER = int(_os.environ.get("OW_LEDGER", 0))
 # wave anyway (fires now, valued at its true arrival turn) instead of aborting the
 # whole wave; shares slower than K+tol are dropped, not wave-fatal. tol=0 ~= v1.
 COARR_TOL = int(_os.environ.get("OW_COARR_TOL", 1))
+# Replay-derived (issue #87 analysis #1): the top player attacks rarely but with
+# ~4x the loser's fleet size — overwhelming force is insurance, not waste. Scale
+# offensive sizing beyond the minimal capture threshold (1.0 = old behaviour).
+OVERKILL = float(_os.environ.get("OW_OVERKILL", 1.0))
+# T14 - short-hop supply chain (replay analysis #1: 56% of the top player's
+# launches are short reinforce hops feeding the front; heavy strikes EMERGE from
+# concentration - the OVERKILL sizing multiplier tested monotonically negative).
+# Unlike the rejected CONSOLIDATE (long-haul, aggressive), hops are capped at
+# SUPPLY_DIST and chain planet-to-planet toward the front, small and continuous.
+SUPPLY = int(_os.environ.get("OW_SUPPLY", 0))
+SUPPLY_DIST = float(_os.environ.get("OW_SUPPLY_DIST", 25.0))  # max hop length
+SUPPLY_MIN = float(_os.environ.get("OW_SUPPLY_MIN", 5))  # min surplus to stream
+SUPPLY_MARGIN = float(_os.environ.get("OW_SUPPLY_MARGIN", 3.0))  # front-gain needed
 
 try:
     from kaggle_environments.envs.orbit_wars.orbit_wars import Planet, Fleet
@@ -461,7 +474,7 @@ def _agent(obs):
                     else:
                         defender = bt["ships"][eta_k] if bt is not None else tgt.ships
                         buf = 1 if tgt.owner == -1 else 1 + ENEMY_BUFFER
-                        needed = int(defender) + buf
+                        needed = int(math.ceil((defender + buf) * OVERKILL))
                     if needed == ships_guess:
                         break
                     ships_guess = needed
@@ -743,4 +756,40 @@ def _agent(obs):
                 continue
             moves.append([src.id, angle, int(surplus)])
             remaining[src.id] = 0
+    # T14 - short-hop supply chain: idle rear surplus streams one hop toward the
+    # front each turn (nearest friendly planet meaningfully closer to the front,
+    # within SUPPLY_DIST). Front planets accumulate mass; big strikes follow.
+    if SUPPLY and targets:
+        attacked = {m[0] for m in moves}
+        fd = {p.id: _front_dist(p, targets) for p in my_planets}
+        for src in my_planets:
+            if src.id in attacked:
+                continue
+            surplus = remaining.get(src.id, 0)
+            if surplus < SUPPLY_MIN:
+                continue
+            best, best_d = None, None
+            for q in my_planets:
+                if q.id == src.id:
+                    continue
+                d = _hypot(src.x, src.y, q.x, q.y)
+                if d > SUPPLY_DIST or fd[q.id] >= fd[src.id] - SUPPLY_MARGIN:
+                    continue
+                if best is None or d < best_d:
+                    best, best_d = q, d
+            if best is None:
+                continue
+            sol = _solve_intercept(
+                src.x, src.y, best.id, surplus, step, init_by_id, ang_vel
+            )
+            if sol is None:
+                continue
+            ang, _t, pos = sol
+            if _path_blocked(
+                src.x, src.y, pos[0], pos[1], src.id, best.id, planets, comet_ids
+            ):
+                continue
+            moves.append([src.id, ang, int(surplus)])
+            remaining[src.id] = 0
+
     return moves
