@@ -51,15 +51,40 @@ def main():
     ap.add_argument("--batch", type=int, default=65536)
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--lost-weight", type=float, default=0.5)
+    ap.add_argument(
+        "--neg-ratio",
+        type=int,
+        default=0,
+        help="train-set negatives kept per positive (0 = all; use ~25 for "
+        "datasets too big for RAM — val split stays untouched)",
+    )
+    ap.add_argument("--seed", type=int, default=7)
     args = ap.parse_args()
 
     d = np.load(args.pairs, allow_pickle=True)
     X, yl, yf = d["X"], d["y_launch"], d["y_frac"]
     game, won = d["game"], d["won"]
-    mean, std = X.mean(0), X.std(0) + 1e-6
-    Xn = (X - mean) / std
     val_m = game % 10 == 0
     tr_m = ~val_m
+    if args.neg_ratio:
+        rng = np.random.default_rng(args.seed)
+        tr_idx = np.flatnonzero(tr_m)
+        pos_idx = tr_idx[yl[tr_idx] > 0]
+        neg_idx = tr_idx[yl[tr_idx] == 0]
+        keep_neg = rng.choice(
+            neg_idx, size=min(len(neg_idx), args.neg_ratio * len(pos_idx)),
+            replace=False,
+        )
+        keep = np.concatenate([pos_idx, keep_neg])
+        sub = np.zeros(len(yl), dtype=bool)
+        sub[keep] = True
+        tr_m = sub
+        print(
+            f"neg-ratio {args.neg_ratio}: train rows {len(keep)} "
+            f"({len(pos_idx)} pos + {len(keep_neg)} neg)",
+            flush=True,
+        )
+    mean, std = X[tr_m].mean(0), X[tr_m].std(0) + 1e-6
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     print(
         f"pairs={len(X)} train={tr_m.sum()} val={val_m.sum()} "
@@ -67,12 +92,16 @@ def main():
         flush=True,
     )
 
-    xt = torch.tensor(Xn[tr_m])
+    # normalize per split (never materialize a full normalized copy of X)
+    xt = torch.tensor((X[tr_m] - mean) / std)
     lt = torch.tensor(yl[tr_m])
     ft = torch.tensor(yf[tr_m])
     wt = torch.tensor(np.where(won[tr_m] > 0, 1.0, args.lost_weight).astype("float32"))
-    xv = torch.tensor(Xn[val_m]).to(dev)
-    lv = torch.tensor(yl[val_m]).to(dev)
+    val_idx = np.flatnonzero(val_m)
+    if len(val_idx) > 2_000_000:  # cap val for memory; fixed seed = comparable runs
+        val_idx = np.random.default_rng(11).choice(val_idx, 2_000_000, replace=False)
+    xv = torch.tensor((X[val_idx] - mean) / std).to(dev)
+    lv = torch.tensor(yl[val_idx]).to(dev)
 
     model = Student(X.shape[1]).to(dev)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
