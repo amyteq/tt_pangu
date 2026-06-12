@@ -40,17 +40,23 @@ from forecast_sim import project as _project, replay_planet as _replay
 # T2-R2 BAKED (2026-06-12, issue #87): t14 config confirmed on two independent
 # 300-game blocks (snorlax 13000+: 17.7%, local 15000+: 19.0% vs baseline ~12%;
 # pooled +6.7pt, z~3.3). Defaults below = t14: H26/FF5/FD20/CE3.2/CL1.3.
-PROJ_H = int(_os.environ.get("OW_PROJ_H", 26))  # forward-sim horizon; 18 too short for slow opening fleets
+PROJ_H = int(
+    _os.environ.get("OW_PROJ_H", 26)
+)  # forward-sim horizon; 18 too short for slow opening fleets
 # Multi-source coordination (the strong-tier lever): pool ships from several friendly
 # planets onto one target, sized to capture AND hold (vs single-source minimal captures
 # that get retaken). Staggered waves grind the defender; total = needed * HOLD_MULT.
-MULTISRC = int(_os.environ.get("OW_MULTISRC", 0))  # default OFF: tried, no gain vs strong tier
+MULTISRC = int(
+    _os.environ.get("OW_MULTISRC", 0)
+)  # default OFF: tried, no gain vs strong tier
 HOLD_MULT = float(_os.environ.get("OW_HOLD_MULT", 1.6))
 # Opening expander: the differential value-gate is too conservative early (we fire 2-3x
 # in the first 25 turns while strong agents grab 5 planets). In the opening, grab every
 # reachable neutral with positive production-gain over a long opening horizon, firing
 # aggressively (no value-gate, no in-flight cap) to win the land-grab.
-OPENING = int(_os.environ.get("OW_OPENING", 0))  # default OFF: fired more but win-rate dropped
+OPENING = int(
+    _os.environ.get("OW_OPENING", 0)
+)  # default OFF: fired more but win-rate dropped
 OPENING_TURNS = int(_os.environ.get("OW_OPENING_TURNS", 25))
 OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
 # T8 — true co-arrival strikes (issue #87). Unlike MULTISRC (same-turn salvo: fleets
@@ -87,6 +93,23 @@ SUPPLY = int(_os.environ.get("OW_SUPPLY", 0))
 SUPPLY_DIST = float(_os.environ.get("OW_SUPPLY_DIST", 25.0))  # max hop length
 SUPPLY_MIN = float(_os.environ.get("OW_SUPPLY_MIN", 5))  # min surplus to stream
 SUPPLY_MARGIN = float(_os.environ.get("OW_SUPPLY_MARGIN", 3.0))  # front-gain needed
+# T13 - decisive-battle posture switching (replay analysis #1: the top player
+# wins ONE big exchange ~t100-125 then snowballs; the loser bleeds out in small
+# attacks). Module state persists within an episode (agents are loaded once and
+# called per step), so we can react to the opponent's army being IN TRANSIT:
+#   BRACE  - large enemy mass in flight -> hold offensive budget, raise reserves
+#            (their wave must beat fortified garrisons; ours stays home);
+#   PUNISH - the wave has landed (their sources are drained, their field army is
+#            spent on our garrisons) -> temporarily loosen the budget and let the
+#            value gate find the weakened planets.
+POSTURE = int(_os.environ.get("OW_POSTURE", 0))
+POSTURE_BRACE = float(_os.environ.get("OW_POSTURE_BRACE", 0.35))  # in-flight frac
+POSTURE_BUDGET = float(_os.environ.get("OW_POSTURE_BUDGET", 0.3))  # brace budget x
+POSTURE_RESERVE = float(_os.environ.get("OW_POSTURE_RESERVE", 1.5))  # brace floors x
+PUNISH_TURNS = int(_os.environ.get("OW_PUNISH_TURNS", 6))
+PUNISH_BUDGET = float(_os.environ.get("OW_PUNISH_BUDGET", 1.6))  # punish budget x
+
+_T13 = {"ep_step": -1, "braced": False, "punish": 0}
 
 try:
     from kaggle_environments.envs.orbit_wars.orbit_wars import Planet, Fleet
@@ -316,6 +339,28 @@ def _agent(obs):
     ships_in_flight = sum(f.ships for f in fleets if f.owner == player)
     launch_budget = max(0.0, cap_frac * ships_on_planets - ships_in_flight)
 
+    # T13 posture: react to the opponent's army being in transit (see knobs).
+    if POSTURE:
+        if step <= _T13["ep_step"]:  # new episode -> reset persistent state
+            _T13["braced"] = False
+            _T13["punish"] = 0
+        _T13["ep_step"] = step
+        enemy_onplanet = sum(p.ships for p in planets if p.owner not in (-1, player))
+        enemy_inflight = sum(f.ships for f in fleets if f.owner != player)
+        mass_frac = enemy_inflight / max(1.0, enemy_inflight + enemy_onplanet)
+        if mass_frac > POSTURE_BRACE:
+            launch_budget *= POSTURE_BUDGET
+            for pid in reserve:
+                reserve[pid] *= POSTURE_RESERVE
+            _T13["braced"] = True
+        else:
+            if _T13["braced"] and mass_frac < POSTURE_BRACE * 0.5:
+                _T13["punish"] = PUNISH_TURNS  # their wave just landed
+            _T13["braced"] = False
+            if _T13["punish"] > 0:
+                launch_budget *= PUNISH_BUDGET
+                _T13["punish"] -= 1
+
     # Targets: anything we don't own and isn't a comet (comets handled later versions).
     targets = [p for p in planets if p.owner != player and p.id not in comet_ids]
 
@@ -343,7 +388,11 @@ def _agent(obs):
         at the first turn it flips to an enemy, return that enemy surplus (+1) — what we'd
         need to have added to survive. 0 if the planet holds on its own."""
         o_list, s_list = _replay(
-            owner0_by_id[pid], ships0_by_id[pid], prod_by_id[pid], base_arr.get(pid, []), PROJ_H
+            owner0_by_id[pid],
+            ships0_by_id[pid],
+            prod_by_id[pid],
+            base_arr.get(pid, []),
+            PROJ_H,
         )
         for k in range(1, PROJ_H + 1):
             if o_list[k] != player and o_list[k] != -1:
@@ -374,9 +423,7 @@ def _agent(obs):
                 return float("inf")  # projected to flip -> doomed, no cap
         return slack
 
-    ledger_cap = (
-        {mp.id: _ledger_slack(mp.id) for mp in my_planets} if LEDGER else {}
-    )
+    ledger_cap = {mp.id: _ledger_slack(mp.id) for mp in my_planets} if LEDGER else {}
 
     def _avail(mp):
         a = mp.ships - reserve.get(mp.id, 0)
@@ -399,12 +446,18 @@ def _agent(obs):
                 needed = ships_guess
                 eta = 1
                 for _ in range(3):
-                    sol = _solve_intercept(mp.x, mp.y, tgt.id, ships_guess, step, init_by_id, ang_vel)
+                    sol = _solve_intercept(
+                        mp.x, mp.y, tgt.id, ships_guess, step, init_by_id, ang_vel
+                    )
                     if sol is None:
                         break
                     _, eta, _ = sol
                     bt = base_traj.get(tgt.id)
-                    defn = bt["ships"][min(int(eta), PROJ_H)] if bt is not None else tgt.ships
+                    defn = (
+                        bt["ships"][min(int(eta), PROJ_H)]
+                        if bt is not None
+                        else tgt.ships
+                    )
                     needed = int(defn) + (1 if tgt.owner == -1 else 1 + ENEMY_BUFFER)
                     if needed == ships_guess:
                         break
@@ -414,9 +467,13 @@ def _agent(obs):
                 angle, eta, pos = sol
                 if needed > op_avail[mp.id] or step + eta > EPISODE_STEPS - 2:
                     continue
-                if _path_blocked(mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids):
+                if _path_blocked(
+                    mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids
+                ):
                     continue
-                gain = prod_by_id[tgt.id] * (OPENING_H - eta) - needed  # production won minus cost
+                gain = (
+                    prod_by_id[tgt.id] * (OPENING_H - eta) - needed
+                )  # production won minus cost
                 if gain <= 0:
                     continue
                 op_cands.append((gain, mp.id, tgt.id, angle, needed))
@@ -495,17 +552,23 @@ def _agent(obs):
             # with this launch (source debited now, target gets my arrival at eta) and
             # diff the signed (mine - opponent) advantage vs the do-nothing baseline.
             sw_o, sw_s = _replay(
-                owner0_by_id[mp.id], ships0_by_id[mp.id] - needed,
-                prod_by_id[mp.id], base_arr.get(mp.id, []), PROJ_H,
+                owner0_by_id[mp.id],
+                ships0_by_id[mp.id] - needed,
+                prod_by_id[mp.id],
+                base_arr.get(mp.id, []),
+                PROJ_H,
             )
             tw_arr = base_arr.get(tgt.id, []) + [(eta_k, player, float(needed))]
             tw_o, tw_s = _replay(
-                owner0_by_id[tgt.id], ships0_by_id[tgt.id],
-                prod_by_id[tgt.id], tw_arr, PROJ_H,
+                owner0_by_id[tgt.id],
+                ships0_by_id[tgt.id],
+                prod_by_id[tgt.id],
+                tw_arr,
+                PROJ_H,
             )
-            value = (
-                _term(sw_o, sw_s) + _term(tw_o, tw_s)
-            ) - (base_src_adv + _base_adv(tgt.id))
+            value = (_term(sw_o, sw_s) + _term(tw_o, tw_s)) - (
+                base_src_adv + _base_adv(tgt.id)
+            )
             if value <= 0:
                 continue  # net-negative or pointless -> don't fire
             candidates.append((value, mp.id, tgt.id, angle, needed))
@@ -527,8 +590,11 @@ def _agent(obs):
             return None
         # pre-combat garrison at K: replay with arrivals strictly before K
         o_pre, s_pre = _replay(
-            owner0_by_id[tgt.id], ships0_by_id[tgt.id], prod_by_id[tgt.id],
-            [a for a in arr if a[0] < K], K,
+            owner0_by_id[tgt.id],
+            ships0_by_id[tgt.id],
+            prod_by_id[tgt.id],
+            [a for a in arr if a[0] < K],
+            K,
         )
         if o_pre[K] == player:
             return None
@@ -543,8 +609,11 @@ def _agent(obs):
         x = int(math.ceil(max(0.0, g + rival - ours))) + buf
         for _ in range(3):  # exact check (rank order / ties); bump if short
             o_chk, _s = _replay(
-                owner0_by_id[tgt.id], ships0_by_id[tgt.id], prod_by_id[tgt.id],
-                arr + [(K, player, float(x))], K,
+                owner0_by_id[tgt.id],
+                ships0_by_id[tgt.id],
+                prod_by_id[tgt.id],
+                arr + [(K, player, float(x))],
+                K,
             )
             if o_chk[K] == player:
                 return x
@@ -560,7 +629,8 @@ def _agent(obs):
         my_by_id = {mp.id: mp for mp in my_planets}
         covered = {c[2] for c in candidates}
         big = [
-            t for t in targets
+            t
+            for t in targets
             if t.id not in covered and t.owner != player and t.id not in defense_need
         ]
         big.sort(key=lambda t: -t.production)
@@ -573,11 +643,15 @@ def _agent(obs):
                 if avail < 1:
                     continue
                 probe = max(1, min(int(avail), int(tgt.ships) + 1))
-                sol = _solve_intercept(mp.x, mp.y, tgt.id, probe, step, init_by_id, ang_vel)
+                sol = _solve_intercept(
+                    mp.x, mp.y, tgt.id, probe, step, init_by_id, ang_vel
+                )
                 if sol is None:
                     continue
                 _a, t_ticks, pos = sol
-                if _path_blocked(mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids):
+                if _path_blocked(
+                    mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids
+                ):
                     continue
                 probes[mp.id] = max(1, int(t_ticks))
             if len(probes) < 2:
@@ -614,7 +688,9 @@ def _agent(obs):
                 fire_now, hold, kept, ok = [], [], 0, True
                 for mid, give in shares:
                     mp = my_by_id[mid]
-                    sol = _solve_intercept(mp.x, mp.y, tgt.id, give, step, init_by_id, ang_vel)
+                    sol = _solve_intercept(
+                        mp.x, mp.y, tgt.id, give, step, init_by_id, ang_vel
+                    )
                     if sol is None:
                         ok = False
                         break
@@ -623,7 +699,9 @@ def _agent(obs):
                     if t_ticks > K + COARR_TOL or t_ticks > PROJ_H:
                         continue  # too slow even with tolerance -> stays home
                     if t_ticks >= K:
-                        if _path_blocked(mp.x, mp.y, pos[0], pos[1], mid, tgt.id, planets, comet_ids):
+                        if _path_blocked(
+                            mp.x, mp.y, pos[0], pos[1], mid, tgt.id, planets, comet_ids
+                        ):
                             ok = False
                             break
                         fire_now.append((mid, ang, give, t_ticks))
@@ -639,8 +717,11 @@ def _agent(obs):
                 val = 0.0
                 for mid, give in [(m, g) for m, _a, g, _t in fire_now] + hold:
                     sw_o, sw_s = _replay(
-                        owner0_by_id[mid], ships0_by_id[mid] - give,
-                        prod_by_id[mid], base_arr.get(mid, []), PROJ_H,
+                        owner0_by_id[mid],
+                        ships0_by_id[mid] - give,
+                        prod_by_id[mid],
+                        base_arr.get(mid, []),
+                        PROJ_H,
                     )
                     val += _term(sw_o, sw_s) - _base_adv(mid)
                 tw_arr = (
@@ -649,8 +730,11 @@ def _agent(obs):
                     + [(K, player, float(g)) for _m, g in hold]
                 )
                 tw_o, tw_s = _replay(
-                    owner0_by_id[tgt.id], ships0_by_id[tgt.id],
-                    prod_by_id[tgt.id], tw_arr, PROJ_H,
+                    owner0_by_id[tgt.id],
+                    ships0_by_id[tgt.id],
+                    prod_by_id[tgt.id],
+                    tw_arr,
+                    PROJ_H,
                 )
                 val += _term(tw_o, tw_s) - base_tgt_adv
                 if val <= 0:
@@ -683,33 +767,53 @@ def _agent(obs):
         for value, src_id, tgt_id, angle, needed in candidates:
             by_tgt.setdefault(tgt_id, []).append((value, src_id, needed))
         # rank targets by their best single-source value
-        order = sorted(by_tgt, key=lambda t: max(v for v, _, _ in by_tgt[t]), reverse=True)
+        order = sorted(
+            by_tgt, key=lambda t: max(v for v, _, _ in by_tgt[t]), reverse=True
+        )
         for tgt_id in order:
             entries = by_tgt[tgt_id]
-            cap_needed = max(n for _, _, n in entries)              # single-source capture size
+            cap_needed = max(n for _, _, n in entries)  # single-source capture size
             hold_force = math.ceil(cap_needed * HOLD_MULT)
             tx, ty = pos_by_id[tgt_id]
             # nearest viable sources first (minimise travel, tightest co-arrival)
-            srcs = sorted({s for _, s, _ in entries},
-                          key=lambda s: _hypot(pos_by_id[s][0], pos_by_id[s][1], tx, ty))
+            srcs = sorted(
+                {s for _, s, _ in entries},
+                key=lambda s: _hypot(pos_by_id[s][0], pos_by_id[s][1], tx, ty),
+            )
             accum = 0
             wave = []
             for src_id in srcs:
                 if accum >= hold_force or launch_budget <= 0:
                     break
-                give = int(min(remaining.get(src_id, 0), hold_force - accum, launch_budget))
+                give = int(
+                    min(remaining.get(src_id, 0), hold_force - accum, launch_budget)
+                )
                 if give < 1:
                     continue
                 sol = _solve_intercept(
-                    pos_by_id[src_id][0], pos_by_id[src_id][1], tgt_id, give, step, init_by_id, ang_vel
+                    pos_by_id[src_id][0],
+                    pos_by_id[src_id][1],
+                    tgt_id,
+                    give,
+                    step,
+                    init_by_id,
+                    ang_vel,
                 )
                 if sol is None:
                     continue
                 ang, t_ticks, pos = sol
                 if t_ticks > PROJ_H or step + t_ticks > EPISODE_STEPS - 2:
                     continue
-                if _path_blocked(pos_by_id[src_id][0], pos_by_id[src_id][1],
-                                 pos[0], pos[1], src_id, tgt_id, planets, comet_ids):
+                if _path_blocked(
+                    pos_by_id[src_id][0],
+                    pos_by_id[src_id][1],
+                    pos[0],
+                    pos[1],
+                    src_id,
+                    tgt_id,
+                    planets,
+                    comet_ids,
+                ):
                     continue
                 wave.append([src_id, ang, give])
                 accum += give
