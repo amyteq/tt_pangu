@@ -3,7 +3,7 @@
 - Session name: `nemo`
 - Job id: `900075de`
 - Session id: `900075de-d535-4892-9ee8-2c098d0e366d`
-- Status: `working`
+- Status: `stopped`
 - Source transcript: `/home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu/900075de-d535-4892-9ee8-2c098d0e366d.jsonl`
 
 ---
@@ -154,6 +154,34 @@ https://github.com/amyteq/tt_pangu/issues/86
 `15:57:51`
 
 📝 Recap: Goal: push Nemotron LoRA score from 0.65 toward 0.85+. Both training runs (A ctx4k, B ctx2k) are still on Kaggle GPUs; v10 rule-trace kernel is ready. Next: submit A/B when they finish, then launch v10.
+
+#### 🔄 Async result · *Background command "Confirm B ready + launch A watcher" completed (exit code 0)*
+
+`18:21:28`
+
+- **Task ID:** `b822eu3vw`
+- **Status:** `completed`
+- **Spawn:** ↱ Task `#d-1717`
+
+### 🤖 Assistant: *You've hit your session limit · resets 6…*
+
+`18:21:32`
+
+> You've hit your session limit · resets 6:40am (Australia/Melbourne)
+
+#### 🔄 Async result · *Background command "Watch B (firefly2006) until terminal" completed (exit code 0)*
+
+`19:00:01`
+
+- **Task ID:** `bx2ljh6gh`
+- **Status:** `completed`
+- **Spawn:** ↱ Task `#d-1741`
+
+### 🤖 Assistant: *You've hit your session limit · resets 6…*
+
+`19:00:02`
+
+> You've hit your session limit · resets 6:40am (Australia/Melbourne)
 
 <a id="branch-5829eba0"></a>
 
