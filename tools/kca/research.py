@@ -320,6 +320,199 @@ def _jsonable(v):
     return str(v)
 
 
+# ===========================================================================
+# Idea-sourcing (M14-T006) — untrusted-data filter + source readers.
+#
+# These power `kca explore propose-next`. Every fetched string (public-kernel
+# titles, forum-thread bodies, arxiv abstracts) is treated as UNTRUSTED DATA
+# per CLAUDE.md operating principle 1 / ADR-0020: it is captured as quoted
+# data with a trust_label and is NEVER interpreted as an instruction, command,
+# or search-space directive. The three reader functions are *injectable* so
+# tests drive them with fixtures; the defaults make NO network call unless an
+# explicit live reader is supplied by the caller.
+# ===========================================================================
+
+# Phrases that, in untrusted source text, look like an attempt to redirect the
+# agent. We do NOT act on them; we only *flag* their presence so the proposal
+# carries a low trust_label and the operator can see the source was adversarial.
+_INJECTION_MARKERS = (
+    "ignore previous instructions",
+    "ignore all previous",
+    "disregard previous",
+    "disregard the above",
+    "run this command",
+    "run the following",
+    "execute the following",
+    "rm -rf",
+    "curl ",
+    "wget ",
+    "system(",
+    "subprocess",
+    "os.system",
+    "eval(",
+    "exec(",
+    "import os",
+    "kaggle competitions submit",
+    "kaggle kernels push",
+    "you are now",
+    "new instructions",
+    "override your",
+)
+
+# A sentinel that MUST never appear in any executed code path. Tests inject a
+# fixture containing this token inside an "instruction"; if propose-next ever
+# treated the source as code, the token would surface as a side effect. We
+# assert it only ever lands inside a quoted data field.
+NOEXEC_SENTINEL = "__KCA_NOEXEC_SENTINEL__"
+
+
+def detect_injection(text: str) -> list[str]:
+    """Return the injection markers found in untrusted ``text`` (lower-cased).
+
+    Pure string scan — it never executes anything. The returned list is recorded
+    as evidence so a proposal sourced from adversarial text is down-trusted.
+    """
+    if not text:
+        return []
+    low = text.lower()
+    return [m for m in _INJECTION_MARKERS if m in low]
+
+
+def sanitize_untrusted(text: str, *, max_len: int = 280) -> str:
+    """Collapse untrusted source text into a single quoted-data line.
+
+    Strips control chars / newlines (so it cannot break out of a YAML scalar or
+    a log line), truncates, and returns a plain string. The result is only ever
+    written into a *data* field (rationale / quote), never evaluated.
+    """
+    if not text:
+        return ""
+    flat = " ".join(str(text).split())
+    flat = "".join(
+        ch
+        for ch in flat
+        if ch == " " or (32 <= ord(ch) < 0x110000 and ch.isprintable())
+    )
+    if len(flat) > max_len:
+        flat = flat[: max_len - 1].rstrip() + "…"
+    return flat
+
+
+def classify_trust(source_kind: str, injection_markers: list[str]) -> str:
+    """Map (source_kind, injection findings) -> a research-brief trust label.
+
+    Any source carrying an injection marker is forced to ``untrusted`` no matter
+    its origin — an adversarial payload is never promoted to community/public.
+    """
+    if injection_markers:
+        return "untrusted"
+    return {
+        "kernel": "community",
+        "forum": "community",
+        "arxiv": "trusted_public",
+    }.get(source_kind, "unknown")
+
+
+def _kernel_keywords(title: str) -> list[str]:
+    """Extract candidate axis hints from a kernel/paper title (data, not code)."""
+    low = title.lower()
+    hits: list[str] = []
+    for backbone in (
+        "efficientnet",
+        "efficientnetv2",
+        "resnet",
+        "resnet101",
+        "densenet",
+        "convnext",
+        "vit",
+        "swin",
+        "xception",
+        "regnet",
+        "nfnet",
+    ):
+        if backbone in low:
+            hits.append(backbone)
+    return hits
+
+
+# --- Injectable source readers --------------------------------------------
+#
+# Default behavior: NO network. A live reader (a callable hitting the Kaggle /
+# arxiv APIs under the research-brief trust model) is passed in by the caller
+# only when --live is requested with prior approval; tests pass fixture-backed
+# readers. Each returns a list of dicts: {source_kind, source_url, title, text}.
+
+
+def default_kernels_reader(slug: str, limit: int) -> list[dict]:
+    """Default kernels reader — NO network. Returns []. Tests inject a fixture.
+
+    A live implementation would call ``kaggle.api.kernels_list(competition=slug,
+    sort_by='hotness')`` (READ_ONLY) and map each kernel to a source dict. We do
+    NOT call it by default so the test path and the dry-run default never touch
+    the network.
+    """
+    return []
+
+
+def default_forum_reader(slug: str, limit: int) -> list[dict]:
+    """Default forum reader — NO network (best-effort scrape is opt-in)."""
+    return []
+
+
+def default_arxiv_reader(keywords: list[str], limit: int) -> list[dict]:
+    """Default arxiv reader — NO network. Tests inject a fixture."""
+    return []
+
+
+def gather_sources(
+    slug: str,
+    *,
+    budget: int,
+    kernels_reader=None,
+    forum_reader=None,
+    arxiv_reader=None,
+    keywords: list[str] | None = None,
+) -> list[dict]:
+    """Collect + sanitize source records from the three injectable readers.
+
+    Every record is run through the untrusted-data filter:
+      - ``injection_markers`` records any adversarial phrase found (evidence);
+      - ``trust_label`` is forced to ``untrusted`` when markers are present;
+      - ``quote`` is the sanitized single-line data form (never executed).
+    Returns the list of sanitized source dicts (raw text discarded after scan).
+    """
+    kernels_reader = kernels_reader or default_kernels_reader
+    forum_reader = forum_reader or default_forum_reader
+    arxiv_reader = arxiv_reader or default_arxiv_reader
+    keywords = keywords or [slug]
+
+    raw: list[dict] = []
+    raw.extend(kernels_reader(slug, budget) or [])
+    raw.extend(forum_reader(slug, budget) or [])
+    raw.extend(arxiv_reader(keywords, budget) or [])
+
+    out: list[dict] = []
+    for rec in raw:
+        kind = str(rec.get("source_kind", "unknown"))
+        url = str(rec.get("source_url", "")) or None
+        title = sanitize_untrusted(rec.get("title", ""), max_len=200)
+        body = str(rec.get("text", "") or "")
+        markers = detect_injection(title + "\n" + body)
+        trust = classify_trust(kind, markers)
+        out.append(
+            {
+                "source_kind": kind,
+                "source_url": url,
+                "title": title,
+                "quote": sanitize_untrusted(body or title),
+                "trust_label": trust,
+                "injection_markers": markers,
+                "keyword_hits": _kernel_keywords(title + " " + body),
+            }
+        )
+    return out
+
+
 def add_parsers(sub: argparse._SubParsersAction) -> None:
     rs = sub.add_parser("research", help="Cited, trust-labeled web research items")
     rs_sub = rs.add_subparsers(dest="research_cmd", required=True)

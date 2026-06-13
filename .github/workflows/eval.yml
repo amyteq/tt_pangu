@@ -23,10 +23,13 @@ on:
   schedule:
     - cron: "30 3 * * *"
   workflow_dispatch:
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
   issues: write
+  pull-requests: write
   actions: read
 
 concurrency:
@@ -55,7 +58,7 @@ jobs:
           python-version: "3.12"
 
       - name: install kca
-        run: pip install -e ".[dev]"
+        run: pip install -e ".[dev,eval]"
 
       - name: locations
         id: locations
@@ -282,3 +285,189 @@ jobs:
           gh issue comment "$ISSUE_NUMBER" \
             --body-file /tmp/eval-diff.md
           echo "commented on issue #$ISSUE_NUMBER"
+
+  # ---------------------------------------------------------------------------
+  # eval-delta-check (issue #63 / M14-T009): BLOCKING PR gate.
+  #
+  # Runs the SAME mocked runner as the nightly, compares the PR's snapshot
+  # against the checked-in baseline (eval/baselines/mocked-baseline.json), and
+  # FAILS the PR if any suite regresses past its per-suite failure_threshold
+  # (ADR-0019 "Addendum"). The `eval:waive-delta` label (human-only) skips the
+  # blocking behaviour with a mandatory rationale comment, recorded in
+  # agent_tool_audit.
+  # ---------------------------------------------------------------------------
+  eval-delta-check:
+    name: eval-delta-check (PR gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name == 'pull_request'
+    env:
+      # Clean LLM/Kaggle env: the gate is mocked + dry-run only.
+      KCA_SKIP_DOTENV: "1"
+      KCA_ALLOW_REMOTE: ""
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: install kca
+        run: pip install -e ".[dev,eval]"
+
+      - name: run kca eval (mocked, dry-run) for this PR
+        run: |
+          python tools/kca/kca.py eval run \
+            --all --route mocked --dry-run --json \
+            > /tmp/eval-pr-stdout.log 2>/dev/null || true
+          grep -E '^\{' /tmp/eval-pr-stdout.log | tail -n 1 > /tmp/eval-pr-snapshot.json
+          if [ ! -s /tmp/eval-pr-snapshot.json ]; then
+            echo "::error::no JSON payload produced by kca eval run --all"
+            cat /tmp/eval-pr-stdout.log
+            exit 1
+          fi
+
+      - name: detect eval:waive-delta label
+        id: waiver
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          if echo "$LABELS" | python -c "import json,sys; print('eval:waive-delta' in json.load(sys.stdin))" | grep -q True; then
+            echo "waived=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "waived=0" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: compare against baseline (per-suite failure_threshold)
+        id: delta
+        env:
+          WAIVED: ${{ steps.waiver.outputs.waived }}
+        run: |
+          python <<'PY'
+          import json, os, sys
+
+          REL_TOL = 0.02  # 2% relative drift on recorded cv_score metrics
+          LOWER_IS_BETTER = {"rmsle", "rmse", "logloss", "mae"}
+
+          baseline = json.load(open("eval/baselines/mocked-baseline.json"))
+          current = json.load(open("/tmp/eval-pr-snapshot.json"))
+
+          base_by_name = {s["name"]: s for s in baseline.get("suites", [])}
+          cur_by_name = {s["name"]: s for s in current.get("suites", [])}
+
+          regressions = []
+          for name, b in base_by_name.items():
+              c = cur_by_name.get(name)
+              if c is None:
+                  regressions.append(f"{name}: suite missing from PR run")
+                  continue
+              # absolute shape thresholds
+              if c.get("fail", 0) > 0:
+                  regressions.append(f"{name}: fail={c['fail']} (must be 0)")
+              if c.get("error", 0) > 0:
+                  regressions.append(f"{name}: error={c['error']} (must be 0)")
+              if c.get("audit_grep_violations", 0) > 0:
+                  regressions.append(
+                      f"{name}: audit_grep_violations={c['audit_grep_violations']} (must be 0)"
+                  )
+              if c.get("pass", 0) < b.get("pass", 0):
+                  regressions.append(
+                      f"{name}: pass={c['pass']} dropped below baseline floor {b['pass']}"
+                  )
+              # relative metric thresholds (arm only when baseline recorded a cv_score)
+              b_cv = b.get("cv_score")
+              c_cv = c.get("cv_score")
+              if b_cv is not None and c_cv is not None:
+                  metric = (b.get("cv_metric") or "").lower()
+                  tol = b.get("rel_tol", REL_TOL)
+                  if metric in LOWER_IS_BETTER:
+                      if c_cv > b_cv * (1 + tol):
+                          regressions.append(
+                              f"{name}: cv_score {c_cv} worse than {b_cv}*(1+{tol})"
+                          )
+                  else:
+                      if c_cv < b_cv * (1 - tol):
+                          regressions.append(
+                              f"{name}: cv_score {c_cv} worse than {b_cv}*(1-{tol})"
+                          )
+
+          out = os.environ["GITHUB_OUTPUT"]
+          if regressions:
+              body = "## eval-delta-check: regression(s) detected\n\n" + "\n".join(
+                  f"- {r}" for r in regressions
+              )
+              open("/tmp/eval-delta.md", "w").write(body + "\n")
+              with open(out, "a") as fh:
+                  fh.write("regressed=1\n")
+              print(body)
+          else:
+              with open(out, "a") as fh:
+                  fh.write("regressed=0\n")
+              print("eval-delta-check: no suite regressed past threshold.")
+          PY
+
+      - name: record waiver in agent_tool_audit (and require rationale)
+        if: steps.waiver.outputs.waived == '1' && steps.delta.outputs.regressed == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          # The waiver is NOT silent: require a rationale comment on the PR
+          # and record the bypass in agent_tool_audit. Fail the gate if no
+          # rationale is present so the bypass cannot be applied silently.
+          RATIONALE=$(gh pr view "$PR_NUMBER" --json comments \
+            -q '[.comments[].body | select(test("eval:waive-delta rationale:"; "i"))] | last // ""')
+          if [ -z "$RATIONALE" ]; then
+            echo "::error::eval:waive-delta requires a comment of the form 'eval:waive-delta rationale: <why>'."
+            exit 1
+          fi
+          python - "$PR_NUMBER" "$ACTOR" "$RATIONALE" <<'PY'
+          import datetime, hashlib, sys
+          sys.path.insert(0, "tools/kca")
+          pr, actor, rationale = sys.argv[1], sys.argv[2], sys.argv[3]
+          rec = {
+              "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "skill_name": "eval-delta-check",
+              "tool_name": "eval_delta_check",
+              "operation": "ci.eval_delta_waiver",
+              "decision": "waived",
+              "mode": "default",
+              "policy_profile": "ci",
+              "audit_required": True,
+              "args_hash": hashlib.sha256(f"{pr}:{rationale}".encode()).hexdigest()[:16],
+              "extra": {"pr": pr, "actor": actor, "rationale": rationale,
+                        "label": "eval:waive-delta"},
+          }
+          # insert_tool_audit is best-effort: returns -1 (and warns) if the DB
+          # is unreachable in CI; the waiver is still preserved in the run log.
+          try:
+              import db
+              rid = db.insert_tool_audit(rec)
+              print(f"recorded eval_delta_check waiver for PR #{pr} by {actor} (audit id {rid})")
+          except Exception as exc:
+              print(f"::warning::could not write agent_tool_audit ({type(exc).__name__}: {exc}); "
+                    f"waiver still in log: pr={pr} actor={actor} rationale={rationale!r}")
+          PY
+
+      - name: post delta comment
+        if: steps.delta.outputs.regressed == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr comment "$PR_NUMBER" --body-file /tmp/eval-delta.md || true
+
+      - name: enforce gate
+        if: steps.delta.outputs.regressed == '1'
+        run: |
+          if [ "${{ steps.waiver.outputs.waived }}" = "1" ]; then
+            echo "::notice::eval-delta-check regressed but eval:waive-delta is set; gate bypassed (audited)."
+            exit 0
+          fi
+          echo "::error::eval-delta-check failed: a suite regressed past its failure_threshold."
+          echo "Add the 'eval:waive-delta' label + a rationale comment to bypass (human-only)."
+          exit 1

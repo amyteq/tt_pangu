@@ -62,6 +62,7 @@ runs/
 
 # per-job git worktree workspaces
 .workspaces/
+.claude/worktrees/
 
 # model weights and checkpoints
 *.ckpt

@@ -285,8 +285,13 @@ def test_kca_kaggle_push_refuses_before_cli(tmp_path):
     ADR-0006 default is allow). With the gate on and ``KCA_ALLOW_REMOTE``
     absent, ``cmd_push`` raises ``ApprovalRequired: kernel_push`` and emits a
     blocked envelope with ``side_effect == "REMOTE_WRITE"`` — no subprocess to
-    the kaggle CLI happens. (``cmd_push`` has no ``KAGGLE_USERNAME`` early check
-    like ``cmd_submit``; extending it is out of scope — M10-T002 / #11.)
+    the kaggle CLI happens.
+
+    M14-T004 added a ``KAGGLE_USERNAME`` / ``KAGGLE_KEY`` pre-check (issue #62)
+    that fires BEFORE the approval gate, mirroring ``cmd_submit``. To keep this
+    test exercising the *approval-gate* refusal specifically, we pass stub
+    creds so the pre-check is satisfied and control reaches the gate. (The
+    creds-missing refusal is covered by ``tests/test_m14_concurrency.py``.)
     """
     proc = _run_kca(
         [
@@ -297,7 +302,11 @@ def test_kca_kaggle_push_refuses_before_cli(tmp_path):
             "--json",
         ],
         tmp_path,
-        extra_env={"KCA_POLICY": json.dumps({"approval_gates": {"kernel_push": True}})},
+        extra_env={
+            "KCA_POLICY": json.dumps({"approval_gates": {"kernel_push": True}}),
+            "KAGGLE_USERNAME": "stub-user",
+            "KAGGLE_KEY": "stub-key",
+        },
     )
     assert proc.returncode != 0, (
         f"expected non-zero exit on gated kernel_push; "
@@ -334,6 +343,10 @@ def test_audit_grep_no_real_push_leaked(tmp_path):
         extra_env={
             "KCA_POLICY": json.dumps({"approval_gates": {"kernel_push": True}}),
             "KCA_AUDIT_PATH": str(audit_path),
+            # Stub creds so the M14-T004 pre-check passes and the audit-grep
+            # assertion still exercises the approval-gate refusal path.
+            "KAGGLE_USERNAME": "stub-user",
+            "KAGGLE_KEY": "stub-key",
         },
     )
 
