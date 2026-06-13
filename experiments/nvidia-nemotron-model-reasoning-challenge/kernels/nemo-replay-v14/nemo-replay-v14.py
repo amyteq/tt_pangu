@@ -188,10 +188,12 @@ MODEL_CONFIG = find_unique(
         "/kaggle/input/models/metric/nemotron-3-nano-30b-a3b-bf16/transformers/default/1/config.json",
         "/kaggle/input/models/metric/nemotron-3-nano-30b-a3b-bf16/transformers/default/*/config.json",
     ],
-    lambda path: path.is_file()
-    and (
-        (path.parent / "model.safetensors.index.json").is_file()
-        or any(path.parent.glob("*.safetensors"))
+    lambda path: (
+        path.is_file()
+        and (
+            (path.parent / "model.safetensors.index.json").is_file()
+            or any(path.parent.glob("*.safetensors"))
+        )
     ),
 )
 MODEL_PATH = str(MODEL_CONFIG.parent)
@@ -226,9 +228,11 @@ HUIKANG_SFT_DIR = find_unique(
         "/kaggle/input/datasets/huikang/*/*/nemotron-master/training/sft/04-08-16-14",
         "/kaggle/input/datasets/huikang/**/nemotron-master/training/sft/04-08-16-14",
     ],
-    lambda path: path.is_dir()
-    and (path / "tokens").is_dir()
-    and (path / "logprobs/index.jsonl").is_file(),
+    lambda path: (
+        path.is_dir()
+        and (path / "tokens").is_dir()
+        and (path / "logprobs/index.jsonl").is_file()
+    ),
 )
 CORPUS_PATH = str(HUIKANG_SFT_DIR / "tokens")
 TRAIN_ORDER_PATH = str(HUIKANG_SFT_DIR / "logprobs/index.jsonl")
