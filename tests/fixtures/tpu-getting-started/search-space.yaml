@@ -1,0 +1,8 @@
+# M14-T003 search-space fixture (ADR-0020 §4).
+# 3 backbones x 2 image sizes x 2 epoch counts = 12 cells (full cross-product).
+axes:
+  backbone:    [mobilenet_v2, efficientnet_b0, resnet50]
+  image_size:  [192, 224]
+  epochs:      [3, 6]
+sample:        full
+seed_template: experiments/tpu-getting-started/baseline-tl/baseline.py

@@ -136,6 +136,157 @@ def _policy_from_env() -> dict:
         return {}
 
 
+def _missing_kaggle_creds() -> str | None:
+    """Return the cmd_submit-style error string for an absent credential, else None.
+
+    Reads ``KAGGLE_USERNAME`` / ``KAGGLE_KEY`` for *presence only* — the values
+    are never returned, logged, or printed (CLAUDE.md dev-phase secret policy).
+    The message text mirrors ``cmd_submit`` verbatim so callers see one
+    envelope shape across submit + push.
+    """
+    if not os.environ.get("KAGGLE_USERNAME"):
+        return "KAGGLE_USERNAME not set; cannot submit"
+    if not os.environ.get("KAGGLE_KEY"):
+        return "KAGGLE_KEY not set; cannot submit"
+    return None
+
+
+def _utc_next_window_open() -> str:
+    """ISO-8601 timestamp of the next UTC-midnight roll-over.
+
+    The daily-budget window is the UTC calendar day (ADR-0020 §7); a refused
+    push/submit backs off until this instant, when ``count_today_submissions``
+    resets to 0.
+    """
+    now = _dt.datetime.now(_dt.timezone.utc)
+    tomorrow = (now + _dt.timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    return tomorrow.isoformat()
+
+
+def _list_active_pushes(competition_id: str) -> list[dict]:
+    """Return the active (non-terminal) latest-per-slug submissions KCA owns.
+
+    Mirrors ``db._count_active_pushes`` (same "latest per file_path / slug
+    proxy, status != terminal/stalled" rule, ADR-0020 §7) but returns the rows
+    so the refusal envelope can name which runs hold the slots. READ_ONLY.
+    """
+    terminal = list(db._PUSH_TERMINAL_STATUSES)
+    with db.get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                WITH latest AS (
+                  SELECT DISTINCT ON (file_path)
+                         file_path, status, created_at
+                    FROM submissions
+                   WHERE competition_id = %s::uuid
+                   ORDER BY file_path, created_at DESC
+                )
+                SELECT file_path, status
+                  FROM latest
+                 WHERE status IS NULL
+                    OR lower(status) <> ALL (%s)
+                 ORDER BY created_at DESC
+                """,
+                (competition_id, terminal),
+            )
+            rows = cur.fetchall()
+    return [{"file_path": r["file_path"], "status": r["status"]} for r in rows]
+
+
+def _check_budget_gates(
+    command_name: str,
+    competition: str | None,
+    se: SideEffect,
+    *,
+    check_concurrency: bool,
+) -> int | None:
+    """Run the concurrency + daily-budget courtesy gates (ADR-0020 §7).
+
+    Returns an EXIT_* code if a gate refuses (after emitting the JSON
+    envelope); ``None`` to proceed. Best-effort: a missing competition slug or
+    an unreachable DB is non-fatal — the gate is a courtesy guard, and
+    Kaggle's own 429/400 remains the hard authority (the loop HALTS on that,
+    it does not retry here). No real Kaggle call happens on any path.
+    """
+    if not competition:
+        return None
+    try:
+        comp = db.get_competition_by_slug(competition)
+    except Exception:
+        # Unknown comp / DB unreachable: skip the courtesy gate, let the
+        # downstream path (or Kaggle itself) be the authority.
+        return None
+
+    competition_id = str(comp["id"])
+
+    # 1. Concurrency gate (cmd_push only).
+    if check_concurrency:
+        max_concurrent = comp.get("max_concurrent_pushes")
+        if max_concurrent is not None:
+            try:
+                active = db.count_active_pushes(competition_id)
+            except Exception:
+                active = None
+            if active is not None and active >= int(max_concurrent):
+                try:
+                    active_runs = _list_active_pushes(competition_id)
+                except Exception:
+                    active_runs = []
+                print(
+                    json.dumps(
+                        {
+                            "ok": False,
+                            "error": (
+                                f"max_concurrent_pushes reached "
+                                f"({active}/{max_concurrent}); refusing to push"
+                            ),
+                            "competition": competition,
+                            "command": f"kaggle {command_name}",
+                            "side_effect": se.value,
+                            "active_pushes": active,
+                            "max_concurrent_pushes": int(max_concurrent),
+                            "active_runs": active_runs,
+                        },
+                        ensure_ascii=False,
+                    )
+                )
+                return EXIT_BLOCKED
+
+    # 2. Daily-budget gate (cmd_push + cmd_submit).
+    max_daily = comp.get("max_daily_submissions")
+    if max_daily is not None:
+        try:
+            today = db.count_today_submissions(competition_id)
+        except Exception:
+            today = None
+        if today is not None and today >= int(max_daily):
+            print(
+                json.dumps(
+                    {
+                        "ok": False,
+                        "error": (
+                            f"max_daily_submissions reached "
+                            f"({today}/{max_daily}); backing off until the "
+                            f"UTC-day window reopens"
+                        ),
+                        "competition": competition,
+                        "command": f"kaggle {command_name}",
+                        "side_effect": se.value,
+                        "today_submissions": today,
+                        "max_daily_submissions": int(max_daily),
+                        "next_window_open_utc": _utc_next_window_open(),
+                    },
+                    ensure_ascii=False,
+                )
+            )
+            return EXIT_BLOCKED
+
+    return None
+
+
 def cmd_submit(args: argparse.Namespace) -> int:
     se = SideEffect.SUBMISSION
     competition = args.competition
@@ -160,6 +311,14 @@ def cmd_submit(args: argparse.Namespace) -> int:
                 "side_effect": se.value,
             }
         )
+
+    # Daily-budget gate (ADR-0020 §7) — refuse past max_daily_submissions for
+    # the UTC calendar day, BEFORE the approval gate. Courtesy guard only.
+    budget_block = _check_budget_gates(
+        "submit", competition, se, check_concurrency=False
+    )
+    if budget_block is not None:
+        return budget_block
 
     try:
         _check_approval_gate("kaggle_submit", _policy_from_env())
@@ -287,6 +446,32 @@ def _lint_kernel(kernel_dir: str) -> tuple[bool, str | None]:
 def cmd_push(args: argparse.Namespace) -> int:
     se = SideEffect.REMOTE_WRITE
     kernel_dir = args.kernel_dir
+    competition = getattr(args, "competition", None)
+
+    # The pre-flight gates guard a REAL push only. `--dry-run` is a READ_ONLY
+    # metadata validation that never reaches Kaggle, so it does not require
+    # credentials or consume a concurrency / daily-budget slot.
+    if not args.dry_run:
+        # 1. Credentials pre-check (issue #62) — mirror cmd_submit's envelope
+        #    shape, BEFORE the approval gate fires. Reads env for presence only.
+        creds_error = _missing_kaggle_creds()
+        if creds_error:
+            return _emit_json(
+                {
+                    "ok": False,
+                    "error": creds_error,
+                    "competition": competition,
+                    "side_effect": se.value,
+                }
+            )
+
+        # 2. Concurrency + 3. daily-budget courtesy gates (ADR-0020 §7), BEFORE
+        #    the approval gate. No real Kaggle call on any refusal path.
+        gate_block = _check_budget_gates(
+            "push", competition, se, check_concurrency=True
+        )
+        if gate_block is not None:
+            return gate_block
 
     try:
         _check_approval_gate("kernel_push", _policy_from_env())
@@ -378,6 +563,8 @@ def cmd_push(args: argparse.Namespace) -> int:
             kernel_ref,
             poll_seconds=getattr(args, "poll_seconds", 60),
             max_minutes=getattr(args, "max_poll_minutes", 60),
+            competition=competition,
+            run_id=getattr(args, "run_id", None),
         )
         response["watch"] = watch_result
         response["ok"] = push_ok and watch_result.get("terminal", False)
@@ -385,54 +572,310 @@ def cmd_push(args: argparse.Namespace) -> int:
     return _emit_json(response)
 
 
-def _watch_kernel_until_terminal(
-    kernel_ref: str, *, poll_seconds: int = 60, max_minutes: int = 60
-) -> dict:
-    """Poll a kernel run until it produces a downloadable output log.
+# Watcher states (ADR-0020 §6).
+_STATE_QUEUED = "queued"
+_STATE_RUNNING = "running"
+_STATE_TERMINAL = "terminal"
 
-    Returns a dict with: terminal (bool), polls, runtime_seconds, log_path,
-    error_excerpt (if a Python traceback is detected in stderr). The Kaggle
-    `kernels status` API has been observed to 500 for newly-pushed kernels;
-    this watcher uses `kernels output` instead, which only succeeds once the
-    run is terminal.
+# Default estimated queue time when this competition/accelerator has no
+# history (ADR-0020 §6: default 15 min).
+_DEFAULT_EST_QUEUE_SECONDS = 15 * 60
+
+# Stable RUNNING cadence (ADR-0020 §6).
+_RUNNING_CADENCE_SECONDS = 300
+
+# Substrings classifying a `kaggle kernels status` 200 body.
+_STATUS_QUEUED_TOKENS = ("queued", "not started", "notstarted", "pending")
+_STATUS_RUNNING_TOKENS = ("running",)
+_STATUS_TERMINAL_TOKENS = ("complete", "error", "cancel", "failed")
+
+
+def _fibonacci_queued_cadence(cap_seconds: float):
+    """Yield the QUEUED Fibonacci backoff `[60, 90, 150, 240, …]`, capped.
+
+    The ramp is `a, b = 60, 90` then `a, b = b, a + b`; every value is clamped
+    to ``cap_seconds`` (⅓ × estimated_queue_time) so a short queue never waits
+    longer than a third of its own estimate. Once the cap is hit the cadence
+    holds there. ``cap_seconds`` is floored at 60 so the ramp always emits a
+    sane first wait even for tiny estimates.
+    """
+    cap = max(60.0, float(cap_seconds))
+    a, b = 60, 90
+    while True:
+        yield min(a, cap)
+        a, b = b, a + b
+
+
+def _estimate_queue_seconds(competition: str | None) -> float:
+    """Median of the last 5 same-accelerator queue times for this comp.
+
+    Best-effort DB read of ``analysis_jsonb.queue_time_seconds``; any failure
+    (no DB, no history, unknown comp) falls back to the 15-min default. The
+    estimator never raises into the poller.
+    """
+    if not competition:
+        return float(_DEFAULT_EST_QUEUE_SECONDS)
+    try:
+        comp = db.get_competition_by_slug(competition)
+        if not comp:
+            return float(_DEFAULT_EST_QUEUE_SECONDS)
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT (er.analysis_jsonb ->> 'queue_time_seconds')::float AS q
+                      FROM experiment_runs er
+                      JOIN experiments e ON e.id = er.experiment_id
+                     WHERE e.competition_id = %s::uuid
+                       AND er.analysis_jsonb ? 'queue_time_seconds'
+                     ORDER BY er.created_at DESC NULLS LAST
+                     LIMIT 5
+                    """,
+                    (str(comp["id"]),),
+                )
+                samples = [r["q"] for r in cur.fetchall()]
+    except Exception:
+        samples = None
+    if not samples:
+        return float(_DEFAULT_EST_QUEUE_SECONDS)
+    ordered = sorted(float(s) for s in samples if s is not None)
+    if not ordered:
+        return float(_DEFAULT_EST_QUEUE_SECONDS)
+    mid = len(ordered) // 2
+    if len(ordered) % 2:
+        return ordered[mid]
+    return (ordered[mid - 1] + ordered[mid]) / 2.0
+
+
+def _classify_status(stdout: str) -> str | None:
+    """Map a `kaggle kernels status` 200 body to a watcher state.
+
+    Returns ``_STATE_QUEUED`` / ``_STATE_RUNNING`` / ``_STATE_TERMINAL`` or
+    ``None`` when the body is unrecognised (treated as no-change by the caller).
+    The authoritative TERMINAL oracle stays the `kernels output` size>100 check;
+    this is only the QUEUED-vs-RUNNING cadence classifier (plus an early
+    terminal hint when status clearly says complete/error).
+    """
+    text = (stdout or "").lower()
+    if not text:
+        return None
+    if any(tok in text for tok in _STATUS_TERMINAL_TOKENS):
+        return _STATE_TERMINAL
+    if any(tok in text for tok in _STATUS_RUNNING_TOKENS):
+        return _STATE_RUNNING
+    if any(tok in text for tok in _STATUS_QUEUED_TOKENS):
+        return _STATE_QUEUED
+    return None
+
+
+def _default_status_fetch(kernel_ref: str) -> tuple[int, str]:
+    """Call `kaggle kernels status`; return (http_status_guess, stdout).
+
+    The CLI does not surface the raw HTTP code, so we infer 500/503 from the
+    stderr text the M10 runs emitted ("500 - Internal Server Error" /
+    "503 ..."). A 500/503 is reported so the poller can treat it as
+    non-terminal, no-state-change (ADR-0020 §6). Any other invocation reports
+    200 with the stdout body for classification.
+    """
+    proc = subprocess.run(
+        ["kaggle", "kernels", "status", kernel_ref],
+        capture_output=True,
+        text=True,
+    )
+    blob = f"{proc.stdout or ''}\n{proc.stderr or ''}".lower()
+    if "500" in blob and "server error" in blob:
+        return 500, proc.stdout or ""
+    if "503" in blob and ("unavailable" in blob or "service" in blob):
+        return 503, proc.stdout or ""
+    return 200, proc.stdout or ""
+
+
+def _default_output_fetch(kernel_ref: str, tmp_dir: str) -> Path:
+    """Call `kaggle kernels output`; return the local log path (may not exist).
+
+    `kaggle kernels output` exits 1 + writes nothing while the run is QUEUED or
+    RUNNING; exits 0 + writes the log file once the run is terminal. The
+    size>100 check on the returned path is the authoritative TERMINAL oracle
+    (M10-discovered, preserved per ADR-0020 §6).
+    """
+    log_path = Path(tmp_dir) / f"{kernel_ref.split('/')[-1]}.log"
+    try:
+        if log_path.exists():
+            log_path.unlink()
+    except OSError:
+        pass
+    subprocess.run(
+        ["kaggle", "kernels", "output", kernel_ref, "-p", tmp_dir],
+        capture_output=True,
+        text=True,
+    )
+    return log_path
+
+
+def _watch_kernel_until_terminal(
+    kernel_ref: str,
+    *,
+    poll_seconds: int = 60,
+    max_minutes: int = 60,
+    competition: str | None = None,
+    run_id: str | None = None,
+    sleep_fn=None,
+    now_fn=None,
+    status_fetch=None,
+    output_fetch=None,
+    est_queue_seconds: float | None = None,
+) -> dict:
+    """Poll a kernel run with the ADR-0020 §6 three-state cadence machine.
+
+    States:
+      QUEUED   → Fibonacci ramp `[60, 90, 150, 240, …]` capped at
+                 ⅓ × estimated_queue_time.
+      RUNNING  → stable 300 s cadence.
+      TERMINAL → exit (authoritative oracle = `kernels output` log size>100).
+      STALLED  → still QUEUED past ``max_minutes`` → exit non-terminal, mark
+                 the submission ``stalled`` (frees the concurrency slot).
+
+    State is classified from `kaggle kernels status` when it returns 200; a
+    500/503 is treated as **non-terminal, no state change** (the M10 fresh-push
+    500 bug must not be read as terminal or as an error). The `kernels output`
+    size>100 check remains the authoritative TERMINAL detector even when status
+    never returns 200.
+
+    All time + I/O seams are injectable so tests drive the machine with a
+    mocked clock and mocked CLI responses (no real sleeps, no real Kaggle):
+      - ``sleep_fn(seconds)``  — defaults to ``time.sleep``.
+      - ``now_fn()``           — monotonic seconds; defaults to ``time.monotonic``.
+      - ``status_fetch(ref)``  — returns ``(http_status, stdout)``.
+      - ``output_fetch(ref, tmp_dir)`` — returns a ``Path`` (may not exist).
+
+    Returns a dict with: terminal, stalled, polls, state, cadence (the cadence
+    sequence actually slept, for assertion), runtime_seconds, queue_time_seconds,
+    running_time_seconds, log_path, error_excerpt.
 
     READ_ONLY against Kaggle.
     """
     import tempfile
     import time as _time
 
+    sleep_fn = sleep_fn or _time.sleep
+    now_fn = now_fn or _time.monotonic
+    status_fetch = status_fetch or _default_status_fetch
+    output_fetch = output_fetch or _default_output_fetch
+
+    if est_queue_seconds is None:
+        est_queue_seconds = _estimate_queue_seconds(competition)
+    queued_cap = est_queue_seconds / 3.0
+    queued_cadence = _fibonacci_queued_cadence(queued_cap)
+
     tmp_dir = tempfile.mkdtemp(prefix="kca-watch-")
     log_path = Path(tmp_dir) / f"{kernel_ref.split('/')[-1]}.log"
-    polls = 0
-    started = _time.monotonic()
-    max_polls = max(1, (max_minutes * 60) // poll_seconds)
-    while polls < max_polls:
-        polls += 1
-        try:
-            if log_path.exists():
-                log_path.unlink()
-        except OSError:
-            pass
-        # `kaggle kernels output` exits 1 + writes nothing while running;
-        # exits 0 + writes log file once terminal.
-        subprocess.run(
-            ["kaggle", "kernels", "output", kernel_ref, "-p", tmp_dir],
-            capture_output=True,
-            text=True,
-        )
-        if log_path.exists() and log_path.stat().st_size > 100:
-            break
-        if polls < max_polls:
-            _time.sleep(poll_seconds)
 
-    runtime = _time.monotonic() - started
-    terminal = log_path.exists() and log_path.stat().st_size > 100
+    polls = 0
+    cadence: list[float] = []
+    started = now_fn()
+    deadline = started + max_minutes * 60
+    state = _STATE_QUEUED
+    # Monotonic timestamp at which the run was first observed RUNNING, so we can
+    # split queue time from running time. None until the first RUNNING tick.
+    running_since: float | None = None
+    queue_time_seconds: float | None = None
+    running_time_seconds: float | None = None
+    terminal = False
+    stalled = False
+
+    while True:
+        polls += 1
+
+        # 1. Authoritative TERMINAL oracle: `kernels output` size > 100.
+        log_path = output_fetch(kernel_ref, tmp_dir)
+        if log_path.exists() and log_path.stat().st_size > 100:
+            terminal = True
+            if running_since is not None:
+                running_time_seconds = now_fn() - running_since
+            elif queue_time_seconds is None:
+                queue_time_seconds = now_fn() - started
+            break
+
+        # 2. Classify cadence state from `kernels status` (200 only). A
+        #    500/503 is non-terminal, no state change (ADR-0020 §6).
+        http_status, stdout = status_fetch(kernel_ref)
+        if http_status == 200:
+            classified = _classify_status(stdout)
+            if classified == _STATE_RUNNING and state != _STATE_RUNNING:
+                state = _STATE_RUNNING
+                running_since = now_fn()
+                queue_time_seconds = running_since - started
+            elif classified == _STATE_QUEUED:
+                state = _STATE_QUEUED
+            # A status-200 "terminal" hint is advisory only; the size>100 oracle
+            # on the next tick is authoritative, so we do not exit here.
+
+        # 3. STALLED: still QUEUED past the cap → exit non-terminal, free slot.
+        if now_fn() >= deadline:
+            if state == _STATE_QUEUED:
+                stalled = True
+                if queue_time_seconds is None:
+                    queue_time_seconds = now_fn() - started
+            break
+
+        # 4. Sleep one cadence step for the current state.
+        if state == _STATE_RUNNING:
+            wait = float(_RUNNING_CADENCE_SECONDS)
+        else:
+            wait = next(queued_cadence)
+        # Never overshoot the deadline.
+        remaining = deadline - now_fn()
+        if remaining <= 0:
+            if state == _STATE_QUEUED:
+                stalled = True
+                if queue_time_seconds is None:
+                    queue_time_seconds = now_fn() - started
+            break
+        wait = min(wait, remaining)
+        cadence.append(wait)
+        sleep_fn(wait)
+
+    runtime = now_fn() - started
+    if stalled:
+        state = "stalled"
+        _mark_submission_stalled(kernel_ref, competition)
+    elif terminal:
+        state = _STATE_TERMINAL
+
     result: dict = {
         "terminal": terminal,
+        "stalled": stalled,
+        "state": state,
         "polls": polls,
+        "cadence": cadence,
         "runtime_seconds": round(runtime, 1),
+        "queue_time_seconds": (
+            round(queue_time_seconds, 1) if queue_time_seconds is not None else None
+        ),
+        "running_time_seconds": (
+            round(running_time_seconds, 1) if running_time_seconds is not None else None
+        ),
         "log_path": str(log_path) if terminal else None,
     }
+
+    # Telemetry: record queue/running time separately so the estimator has data.
+    if run_id and (queue_time_seconds is not None or running_time_seconds is not None):
+        try:
+            db.set_run_analysis_jsonb(
+                run_id,
+                queue_time_seconds=(
+                    round(queue_time_seconds, 1)
+                    if queue_time_seconds is not None
+                    else None
+                ),
+                running_time_seconds=(
+                    round(running_time_seconds, 1)
+                    if running_time_seconds is not None
+                    else None
+                ),
+            )
+        except Exception as exc:  # best-effort; telemetry never blocks the watch
+            result["telemetry_warning"] = f"{type(exc).__name__}: {exc}"
 
     if terminal:
         # Extract any "Exception encountered" / Traceback excerpt so the caller
@@ -469,6 +912,167 @@ def _watch_kernel_until_terminal(
             result["error_excerpt"] = f"<log parse failed: {exc!r}>"
 
     return result
+
+
+def _mark_submission_stalled(kernel_ref: str, competition: str | None) -> None:
+    """Mark a QUEUED-too-long submission ``stalled`` to release its slot.
+
+    Best-effort: a missing competition / DB-unreachable path is a no-op (the
+    watcher already exited non-terminal). ``stalled`` is in
+    ``db._PUSH_TERMINAL_STATUSES`` so ``count_active_pushes`` stops counting the
+    slug, freeing the concurrency slot the loop was holding (ADR-0020 §6).
+    """
+    if not competition:
+        return
+    try:
+        comp = db.get_competition_by_slug(competition)
+        if not comp:
+            return
+        slug = kernel_ref.split("/")[-1]
+        # Mark the latest submission for this slug stalled; ``stalled`` is in
+        # db._PUSH_TERMINAL_STATUSES so count_active_pushes stops counting it.
+        with db.get_conn() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE submissions
+                       SET status = 'stalled'
+                     WHERE id = (
+                       SELECT id FROM submissions
+                        WHERE competition_id = %s::uuid
+                          AND file_path LIKE %s
+                        ORDER BY created_at DESC
+                        LIMIT 1
+                     )
+                    """,
+                    (str(comp["id"]), f"%{slug}%"),
+                )
+            conn.commit()
+    except Exception:
+        # Telemetry / slot release is best-effort; never raise into the watcher.
+        return
+
+
+def _watch_many(
+    kernel_refs: list[str],
+    *,
+    max_minutes: int = 60,
+    competition: str | None = None,
+    run_ids: dict[str, str] | None = None,
+    sleep_fn=None,
+    now_fn=None,
+    list_fetch=None,
+    est_queue_seconds: float | None = None,
+) -> dict:
+    """Watch ≥ 2 kernel slugs with ONE `kaggle kernels list` read per tick.
+
+    Each tick issues a single ``kaggle kernels list -m --page-size 100`` and
+    parses the per-slug status out of that one response, instead of N
+    per-slug status calls. Slugs that reach a terminal status drop out; the
+    loop ends when every slug is terminal or ``max_minutes`` elapses (remaining
+    slugs are marked ``stalled``). The QUEUED Fibonacci cadence governs the
+    shared tick interval until any slug is RUNNING, then the 300 s RUNNING
+    cadence applies (the slowest-state-wins rule keeps the single shared tick).
+
+    Single-slug watching is **not** routed here — ``cmd_push`` calls
+    ``_watch_kernel_until_terminal`` directly for one slug (ADR-0020 §6). This
+    function activates only at ≥ 2 tracked slugs and asserts that contract.
+
+    Injectable seams mirror ``_watch_kernel_until_terminal`` so tests drive it
+    with a mocked clock and a mocked list response (no real Kaggle, no sleeps):
+      - ``list_fetch()`` returns ``{slug: status_text}`` for the one list call.
+
+    Returns ``{"slugs": {slug: {state, terminal, polls}}, "list_calls": int,
+    "polls": int}`` — ``list_calls == polls`` proves ONE list per tick.
+    """
+    import time as _time
+
+    if len(kernel_refs) < 2:
+        raise ValueError("_watch_many requires >= 2 slugs; use the 1-slug watcher")
+
+    sleep_fn = sleep_fn or _time.sleep
+    now_fn = now_fn or _time.monotonic
+    list_fetch = list_fetch or _default_list_fetch
+
+    if est_queue_seconds is None:
+        est_queue_seconds = _estimate_queue_seconds(competition)
+    queued_cadence = _fibonacci_queued_cadence(est_queue_seconds / 3.0)
+
+    slugs = {ref.split("/")[-1]: ref for ref in kernel_refs}
+    per_slug: dict[str, dict] = {
+        s: {"state": _STATE_QUEUED, "terminal": False, "polls": 0} for s in slugs
+    }
+    started = now_fn()
+    deadline = started + max_minutes * 60
+    polls = 0
+    list_calls = 0
+
+    while True:
+        polls += 1
+        # ONE list read per tick, parsed per-slug.
+        statuses = list_fetch()
+        list_calls += 1
+        any_running = False
+        for slug, info in per_slug.items():
+            if info["terminal"]:
+                continue
+            info["polls"] += 1
+            classified = _classify_status(statuses.get(slug, ""))
+            if classified == _STATE_TERMINAL:
+                info["state"] = _STATE_TERMINAL
+                info["terminal"] = True
+            elif classified == _STATE_RUNNING:
+                info["state"] = _STATE_RUNNING
+                any_running = True
+            elif classified == _STATE_QUEUED:
+                info["state"] = _STATE_QUEUED
+
+        if all(info["terminal"] for info in per_slug.values()):
+            break
+        if now_fn() >= deadline:
+            for slug, info in per_slug.items():
+                if not info["terminal"]:
+                    info["state"] = "stalled"
+                    _mark_submission_stalled(slugs[slug], competition)
+            break
+
+        wait = float(_RUNNING_CADENCE_SECONDS) if any_running else next(queued_cadence)
+        remaining = deadline - now_fn()
+        if remaining <= 0:
+            for slug, info in per_slug.items():
+                if not info["terminal"]:
+                    info["state"] = "stalled"
+                    _mark_submission_stalled(slugs[slug], competition)
+            break
+        sleep_fn(min(wait, remaining))
+
+    return {"slugs": per_slug, "list_calls": list_calls, "polls": polls}
+
+
+def _default_list_fetch() -> dict[str, str]:
+    """Call `kaggle kernels list -m --page-size 100`; return {slug: status}.
+
+    ONE real Kaggle list read; parses the table/JSON the CLI emits into a
+    per-slug status map. Best-effort parsing — an unparsable row is dropped
+    (the per-slug classifier then sees an empty status = no state change).
+    """
+    proc = subprocess.run(
+        ["kaggle", "kernels", "list", "-m", "--page-size", "100", "--csv"],
+        capture_output=True,
+        text=True,
+    )
+    out: dict[str, str] = {}
+    lines = (proc.stdout or "").splitlines()
+    for line in lines[1:]:  # skip header
+        parts = [p.strip() for p in line.split(",")]
+        if len(parts) < 2:
+            continue
+        ref = parts[0]
+        slug = ref.split("/")[-1]
+        # The status column position varies by CLI version; join the rest so
+        # the substring classifier can still pick up running/complete/error.
+        out[slug] = " ".join(parts[1:])
+    return out
 
 
 def cmd_upload(args: argparse.Namespace) -> int:
@@ -878,6 +1482,12 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
         help="Directory containing kernel-metadata.json",
     )
     p_push.add_argument(
+        "--competition",
+        default=None,
+        help="Competition slug — enables the concurrency + daily-budget "
+        "courtesy gates (ADR-0020 §7). Omit to skip the DB-backed gates.",
+    )
+    p_push.add_argument(
         "--dry-run",
         action="store_true",
         help="Validate kernel-metadata.json without uploading",
@@ -908,6 +1518,13 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
         type=int,
         default=60,
         help="Watcher cap in minutes (default 60)",
+    )
+    p_push.add_argument(
+        "--run-id",
+        dest="run_id",
+        default=None,
+        help="experiment_runs.id to record queue_time_seconds / "
+        "running_time_seconds on (analysis_jsonb telemetry)",
     )
     p_push.add_argument("--json", action="store_true")
     p_push.set_defaults(func=cmd_push)

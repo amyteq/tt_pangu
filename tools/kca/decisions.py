@@ -69,9 +69,11 @@ def cmd_approve(args: argparse.Namespace) -> int:
         # so a subsequent `scripts/run_job.py --job-id <uuid>` resume path can
         # find it.
         job_id = None
+        decision_type = None
         try:
             row = _db.get_decision(args.id)
             job_id = row.get("job_id")
+            decision_type = row.get("decision_type")
         except Exception:
             job_id = None
         if job_id:
@@ -83,15 +85,25 @@ def cmd_approve(args: argparse.Namespace) -> int:
                 )
             except Exception:
                 pass
-        return _emit(
-            True,
-            {
-                "decision_id": args.id,
-                "resolution": "approved",
-                "job_id": str(job_id) if job_id else None,
-                "side_effect": SideEffect.LOCAL_WRITE.value,
-            },
-        )
+        payload: dict = {
+            "decision_id": args.id,
+            "resolution": "approved",
+            "job_id": str(job_id) if job_id else None,
+            "side_effect": SideEffect.LOCAL_WRITE.value,
+        }
+        # M14-T007: a kaggle.exploration_stuck approval's notes become the new
+        # exploration seed. Parse them into a structured option or free-text
+        # direction so the resuming loop (T008) can mint the next batch and
+        # record this decision id on the run's analysis_jsonb.escalation_id.
+        if decision_type == "kaggle.exploration_stuck":
+            try:
+                import stuck as _stuck
+
+                payload["resume_seed"] = _stuck.resume_seed_from_notes(notes)
+                payload["escalation_id"] = args.id
+            except Exception:
+                pass
+        return _emit(True, payload)
     except Exception as exc:
         return _emit(False, {"error": str(exc)}, EXIT_RUNTIME)
 
