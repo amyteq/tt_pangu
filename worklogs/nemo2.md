@@ -3,7 +3,7 @@
 - Session name: `nemo2`
 - Job id: `a9adb218`
 - Session id: `a9adb218-016d-42d0-befa-430a1922837a`
-- Status: `working`
+- Status: `completed`
 - Source transcript: `/home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu/a9adb218-016d-42d0-befa-430a1922837a.jsonl`
 
 ---
@@ -6956,3 +6956,260 @@ updated
 > **v14 (harry account) had errored** — caught it while checking statuses. It failed fast (minutes, not hours): "0 replay examples were tokenized". Root cause: on the current Kaggle image `apply_chat_template(tokenize=True)` returns a `BatchEncoding`, so the public notebook's `len(full_ids) <= len(prompt_ids)` check compared dict key counts (2 ≤ 2) and silently skipped every replay row — meaning the public "0.87 reproduction" notebook likely never actually ran end-to-end. I fixed it (unwrap `input_ids`, plus a first-row diagnostic print before the assert) and pushed **v2, now RUNNING** with the same 7h deadline. Fix committed to PR #90 ([`822be88`](https://github.com/amyteq/tt_pangu/commit/822be88187e708d26b9b4e32723532569ad2162d)).
 > 
 > Issue #86 updated: T4 → 🔵 submitted (LB pending), T10 → v1 fail-fast diagnosed + v2 running, snapshot refreshed. Remaining: when v10's score lands I'll record it, and when v14 v2 completes (~7–8h) I'll submit it — both already authorized.
+
+## 🤷 User: *<system-reminder>Message sent at Fri 2026…*
+
+`23:35:27`
+
+&lt;system-reminder&gt;Message sent at Fri 2026-06-12 21:23:19 UTC.&lt;/system-reminder&gt;
+please submit `Nemo Replay V14`
+
+### 💭 Thinking
+
+`23:35:38`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Check v14 v2 status and extract run summary from log*
+
+`23:35:43`
+
+```bash
+$ set -a; source /home/harry/test/tt_pangu/.env >/dev/null 2>&1; set +a; kaggle kernels status harrysun2006/nemo-replay-v14 2>/dev/null | tail -1; cd "$CLAUDE_JOB_DIR/tmp" && rm -rf kout-v14b && mkdir -p kout-v14b && /home/harry/micromamba/envs/v3.12.12/bin/python3 - <<'EOF'
+import contextlib, io, json, glob
+from kaggle import api
+with contextlib.redirect_stdout(io.StringIO()):
+    api.authenticate()
+api.kernels_output("harrysun2006/nemo-replay-v14", "kout-v14b", file_pattern="__none__")
+entries = json.load(open(glob.glob("kout-v14b/*.log")[0]))
+text = "".join(e.get("data","") for e in entries)
+lines = text.splitlines()
+keep = [l for l in lines if any(k in l.lower() for k in ("replay row 0", "math replay:", "loaded", "wall-clock", "step 1000", "training complete", "submission", "sha256", "error", "assert", "mixed total"))]
+print(len(lines), "log lines")
+print("\n".join(keep[-25:]))
+EOF
+```
+
+```
+harrysun2006/nemo-replay-v14 has status "KernelWorkerStatus.COMPLETE"
+Warning: Looks like you're using an outdated `kaggle` version (installed: 2.0.1), please consider upgrading to the latest version (2.0.2)
+2407 log lines
+  math replay: /kaggle/input/datasets/mohamedamr992/replay-math/nemotron_math_1gb.jsonl
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+Loaded 7830 problem_ids in training order from /kaggle/input/datasets/huikang/huikang-nemotron-repository-snapshot/nemotron-master/training/sft/04-08-16-14/logprobs/index.jsonl
+Loaded 7830 examples, 27,842,873 tokens (unmasked=26,568,807)
+replay row 0: keys=['changed_answer_to_majority', 'data_source', 'expected_answer', 'license', 'messages', 'problem', 'tool_usage', 'tools', 'url', 'used_in', 'user_name', 'user_url', 'uuid'], prompt_ids=86, full_ids=24018
+Math replay: 323 examples, 2,004,570 supervised answer tokens, skipped=0, truncated=166
+Replay inserted every ~24 Huikang examples; mixed total=8153
+Training complete. Peak VRAM: 96.8 GB
+Wrote /kaggle/working/submission.zip
+Submission validation OK: root files only, rank=32, alpha=32
+submission.zip sha256=18c78107d77d1def8e0b96b12aca41e7aa0755b7ee19a225991eb4971349c304
+Training complete.
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/nemo-v10-v14-kernels
+```
+
+### 💭 Thinking
+
+`23:35:59`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Check final training step and wall-clock stop*
+
+`23:36:01`
+
+```bash
+$ cd "$CLAUDE_JOB_DIR/tmp" && /home/harry/micromamba/envs/v3.12.12/bin/python3 -c "
+import json, glob
+entries = json.load(open(glob.glob('kout-v14b/*.log')[0]))
+text = ''.join(e.get('data','') for e in entries)
+steps = [l for l in text.splitlines() if l.strip().startswith('step ') or 'WALL-CLOCK' in l]
+print(steps[-3:] if steps else 'no step lines')
+"
+```
+
+```
+['  step 252/254: loss:mean=0.045455, grad_norm=0.0498, lr=4.13e-06', '  step 253/254: loss:mean=0.053773, grad_norm=0.0671, lr=2.76e-06', '  step 254/254: loss:mean=0.001365, grad_norm=0.0161, lr=1.38e-06']
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/nemo-v10-v14-kernels
+```
+
+### 💭 Thinking
+
+`23:36:16`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Submit v14 v2 output (D1/D9-authorized)*
+
+`23:36:20`
+
+```bash
+$ export PATH=/home/harry/micromamba/envs/v3.12.12/bin:$PATH; set -a; source /home/harry/test/tt_pangu/.env >/dev/null 2>&1; set +a; export KCA_ALLOW_REMOTE=1; python tools/kca/kca.py kaggle submit --competition nvidia-nemotron-model-reasoning-challenge --kernel harrysun2006/nemo-replay-v14 --version 2 --file submission.zip --message "KCA v14 replay-recipe: huikang corpus (7830, recorded order) + 323 replay-math (2.0M ans tokens), seq8192, 254/254 steps (1 epoch, LR 3.5e-4 lin), CCE + MoE tying + lm_head/in_proj/out_proj, final loss ~0.05" 2>&1 | tail -2
+```
+
+```
+{"ok": true, "competition": "nvidia-nemotron-model-reasoning-challenge", "file": "submission.zip", "kernel": "harrysun2006/nemo-replay-v14", "version": "2", "side_effect": "SUBMISSION", "stdout": "Warning: Looks like you're using an outdated `kaggle` version (installed: 2.0.1), please consider upgrading to the latest version (2.0.2)\n", "stderr": ""}
+```
+
+```bash
+$ set -a; source /home/harry/test/tt_pangu/.env >/dev/null 2>&1; set +a; kaggle competitions submissions -c nvidia-nemotron-model-reasoning-challenge 2>/dev/null | sed -n 3p; echo "--- v10 score check (firefly) ---"; set -a; source /home/harry/test/tt_pangu/.vscode/.env.may >/dev/null 2>&1; set +a; export KAGGLE_CONFIG_DIR=$CLAUDE_JOB_DIR/tmp/nokaggle; kaggle competitions submissions -c nvidia-nemotron-model-reasoning-challenge 2>/dev/null | sed -n 3p
+```
+
+```
+--------------  --------------------------  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  -------------------------  -----------  ------------  
+--- v10 score check (firefly) ---
+--------------  --------------------------  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  -------------------------  -----------  ------------
+```
+
+```bash
+$ set -a; source /home/harry/test/tt_pangu/.env >/dev/null 2>&1; set +a; kaggle competitions submissions -c nvidia-nemotron-model-reasoning-challenge 2>/dev/null | sed -n 1,5p
+```
+
+```
+Warning: Looks like you're using an outdated `kaggle` version (installed: 2.0.0), please consider upgrading to the latest version (2.0.2)
+fileName        date                        description                                                                                                                                                                                                      status                     publicScore  privateScore  
+--------------  --------------------------  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  -------------------------  -----------  ------------  
+submission.zip  2026-06-12 23:36:23.493000  KCA v14 replay-recipe: huikang corpus (7830, recorded order) + 323 replay-math (2.0M ans tokens), seq8192, 254/254 steps (1 epoch, LR 3.5e-4 lin), CCE + MoE tying + lm_head/in_proj/out_proj, final loss ~0.05  SubmissionStatus.PENDING                              
+submission.zip  2026-06-11 22:39:31.840000  KCA CoT SFT A/ctx4k: response-masked rank-32 LoRA, seq4096, 580 steps (wall-clock stop 5.5h), train_loss 0.147; in-kernel 0/8 = eval truncation artifact (max_new_tokens=1024)                                   SubmissionStatus.COMPLETE  0.67
+```
+
+```bash
+$ set -a; source /home/harry/test/tt_pangu/.vscode/.env.may >/dev/null 2>&1; set +a; export KAGGLE_CONFIG_DIR=$CLAUDE_JOB_DIR/tmp/nokaggle; kaggle competitions submissions -c nvidia-nemotron-model-reasoning-challenge 2>/dev/null | sed -n 1,4p
+```
+
+```
+Warning: Looks like you're using an outdated `kaggle` version (installed: 2.0.0), please consider upgrading to the latest version (2.0.2)
+fileName        date                        description                                                                                                                                                                        status                     publicScore  privateScore  
+--------------  --------------------------  ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  -------------------------  -----------  ------------  
+submission.zip  2026-06-12 09:53:57.643000  KCA v10 rule-CoT: 4000 in-kernel rule traces (6 categories) + 4000 long CoT, seq4096, 558 steps, loss 0.93, held-out 3/4 (T13-fixed eval)                                          SubmissionStatus.COMPLETE  0.59
+```
+
+### 💭 Thinking
+
+`23:37:07`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Refetch issue #86 body*
+
+`23:37:08`
+
+```bash
+$ gh issue view 86 --json body --jq .body > "$CLAUDE_JOB_DIR/tmp/issue86_body.md" && grep -c "v14 v1 数据 bug" "$CLAUDE_JOB_DIR/tmp/issue86_body.md"
+```
+
+```
+1
+```
+
+#### ✏️  Edit `issue86_body.md`
+
+`23:37:22`
+
+```diff
+@@ -1 +1 @@-> **快照** *(最后更新: 2026-06-12,D1–D9 全部 ✅;**v10 已提交 LB pending(val 3/4)**;v14 v1 数据 bug 已修,v2 在跑;UTC 新一天额度已用 1/5)*:榜首 ~0.89 | base ~0.47 | 我们最好 **0.67 (A/ctx4k)** | 截止 **2026-06-15 23:59 UTC** | 提交 per-team 5 次/天
++> **快照** *(最后更新: 2026-06-12 21:30 UTC;**v10 = 0.59**(规则混合不敌纯长 CoT);**v14 v2 跑完已提交,LB pending**;今日额度 2/5)*:榜首 ~0.89 | base ~0.47 | 我们最好 **0.67 (A/ctx4k)** | 截止 **2026-06-15 23:59 UTC** | 提交 per-team 5 次/天
+```
+
+```
+The file /home/harry/.claude-ayla/jobs/a9adb218/tmp/issue86_body.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1 +1 @@-| T4 | v10: rule-aware CoT 数据 | [`firefly2006/nemo-rule4k-v10`](https://www.kaggle.com/code/firefly2006/nemo-rule4k-v10) v1 跑完:8000 例(4000 规则轨迹,6 类分布均匀 651–683/类 + 4000 长 CoT),558 步,loss 0.93;**T13 修复后的 held-out = 3/4 (0.75)**,eval 时间帽如期生效;**已提交,LB pending** | 🔵 submitted |
++| T4 | v10: rule-aware CoT 数据 | [`firefly2006/nemo-rule4k-v10`](https://www.kaggle.com/code/firefly2006/nemo-rule4k-v10) v1:8000 例(4000 规则轨迹 + 4000 长 CoT),558 步,loss 0.93,held-out 3/4 → **LB 0.59**。高于 base(0.47)但低于 0.67:短规则轨迹替换一半长 CoT 让 greedy 推理变浅;**结论:数据优先长 CoT,规则信号应做成「带完整中间步骤的长轨迹」(=T11 v15 的做法),adapter 留作 T7 merge 池成员** | ✅ 0.59(进 merge 池)|
+```
+
+```
+The file /home/harry/.claude-ayla/jobs/a9adb218/tmp/issue86_body.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1 +1 @@-已修(解包 input_ids + 首行诊断),**v2 在跑** | 🟢 v2 running(完成即提交)|
++已修(解包 input_ids + 首行诊断),v2 跑通:**254/254 步**(8153 例 ÷ batch32 的 floor 上限,即 1 epoch;1000 步本来就会被 clamp)、replay 323 例 / 2.0M answer tokens / skipped=0、LR 完整衰减、final loss ~0.05、submission.zip 校验通过(rank32/α32);**已提交,LB pending** | 🔵 v2 submitted |
+```
+
+```
+The file /home/harry/.claude-ayla/jobs/a9adb218/tmp/issue86_body.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### 💻 Bash: *Push issue #86 update (v10 score, v14 submitted)*
+
+`23:37:43`
+
+```bash
+$ gh issue edit 86 --body-file "$CLAUDE_JOB_DIR/tmp/issue86_body.md" >/dev/null && echo updated
+```
+
+```
+updated
+```
+
+#### TaskUpdate
+
+`23:37:51`
+
+`#6` · **status:** `completed`
+
+✓ Updated `#6` — `status`
+
+### 🤖 Assistant: *\*\*v14 submitted\*\* — `PENDING` on the leaderboard…*
+
+`23:38:03`
+
+> **v14 submitted** — `PENDING` on the leaderboard. The v2 run was healthy end to end:
+> 
+> - The BatchEncoding fix worked exactly as hoped: `replay row 0: prompt_ids=86, full_ids=24018`, **323 replay examples / 2.0M answer tokens, skipped=0** (v1 had skipped all of them).
+> - Huikang corpus loaded in full: 7830 examples, 27.8M tokens, in the recorded epoch-0 order; mixed total 8153.
+> - Trained **254/254 steps** — that's the recipe's real schedule (8153 examples ÷ batch 32, floor-based one-epoch limit; the notebook's `NUM_STEPS=1000` always gets clamped), with the LR fully decayed and final loss ~0.05. No wall-clock stop needed; peak VRAM 96.8 GB.
+> - `submission.zip` passed the in-kernel validation (root files only, rank 32, α 32).
+> 
+> Also checked while I was in there: **v10 scored 0.59** — above base (0.47) but below our 0.67 best. Lesson recorded in #86: swapping half the long-CoT for short one-line rule traces made greedy reasoning shallower; the rule signal should come as *long* traces with full intermediate steps (which is exactly what the T11/v15 generator will do), and the 0.59 adapter joins the v13 merge pool.
+> 
+> Issue #86 is updated (snapshot, T4 ✅ 0.59, T10 🔵 v2 submitted). Today's quota: 2/5 used. Next checkpoint: v14's score in ~1h+ — if the recipe reproduces anywhere near 0.86, that's our new best by a wide margin; ping me with "follow up" when you want it checked (or to kick off the v15 prep).
+
+### Recap
+
+`23:38:10`
+
+📝 Recap: Nemotron Kaggle push: v14 (public 0.86/0.87 replay recipe) ran clean and is submitted, leaderboard score pending; current best 0.67, v10 scored 0.59. Next: check v14's score and update issue #86.

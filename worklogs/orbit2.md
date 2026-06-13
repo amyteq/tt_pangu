@@ -3,7 +3,7 @@
 - Session name: `orbit2`
 - Job id: `3d955971`
 - Session id: `3d955971-5fb5-4ac7-9d07-91c4f4808e97`
-- Status: `completed`
+- Status: `blocked`
 - Source transcript: `/home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu/3d955971-5fb5-4ac7-9d07-91c4f4808e97.jsonl`
 
 ---
@@ -16750,3 +16750,737 @@ issue v11 pushed
 > 4. Isaiah 半档中盘 sizing。
 > 
 > 全部记录:commit [`261a7a6`](https://github.com/amyteq/tt_pangu/commit/261a7a68623ba2f3f3360b3e00d0383e4d8493f1)(含完整设计史:red-team 三份报告的结论都在 commit message 里)、issue 第 11 版(T9/T13 行更新)、工作日志。**仍在等你**:may 槽替换提案(kuni05-adapted)。今天从 T2 阳性烘焙到 v4 平台,主线收获扎实 —— 深度迭代留给下个 session 带着日志继续。
+
+## 🤷 User: *please commit all changes in the worktree…*
+
+**`2026-06-13`** `14:20:52`
+
+please commit all changes in the worktree and open a PR
+
+### 🤖 Assistant: *Claude Fable 5 is currently unavailable.*
+
+`14:20:52`
+
+> Claude Fable 5 is currently unavailable. Learn more: https://www.anthropic.com/news/fable-mythos-access
+
+## 🤷 User: *please commit all changes in the worktree…*
+
+`14:21:07`
+
+please commit all changes in the worktree and open a PR
+
+### 🤖 Assistant: *I'll check the worktree state, commit anything…*
+
+`14:21:17`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> I'll check the worktree state, commit anything outstanding, and open the PR.
+
+#### 💻 Bash: *Check worktree git status and commits ahead of main*
+
+`14:21:20`
+
+```bash
+$ git status --short && echo "---branch---" && git rev-parse --abbrev-ref HEAD && echo "---ahead of main---" && git log --oneline main..HEAD | wc -l
+```
+
+```
+ M .claude/settings.local.json
+---branch---
+worktree-orbit-wars
+---ahead of main---
+27
+```
+
+### 🤖 Assistant: *Only `.claude/settings.local.json` is uncommitted…*
+
+`14:21:26`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Only `.claude/settings.local.json` is uncommitted — that's local settings, not part of the work. Let me check its diff and whether a PR already exists for this branch.
+
+#### 💻 Bash: *Inspect settings diff and check for existing PR*
+
+`14:21:28`
+
+```bash
+$ git diff .claude/settings.local.json | head -40; echo "---existing PR for branch?---"; gh pr list --head worktree-orbit-wars --state all --json number,state,title --jq '.[] | "\(.number) \(.state) \(.title)"' 2>&1
+```
+
+```diff
+diff --git a/.claude/settings.local.json b/.claude/settings.local.json
+index a8ad483..088eefa 100644
+--- a/.claude/settings.local.json
++++ b/.claude/settings.local.json
+@@ -7,7 +7,11 @@
+       "Bash(echo \"fake-flag-do-not-leak\")",
+       "Bash(env -u KCA_ALLOW_REMOTE python tools/kca/kca.py ctf flag submit --event demo --challenge x --flag-file /tmp/_flag_test.txt --dry-run)",
+       "Bash(echo \"exit=$?\")",
+-      "Bash(env -u KCA_ALLOW_REMOTE python tools/kca/kca.py ctf flag submit --event demo --challenge x --flag-file /tmp/_flag_test.txt)"
++      "Bash(env -u KCA_ALLOW_REMOTE python tools/kca/kca.py ctf flag submit --event demo --challenge x --flag-file /tmp/_flag_test.txt)",
++      "Read(//home/harry/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/**)",
++      "Bash(kaggle kernels *)",
++      "Bash(kaggle models *)",
++      "WebFetch(domain:storage.googleapis.com)"
+     ]
+   },
+   "worktree": {
+---existing PR for branch?---
+80 MERGED Orbit Wars: Forecast agent (forward-sim planner) + ladder-predictive arena — review only
+```
+
+### 🤖 Assistant: *PR #80 was already squash-merged, but the…*
+
+`14:21:42`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> PR #80 was already squash-merged, but the branch kept accumulating 27 commits since. Let me see what a fresh PR against main would actually contain (post-squash-merge, the diff should be just the new work).
+
+#### 💻 Bash: *Diff stat against origin/main*
+
+`14:21:44`
+
+```bash
+$ git fetch origin main --quiet 2>&1 | tail -1; echo "=== files changed vs origin/main ==="; git diff origin/main --stat | tail -30
+```
+
+```
+=== files changed vs origin/main ===
+ .../tpu-getting-started/search-space-sample.yaml   |     8 -
+ .../fixtures/tpu-getting-started/search-space.yaml |     8 -
+ .../tpu-getting-started/untrusted_arxiv.json       |    14 -
+ .../tpu-getting-started/untrusted_kernels.json     |    20 -
+ tests/test_m10_e2e.py                              |    19 +-
+ tests/test_m14_concurrency.py                      |   507 -
+ tests/test_m14_db.py                               |   590 -
+ tests/test_m14_eval_delta.py                       |   261 -
+ tests/test_m14_explore.py                          |   513 -
+ tests/test_m14_goal.py                             |   380 -
+ tests/test_m14_idea_sourcing.py                    |   423 -
+ tests/test_m14_polling.py                          |   689 -
+ tests/test_m14_stuck.py                            |   647 -
+ tools/kca/COMMANDS.md                              |     3 -
+ tools/kca/agent/command_registry.py                |    20 -
+ tools/kca/competition.py                           |    61 -
+ tools/kca/db.py                                    |   589 +-
+ tools/kca/decisions.py                             |    30 +-
+ tools/kca/explore.py                               |  1480 -
+ tools/kca/goal.py                                  |   566 -
+ tools/kca/kg.py                                    |   834 +-
+ tools/kca/research.py                              |   193 -
+ tools/kca/stuck.py                                 |   557 -
+ worklogs/M14.md                                    |  5317 ---
+ worklogs/fix1.md                                   |   474 +-
+ worklogs/nemo.md                                   | 25228 ++------------
+ worklogs/nemo2.md                                  |  6958 ----
+ worklogs/orbit.md                                  | 33676 -------------------
+ worklogs/orbit2.md                                 | 16752 ---------
+ 74 files changed, 4134 insertions(+), 98377 deletions(-)
+```
+
+### 🤖 Assistant: *This branch was cut from an old main — a…*
+
+`14:21:58`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> This branch was cut from an old main — a direct PR would delete unrelated work (M14/nemo/kca) that landed on main since. I need a clean branch off current main with only the orbit-wars changes. Let me see the full picture and identify exactly the orbit-wars files.
+
+#### 💻 Bash: *List orbit-wars-specific changes vs main*
+
+`14:22:02`
+
+```bash
+$ echo "=== orbit-wars files changed vs origin/main ==="; git diff origin/main --stat -- competitions/orbit-wars/ docs/tooling/remote-compute-snorlax.md | tail -40; echo "=== are orbit-wars files all ADDITIONS (new) or do some already exist on main? ==="; git diff origin/main --stat -- competitions/orbit-wars/ | grep -c "" 
+```
+
+```
+=== orbit-wars files changed vs origin/main ===
+ competitions/orbit-wars/EPISODES.md                |   23 +
+ competitions/orbit-wars/agent/versions/forecast.py |  182 +++-
+ competitions/orbit-wars/agent/versions/v4.py       | 1119 ++++++++++++++++++++
+ competitions/orbit-wars/arena/distill_train.py     |   39 +-
+ competitions/orbit-wars/arena/episodes_index.py    |   82 ++
+ competitions/orbit-wars/arena/episodes_prep.py     |  200 ++++
+ competitions/orbit-wars/arena/player_profile.py    |  213 ++++
+ docs/tooling/remote-compute-snorlax.md             |   81 --
+ 8 files changed, 1814 insertions(+), 125 deletions(-)
+=== are orbit-wars files all ADDITIONS (new) or do some already exist on main? ===
+8
+```
+
+### 🤖 Assistant: *The diff vs main is the source of truth:…*
+
+`14:22:32`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The diff vs main is the source of truth: only 8 files differ. 7 are genuinely-new orbit-wars work; the 81-line "deletion" of the snorlax doc is just this branch being behind main (PR #89 added it elsewhere). Let me confirm what's already on main so I build a clean PR with only the new work.
+
+#### 💻 Bash: *Check which files already exist on origin/main*
+
+`14:22:36`
+
+```bash
+$ echo "=== already on origin/main? ==="; for f in competitions/orbit-wars/agent/versions/v3_2.py competitions/orbit-wars/agent/versions/student.py competitions/orbit-wars/arena/league.py competitions/orbit-wars/VALIDATION.md docs/tooling/remote-compute-snorlax.md competitions/orbit-wars/agent/versions/v4.py; do
+  if git cat-file -e origin/main:$f 2>/dev/null; then echo "ON MAIN:   $f"; else echo "NOT main:  $f"; fi
+done
+```
+
+```
+=== already on origin/main? ===
+ON MAIN:   competitions/orbit-wars/agent/versions/v3_2.py
+ON MAIN:   competitions/orbit-wars/agent/versions/student.py
+ON MAIN:   competitions/orbit-wars/arena/league.py
+ON MAIN:   competitions/orbit-wars/VALIDATION.md
+ON MAIN:   docs/tooling/remote-compute-snorlax.md
+NOT main:  competitions/orbit-wars/agent/versions/v4.py
+```
+
+### 🤖 Assistant: *All clear: the 7 orbit-wars files are the…*
+
+`14:23:13`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All clear: the 7 orbit-wars files are the only genuinely-new work; everything else (v3_2.py, student.py, league.py, VALIDATION.md, snorlax doc) is already on main via the merged PR #80 and #89. This branch is just badly behind main (missing M14/nemo/kca), so a direct PR would be destructive.
+> 
+> The clean fix: a fresh branch off current `origin/main` carrying only the 7 new files. Let me build it in a temp worktree.
+
+#### 💻 Bash: *Create clean temp worktree off origin/main*
+
+`14:23:16`
+
+```bash
+$ cd /home/harry/test/tt_pangu && git worktree add -b orbit-wars-v4-scheduler /tmp/claude/ow-v4-pr origin/main 2>&1 | tail -3
+```
+
+```
+Preparing worktree (new branch 'orbit-wars-v4-scheduler')
+branch 'orbit-wars-v4-scheduler' set up to track 'origin/main'.
+HEAD is now at b54b967 M14: goal-driven Kaggle loop — goal/explore/concurrency/polling/escalation (#79)
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars
+```
+
+### 🤖 Assistant: *Now bring over exactly the 7 new orbit-wars…*
+
+`14:23:22`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now bring over exactly the 7 new orbit-wars files from the dev branch into the clean worktree:
+
+#### 💻 Bash: *Checkout the 7 new files into clean worktree*
+
+`14:23:26`
+
+```bash
+$ cd /tmp/claude/ow-v4-pr && git checkout worktree-orbit-wars -- \
+  competitions/orbit-wars/EPISODES.md \
+  competitions/orbit-wars/agent/versions/forecast.py \
+  competitions/orbit-wars/agent/versions/v4.py \
+  competitions/orbit-wars/arena/distill_train.py \
+  competitions/orbit-wars/arena/episodes_index.py \
+  competitions/orbit-wars/arena/episodes_prep.py \
+  competitions/orbit-wars/arena/player_profile.py && git status --short && echo "=== snorlax doc still present (must be untouched)? ===" && test -f docs/tooling/remote-compute-snorlax.md && echo "PRESENT ✓"
+```
+
+```
+M  competitions/orbit-wars/EPISODES.md
+M  competitions/orbit-wars/agent/versions/forecast.py
+A  competitions/orbit-wars/agent/versions/v4.py
+M  competitions/orbit-wars/arena/distill_train.py
+A  competitions/orbit-wars/arena/episodes_index.py
+A  competitions/orbit-wars/arena/episodes_prep.py
+A  competitions/orbit-wars/arena/player_profile.py
+=== snorlax doc still present (must be untouched)? ===
+PRESENT ✓
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars
+```
+
+### 🤖 Assistant: *Exactly the 7 files, snorlax doc untouched…*
+
+`14:23:34`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Exactly the 7 files, snorlax doc untouched. Now run the lint gate and a sanity check that v4 imports against the main-based checkout (where v3_2.py etc. already live):
+
+#### 💻 Bash: *Lint and format-check the PR files*
+
+`14:23:37`
+
+```bash
+$ cd /tmp/claude/ow-v4-pr && /home/harry/micromamba/envs/v3.12.12/bin/ruff check competitions/orbit-wars/ 2>&1 | tail -3 && echo "=== format check ===" && /home/harry/micromamba/envs/v3.12.12/bin/ruff format --check competitions/orbit-wars/agent/versions/v4.py competitions/orbit-wars/arena/episodes_index.py competitions/orbit-wars/arena/episodes_prep.py competitions/orbit-wars/arena/player_profile.py competitions/orbit-wars/arena/distill_train.py 2>&1 | tail -3
+```
+
+```
+All checks passed!
+=== format check ===
+Would reformat: competitions/orbit-wars/arena/distill_train.py
+1 file would be reformatted, 4 files already formatted
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars
+```
+
+### 🤖 Assistant: *`distill_train.py` needs a format pass —…*
+
+`14:23:47`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `distill_train.py` needs a format pass — apply it and re-stage:
+
+#### 💻 Bash: *Reformat distill_train, re-stage, smoke-import v4*
+
+`14:23:51`
+
+```bash
+$ cd /tmp/claude/ow-v4-pr && /home/harry/micromamba/envs/v3.12.12/bin/ruff format competitions/orbit-wars/arena/distill_train.py && git add competitions/orbit-wars/arena/distill_train.py && /home/harry/micromamba/envs/v3.12.12/bin/ruff format --check competitions/orbit-wars/ 2>&1 | tail -1 && echo "=== v4 import smoke (main-based checkout) ===" && cd competitions/orbit-wars/arena && /home/harry/micromamba/envs/v3.12.12/bin/python -c "
+import sys; sys.path.insert(0,'../agent/versions')
+import v4
+print('v4 import OK; V4 gate =', v4.V4)
+" 2>&1 | grep -vE "INFO|WARNING|open_spiel|LiteLLM" | tail -3
+```
+
+```
+1 file reformatted
+3 files already formatted
+=== v4 import smoke (main-based checkout) ===
+v4 import OK; V4 gate = 1
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars
+```
+
+### 🤖 Assistant: *Let me do a final clean lint+format gate…*
+
+`14:24:04`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me do a final clean lint+format gate over the whole orbit-wars dir and a one-game smoke before committing:
+
+#### 💻 Bash: *Final gate + v4 one-game smoke in clean checkout*
+
+`14:24:09`
+
+```bash
+$ cd /tmp/claude/ow-v4-pr && echo "=== ruff check ===" && /home/harry/micromamba/envs/v3.12.12/bin/ruff check competitions/orbit-wars/ 2>&1 | tail -1 && echo "=== ruff format --check ===" && /home/harry/micromamba/envs/v3.12.12/bin/ruff format --check competitions/orbit-wars/ 2>&1 | tail -1 && echo "=== v4 one-game smoke vs evogen ===" && cd competitions/orbit-wars/arena && /home/harry/micromamba/envs/v3.12.12/bin/python -c "
+import sys; sys.path.insert(0,'../agent/versions')
+import v4, logging; logging.disable(logging.INFO)
+from kaggle_environments import make
+env=make('orbit_wars',configuration={'seed':999})
+env.run([lambda o,c=None: v4._agent(o), '../agent/versions/suite/evogen1093.py'])
+print('rewards', [s['reward'] for s in env.steps[-1]], 'steps', len(env.steps))
+" 2>&1 | grep -vE "INFO|WARNING|open_spiel|LiteLLM" | tail -2
+```
+
+```
+=== ruff check ===
+All checks passed!
+=== ruff format --check ===
+3 files already formatted
+=== v4 one-game smoke vs evogen ===
+    raise FileNotFoundError("Could not find : " + raw)
+FileNotFoundError: Could not find : ../agent/versions/suite/evogen1093.py
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars
+```
+
+### 🤖 Assistant: *The suite test-agents aren't in this checkout…*
+
+`14:24:22`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The suite test-agents aren't in this checkout — let me confirm they're on main (v4 doesn't depend on them; my smoke just used one as an opponent path) and re-smoke with the built-in `starter`:
+
+#### 💻 Bash: *Confirm suite on main and smoke v4 vs starter*
+
+`14:24:27`
+
+```bash
+$ cd /tmp/claude/ow-v4-pr && echo "=== suite on origin/main? ===" && git cat-file -e origin/main:competitions/orbit-wars/agent/versions/suite/evogen1093.py 2>/dev/null && echo "evogen1093 ON MAIN ✓" || echo "evogen1093 NOT on main"; echo "=== v4 smoke vs built-in starter ===" && cd competitions/orbit-wars/arena && /home/harry/micromamba/envs/v3.12.12/bin/python -c "
+import sys; sys.path.insert(0,'../agent/versions')
+import v4, logging; logging.disable(logging.INFO)
+from kaggle_environments import make
+env=make('orbit_wars',configuration={'seed':999})
+env.run([lambda o,c=None: v4._agent(o), 'starter'])
+print('rewards', [s['reward'] for s in env.steps[-1]], 'steps', len(env.steps))
+" 2>&1 | grep -vE "INFO|WARNING|open_spiel|LiteLLM" | tail -2
+```
+
+```
+=== suite on origin/main? ===
+evogen1093 NOT on main
+=== v4 smoke vs built-in starter ===
+rewards [1, -1] steps 110
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars
+```
+
+### 🤖 Assistant: *Confirmed: v4 runs and wins in the clean…*
+
+`14:24:50`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Confirmed: v4 runs and wins in the clean checkout (lint + format gate green). The suite test-agents (evogen/multifocus/kuni05) were never committed to main by anyone — a pre-existing gap unrelated to this PR (v4 doesn't import them; they're only arena opponents). My 7 files are self-consistent. Committing now:
+
+#### 💻 Bash: *Commit the 7 files with full message*
+
+`14:25:09`
+
+```bash
+$ cd /tmp/claude/ow-v4-pr && git commit -q -m "$(cat <<'EOF'
+feat(orbit-wars): v4 Scheduler (hub-and-hammer) + replay-mining toolchain (issue #87)
+
+New work since PR #80 (forecast.py experimental levers, the v4 agent, and the
+public-episode mining pipeline). Clean branch off current main — the dev
+worktree had diverged from an old main, so this carries only the orbit-wars
+deltas (no unrelated M14/nemo/kca churn; the snorlax doc from #89 untouched).
+
+agent/versions/v4.py — v4 "Scheduler" (T9/T13). Design red-teamed BEFORE build
+  (3-agent adversarial review): a set-level beam over the conservation-correct
+  terminal value provably re-derives greedy (own-to-own logistics scores 0, so
+  no search expresses the verified top styles; the only couplings map 1:1 onto
+  the 7 tested-negative levers). Centerpiece replaced by a HUB-AND-HAMMER
+  policy layer: ledger safe_surplus (binary-search replay) + capability prior;
+  hysteresis-designated forward hub; rear-only full-drain streams (logistics
+  exempt from the attack in-flight cap — the SUPPLY autopsy); 0.9-band hammer
+  gated on flip_need x margin AND a real minimum mass; OW_LOG event logger.
+  Iter1 mirror 13% (log diagnosed 83% of empire perma-in-transit + pebble
+  hammers) -> iter2 anti-circulation guards -> 150-paired-seed confirm = v3.2
+  PARITY (49.3%), no regress vs starter/evogen. Default-gated (OW_V4); a
+  structural platform that holds baseline, not yet a win — see issue #87.
+
+agent/versions/forecast.py — env-gated experimental levers from this session,
+  all default-OFF and all tested-negative on powered A/B (kept for repro):
+  OW_OVERKILL (monotonic negative), OW_SUPPLY short-hop chain, OW_COARR_TOL
+  (T8 K±tol), OW_POSTURE (in-flight-mass machine), OW_LEDGER.
+
+arena/episodes_index.py, episodes_prep.py, player_profile.py — public-episode
+  mining: index 3,423 1v1 ladder games, extract winner-side BC pairs (22 feats
+  incl. forward-sim features), and batch-profile player behavior. Fed EPISODES.md
+  analysis #2 (top-6 are all rule/search engines, adversarially verified) and
+  the T12 v2 student (recall 0.387, arena 0% — BC distribution-shift confirmed).
+
+arena/distill_train.py — --neg-ratio subsampling + per-split normalization
+  (the 90.5M-pair top-player dataset OOM'd the old full-copy path).
+
+EPISODES.md — replay analysis #2 (top-8 profiles + tech-route verdicts).
+
+Tests: ruff check + ruff format --check clean over competitions/orbit-wars/;
+v4 plays and wins vs starter in a fresh main-based checkout. Arena A/B numbers
+(150+ paired seeds, fresh seed blocks) recorded in issue #87 worklog.
+
+Refs #87. Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+EOF
+)" && git log --oneline -1 && git diff origin/main --stat | tail -3
+```
+
+```
+572efac feat(orbit-wars): v4 Scheduler (hub-and-hammer) + replay-mining toolchain (issue #87)
+ competitions/orbit-wars/arena/episodes_prep.py     |  200 ++++
+ competitions/orbit-wars/arena/player_profile.py    |  213 ++++
+ 7 files changed, 1815 insertions(+), 44 deletions(-)
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars
+```
+
+### 🤖 Assistant: *Clean commit (7 files, no unrelated churn…*
+
+`14:25:15`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Clean commit (7 files, no unrelated churn). Verify the full diff is exactly the 7 files, then push and open the PR:
+
+#### 💻 Bash: *Verify diff scope and push branch*
+
+`14:25:17`
+
+```bash
+$ cd /tmp/claude/ow-v4-pr && echo "=== full diff vs origin/main (should be exactly 7 orbit-wars files) ===" && git diff origin/main --stat && echo "=== push ===" && git push -u origin orbit-wars-v4-scheduler 2>&1 | tail -3
+```
+
+```
+=== full diff vs origin/main (should be exactly 7 orbit-wars files) ===
+ competitions/orbit-wars/EPISODES.md                |   23 +
+ competitions/orbit-wars/agent/versions/forecast.py |  182 +++-
+ competitions/orbit-wars/agent/versions/v4.py       | 1119 ++++++++++++++++++++
+ competitions/orbit-wars/arena/distill_train.py     |   40 +-
+ competitions/orbit-wars/arena/episodes_index.py    |   82 ++
+ competitions/orbit-wars/arena/episodes_prep.py     |  200 ++++
+ competitions/orbit-wars/arena/player_profile.py    |  213 ++++
+ 7 files changed, 1815 insertions(+), 44 deletions(-)
+=== push ===
+To github.com:amyteq/tt_pangu.git
+ * [new branch]      orbit-wars-v4-scheduler -> orbit-wars-v4-scheduler
+branch 'orbit-wars-v4-scheduler' set up to track 'origin/orbit-wars-v4-scheduler'.
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars
+```
+
+### 🤖 Assistant: *Exactly the 7 files, pushed clean.*
+
+`14:25:27`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Exactly the 7 files, pushed clean. Now open the PR with the closeout-template body:
+
+#### 💻 Bash: *Open the PR against main*
+
+`14:25:52`
+
+```bash
+$ cd /tmp/claude/ow-v4-pr && gh pr create --base main --head orbit-wars-v4-scheduler --title "feat(orbit-wars): v4 Scheduler (hub-and-hammer) + replay-mining toolchain" --body "$(cat <<'EOF'
+## Summary
+
+New Orbit Wars work since PR #80 (merged). Clean branch off current `main` — the long-lived `worktree-orbit-wars` dev branch had diverged from an old main, so a direct PR would have destructively deleted unrelated M14/nemo/kca work; this carries **only** the 7 orbit-wars deltas (the snorlax doc from #89 is untouched).
+
+- **`agent/versions/v4.py` — v4 "Scheduler" (T9/T13 integrated scheduling).** Design was **red-teamed before implementation** (3-agent adversarial review): a set-level beam over the conservation-correct terminal value provably re-derives greedy (own→own logistics scores 0, so no search can express the verified top-tier styles; the only couplings map 1:1 onto the seven tested-negative levers). Centerpiece replaced by a **hub-and-hammer policy layer**: sim-exact ledger `safe_surplus` + capability prior → hysteresis-designated forward hub → rear-only full-drain streams (logistics exempt from the attack in-flight cap, per the SUPPLY autopsy) → 0.9-band hammer gated on `flip_need × margin` and a real minimum mass → `OW_LOG` event logger. **Default-gated (`OW_V4`).**
+- **`agent/versions/forecast.py`** — this session's env-gated experimental levers, all **default-OFF** and all tested-negative on powered A/B (kept for reproducibility): `OW_OVERKILL`, `OW_SUPPLY`, `OW_COARR_TOL`, `OW_POSTURE`, `OW_LEDGER`.
+- **`arena/episodes_index.py` + `episodes_prep.py` + `player_profile.py`** — public-episode mining: index 3,423 1v1 ladder games, extract winner-side behavior-cloning pairs, batch-profile player behavior. Produced EPISODES.md analysis #2 and the T12 v2 student.
+- **`arena/distill_train.py`** — `--neg-ratio` subsampling + per-split normalization (the 90.5M-pair top-player dataset OOM'd the old full-copy path).
+- **`EPISODES.md`** — replay analysis #2 (top-8 profiles + adversarially-verified tech-route verdicts: top-6 are all rule/search engines).
+
+Closes nothing — issue #87 is a long-running tracking hub; this refs it.
+
+## Tests run
+
+- [x] `ruff check competitions/orbit-wars/` — **All checks passed**
+- [x] `ruff format --check competitions/orbit-wars/` — clean
+- [x] v4 plays and wins vs built-in `starter` in a fresh main-based checkout (110 steps, reward [1,-1])
+- [x] Arena A/B (150+ paired seeds, fresh seed blocks, via `arena/pool.py`): v4 iter2 = **v3.2 parity** (mirror 49.3%, evogen 16.3%, starter 97.0%), no regress — full numbers in issue #87 worklog
+- [ ] Repo `pytest` suites — n/a (no Python outside `competitions/orbit-wars/` touched; orbit arena is not in CI)
+
+## Docs / inventory impact
+
+- [x] `EPISODES.md` updated (replay analysis #2); methodology + lever-tracking documented inline
+- [x] No `PROJECT_STATE.md`/milestone change (orbit-wars is competition work tracked in issue #87, not a milestone)
+- [x] No ADR needed
+
+## Evidence
+
+- Design red-team (3 agents, file:line citations to the live planner) and all A/B runs are recorded in the issue #87 worklog comment.
+- v4 iteration was log-driven: `OW_LOG` event log diagnosed iter1's failure (83% of the empire perma-in-transit + pebble hammers) → iter2 anti-circulation guards → confirmed parity.
+
+## Schema / RLS / secrets impact
+
+- [x] No DB migration
+- [x] No new secret read/write surface (the episode dataset is downloaded to gitignored `data/`; no creds in code)
+
+## Remote side effects
+
+- [x] None — local-only change. (No Kaggle submission in this PR; ladder submissions are tracked separately on issue #87 with recorded D2 approval.)
+
+## Risks and follow-ups
+
+- v4 is **parity, not a win** — a structural platform (ledger / hub-and-hammer / event log) that holds baseline but hasn't converted to win-rate yet. Next iterations (all logged in issue #87): hammer timing on the opponent's counterattack window, cluster-target selection, the red-team's FM3 opponent-response value term.
+- The arena suite test-agents (`agent/versions/suite/*`, `kuni05/`) are reconstructed locally from public notebooks and were never committed by any PR — a pre-existing gap; `league.py`/`suite_gate.py` (already on main via #80) share it. Not introduced here.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+)" 2>&1 | tail -2
+```
+
+```
+https://github.com/amyteq/tt_pangu/pull/92
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars
+```
+
+### 🤖 Assistant: *PR #92 is open.*
+
+`14:26:01`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> PR #92 is open. Let me check its CI status and clean up the temp worktree:
+
+#### 💻 Bash: *Check PR #92 CI and remove temp worktree*
+
+`14:26:03`
+
+```bash
+$ sleep 8; gh pr checks 92 2>&1 | head -8; echo "=== cleanup temp worktree ==="; cd /home/harry/test/tt_pangu && git worktree remove /tmp/claude/ow-v4-pr --force 2>&1 && echo "removed" && git worktree list | grep -c worktrees
+```
+
+```
+eval (mocked nightly)	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/27469440577/job/81197557933	
+eval-delta-check (PR gate)	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/27469440577/job/81197557921	
+live-db pytest	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/27469440587/job/81197557929	
+no-db pytest	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/27469440587/job/81197557950	
+ruff lint + format check	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/27469440587/job/81197557935	
+ui build + lint + typecheck + test	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/27469440587/job/81197557964	
+=== cleanup temp worktree ===
+removed
+3
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars
+```
+
+### 🤖 Assistant: *CI is queued, temp worktree cleaned up.*
+
+`14:26:21`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> CI is queued, temp worktree cleaned up. Let me wait for the load-bearing checks (ruff + pytest) to finish:
+
+#### 💻 Bash: *Wait for PR #92 CI to settle* *[async `#blex74rkn`]*
+
+`14:26:23`
+
+```bash
+$ cd /home/harry/test/tt_pangu && until [ "$(gh pr checks 92 2>/dev/null | grep -cE 'pending')" = "0" ]; do sleep 15; done; echo "=== final CI ==="; gh pr checks 92 2>&1 | head -8
+```
+
+```
+Command running in background with ID: blex74rkn. Output is being written to: /tmp/claude-1000/-home-harry-test-tt-pangu/3d955971-5fb5-4ac7-9d07-91c4f4808e97/tasks/blex74rkn.output. You will be notified when it completes. To check interim output, use Read on that file path.
+```
+
+### 🤖 Assistant: *Done — committed and PR opened.*
+
+`14:26:41`
+
+> Done — committed and PR opened. Here's the summary:
+> 
+> ## ✅ PR #92 opened — [feat(orbit-wars): v4 Scheduler + replay-mining toolchain](https://github.com/amyteq/tt_pangu/pull/92)
+> 
+> **The catch I had to handle:** the dev branch `worktree-orbit-wars` was cut from an old main and had diverged badly — a direct PR would have **destructively deleted** unrelated M14/nemo/kca work that landed on main since (and the snorlax doc from #89). So instead of a raw branch PR, I built a **clean branch off current `origin/main`** carrying only the genuinely-new work.
+> 
+> **What's in it — exactly 7 files (+1815/−44), nothing else:**
+> | File | Change |
+> |---|---|
+> | `agent/versions/v4.py` | new — v4 "Scheduler" hub-and-hammer (1119 lines) |
+> | `agent/versions/forecast.py` | session's env-gated levers (all default-OFF, tested-negative) |
+> | `arena/episodes_index.py` / `episodes_prep.py` / `player_profile.py` | new — replay-mining toolchain |
+> | `arena/distill_train.py` | `--neg-ratio` + memory fix |
+> | `EPISODES.md` | replay analysis #2 |
+> 
+> Everything else from the session (v3_2.py, student.py, league.py, VALIDATION.md, submit.py, utils.py, snorlax doc…) was **already on main** via the merged PR #80 and #89 — verified file-by-file, so it's correctly excluded.
+> 
+> **Quality gates before push:** `ruff check` + `ruff format --check` clean over the whole orbit-wars dir; v4 imports and wins vs `starter` in a fresh main-based checkout (so no hidden dependency on the diverged base). Temp worktree cleaned up. PR body follows the closeout template with the full evidence trail and the honest "parity, not a win" risk note.
+> 
+> CI (ruff/pytest/eval-delta/ui) is running now — I've got a watcher on it and will report if anything goes red. The `.claude/settings.local.json` diff in the dev worktree I intentionally left uncommitted (local permission cache, not project work).
+
+### Recap
+
+`14:26:47`
+
+📝 Recap: Goal: improve our Orbit Wars Kaggle agent. Just opened PR #92 (v4 Scheduler plus replay-mining tools) off a clean main branch and CI is running. Next: confirm CI goes green, then await your call on the may-slot kuni05 swap.
+
+#### 🔄 Async result · *Background command "Wait for PR #92 CI to settle" completed (exit code 0)*
+
+`14:29:10`
+
+- **Task ID:** `blex74rkn`
+- **Status:** `completed`
+- **Spawn:** ↱ Task `#d-1261`
+
+#### 💻 Bash: *Read final CI status for PR #92*
+
+`14:29:18`
+
+```bash
+$ cat "/tmp/claude-1000/-home-harry-test-tt-pangu/3d955971-5fb5-4ac7-9d07-91c4f4808e97/tasks/blex74rkn.output"
+```
+
+```
+=== final CI ===
+no-db pytest	pass	36s	https://github.com/amyteq/tt_pangu/actions/runs/27469440587/job/81197557950	
+ruff lint + format check	pass	18s	https://github.com/amyteq/tt_pangu/actions/runs/27469440587/job/81197557935	
+ui build + lint + typecheck + test	pass	51s	https://github.com/amyteq/tt_pangu/actions/runs/27469440587/job/81197557964	
+eval (rolling diff)	skipping	0	https://github.com/amyteq/tt_pangu/actions/runs/27469440577/job/81197599205	
+eval (mocked nightly)	pass	38s	https://github.com/amyteq/tt_pangu/actions/runs/27469440577/job/81197557933	
+eval-delta-check (PR gate)	pass	35s	https://github.com/amyteq/tt_pangu/actions/runs/27469440577/job/81197557921	
+live-db pytest	pass	52s	https://github.com/amyteq/tt_pangu/actions/runs/27469440587/job/81197557929
+```
+
+### 🤖 Assistant: *CI is fully green on PR #92:*
+
+`14:29:28`
+
+> CI is fully green on PR #92:
+> 
+> | Check | Result |
+> |---|---|
+> | ruff lint + format check | ✅ pass (18s) |
+> | no-db pytest | ✅ pass (36s) |
+> | live-db pytest | ✅ pass (52s) |
+> | ui build + lint + typecheck + test | ✅ pass (51s) |
+> | eval-delta-check (PR gate) | ✅ pass (35s) |
+> | eval (mocked nightly) | ✅ pass (38s) |
+> | eval (rolling diff) | skipped (expected) |
+> 
+> **[PR #92](https://github.com/amyteq/tt_pangu/pull/92) is open, all checks green, ready for review.** It contains only the 7 genuinely-new orbit-wars files (v4 Scheduler + replay-mining toolchain + analysis #2), cleanly based on current `main` with no destructive deletions, and the temp build worktree is cleaned up.
+> 
+> That closes out this session's work end-to-end: T2 → v3.2 baked and on the ladder, T8 collapsed and resolved, the replay-mining + player-profiling pipeline built and adversarially verified (top-6 are all rule/search engines), T12 distillation run to its honest negative conclusion, and T9/T13 landed as the v4 "Scheduler" platform at v3.2 parity with a logged, evidence-driven path forward. Nothing left running on either machine; the only open item awaiting you is the may-slot replacement proposal on issue #87.
+
+### Recap
+
+`14:32:35`
+
+📝 Recap: Goal: improve our Orbit Wars ladder agents on issue #87. PR #92 (v4 Scheduler + replay toolchain) is open with all CI green, ready for review. Next: you decide the may-slot replacement (submit kuni05-adapted?) so I can proceed.
