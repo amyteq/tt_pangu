@@ -130,7 +130,9 @@ jobs:
           "$SELF_HOSTED_PYTHON_BIN/python" -m pip --version
 
       - name: install ruff
-        run: pip install ruff
+        # Pinned to match pyproject [dev] + the local format_gate hook; bump
+        # all three together (an unpinned bump can pass locally, fail here).
+        run: pip install ruff==0.15.14
 
       - name: ruff check
         run: ruff check .
