@@ -208,7 +208,7 @@ tools/
 2. Declare `arguments`, `allowed-tools`, and an `approval-policy` profile.
 3. Verify with `kca skill list` and
    `kca skill run <name> --arg key=value --dry-run --json`.
-4. Add the skill name to any seed list in `docs/milestones.md`.
+4. Add the skill name to any seed list in `docs/milestones/README.md`.
 
 ## Adding a new tool
 

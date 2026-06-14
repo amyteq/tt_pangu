@@ -99,7 +99,7 @@ Task spec: docs/tasks/m9_2/M9_2-T000-save-log-scaffold-and-impl.md
 
 Read also (background context):
 - docs/meeting-notes/2026-05-26-r1.md (the canonical spec — §2 for SKILL.md, §3 for the Python script)
-- docs/milestones.md §M9.2
+- docs/milestones/README.md §M9.2
 - CLAUDE.md (dev-phase secret carve-out — note it does NOT apply to this script)
 - .claude/skills/worktree-milestone-pr/SKILL.md (skill frontmatter precedent)
 - .claude/skills/kg-nb/SKILL.md (another skill precedent)
@@ -166,7 +166,7 @@ Read also (background context):
 Mission (full version in task spec):
 Run the milestone validation matrix, then call milestone-final-review
 to write docs/milestones/m9_2/final-review.md mirroring the M9 / M8.5 layout.
-Update docs/milestones.md (mark M9.2 done), PROJECT_STATE.md (set
+Update docs/milestones/README.md (mark M9.2 done), PROJECT_STATE.md (set
 current milestone to M10 again with M9.2 marked complete), and
 README.md (current-milestone block). Write docs/milestones/m9_2/handoff.md.
 After final review is written, call worktree-milestone-pr to commit

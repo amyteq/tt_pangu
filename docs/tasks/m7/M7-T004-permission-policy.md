@@ -14,13 +14,13 @@ semantics as Claude Code's `settings.json` but product-level and data-driven.
 ## Read first
 1. `tools/kca/agent/tool_registry.py`   (ToolSpec.approval_label, TOOL_REGISTRY)
 2. `tools/kca/agent/skill_loader.py`   (SkillMeta.approval_policy)
-3. `docs/milestones.md`   (M7 — permission policy design block)
+3. `docs/milestones/README.md`   (M7 — permission policy design block)
 4. `docs/meeting-notes/2026-05-21-r1.md`   (§2 permissions/ layout, §11 policy JSON)
 5. `tools/kca/kg.py`   (_check_approval_gate pattern for comparison)
 
 ## Scope / Files / Implementation guidance
 
-PolicyRecord (maps to a JSON policy record per docs/milestones.md M7):
+PolicyRecord (maps to a JSON policy record per docs/milestones/README.md M7):
 ```
 operation: str
 default_decision: str      # "allow" | "ask" | "deny"

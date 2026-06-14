@@ -12,7 +12,7 @@ alongside the M3 job lifecycle and M5 research items.
 1. `supabase/migrations/0005_m5_research_citations.sql` — additive ALTER style.
 2. `supabase/migrations/0003_m3_worker.sql` — `agent_jobs` shape + `agent_job_events`.
 3. `docs/adr/0007-otel-telemetry-strategy.md` — span hierarchy.
-4. `docs/milestones.md` (M6 section).
+4. `docs/milestones/README.md` (M6 section).
 
 ## Schema additions
 

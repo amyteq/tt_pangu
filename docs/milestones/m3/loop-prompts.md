@@ -42,7 +42,7 @@ M3 wires the control plane (Supabase/DB from M2) to a live Python agent worker t
 
 ```
 Read the following files before doing anything else:
-1. docs/milestones.md  (M3 section)
+1. docs/milestones/README.md  (M3 section)
 2. docs/milestones/m2/final-review.md  (risks section — note kaggle.py import shadow)
 3. docs/tasks/m3/M3-T000-hotfix-kaggle-rename.md
 4. tools/kca/kca.py  (find where kaggle.py is imported)
@@ -233,7 +233,7 @@ Do NOT git add or commit.
 ```
 Read:
 1. docs/tasks/m3/M3-T003-worker-scaffold.md
-2. docs/milestones.md  (M3 "Runtime agent" section)
+2. docs/milestones/README.md  (M3 "Runtime agent" section)
 3. CLAUDE.md  (Operating principles — tool trust, side-effect rules)
 4. tools/kca/_util.py  (SideEffect enum for reference)
 
@@ -761,7 +761,7 @@ Run each check and report PASS/FAIL:
     → report counts: X passed, Y skipped, Z failed
     → PASS if 0 failed (skipped DB tests are acceptable)
 
---- Milestone criterion (from docs/milestones.md M3) ---
+--- Milestone criterion (from docs/milestones/README.md M3) ---
 11. Manual end-to-end: job runs from prompt → tool call → recorded result
     python scripts/run_job.py \
       --prompt "Read tools/kca/COMMANDS.md and summarize the side-effect levels" \

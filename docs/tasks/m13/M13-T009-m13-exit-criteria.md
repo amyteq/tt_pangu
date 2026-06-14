@@ -79,7 +79,7 @@ are PASS**.
      cross-cutting follow-ups summary.
    - `README.md` — current-milestone block; bump product-plan
      range if it changes.
-   - `docs/milestones.md` — mark M13 `✓ done` with the
+   - `docs/milestones/README.md` — mark M13 `✓ done` with the
      validation matrix tally + the recorded report path.
    - `docs/milestones/m13/handoff.md` — new file mirroring
      `docs/milestones/m10/handoff.md`.
@@ -108,7 +108,7 @@ are PASS**.
 
 - `docs/milestones/m13/final-review.md` exists; layout matches M9 / M10;
   the validation matrix has 0 FAIL rows.
-- `PROJECT_STATE.md`, `README.md`, `docs/milestones.md`, and
+- `PROJECT_STATE.md`, `README.md`, `docs/milestones/README.md`, and
   `docs/milestones/m13/handoff.md` are updated consistently.
 - The PR is open against `main` with the final-review doc as
   the body.
@@ -137,7 +137,7 @@ M13-T009 closeout
   docs/milestones/m13/final-review.md: written (mirrors M9 / M10 layout; <N>-check matrix)
   PROJECT_STATE.md: updated; current milestone bumped from M13 to <next>
   README.md: current-milestone pointer bumped from M13 to <next>
-  docs/milestones.md: M13 marked ✓ done with per-task result table
+  docs/milestones/README.md: M13 marked ✓ done with per-task result table
   docs/milestones/m13/handoff.md: written (mirrors m10-handoff.md)
   Deferred-scope follow-ups filed: M13.1 (<url>), M13.2 (<url>)
   PR url: <link>

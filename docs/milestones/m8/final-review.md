@@ -2,7 +2,7 @@
 
 _Branch: `worktree-m8-loop` (M8 loop). Date: 2026-05-23._
 
-## Milestone exit (per docs/milestones.md M8 + docs/milestones/m8/loop-prompts.md)
+## Milestone exit (per docs/milestones/README.md M8 + docs/milestones/m8/loop-prompts.md)
 
 > Turn the headless KCA control plane into a usable workbench by adding
 > a React/TypeScript front-end on top of the M2–M7 layers, plus the six
@@ -174,7 +174,7 @@ tests, ui build) ran inside the normal sandbox.
    `agent_telemetry_spans` directly; once M9 lands an OTEL collector,
    wire spans from the collector instead of the worker direct-write.
 5. **First M9 task: live Kaggle regression test for Spaceship Titanic**
-   under approval, per `docs/milestones.md § M9`.
+   under approval, per `docs/milestones/README.md § M9`.
 
 ## Files of interest (one-line each)
 

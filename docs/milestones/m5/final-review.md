@@ -2,7 +2,7 @@
 
 _Branch: `main`._
 
-## Milestone exit (per docs/milestones.md)
+## Milestone exit (per docs/milestones/README.md)
 
 > Research and browser workflow + M4 follow-ups: web pages can be fetched
 > through a safety-gated path and recorded as cited, trust-labelled research

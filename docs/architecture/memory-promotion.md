@@ -56,7 +56,7 @@ The guiding principle is the one already in [`github-as-agent-interface.md`](git
 │ Canonical memory (the four files governed by ADR-0015)                   │
 │                                                                          │
 │   PROJECT_STATE.md                                                        │
-│   docs/milestones.md                                                      │
+│   docs/milestones/README.md                                                      │
 │   docs/milestones/m{N}/handoff.md                                          │
 │   docs/adr/NNNN-*.md                                                      │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -74,7 +74,7 @@ itself appends to `PROJECT_STATE.md` "Completed milestones").
 Repeated here verbatim from [ADR-0015](../adr/0015-memory-promotion-model.md):
 
 1. `PROJECT_STATE.md`
-2. `docs/milestones.md`
+2. `docs/milestones/README.md`
 3. `docs/milestones/m{N}/handoff.md`
 4. `docs/adr/NNNN-*.md`
 

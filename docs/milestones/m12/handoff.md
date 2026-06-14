@@ -1,7 +1,7 @@
 # M12 → M13 Handoff Prompt
 
 _Generated 2026-06-09 from `docs/milestones/m12/final-review.md` and
-`docs/milestones.md` § M13._
+`docs/milestones/README.md` § M13._
 
 Paste this into a fresh session that is starting **M13 (evaluation,
 reliability, and regression suite)**, or into a session that will first
@@ -39,7 +39,7 @@ provides three blocked artefacts.
 2. `AGENTS.md` — agent contract for this repo.
 3. `CLAUDE.md` — Claude Code project instructions; dev-phase secret
    carve-out active; never print the DSN.
-4. `docs/milestones.md` — M12 done-mark + M13 section.
+4. `docs/milestones/README.md` — M12 done-mark + M13 section.
 5. `docs/milestones/m12/final-review.md` — 48-row validation matrix; "Deviations"
    section; deferred T007 resume command; out-of-scope follow-ups.
 6. `docs/milestones/m13/loop-prompts.md` — M13 Loop Prompt set (planning docs

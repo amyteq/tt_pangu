@@ -66,7 +66,7 @@ Read also (background context):
 - PROJECT_STATE.md
 - AGENTS.md
 - CLAUDE.md
-- docs/milestones.md
+- docs/milestones/README.md
 - docs/milestones/m8/final-review.md
 - .github/workflows/test.yml
 - temp/ui-build-lint.log
@@ -100,7 +100,7 @@ Task spec (full scope + acceptance criteria + label list + agent rules):
   docs/tasks/m8_5/M8.5-T002-engineering-practice-github-interface.md
 
 Read also (background context):
-- PROJECT_STATE.md, AGENTS.md, CLAUDE.md, docs/milestones.md
+- PROJECT_STATE.md, AGENTS.md, CLAUDE.md, docs/milestones/README.md
 - temp/engineering_practice_summary.md
 - temp/engineering_practice_details.md
 - .github/workflows/claude.yml, claude-code-review.yml, test.yml
@@ -136,7 +136,7 @@ MAY commit and push the planning docs and open a single PR with
 `[planning]` in the title, but MUST NOT execute any M9 code yet.
 
 Read also (background context):
-- PROJECT_STATE.md, AGENTS.md, CLAUDE.md, docs/milestones.md
+- PROJECT_STATE.md, AGENTS.md, CLAUDE.md, docs/milestones/README.md
 - docs/milestones/m8/final-review.md
 - docs/milestones/m8/handoff.md
 - docs/engineering-practice.md (added by M8.5-T002)
@@ -251,6 +251,6 @@ claude "Use the milestone-loop-runner agent to execute M8.5-T001 then T002 then 
 
 When M8.5-T001, M8.5-T002, and M8.5-T003 are all complete:
 
-1. Update `PROJECT_STATE.md`, `README.md` (Current milestone), and `docs/milestones.md` to mark M8.5 done and generate a plan for M9.
+1. Update `PROJECT_STATE.md`, `README.md` (Current milestone), and `docs/milestones/README.md` to mark M8.5 done and generate a plan for M9.
 2. Backfill `docs/milestones/m8_5/handoff.md` (mirror `docs/milestones/m8/handoff.md`).
 3. Only after CI is green and M8.5 closeout is reviewed should M9 plan & implementation begin.

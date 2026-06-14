@@ -2,7 +2,7 @@
 
 _Date: 2026-05-18.  Branch: `main`._
 
-## Milestone exit (per docs/milestones.md)
+## Milestone exit (per docs/milestones/README.md)
 
 > Schema and data model support MVP-1 artifacts and future worker jobs.
 > A local/dev worker can record run events without needing product UI.

@@ -1,6 +1,6 @@
 # M5 → M6 Handoff Prompt
 
-_Backfilled 2026-05-22 from `docs/milestones/m5/final-review.md` and `docs/milestones.md` § M6._
+_Backfilled 2026-05-22 from `docs/milestones/m5/final-review.md` and `docs/milestones/README.md` § M6._
 
 Paste this into a fresh session that is starting **M6 (multi-agent review + OTEL telemetry + local-model layer)** work.
 
@@ -15,7 +15,7 @@ You are working on the `tt_pangu` / `kaggle-code-agent` repository. **M0–M5 ar
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md` — especially the **M6** section.
+4. `docs/milestones/README.md` — especially the **M6** section.
 5. `docs/milestones/m5/final-review.md` — what landed in M5 (18 checks PASS) + the
    "DB access note" for the container-IP DSN pattern reused in M6.
 6. `docs/milestones/m6/loop-prompts.md` — sequenced task prompts for M6.

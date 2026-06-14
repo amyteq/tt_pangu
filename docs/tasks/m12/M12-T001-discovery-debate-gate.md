@@ -22,7 +22,7 @@ values from day one.
 ## Read first
 
 1. `PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`
-2. `docs/milestones.md` §M11 and §M12
+2. `docs/milestones/README.md` §M11 and §M12
 3. `docs/milestones/m12/loop-prompts.md` (especially "Discovery / Debate Gate" + "What's in scope")
 4. `docs/milestone-loop-protocol.md` §7
 5. `docs/architecture/discovery-debate-gate.md`

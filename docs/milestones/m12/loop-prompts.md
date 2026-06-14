@@ -22,7 +22,7 @@ and the first to exercise a **non-Kaggle hackathon-submission path**.
 - M12 validates the **hackathon-submission** path on a Devpost-style
   event picked in M12-T000.
 
-The product goal stated in `docs/milestones.md` §M12 is to **generalize
+The product goal stated in `docs/milestones/README.md` §M12 is to **generalize
 the competition-policy layer beyond Kaggle and CTF**. M12 owns that
 generalization end-to-end:
 
@@ -153,7 +153,7 @@ Follow: docs/milestone-loop-protocol.md
 Task spec: docs/tasks/m12/M12-T000-survey-and-pick-target.md
 
 Read also (background context):
-- PROJECT_STATE.md, AGENTS.md, CLAUDE.md, docs/milestones.md §M12
+- PROJECT_STATE.md, AGENTS.md, CLAUDE.md, docs/milestones/README.md §M12
 - docs/milestones/m9/handoff.md
 - docs/engineering-practice.md
 - docs/architecture/discovery-debate-gate.md (T001 will use this; T000 only stages the human pick)
@@ -470,7 +470,7 @@ Mission (full version in task spec):
 Run the milestone validation matrix; call milestone-final-review to
 write docs/milestones/m12/final-review.md mirroring the M9 / M9.4 layout
 (validation matrix, PASS / SKIP / FAIL, exit-criteria roll-up). Update
-PROJECT_STATE.md (current milestone = M13), README.md, docs/milestones.md
+PROJECT_STATE.md (current milestone = M13), README.md, docs/milestones/README.md
 (mark M12 done with shipped summary), docs/milestones/m12/handoff.md
 (per-milestone handoff template). After final review is written,
 worktree-milestone-pr commits per-Loop-Prompt (one commit per task),
@@ -574,7 +574,7 @@ file it as a new M12.x issue and gate it the same way.
 - `docs/evidence/m12/t001/discovery/{legacy-archaeologist,requirements-skeptic,design-red-team}.md`
   exist; each carries its canonical acceptance line verbatim.
 - `docs/adr/0018-generalized-competition-type.md` exists and is
-  referenced from `docs/milestones.md` §M12.
+  referenced from `docs/milestones/README.md` §M12.
 - `supabase/migrations/0009_m12_competition_type_teams.sql` applied
   locally; the M9 / M10 baseline rows still resolve their policy
   correctly with `competition_type='kaggle'`.

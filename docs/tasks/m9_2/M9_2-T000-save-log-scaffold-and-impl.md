@@ -16,7 +16,7 @@ exported in this task — that is T001's job.
 
 1. `docs/meeting-notes/2026-05-26-r1.md` — canonical spec, §2 (SKILL.md)
    and §3 (Python script).
-2. `docs/milestones.md` §M9.2.
+2. `docs/milestones/README.md` §M9.2.
 3. `docs/milestones/m9_2/loop-prompts.md` — milestone shape.
 4. `docs/milestone-loop-protocol.md` — sequencing + secret denylist.
 5. `CLAUDE.md` — note that the dev-phase secret carve-out does **not**

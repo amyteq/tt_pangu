@@ -15,7 +15,7 @@ This task assumes **M9-T002, M9-T004, M9-T005 closeouts are PASS**.
 1. M9-T002, M9-T004, M9-T005 closeouts
 2. `tests/test_m*_smoke.py` (style precedent)
 3. `tools/kca/db.py` (read helpers)
-4. `docs/milestones.md` §M9 exit criteria
+4. `docs/milestones/README.md` §M9 exit criteria
 
 ## Scope
 

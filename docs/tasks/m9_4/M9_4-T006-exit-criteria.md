@@ -5,7 +5,7 @@ M9.4: Discovery / Debate Gate agents (planning + scaffolding).
 
 ## Goal
 Roll up the M9.4 validation matrix into `docs/milestones/m9_4/final-review.md`,
-update `PROJECT_STATE.md` and `docs/milestones.md` to reflect the new
+update `PROJECT_STATE.md` and `docs/milestones/README.md` to reflect the new
 "Discovery / Debate Gate" capability, then run the milestone-end
 git+gh sequence per `docs/milestone-loop-protocol.md` §5.
 
@@ -17,7 +17,7 @@ git+gh sequence per `docs/milestone-loop-protocol.md` §5.
 4. `docs/milestones/m9/final-review.md` — layout precedent
 5. `docs/milestones/m8_5/final-review.md` — layout precedent
 6. `docs/milestone-loop-protocol.md` §5 + new §7
-7. `PROJECT_STATE.md`, `README.md`, `docs/milestones.md`
+7. `PROJECT_STATE.md`, `README.md`, `docs/milestones/README.md`
 8. Skill: `milestone-final-review` (writes the canonical final-review doc)
 9. Skill: `worktree-milestone-pr` (runs the §5 git+gh sequence)
 
@@ -34,7 +34,7 @@ git+gh sequence per `docs/milestone-loop-protocol.md` §5.
      check the existing doc shape, don't guess).
    - Update the `_Last updated:_` date and any active-milestone field
      so the next session lands correctly.
-3. Update `docs/milestones.md`:
+3. Update `docs/milestones/README.md`:
    - Add a §M9.4 entry that links back to `docs/milestones/m9_4/loop-prompts.md`
      and `docs/milestones/m9_4/final-review.md`. The entry follows the M8.5
      format (Goal, task sequence table, exit criteria).
@@ -62,7 +62,7 @@ git+gh sequence per `docs/milestone-loop-protocol.md` §5.
   acceptance criterion from T001..T005 is mapped to evidence (file
   path, test output, transcript link).
 - `PROJECT_STATE.md` reflects M9.4 done.
-- `docs/milestones.md` has a §M9.4 entry.
+- `docs/milestones/README.md` has a §M9.4 entry.
 - `README.md` is correct for the active milestone at close time
   (M9.4 vs M10).
 - One commit per Loop Prompt landed; the worktree branch is pushed;
@@ -77,7 +77,7 @@ git+gh sequence per `docs/milestone-loop-protocol.md` §5.
 ## Permissions
 
 - Local writes to `docs/milestones/m9_4/final-review.md`, `PROJECT_STATE.md`,
-  `docs/milestones.md`, optionally `README.md`.
+  `docs/milestones/README.md`, optionally `README.md`.
 - `git add` / `git commit` / `git push` for the worktree branch are
   allowed under protocol §5.
 - `gh pr create` is allowed; `gh pr merge` is NOT.
@@ -89,7 +89,7 @@ git+gh sequence per `docs/milestone-loop-protocol.md` §5.
 M9.4-T006 closeout
   docs/milestones/m9_4/final-review.md written (counts: PASS=… SKIP=… FAIL=…)
   PROJECT_STATE.md updated: YES | NO
-  docs/milestones.md §M9.4 added: YES | NO
+  docs/milestones/README.md §M9.4 added: YES | NO
   README.md current-milestone: M9.4 | unchanged (M10)
   Commits landed (one per Loop Prompt): 6 | …
   Branch pushed: <branch-name>

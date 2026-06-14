@@ -176,7 +176,7 @@ deferred until the auth model lands (see ADR follow-ups in M12 / M13).
 
 1. **Overlap with M12 `competition_type`.** M12 is already planning a
    `competition_type` discriminator on the existing `competitions`
-   table (see `docs/milestones.md` §M12 and
+   table (see `docs/milestones/README.md` §M12 and
    [design-red-team §alternatives/1](../evidence/m11/discovery/design-red-team.md)).
    When M12 lands, the three M11 tables may be folded into
    `competitions` / `competition_subtasks` / `submissions` rather than

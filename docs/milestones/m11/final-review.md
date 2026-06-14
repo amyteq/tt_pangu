@@ -3,7 +3,7 @@
 _Branch: `worktree-m11-execution`._
 _Date: 2026-06-09._
 
-## Milestone exit (per docs/milestones.md M11)
+## Milestone exit (per docs/milestones/README.md M11)
 
 > Support CTF-style challenges only inside explicit authorization boundaries.
 > Challenge scope and authorization metadata; local container/lab-only execution;
@@ -151,7 +151,7 @@ DSN was used for all DB verification as stated in the loop prompt.
 
 - `docs/milestones/m11/final-review.md` — this document.
 - `docs/architecture/m11-ctf-workflow.md` — 7-section CTF workflow architecture doc.
-- `PROJECT_STATE.md`, `README.md`, `docs/milestones.md` — updated to M11 partial state.
+- `PROJECT_STATE.md`, `README.md`, `docs/milestones/README.md` — updated to M11 partial state.
 - `docs/milestones/m11/handoff.md` — M11 → M12 handoff.
 
 ## M12 follow-ups

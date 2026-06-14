@@ -39,7 +39,7 @@ Read these files before proposing or making changes. If a file does not exist, e
 3. `CLAUDE.md`
 4. `docs/architecture/model-routing.md`
 5. Latest files in `docs/adr/`
-6. `docs/milestones.md` if present
+6. `docs/milestones/README.md` if present
 7. Existing `README.md`, package manifests, test configuration, and CI files
 
 ## Rules
@@ -84,7 +84,7 @@ Use existing files if they already exist. Do not create duplicates with conflict
 - `AGENTS.md`
 - `CLAUDE.md`
 - `README.md`
-- `docs/milestones.md`
+- `docs/milestones/README.md`
 - `docs/architecture.md` or `docs/architecture/overview.md`
 - `docs/architecture/platform-vs-runtime-agents.md`
 - `docs/testing.md`
@@ -133,7 +133,7 @@ After editing, return:
 - Repository docs clearly state that GitHub files, not hidden AI memory, are the source of truth.
 - Repository docs describe the current architecture or explicitly document what is still unknown.
 - Repository docs describe how to run tests/smoke checks, or document blockers if no tests exist yet.
-- `docs/milestones.md` exists or is updated with a high-level product plan from M0 through later Kaggle/CTF/hackathon support.
+- `docs/milestones/README.md` exists or is updated with a high-level product plan from M0 through later Kaggle/CTF/hackathon support.
 - Any updates to `CLAUDE.md` / `AGENTS.md` reinforce safety, branch/PR, secrets, test, and approval rules.
 - No secrets, `.env`, Kaggle credentials, API keys, or private files are read or committed.
 - No Kaggle submission, kernel push, dataset upload, or remote competition side effect occurs.
@@ -187,7 +187,7 @@ Read these files first:
 3. CLAUDE.md
 4. docs/architecture/model-routing.md
 5. Latest files in docs/adr/
-6. docs/milestones.md if present
+6. docs/milestones/README.md if present
 7. README.md and package/test configuration if present
 
 Rules:
@@ -225,7 +225,7 @@ Wait for my approval before editing.
 - GitHub repo files are documented as the source of truth across Claude Code, ChatGPT, Cursor, Lovable, and future tools;
 - branch/PR/worktree rules and secret handling rules are documented;
 - tests or smoke checks are documented, or blockers are recorded;
-- docs/milestones.md exists or is updated with a high-level product plan;
+- docs/milestones/README.md exists or is updated with a high-level product plan;
 - no MVP-1 feature implementation occurs;
 - no secrets are read or committed;
 - no Kaggle submission, kernel push, dataset upload, or remote competition side effect occurs;

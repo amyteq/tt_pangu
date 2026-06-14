@@ -33,7 +33,7 @@ written from `tools/kca/ctf.py`._
    around CSV file uploads — gains shape it wasn't designed for
    (flag string, accepted boolean, http_status). Closest precedent:
    M12 is already planning this exact discriminator at the platform
-   level (`docs/milestones.md:891–892`). Evidence:
+   level (`docs/milestones/README.md:891–892`). Evidence:
    `docs/adr/0005-job-taxonomy.md:30` (`competition.platform ∈
    {kaggle, ctf, hackathon}` is already the intent).
 
@@ -153,7 +153,7 @@ ops_burden:        Four-tables-with-FKs means a schema migration
                    (`docs/evidence/m11/discovery/requirements-skeptic.md`).
 extensibility:     Next likely scope expansions: (a) M12's
                    `competition_type` enum (in progress per
-                   `docs/milestones.md:891–892`), and (b) a second
+                   `docs/milestones/README.md:891–892`), and (b) a second
                    CTF event running concurrently under the same
                    project (the picoCTF-during-weekend-CTF case).
                    The proposal needs a schema migration for (a) and
@@ -185,7 +185,7 @@ blast_radius:      Worst case: a wrong flag is submitted under
   `policy:approval-required`) asking whether M11-T001 should land a
   parallel schema or wait for M12-T002's `competition_type` and
   fold CTF in at M12 close. Evidence:
-  `docs/milestones.md:891–892`, `docs/milestones/m12/loop-prompts.md`
+  `docs/milestones/README.md:891–892`, `docs/milestones/m12/loop-prompts.md`
   (alternative 1 is already partly committed at the M12 layer).
 - `ctf_attempts` has no `event_account` / `team_id` / `submitted_by`
   column to record *which* credential actually hit the event.

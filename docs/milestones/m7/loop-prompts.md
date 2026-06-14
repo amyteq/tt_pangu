@@ -77,7 +77,7 @@ Read:
 1. .github/workflows/test.yml
 2. pyproject.toml   (dev extras, entry points)
 3. python -m pytest tests/ -v --tb=short 2>&1 | tail -40   (current local state)
-4. docs/milestones.md   (M7 section)
+4. docs/milestones/README.md   (M7 section)
 
 Goal: make the GitHub Actions `no-db` and `lint` jobs pass on the current
 main branch without requiring a live DB, Kaggle credentials, or GPU endpoints.
@@ -116,7 +116,7 @@ fixes applied, final pytest + ruff results.
 
 ```
 Read:
-1. docs/milestones.md   (M7 section — four-layer model + skill format)
+1. docs/milestones/README.md   (M7 section — four-layer model + skill format)
 2. docs/meeting-notes/2026-05-21-r1.md   (§1–3: skill YAML frontmatter design)
 3. tools/kca/kca.py   (current subcommand registration pattern)
 4. src/worker/_types.py   (JobPolicy shape, for approval-policy integration)
@@ -227,7 +227,7 @@ Do NOT git add or commit. Report: each verification + fixture skill created.
 Read:
 1. tools/kca/kca.py   (build_parser, current add_parsers pattern)
 2. tools/kca/agent/skill_loader.py   (from Prompt 1)
-3. docs/milestones.md   (M7 — Command vs Skill distinction)
+3. docs/milestones/README.md   (M7 — Command vs Skill distinction)
 4. docs/meeting-notes/2026-05-21-r1.md   (§2: KCA CLI command suggestions)
 
 Goal: implement tools/kca/agent/command_registry.py — a central registry that
@@ -296,7 +296,7 @@ Do NOT git add or commit. Report: registry list + CLI help + test results.
 Read:
 1. tools/kca/agent/skill_loader.py   (SkillMeta.allowed_tools)
 2. tools/kca/agent/command_registry.py   (CommandSpec.side_effect pattern)
-3. docs/milestones.md   (M7 — Tool layer description + permission policy design)
+3. docs/milestones/README.md   (M7 — Tool layer description + permission policy design)
 4. docs/meeting-notes/2026-05-21-r1.md   (§2 tools/kca/agent/tool_executor.py sketch)
 5. src/worker/worker.py   (existing tool call pattern in the agent loop)
 
@@ -368,13 +368,13 @@ Do NOT git add or commit. Report: registry count, SUBMISSION tools, test results
 Read:
 1. tools/kca/agent/tool_registry.py   (ToolSpec.approval_label, TOOL_REGISTRY)
 2. tools/kca/agent/skill_loader.py   (SkillMeta.approval_policy)
-3. docs/milestones.md   (M7 — permission policy design block)
+3. docs/milestones/README.md   (M7 — permission policy design block)
 4. docs/meeting-notes/2026-05-21-r1.md   (§2 permissions/ layout, §11 policy JSON)
 5. tools/kca/kg.py   (_check_approval_gate pattern for comparison)
 
 Goal: implement tools/kca/agent/permission_policy.py.
 
-PolicyRecord (maps to a JSON policy record per docs/milestones.md M7):
+PolicyRecord (maps to a JSON policy record per docs/milestones/README.md M7):
   operation: str
   default_decision: str      # "allow" | "ask" | "deny"
   reason: str
@@ -637,7 +637,7 @@ Read:
 2. tools/kca/agent/permission_policy.py   (profile names)
 3. docs/meeting-notes/2026-05-21-r1.md   (§2 KCA skill example + four workflow recipes)
 4. CLAUDE.md   (operating principles — untrusted data, one-change-at-a-time discipline)
-5. docs/milestones.md   (M7 seed skills list)
+5. docs/milestones/README.md   (M7 seed skills list)
 
 Goal: create four SKILL.md files under .kca/skills/.
 
@@ -886,7 +886,7 @@ Do NOT git add or commit. Report: count + per-test status line.
 
 ```
 Read:
-1. docs/milestones.md   (M7 section — full four-layer table + directory layout)
+1. docs/milestones/README.md   (M7 section — full four-layer table + directory layout)
 2. docs/meeting-notes/2026-05-21-r1.md   (§1–3)
 3. tools/kca/agent/skill_loader.py   (SkillMeta fields)
 4. tools/kca/agent/tool_registry.py   (ToolSpec fields)
@@ -921,7 +921,7 @@ Note that SUBMISSION tools always default to "ask".
 ## Permission policy
 Explain the policy resolution priority:
   deny > mode-specific allow > default_decision > ToolSpec.approval_label > "ask"
-Show the PolicyRecord JSON example from docs/milestones.md M7.
+Show the PolicyRecord JSON example from docs/milestones/README.md M7.
 Name the three shipped profiles: default, permissive-dev, competition-runner.
 
 ## Audit trail
@@ -929,11 +929,11 @@ Explain .agent/audit.jsonl and how it relates to agent_job_events.
 Note: args_hash not args, to avoid logging sensitive data.
 
 ## Decision gate UI flow
-Show the example from docs/milestones.md M7 / docs/meeting-notes/2026-05-21-r1.md §11:
+Show the example from docs/milestones/README.md M7 / docs/meeting-notes/2026-05-21-r1.md §11:
   "Agent reached decision gate: Submit run kca-run-123..."
 
 ## Directory layout
-Reproduce the layout table from docs/milestones.md M7.
+Reproduce the layout table from docs/milestones/README.md M7.
 
 ## Adding a new command
 Step-by-step: create module → add CommandSpec to REGISTRY → add_parsers → done.
@@ -1040,18 +1040,18 @@ Also update, in order:
   1. PROJECT_STATE.md — set current milestone to M8, summarise M7 deliverables,
      clear M7 open decisions.
   2. README.md — update "Current milestone" section from M7 to M8.
-  3. docs/milestones.md — mark M7 ✓ done with one-line summary.
+  3. docs/milestones/README.md — mark M7 ✓ done with one-line summary.
   4. docs/milestones/m7/handoff.md — write a per-milestone handoff prompt for the
      next AI tool / session that will start M8. Use docs/milestones/_templates/handoff-prompt.md as
      the canonical template and populate:
        - Read-first list (PROJECT_STATE.md, AGENTS.md, CLAUDE.md, the M8 section
-         of docs/milestones.md, this docs/milestones/m7/final-review.md, latest ADRs,
+         of docs/milestones/README.md, this docs/milestones/m7/final-review.md, latest ADRs,
          docs/architecture/kca-cli-architecture.md).
        - "State at M7 exit" (1–3 lines summarising what landed + the 28-check
          exit matrix outcome + the M8 follow-ups list).
        - "Current task" stub for the first M8 task (typically Prompt 0 of
          docs/milestones/m8/loop-prompts.md once that file exists).
-     This step is required by docs/milestones.md § Milestone final-review
+     This step is required by docs/milestones/README.md § Milestone final-review
      protocol; do not skip it.
 
 Do NOT git add or commit unless the human explicitly requests it.
@@ -1129,6 +1129,6 @@ After M7 EXIT CRITERIA MET, before moving to M8:
 - [ ] docs/milestones/m7/final-review.md created with validation matrix.
 - [ ] PROJECT_STATE.md updated: current milestone = M8.
 - [ ] README.md current milestone updated to M8.
-- [ ] docs/milestones.md M7 marked ✓ done.
+- [ ] docs/milestones/README.md M7 marked ✓ done.
 - [ ] `.kca/skills/_test_fixture/` either removed or renamed to a real skill.
 - [ ] Human reviews `docs/milestones/m7/final-review.md` and confirms M8 scope.

@@ -6,7 +6,7 @@ M9.2: `/save-log` skill — Claude Code session transcript export.
 ## Goal
 Validate the full M9.2 acceptance matrix, write
 `docs/milestones/m9_2/final-review.md` via the `milestone-final-review` skill,
-update `docs/milestones.md` / `PROJECT_STATE.md` / `README.md`, write
+update `docs/milestones/README.md` / `PROJECT_STATE.md` / `README.md`, write
 `docs/milestones/m9_2/handoff.md`, then call the `worktree-milestone-pr`
 skill to commit per-Loop-Prompt, push the worktree branch, and open the
 M9.2 PR against `main`.
@@ -20,7 +20,7 @@ M9.2 PR against `main`.
    milestone).
 5. `docs/milestones/m9/handoff.md` — handoff template precedent.
 6. `docs/milestones/_templates/handoff-prompt.md` — canonical handoff template.
-7. `docs/milestones.md` — current shape; locate the M9.2 section
+7. `docs/milestones/README.md` — current shape; locate the M9.2 section
    inserted between M9 and M10.
 8. `PROJECT_STATE.md` — current-milestone block.
 9. `README.md` — current-milestone block + tooling section.
@@ -56,7 +56,7 @@ M9.2 PR against `main`.
    - "Follow-ups" — link any issues filed during T000 / T001.
    - Final PASS count.
 
-3. **Update `docs/milestones.md`.** Flip the M9.2 entry from "in
+3. **Update `docs/milestones/README.md`.** Flip the M9.2 entry from "in
    planning" to "✓ done" with a one-line summary of what landed
    (skill + script + docs/logs/ + smoke evidence). Keep the M9.2
    section between M9 and M10. Do not renumber M10–M13.
@@ -117,7 +117,7 @@ M9.2 PR against `main`.
   1).
 - `docs/milestones/m9_2/final-review.md` exists, follows the M9 / M8.5 layout,
   and lists T000 / T001 / T002 with PASS/FAIL/SKIP plus evidence.
-- `docs/milestones.md` shows M9.2 as `✓ done` with a one-line summary.
+- `docs/milestones/README.md` shows M9.2 as `✓ done` with a one-line summary.
 - `PROJECT_STATE.md` current-milestone block names M10 again.
 - `README.md` current-milestone block names M10 again; `/save-log`
   is mentioned exactly once in the file.
@@ -152,7 +152,7 @@ M9.2 PR against `main`.
 M9.2-T002 closeout
   Validation matrix: PASS (ruff / --help / pytest / git status clean)
   docs/milestones/m9_2/final-review.md: written (lines=<N>, PASS=<count>, FAIL=<count>, SKIP=<count>)
-  docs/milestones.md: M9.2 marked ✓ done (one-line summary present)
+  docs/milestones/README.md: M9.2 marked ✓ done (one-line summary present)
   PROJECT_STATE.md: current-milestone → M10
   README.md: current-milestone → M10; /save-log mention present
   docs/milestones/m9_2/handoff.md: written

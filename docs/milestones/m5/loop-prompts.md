@@ -56,7 +56,7 @@ Read:
 1. docs/tasks/m5/M5-T000-migration-0005-research-citations.md
 2. supabase/migrations/0001_init.sql  (research_items, artifacts)
 3. supabase/migrations/0004_m4_competition_repo.sql  (additive ALTER style)
-4. docs/milestones.md  (M5 section)
+4. docs/milestones/README.md  (M5 section)
 
 Goal: write supabase/migrations/0005_m5_research_citations.sql.
 

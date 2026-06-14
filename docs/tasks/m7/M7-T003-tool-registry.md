@@ -13,7 +13,7 @@ side-effect level, approval label, sandbox metadata) and policy-gated lookup.
 ## Read first
 1. `tools/kca/agent/skill_loader.py`   (SkillMeta.allowed_tools)
 2. `tools/kca/agent/command_registry.py`   (CommandSpec.side_effect pattern)
-3. `docs/milestones.md`   (M7 — Tool layer description + permission policy design)
+3. `docs/milestones/README.md`   (M7 — Tool layer description + permission policy design)
 4. `docs/meeting-notes/2026-05-21-r1.md`   (§2 tools/kca/agent/tool_executor.py sketch)
 5. `src/worker/worker.py`   (existing tool call pattern in the agent loop)
 

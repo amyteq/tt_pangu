@@ -1,6 +1,6 @@
 # M6 → M7 Handoff Prompt
 
-_Backfilled 2026-05-22 from `docs/milestones/m6/final-review.md` and `docs/milestones.md` § M7._
+_Backfilled 2026-05-22 from `docs/milestones/m6/final-review.md` and `docs/milestones/README.md` § M7._
 
 Paste this into a fresh session that is starting **M7 (KCA CLI architecture — command / skill / tool / job / permission policy)** work.
 
@@ -15,7 +15,7 @@ You are working on the `tt_pangu` / `kaggle-code-agent` repository. **M0–M6 ar
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md` — especially the **M7** section (four-layer model,
+4. `docs/milestones/README.md` — especially the **M7** section (four-layer model,
    M7-T000 through M7-T010, permission policy design, recommended directory
    layout).
 5. `docs/milestones/m6/final-review.md` — what landed in M6 (19 non-SKIP checks PASS).

@@ -89,7 +89,7 @@ No other deviations.
 |---|---|---|
 | `docs/milestones/m9_4/final-review.md` exists, matches M8.5 / M9 layout, every AC mapped to evidence | this file | PASS |
 | `PROJECT_STATE.md` reflects M9.4 done | `git diff` on PROJECT_STATE.md in this PR | PASS |
-| `docs/milestones.md` has §M9.4 entry | `git diff` on docs/milestones.md in this PR | PASS |
+| `docs/milestones/README.md` has §M9.4 entry | `git diff` on docs/milestones/README.md in this PR | PASS |
 | `README.md` correct for active milestone (M10 remains active) | unchanged | PASS |
 | One commit per Loop Prompt landed | `git log --oneline origin/main..HEAD` shows 6 commits | PASS (see worktree-milestone-pr output at close time) |
 | Branch pushed; PR open against `main` with this file as body | gh pr create | PASS |
@@ -108,7 +108,7 @@ docs/evidence/m9_4-kkr-replay/design-red-team.md       (new, 151 lines)
 tests/test_m9_4_agents.py                 (new, 10 passed / 1 skip)
 docs/milestones/m9_4/final-review.md                 (new, this file)
 PROJECT_STATE.md                          (M9.4 ✓ added)
-docs/milestones.md                        (§M9.4 entry added)
+docs/milestones/README.md                        (§M9.4 entry added)
 ```
 
 Not touched: `src/`, `tools/kca/`, `ui/`, `services/`, `supabase/migrations/`,

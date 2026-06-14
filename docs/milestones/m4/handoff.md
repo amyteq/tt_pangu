@@ -1,6 +1,6 @@
 # M4 → M5 Handoff Prompt
 
-_Backfilled 2026-05-22 from `docs/milestones/m4/final-review.md` and `docs/milestones.md` § M5._
+_Backfilled 2026-05-22 from `docs/milestones/m4/final-review.md` and `docs/milestones/README.md` § M5._
 
 Paste this into a fresh session that is starting **M5 (research and browser workflow + M4 follow-ups)** work.
 
@@ -15,7 +15,7 @@ You are working on the `tt_pangu` / `kaggle-code-agent` repository. **M0–M4 ar
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md` — especially the **M5** section (M5-T000 through M5-T010).
+4. `docs/milestones/README.md` — especially the **M5** section (M5-T000 through M5-T010).
 5. `docs/milestones/m4/final-review.md` — what landed in M4 and the 16-check validation matrix.
 6. `docs/milestones/m5/loop-prompts.md` — sequenced task prompts for M5.
 7. `docs/milestones/_templates/handoff-prompt.md` — canonical handoff template.

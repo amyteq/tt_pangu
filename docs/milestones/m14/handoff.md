@@ -18,7 +18,7 @@ goal-driven Kaggle loop now exists end-to-end EXCEPT the final submit step.
 ## Read these files first
 
 1. `PROJECT_STATE.md` — confirms M14 closed; M15 next.
-2. `docs/milestones.md §M14` — completion note + the full exit-criteria list.
+2. `docs/milestones/README.md §M14` — completion note + the full exit-criteria list.
 3. `docs/milestones/m14/final-review.md` — 24-row validation matrix + deviations.
 4. `docs/adr/0020-goal-driven-kaggle-loop.md` — the loop's design, plus the
    new **"Known gaps / follow-ups"** section (push≠submit, refresh-rules).

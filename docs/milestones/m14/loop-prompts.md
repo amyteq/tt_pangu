@@ -130,7 +130,7 @@ Follow: docs/milestone-loop-protocol.md (note §7 — Discovery / Debate Gate is
 Task spec: docs/tasks/m14/M14-T000-goal-loop-architecture.md  (to be written in this prompt)
 
 Read also (background context):
-- docs/milestones.md §M14
+- docs/milestones/README.md §M14
 - docs/architecture/discovery-debate-gate.md
 - .claude/agents/requirements-skeptic.md
 - .claude/agents/legacy-archaeologist.md (skippable — greenfield; document the skip)

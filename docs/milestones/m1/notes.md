@@ -123,7 +123,7 @@ Read first:
 - PROJECT_STATE.md
 - AGENTS.md
 - CLAUDE.md
-- docs/milestones.md
+- docs/milestones/README.md
 - docs/architecture/model-routing.md
 - latest docs/adr files
 - tools/legacy/TOOLS.md

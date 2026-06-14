@@ -12,7 +12,7 @@ recorded by:
 
 and asserts:
 
-  - ``cv_lr >= 0.78``         (M9 sanity guard, see docs/milestones.md §M9)
+  - ``cv_lr >= 0.78``         (M9 sanity guard, see docs/milestones/README.md §M9)
   - ``cv_hgb >= 0.80``        (M9 sanity guard)
   - ``cv_hgb > cv_lr``        (HGB beat LR on the same CV split)
   - ``public_score IS NOT NULL`` for the M9-T004 submission row
@@ -44,7 +44,7 @@ requires_db = pytest.mark.skipif(
     reason="SUPABASE_DB_URL not set",
 )
 
-# M9 thresholds — these are sanity guards copied from docs/milestones.md §M9.
+# M9 thresholds — these are sanity guards copied from docs/milestones/README.md §M9.
 # They are deliberately well below the recorded values so a real regression
 # (data leakage, broken CV split, mis-recorded metric) trips them, but
 # routine variance from seed/version drift does not.

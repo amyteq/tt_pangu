@@ -9,7 +9,7 @@ sequence in shape; produce `docs/milestones/m4/final-review.md`'s sibling file.
 
 ## Read first
 1. `docs/milestones/m4/final-review.md` (template)
-2. `docs/milestones.md` (M5 exit criteria)
+2. `docs/milestones/README.md` (M5 exit criteria)
 3. All M5 task specs (T000..T009)
 
 ## Checklist
