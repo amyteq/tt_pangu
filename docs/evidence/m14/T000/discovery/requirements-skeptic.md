@@ -1,4 +1,4 @@
-requirements-skeptic report for M14-T000 (goal-driven Kaggle loop; docs/milestones.md §M14 + docs/milestones/m14/loop-prompts.md)
+requirements-skeptic report for M14-T000 (goal-driven Kaggle loop; docs/milestones/README.md §M14 + docs/milestones/m14/loop-prompts.md)
 
 hidden_constraints:
   1. Kaggle's *actual* per-competition concurrency limit is not a published

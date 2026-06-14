@@ -7,7 +7,7 @@ M11: authorized CTF / lab workflow.
 Validate the M11 exit-criteria matrix; write `docs/milestones/m11/final-review.md`
 via the `milestone-final-review` skill; write
 `docs/architecture/m11-ctf-workflow.md` if not already authored; update
-`PROJECT_STATE.md`, `README.md`, `docs/milestones.md` §M11 to `✓ done`;
+`PROJECT_STATE.md`, `README.md`, `docs/milestones/README.md` §M11 to `✓ done`;
 write `docs/milestones/m11/handoff.md`; run `worktree-milestone-pr` to
 commit per Loop Prompt, push the worktree branch, and open the M11 PR
 against `main`.
@@ -24,7 +24,7 @@ against `main`.
    precedent
 7. `milestone-final-review` skill body
 8. `worktree-milestone-pr` skill body
-9. `docs/milestones.md` §M11 — exit criteria text
+9. `docs/milestones/README.md` §M11 — exit criteria text
 
 ## Scope
 
@@ -76,7 +76,7 @@ against `main`.
    - `PROJECT_STATE.md` — current milestone → "M11 ✓ done; entering
      M12 / M13 (TBD)"; open decisions; known blockers carried.
    - `README.md` — current milestone section.
-   - `docs/milestones.md` §M11 — mark `✓ done`; one-line landed
+   - `docs/milestones/README.md` §M11 — mark `✓ done`; one-line landed
      summary mirroring M9 / M10 entries; follow-ups list.
 
 5. **Write `docs/milestones/m11/handoff.md`** per
@@ -112,7 +112,7 @@ against `main`.
   and reports total PASS / SKIP / FAIL counts.
 - `docs/architecture/m11-ctf-workflow.md` exists with all seven
   required sections.
-- `PROJECT_STATE.md`, `README.md`, `docs/milestones.md` updated.
+- `PROJECT_STATE.md`, `README.md`, `docs/milestones/README.md` updated.
 - `docs/milestones/m11/handoff.md` exists with all six template
   sections populated from M11 evidence.
 - The worktree branch is pushed to `origin`; `gh pr view` returns
@@ -137,7 +137,7 @@ M11-T009 closeout
   Validation matrix: <n> PASS / <m> SKIP / <k> FAIL
   docs/milestones/m11/final-review.md: written
   docs/architecture/m11-ctf-workflow.md: written (sections: 7/7)
-  PROJECT_STATE.md / README.md / docs/milestones.md: updated
+  PROJECT_STATE.md / README.md / docs/milestones/README.md: updated
   docs/milestones/m11/handoff.md: written
   Worktree branch: <name> pushed to origin
   PR: <url>

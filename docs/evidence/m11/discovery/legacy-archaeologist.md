@@ -9,7 +9,7 @@ Source artefacts (read-only):
 - `.claude/skills/agent-iteration-review/SKILL.md:3, 8` — references "CTF solver results".
 - `src/worker/reviewer.py:48–61` — reviewer system prompt mentions "Kaggle/CTF code agent" and "violate competition/CTF rules".
 - `docs/adr/0005-job-taxonomy.md:22, 30` — `project_kind` includes `ctf-practice-may26` example; `competition.platform ∈ {kaggle, ctf, hackathon}`.
-- `docs/milestones.md:834–851` — M11 milestone slot.
+- `docs/milestones/README.md:834–851` — M11 milestone slot.
 - `docs/meeting-notes/2026-05-15.md:80, 115–116, 155, 191, 586` — original brainstorm: `ctf-sandbox/SKILL.md` planned; Kaggle and CTF must be separate policies; "MVP-4: authorized CTF sandbox loop"; Python-first worker rationale includes CTF scripts; "Level 4: authorized CTF sandbox" autonomy ceiling.
 - `docs/meeting-notes/2026-05-16-r2.md:3, 20, 41, 96, 181, 202, 216` — security boundary differentiation; "M8" (now renumbered M11) authorized CTF/lab workflow.
 

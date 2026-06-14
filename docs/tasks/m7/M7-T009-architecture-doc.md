@@ -10,7 +10,7 @@ backfilled — original task spec was inlined into `docs/milestones/m7/loop-prom
 Write `docs/architecture/kca-cli-architecture.md`.
 
 ## Read first
-1. `docs/milestones.md`   (M7 section — full four-layer table + directory layout)
+1. `docs/milestones/README.md`   (M7 section — full four-layer table + directory layout)
 2. `docs/meeting-notes/2026-05-21-r1.md`   (§1–3)
 3. `tools/kca/agent/skill_loader.py`   (SkillMeta fields)
 4. `tools/kca/agent/tool_registry.py`   (ToolSpec fields)
@@ -47,7 +47,7 @@ Explain the policy resolution priority:
 ```
 deny > mode-specific allow > default_decision > ToolSpec.approval_label > "ask"
 ```
-Show the PolicyRecord JSON example from `docs/milestones.md` M7.
+Show the PolicyRecord JSON example from `docs/milestones/README.md` M7.
 Name the three shipped profiles: default, permissive-dev, competition-runner.
 
 ### `## Audit trail`
@@ -55,11 +55,11 @@ Explain `.agent/audit.jsonl` and how it relates to `agent_job_events`.
 Note: `args_hash` not `args`, to avoid logging sensitive data.
 
 ### `## Decision gate UI flow`
-Show the example from `docs/milestones.md` M7 / `docs/meeting-notes/2026-05-21-r1.md` §11:
+Show the example from `docs/milestones/README.md` M7 / `docs/meeting-notes/2026-05-21-r1.md` §11:
 "Agent reached decision gate: Submit run kca-run-123..."
 
 ### `## Directory layout`
-Reproduce the layout table from `docs/milestones.md` M7.
+Reproduce the layout table from `docs/milestones/README.md` M7.
 
 ### `## Adding a new command`
 Step-by-step: create module → add CommandSpec to REGISTRY → add_parsers → done.

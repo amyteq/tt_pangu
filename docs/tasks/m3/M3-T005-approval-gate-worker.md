@@ -13,7 +13,7 @@ tool. Add `kca decisions list/approve/deny` so a human can see and resolve pendi
 2. `src/worker/worker.py` — `AgentWorker.run()`, where `ApprovalRequired` is caught
 3. `tools/kca/db.py` — `insert_approval_request`, `list_pending_decisions`, `resolve_decision`
 4. `tools/kca/kca.py` — subcommand registration pattern
-5. `docs/milestones.md` — M3 "Worker enforces approval gates"
+5. `docs/milestones/README.md` — M3 "Worker enforces approval gates"
 
 ## Part A: Catch `ApprovalRequired` in `AgentWorker.run()`
 

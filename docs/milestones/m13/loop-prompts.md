@@ -124,7 +124,7 @@ Follow: docs/milestone-loop-protocol.md (note §7 — Discovery / Debate Gate is
 Task spec: docs/tasks/m13/M13-T000-eval-architecture.md
 
 Read also (background context):
-- docs/milestones.md §M13
+- docs/milestones/README.md §M13
 - docs/architecture/discovery-debate-gate.md
 - .claude/agents/requirements-skeptic.md
 - .claude/agents/legacy-archaeologist.md (skippable — greenfield; document the skip)

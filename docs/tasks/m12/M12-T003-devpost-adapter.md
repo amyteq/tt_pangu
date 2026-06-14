@@ -20,7 +20,7 @@ Routine.
 ## Read first
 
 1. `PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`
-2. `docs/milestones.md` §M12
+2. `docs/milestones/README.md` §M12
 3. `docs/milestones/m12/loop-prompts.md` Loop Prompt 3
 4. `docs/adr/0018-generalized-competition-type.md` (T001 output)
 5. `docs/evidence/m12/t000-candidates.md` (the picked slug)

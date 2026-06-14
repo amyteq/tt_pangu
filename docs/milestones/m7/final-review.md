@@ -2,7 +2,7 @@
 
 _Branch: `main`._
 
-## Milestone exit (per docs/milestones.md M7)
+## Milestone exit (per docs/milestones/README.md M7)
 
 > Give the KCA platform a stable, inspectable CLI architecture with four
 > explicit layers: **Command**, **Skill**, **Tool**, **Job**. Ship a skill

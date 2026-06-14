@@ -21,7 +21,7 @@ and discovery only.
 
 ## Read first
 
-1. `docs/milestones.md` §M13
+1. `docs/milestones/README.md` §M13
 2. `docs/milestone-loop-protocol.md` §7 (Discovery / Debate Gate)
 3. `docs/architecture/discovery-debate-gate.md` (canonical acceptance
    lines for the three agents)
@@ -51,7 +51,7 @@ and discovery only.
      explicitly in the closeout AND the M13 proposal issue has a
      `decision:confirmed` comment naming the skip.
    - Invoke `requirements-skeptic` against the M13 description in
-     `docs/milestones.md`. Expect ≥5 questions across ≥3 categories
+     `docs/milestones/README.md`. Expect ≥5 questions across ≥3 categories
      (scope, schema, routing, secrets, replay-stability, …) plus a
      non-empty `explicit_unknowns` list. Save the transcript under
      `docs/evidence/m13/T000/discovery/requirements-skeptic.md`.

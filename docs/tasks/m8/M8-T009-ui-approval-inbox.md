@@ -19,7 +19,7 @@ permission policy.
 3. `supabase/migrations/0007_m8_tool_audit.sql` (`agent_tool_audit`)
 4. `tools/kca/decisions.py` (approve / reject CLI)
 5. `tools/kca/agent/permission_policy.py` (decision semantics)
-6. `docs/milestones.md` (M8 § Decision-gate UI requirements)
+6. `docs/milestones/README.md` (M8 § Decision-gate UI requirements)
 
 ## Scope / Files / Implementation guidance
 

@@ -2,7 +2,7 @@
 
 _Branch: `main`._
 
-## Milestone exit (per docs/milestones.md)
+## Milestone exit (per docs/milestones/README.md)
 
 > Each Kaggle competition runs in its own competition repo with experiment
 > branches. The agent can register a competition, clone its repo, drive a

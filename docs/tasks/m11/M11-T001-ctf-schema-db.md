@@ -13,7 +13,7 @@ Author `supabase/migrations/0008_m11_ctf.sql` adding `ctf_events`,
 ## Read first
 
 1. `PROJECT_STATE.md`
-2. `docs/milestones.md` §M11
+2. `docs/milestones/README.md` §M11
 3. M11-T000 closeout + `docs/evidence/m11/discovery/legacy-archaeologist.md`
    (load-bearing for schema dimensions)
 4. `docs/evidence/m11/discovery/design-red-team.md` (alternatives + dropped

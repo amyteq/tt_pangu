@@ -18,7 +18,7 @@ The agent does not share hidden memory across sessions, machines, or products. T
 - `pulls/` — the change proposals + review trail.
 - `comments` — the discussion thread, treated as evidence, not as truth.
 - `labels` — the state machine that gates AI pickup.
-- repo files (`PROJECT_STATE.md`, `docs/adr/`, `docs/milestones.md`, `docs/milestones/*/handoff.md`) — the curated memory that survives context resets.
+- repo files (`PROJECT_STATE.md`, `docs/adr/`, `docs/milestones/README.md`, `docs/milestones/*/handoff.md`) — the curated memory that survives context resets.
 
 The rule that follows from this: **a comment is evidence, not a decision.** Only an explicit human confirmation, captured in a labeled state transition or a repo-file change, promotes a comment into project memory. This is the principle behind the [memory-promotion workflow](session-memory-and-audit.md#3-memory-promotion-workflow).
 
@@ -177,7 +177,7 @@ Promotion rules — these are the load-bearing constraints, enforced by the agen
 3. Ambiguous comments → `decision:needed` + `ai:blocked`; the agent asks rather than infers.
 4. Implementation detail → task doc / PR closeout, not ADR.
 5. Long-term architecture decision → ADR (`docs/adr/`).
-6. Milestone status → `PROJECT_STATE.md` + `docs/milestones.md`.
+6. Milestone status → `PROJECT_STATE.md` + `docs/milestones/README.md`.
 
 Existing repo references that already implement parts of this contract: [`.claude/agents/github-issue-triage.md`](../../.claude/agents/github-issue-triage.md), [`.claude/agents/pr-review-followup.md`](../../.claude/agents/pr-review-followup.md), [`.claude/skills/pr-closeout-review/`](../../.claude/skills/pr-closeout-review/).
 

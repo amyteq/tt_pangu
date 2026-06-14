@@ -13,7 +13,7 @@ Provide a `MockLiteLLMClient` for deterministic testing without API calls.
 2. `src/worker/tools.py` — `TOOL_SCHEMAS`, `ToolExecutor`, `ApprovalRequired`
 3. `src/worker/budget.py` — `BudgetTracker`
 4. `tools/kca/db.py` — `append_job_event`, `update_job` signatures
-5. `docs/milestones.md` — M3 exit criteria
+5. `docs/milestones/README.md` — M3 exit criteria
 
 ## Worker runtime choice
 

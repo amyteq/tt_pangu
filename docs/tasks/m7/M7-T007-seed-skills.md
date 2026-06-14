@@ -15,7 +15,7 @@ Create four SKILL.md files under `.kca/skills/`:
 2. `tools/kca/agent/permission_policy.py`   (profile names)
 3. `docs/meeting-notes/2026-05-21-r1.md`   (§2 KCA skill example + four workflow recipes)
 4. `CLAUDE.md`   (operating principles — untrusted data, one-change-at-a-time discipline)
-5. `docs/milestones.md`   (M7 seed skills list)
+5. `docs/milestones/README.md`   (M7 seed skills list)
 
 ## Scope / Files / Implementation guidance
 

@@ -18,7 +18,7 @@ checkout so concurrent jobs (and debugging after failure) never share file state
 1. `tools/kca/kca.py` — subcommand registration pattern
 2. `tools/kca/_util.py` — `emit_json`, `run_cmd`, `SideEffect`
 3. `tools/kca/db.py` — `update_job` (for recording workspace_path)
-4. `docs/milestones.md` — M3 "Worker creates isolated workspace/worktree per job"
+4. `docs/milestones/README.md` — M3 "Worker creates isolated workspace/worktree per job"
 
 ## Commands to implement
 

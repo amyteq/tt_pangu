@@ -7,7 +7,7 @@ M2: Supabase / control-plane foundation.
 Confirm M2 exit criteria are met. Produce a PR-ready summary.
 
 ## Read first
-1. `docs/milestones.md` — M2 exit criteria
+1. `docs/milestones/README.md` — M2 exit criteria
 2. All `docs/tasks/m2/M2-T*.md` specs
 3. `supabase/migrations/0001_init.sql` + `0002_kca_run_alignment.sql`
 4. `tools/kca/db.py`, `tools/kca/run.py`, `tools/kca/kaggle.py`

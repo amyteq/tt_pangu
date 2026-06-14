@@ -28,7 +28,7 @@ and only the kernel runner needs Kaggle's hardware.
 M10 is **not** a leaderboard-chasing milestone. The acceptance criterion is
 that the kernel-push loop *runs end-to-end correctly under the approval
 gates*, not that the LB score is high. The CV / holdout thresholds in
-`docs/milestones.md` §M10 are sanity guards, not targets.
+`docs/milestones/README.md` §M10 are sanity guards, not targets.
 
 Direct entry into M10 is blocked until **all** are true:
 
@@ -115,7 +115,7 @@ Follow: docs/milestone-loop-protocol.md
 Task spec: docs/tasks/m10/M10-T000-kaggle-credentials.md
 
 Read also (background context):
-- PROJECT_STATE.md, AGENTS.md, CLAUDE.md, docs/milestones.md §M10
+- PROJECT_STATE.md, AGENTS.md, CLAUDE.md, docs/milestones/README.md §M10
 - docs/milestones/m9/handoff.md
 - docs/engineering-practice.md
 - env.example

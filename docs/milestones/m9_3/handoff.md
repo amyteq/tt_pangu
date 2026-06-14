@@ -16,7 +16,7 @@ In order, before doing any work:
 
 1. `PROJECT_STATE.md` — confirms M9.3 closed; M10 still current.
 2. `AGENTS.md` and `CLAUDE.md` — operating principles + dev-phase secret carve-out.
-3. `docs/milestones.md` — M9.3 row sits between M9.2 and M10.
+3. `docs/milestones/README.md` — M9.3 row sits between M9.2 and M10.
 4. `docs/milestones/m9_3/final-review.md` — 25-check validation matrix.
 5. `docs/adr/0015-memory-promotion-model.md` — canonical memory list + propose-only rule.
 6. `docs/architecture/memory-promotion.md` — data-flow diagram.
@@ -28,7 +28,7 @@ In order, before doing any work:
 ## State at M9.3 exit
 
 - Two new skills under `.claude/skills/`: `design-archaeology` (124 lines), `memory-promotion` (125 lines).
-- ADR-0015 codifies the four canonical memory files: `PROJECT_STATE.md`, `docs/milestones.md`, `docs/milestones/m{N}/handoff.md`, `docs/adr/NNNN-*.md`.
+- ADR-0015 codifies the four canonical memory files: `PROJECT_STATE.md`, `docs/milestones/README.md`, `docs/milestones/m{N}/handoff.md`, `docs/adr/NNNN-*.md`.
 - `docs/proposals/` is the new staging directory. One real proposal lives there (PR #18 memory-promotion, unchecked).
 - `docs/archaeology/` is the new directory for design-archaeology reports. One real report lives there (`kkr.md`).
 - No source / hook / settings.json changes. No DB writes.

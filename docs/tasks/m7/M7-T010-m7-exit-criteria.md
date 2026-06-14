@@ -87,26 +87,26 @@ Also update, in order:
 1. `PROJECT_STATE.md` — set current milestone to M8, summarise M7 deliverables,
    clear M7 open decisions.
 2. `README.md` — update "Current milestone" section from M7 to M8.
-3. `docs/milestones.md` — mark M7 ✓ done with one-line summary.
+3. `docs/milestones/README.md` — mark M7 ✓ done with one-line summary.
 4. `docs/milestones/m7/handoff.md` — write a per-milestone handoff prompt for the
    next AI tool / session that will start M8. Use `docs/milestones/_templates/handoff-prompt.md` as
    the canonical template and populate:
    - Read-first list (`PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`, the M8 section
-     of `docs/milestones.md`, this `docs/milestones/m7/final-review.md`, latest ADRs,
+     of `docs/milestones/README.md`, this `docs/milestones/m7/final-review.md`, latest ADRs,
      `docs/architecture/kca-cli-architecture.md`).
    - "State at M7 exit" (1–3 lines summarising what landed + the 28-check
      exit matrix outcome + the M8 follow-ups list).
    - "Current task" stub for the first M8 task (typically Prompt 0 of
      `docs/milestones/m8/loop-prompts.md` once that file exists).
 
-   This step is required by `docs/milestones.md` § Milestone final-review
+   This step is required by `docs/milestones/README.md` § Milestone final-review
    protocol; do not skip it.
 
 ## Acceptance criteria
 - Validation matrix above all PASS (or SKIP with documented reason).
 - `docs/milestones/m7/final-review.md` exists and mirrors the m6 layout.
 - `M7 EXIT CRITERIA MET` printed.
-- `PROJECT_STATE.md`, `README.md`, `docs/milestones.md`, `docs/milestones/m7/handoff.md` updated.
+- `PROJECT_STATE.md`, `README.md`, `docs/milestones/README.md`, `docs/milestones/m7/handoff.md` updated.
 - Report: full matrix, final status.
 
 ## Stop condition

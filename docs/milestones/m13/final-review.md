@@ -2,7 +2,7 @@
 
 _Branch: `worktree-m13-execution`. Date: 2026-06-09._
 
-## Milestone exit (per docs/milestones.md §M13 + docs/milestones/m13/loop-prompts.md)
+## Milestone exit (per docs/milestones/README.md §M13 + docs/milestones/m13/loop-prompts.md)
 
 > M13 is the first **internal regression milestone** — it does not chase
 > a leaderboard or ship a user-visible feature. Its job is to make every

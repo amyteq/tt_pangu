@@ -1,6 +1,6 @@
 # M8.5 → M9 Handoff Prompt
 
-_Generated 2026-05-23 from `docs/milestones/m8_5/final-review.md`, `docs/milestones/m9/loop-prompts.md`, and `docs/milestones.md` §M9._
+_Generated 2026-05-23 from `docs/milestones/m8_5/final-review.md`, `docs/milestones/m9/loop-prompts.md`, and `docs/milestones/README.md` §M9._
 
 Paste this into a fresh session that is starting **M9 (live Kaggle
 regression test — Spaceship Titanic)** work.
@@ -36,7 +36,7 @@ human "approved to submit" comment on the closing GitHub issue.
    "GitHub collaboration interface" routing rules added in M8.5).
 3. `CLAUDE.md` — Claude Code project instructions (includes the
    binding GitHub collaboration rules).
-4. `docs/milestones.md` — **especially the M8.5 done section + the
+4. `docs/milestones/README.md` — **especially the M8.5 done section + the
    M9 section** (planned capabilities + exit criteria).
 5. `docs/milestones/m8/final-review.md` — what landed in M8 and the M9 follow-ups.
 6. `docs/milestones/m8_5/final-review.md` — what landed in M8.5 and additional M9

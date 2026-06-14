@@ -3,7 +3,7 @@
 Source: `docs/tasks/m13/M13-T000-eval-architecture.md`,
 strawman `docs/adr/0019-eval-regression-suite.md`,
 companion `docs/architecture/eval-regression-suite.md`,
-parent `docs/milestones.md §M13`,
+parent `docs/milestones/README.md §M13`,
 parent `docs/milestones/m13/loop-prompts.md §"M13 at a glance"`.
 
 Upstream: legacy-archaeologist SKIPPED — see

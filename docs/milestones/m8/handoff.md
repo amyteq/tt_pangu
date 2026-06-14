@@ -1,6 +1,6 @@
 # M8 → M9 Handoff Prompt
 
-_Generated 2026-05-23 from `docs/milestones/m8/final-review.md` and `docs/milestones.md` § M9._
+_Generated 2026-05-23 from `docs/milestones/m8/final-review.md` and `docs/milestones/README.md` § M9._
 
 Paste this into a fresh session that is starting **M9 (live Kaggle
 regression test — Spaceship Titanic)** work.
@@ -22,7 +22,7 @@ shell against a real Kaggle competition under the approval gates.
 1. `PROJECT_STATE.md` — current state at M8 exit.
 2. `AGENTS.md` — agent contract for this repo.
 3. `CLAUDE.md` — Claude Code project instructions.
-4. `docs/milestones.md` — **especially the M9 section** (planned
+4. `docs/milestones/README.md` — **especially the M9 section** (planned
    capabilities + exit criteria).
 5. `docs/milestones/m8/final-review.md` — what landed in M8 (28-check matrix) and
    the M9 follow-ups list.
@@ -84,7 +84,7 @@ shell against a real Kaggle competition under the approval gates.
 Draft `docs/milestones/m9/loop-prompts.md` mirroring the structure of
 `docs/milestones/m8/loop-prompts.md`, then run Prompt 0 of that file.
 
-The first task of M9 (per `docs/milestones.md § M9`):
+The first task of M9 (per `docs/milestones/README.md § M9`):
 
 > Drive a live Kaggle regression test for Spaceship Titanic. Use the
 > M3–M7 worker + the M8 decision gate UI: prepare a baseline, run CV,

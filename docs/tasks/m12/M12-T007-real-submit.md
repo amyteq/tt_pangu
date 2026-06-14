@@ -39,7 +39,7 @@ T007 is the only task in M12 that:
 ## Read first
 
 1. `PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`
-2. `docs/milestones.md` §M12
+2. `docs/milestones/README.md` §M12
 3. `docs/milestones/m12/loop-prompts.md` Loop Prompt 7
 4. M12-T003 closeout (devpost adapter READ_ONLY surface)
 5. M12-T006 closeout (submission_pack contents)
