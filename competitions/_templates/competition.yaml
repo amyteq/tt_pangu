@@ -1,0 +1,24 @@
+# competition.yaml — 单个 Kaggle 竞赛的机器可读元数据模板
+# 复制到 competitions/<slug>/competition.yaml 后逐项填写;未知项填 unknown / null。
+slug: <competition-slug>
+kaggle_slug: <kaggle-slug-or-unknown>
+title: <title-or-unknown>
+status: unknown            # active | paused | archived | unknown
+phase: unknown             # research | baseline | iteration | submission | postmortem | unknown
+competition_type: unknown  # tabular | cv | nlp | llm | simulation_agent | notebook | unknown
+metric: <metric-or-unknown>
+deadline: null             # <YYYY-MM-DD or null>
+primary_artifact: unknown  # notebook | script | agent | submission | unknown
+submission_mode: unknown   # file | notebook | kernel | agent | unknown
+data_policy: unknown       # kaggle | external | generated | unknown
+last_updated: <YYYY-MM-DD>
+best:
+  cv_metric: null
+  cv_score: null
+  public_lb: null
+  private_lb: null
+  submission_id: null
+current_blocker: null
+next_task: null
+source_notes:
+  - <relative path or issue reference>

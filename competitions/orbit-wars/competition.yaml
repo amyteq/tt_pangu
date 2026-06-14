@@ -1,0 +1,29 @@
+slug: orbit-wars
+kaggle_slug: orbit-wars
+title: Orbit Wars
+status: active
+phase: iteration
+competition_type: simulation_agent
+metric: skill-rating (μ) ladder, 1v1 (2-player), μ0=600, pairwise win/loss μ update
+deadline: 2026-06-23           # final eval ~2 weeks after
+primary_artifact: agent
+submission_mode: agent          # single-file agent on kaggle_environments; <=5/day, latest 2 tracked
+data_policy: generated          # self-play / public-agent suite on the kaggle_environments engine
+last_updated: 2026-06-14
+best:
+  cv_metric: suite-average win% (ladder-predictive opponent suite)
+  cv_score: 0.548               # v2.1 suite-avg; suite-avg ~54% maps to ladder ~556-690 (our line)
+  public_lb: 1137               # adapted-kuni05 (attributed competitive entry); own Forecast v3 ~686
+  private_lb: null
+  submission_id: null
+current_blocker: "硬 cliff:对强档(evogen 1093 / multifocus / kuni05 1240)仅 0-15%;5 个增量杠杆全部不过"
+next_task: "D1=C 低成本继续;v4 Scheduler(set planner)对套件门控,争取首个 >0% vs evogen1093"
+source_notes:
+  - competitions/orbit-wars/README.md
+  - competitions/orbit-wars/EPISODES.md
+  - competitions/orbit-wars/LEAGUE.md
+  - competitions/orbit-wars/VALIDATION.md
+  - worklogs/orbit.md
+  - worklogs/orbit2.md
+  - GitHub issue #87 (协作 hub)
+  - PR #92 (v4 Scheduler hub-and-hammer)

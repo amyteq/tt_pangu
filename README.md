@@ -58,6 +58,14 @@ docs/
   testing/                   Competition-level regression test cases
   meeting-notes/             Summarized decisions and discussions
 
+competitions/                Per-competition workspaces (docs + agent/kernel code)
+  README.md                  Active competitions dashboard
+  _templates/                Reusable per-competition doc templates
+  _shared/                   Cross-competition insights, common bugs, migration notes
+  nvidia-nemotron/           NVIDIA Nemotron Model Reasoning Challenge (nemo)
+  orbit-wars/                Kaggle Orbit Wars (orbit) agent workspace
+experiments/                 KCA platform experiments + not-yet-migrated comp work (e.g. tpu-getting-started)
+
 scripts/                     Local utilities and experiment runners
 tools/kca/                   KCA CLI source (kca.py + subcommand modules)
 supabase/migrations/         Postgres schema migrations (forward-only, idempotent)
