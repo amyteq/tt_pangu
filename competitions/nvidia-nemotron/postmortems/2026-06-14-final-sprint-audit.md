@@ -2,7 +2,7 @@
 
 > Read-only audit produced 2026-06-14 (~14:42 UTC, ~33h to the 2026-06-15 23:59 UTC deadline).
 > Evidence: `competitions/nvidia-nemotron/{README,tracking,submissions,bugs,insights,strategy,tasks,rules,competition.yaml}`,
-> `work/00.nemo.md`, committed kernels under `experiments/`. `unknown` = not in available evidence.
+> `work/00.nemo.md`, committed kernels under `kernels/`. `unknown` = not in available evidence.
 > Follow-up: per user direction this audit is followed by a last-window run of options B + C (see end).
 
 ## 1. Final recommendation (as written at audit time): hold 0.85

@@ -1,4 +1,4 @@
-# Nemo Solver C2 — v14 backbone + verified real-prompt CoT (hard-cat emphasis ~1000)
+# Nemo Solver C1 — v14 backbone + verified real-prompt CoT (balanced ~1800)
 # Nemo Replay V14 — reproduction of the public 0.86/0.87 "Replay" recipe
 # (kuangyicheng/nemotron-087-training, itself a clean reproduction of
 # mohamedamr992's Nemotron+Replay_Data 0.86), with a KCA wall-clock budget so
@@ -33,14 +33,13 @@ SHUFFLE_DATASET = False
 
 # Option C solver-distillation knobs.
 SYNTH_SEED = 42
-MIN_SOLVER_EXAMPLES = 700
+MIN_SOLVER_EXAMPLES = 1500
 CAT_CAPS = {
-    "bit": 158,
-    "equation": 6,
     "cipher": 605,
-    "numeral": 100,
-    "gravity": 70,
-    "unit": 61,
+    "bit": 158,
+    "numeral": 350,
+    "gravity": 350,
+    "unit": 337,
 }
 
 TARGET_MODULES = [
@@ -58,7 +57,7 @@ TARGET_MODULES = [
 
 # %%
 # ---- Option C: embedded real-prompt solver (verified vs train.csv answers) --
-# committed at competitions/nvidia-nemotron/experiments/solver/nemo_solver.py
+# committed at competitions/nvidia-nemotron/lib/nemo_solver.py
 import math
 import re
 
