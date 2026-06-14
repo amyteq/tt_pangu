@@ -16,9 +16,9 @@ from __future__ import annotations
 
 import hmac
 import os
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
-from fastapi import FastAPI, Header, HTTPException
+from fastapi import FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 
@@ -36,6 +36,24 @@ class RejectBody(BaseModel):
 class AskImproveBody(BaseModel):
     feedback: str = Field(..., min_length=1, max_length=4000)
     metric_target: Optional[str] = None
+
+
+class DecisionRow(BaseModel):
+    """A row from human_decisions — mirrors the UI's HumanDecision TypeScript type."""
+
+    id: str
+    project_id: str
+    job_id: Optional[str] = None
+    decision_type: str
+    prompt: str
+    options: Optional[Any] = None
+    status: str
+    rationale: Optional[str] = None
+    requested_by: Optional[str] = None
+    created_at: str
+    decided_at: Optional[str] = None
+
+    model_config = {"extra": "allow"}
 
 
 def _check_token(provided: Optional[str]) -> None:
@@ -192,6 +210,46 @@ def make_app(
             "status": "needs_improvement",
             "job_id": row.get("job_id"),
         }
+
+    # ------------------------------------------------------------------
+    # GET /decisions — list decisions by status (issue #15 follow-up C).
+    # ------------------------------------------------------------------
+    @app.get("/decisions", response_model=list[DecisionRow])
+    def list_decisions(
+        status: str = Query("pending", description="Filter by status (e.g. pending, approved, rejected)"),
+        limit: int = Query(50, ge=1, le=200, description="Maximum rows to return"),
+        competition_id: Optional[str] = Query(None, description="Filter by competition UUID (via agent_jobs join)"),
+        x_decision_api_token: Optional[str] = Header(default=None),
+    ) -> list[dict]:
+        """READ_ONLY: list human_decisions filtered by status, with optional competition_id.
+
+        Mirrors the response shape of the UI's ``db.listPendingDecisions()`` call
+        so callers can swap from supabase-js to this endpoint without client changes.
+        """
+        _check_token(x_decision_api_token)
+        _db = _resolve_db()
+        if hasattr(_db, "list_decisions"):
+            rows = _db.list_decisions(
+                status=status,
+                limit=limit,
+                competition_id=competition_id,
+            )
+        else:
+            # Fallback: list_pending_decisions for DI objects that haven't been
+            # updated yet (e.g. older test fakes). Ignores status/competition_id.
+            rows = _db.list_pending_decisions()
+            rows = rows[:limit]
+        return [
+            {
+                **r,
+                "id": str(r.get("id", "")),
+                "project_id": str(r.get("project_id", "")),
+                "job_id": str(r["job_id"]) if r.get("job_id") else None,
+                "created_at": str(r.get("created_at", "")),
+                "decided_at": str(r["decided_at"]) if r.get("decided_at") else None,
+            }
+            for r in rows
+        ]
 
     # ------------------------------------------------------------------
     # M12-T005: READ_ONLY submission_pack inspector for the UI.

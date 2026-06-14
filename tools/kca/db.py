@@ -888,6 +888,46 @@ def _list_pending_decisions(
     return [dict(r) for r in rows]
 
 
+def list_decisions(
+    status: str = "pending",
+    limit: int = 50,
+    competition_id: str | None = None,
+    conn: "psycopg.Connection | None" = None,
+) -> list[dict]:
+    """List human_decisions with optional status, limit, and competition_id filters."""
+    return _with_conn(conn, _list_decisions, status, limit, competition_id)
+
+
+def _list_decisions(
+    conn: "psycopg.Connection",
+    status: str,
+    limit: int,
+    competition_id: str | None,
+) -> list[dict]:
+    if competition_id is not None:
+        query = (
+            "SELECT hd.* FROM human_decisions hd"
+            " LEFT JOIN agent_jobs aj ON hd.job_id = aj.id"
+            " WHERE hd.status = %s::decision_status"
+            " AND aj.competition_id = %s::uuid"
+            " ORDER BY hd.created_at ASC"
+            " LIMIT %s"
+        )
+        params: list[Any] = [status, competition_id, limit]
+    else:
+        query = (
+            "SELECT * FROM human_decisions"
+            " WHERE status = %s::decision_status"
+            " ORDER BY created_at ASC"
+            " LIMIT %s"
+        )
+        params = [status, limit]
+    with conn.cursor() as cur:
+        cur.execute(query, params)
+        rows = cur.fetchall()
+    return [dict(r) for r in rows]
+
+
 def resolve_decision(
     decision_id: str,
     resolution: str,
