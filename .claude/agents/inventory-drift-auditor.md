@@ -15,7 +15,7 @@ behaviour, config vs runtime, schema vs DB layer, inventory map vs repo state.
 
 - Read every file you need (`grep -r`, `rg`, `find`, `git log`).
 - Compare paired sources (e.g. ADR `accepted` status vs the code it describes;
-  test names vs `tests/` contents; `docs/milestones.md` claims vs `PROJECT_STATE.md`).
+  test names vs `tests/` contents; `docs/milestones/README.md` claims vs `PROJECT_STATE.md`).
 - Produce drift findings, each with: location pair, quoted evidence, proposed
   resolution, recommended labels.
 - Propose new issues using the `drift.yml` form.
