@@ -16,14 +16,44 @@ class FakeDB:
             "abc": {
                 "id": "abc",
                 "status": "pending",
+                "project_id": "proj-1",
                 "job_id": "11111111-1111-1111-1111-111111111111",
                 "decision_type": "kaggle_submit",
+                "prompt": "Submit?",
+                "options": [],
+                "rationale": None,
+                "requested_by": None,
+                "created_at": "2024-01-01T00:00:00",
+                "decided_at": None,
+                "competition_id": "comp-a",
             },
             "open2": {
                 "id": "open2",
                 "status": "pending",
+                "project_id": "proj-1",
                 "job_id": None,
                 "decision_type": "external_fetch",
+                "prompt": "Fetch?",
+                "options": [],
+                "rationale": None,
+                "requested_by": None,
+                "created_at": "2024-01-02T00:00:00",
+                "decided_at": None,
+                "competition_id": None,
+            },
+            "done1": {
+                "id": "done1",
+                "status": "approved",
+                "project_id": "proj-1",
+                "job_id": None,
+                "decision_type": "kaggle_submit",
+                "prompt": "Old submit",
+                "options": [],
+                "rationale": "looked good",
+                "requested_by": None,
+                "created_at": "2024-01-03T00:00:00",
+                "decided_at": "2024-01-03T01:00:00",
+                "competition_id": "comp-a",
             },
         }
         self.events: list[dict] = []
@@ -34,6 +64,17 @@ class FakeDB:
     def resolve_decision(self, decision_id: str, resolution: str, notes=None) -> None:
         self.decisions[decision_id]["status"] = resolution
         self.decisions[decision_id]["notes"] = notes
+
+    def list_decisions(
+        self,
+        status: str = "pending",
+        limit: int = 50,
+        competition_id: str | None = None,
+    ) -> list[dict]:
+        result = [d for d in self.decisions.values() if d.get("status") == status]
+        if competition_id is not None:
+            result = [d for d in result if d.get("competition_id") == competition_id]
+        return result[:limit]
 
     def append_job_event(
         self,
@@ -150,3 +191,70 @@ def test_decision_api_token_required(monkeypatch) -> None:
         headers={"X-Decision-Api-Token": "secret"},
     )
     assert r2.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# GET /decisions tests (issue #15 — M9 follow-up C)
+# ---------------------------------------------------------------------------
+
+
+def test_get_decisions_requires_token(monkeypatch) -> None:
+    fake = FakeDB()
+    monkeypatch.setenv("KCA_DECISION_API_TOKEN", "secret")
+    app = make_app(decisions_module=fake, audit_logger=lambda **_: None)
+    c = TestClient(app)
+    r = c.get("/decisions")
+    assert r.status_code == 401
+
+
+def test_get_decisions_default_pending(client: TestClient) -> None:
+    r = client.get("/decisions")
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body, list)
+    statuses = {d["status"] for d in body}
+    assert statuses == {"pending"}, f"expected only pending, got {statuses}"
+    ids = {d["id"] for d in body}
+    assert "done1" not in ids, "approved decision should not appear in default listing"
+
+
+def test_get_decisions_response_shape(client: TestClient) -> None:
+    r = client.get("/decisions")
+    assert r.status_code == 200
+    rows = r.json()
+    assert rows, "expected at least one pending decision"
+    row = rows[0]
+    for field in (
+        "id",
+        "project_id",
+        "decision_type",
+        "prompt",
+        "status",
+        "created_at",
+    ):
+        assert field in row, f"missing field {field!r} in response row"
+
+
+def test_get_decisions_status_filter(client: TestClient) -> None:
+    r = client.get("/decisions?status=approved")
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body, list)
+    assert any(d["id"] == "done1" for d in body), "approved decision should appear"
+    assert all(d["status"] == "approved" for d in body)
+
+
+def test_get_decisions_limit(client: TestClient) -> None:
+    r = client.get("/decisions?status=pending&limit=1")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body) <= 1, "limit=1 should return at most 1 row"
+
+
+def test_get_decisions_competition_id_filter(client: TestClient) -> None:
+    r = client.get("/decisions?competition_id=comp-a")
+    assert r.status_code == 200
+    body = r.json()
+    ids = {d["id"] for d in body}
+    assert "abc" in ids, "decision with competition_id=comp-a should appear"
+    assert "open2" not in ids, "decision without competition_id should be excluded"
