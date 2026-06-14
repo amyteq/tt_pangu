@@ -209,8 +209,8 @@ Task spec: docs/tasks/m13/M13-T003-kaggle-replay-suite.md
 
 Read also (background context):
 - M13-T001, M13-T002 closeouts
-- docs/tasks/m4/M4-T008-titanic-end-to-end.md (Titanic precedent)
-- docs/tasks/m5/M5-T008-house-prices.md (House Prices precedent)
+- docs/tasks/m4/M4-T008-tc1-titanic-end-to-end.md (Titanic precedent)
+- docs/tasks/m5/M5-T008-tc2-house-prices.md (House Prices precedent)
 - docs/tasks/m9/M9-T002-baseline-loop.md (Spaceship Titanic LR precedent)
 - docs/tasks/m9/M9-T005-second-experiment.md (HGB+FE precedent)
 - tests/test_m9_e2e.py (dry-run pattern)
@@ -270,7 +270,7 @@ Read also (background context):
 - src/worker/routing.py (per-job-type routing)
 - tools/kca/research_fetch.py (cached pages are an input to the
   research-brief prompt)
-- docs/tasks/m5/M5-T002-research-fetch.md (research-brief precedent)
+- docs/tasks/m5/M5-T002-browser-fetch-tool.md (research-brief precedent)
 - .claude/skills/research-brief/SKILL.md (the skill this benchmark
   evaluates against)
 
