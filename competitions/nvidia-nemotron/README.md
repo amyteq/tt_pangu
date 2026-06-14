@@ -1,34 +1,40 @@
 # NVIDIA Nemotron Model Reasoning Challenge (nemo)
 
-> 别名:nemo / nemotron。Kaggle slug:`nvidia-nemotron-model-reasoning-challenge`。
+> Canonical language: **English**. Original Chinese tracking material preserved in `tracking_zh.md` /
+> `notes_zh.md` and in GitHub issue #86. Aliases: `nemo`, `nemotron`.
+> Kaggle slug: `nvidia-nemotron-model-reasoning-challenge`.
 
 ## Status snapshot
-- status: **active**(deadline **2026-06-15 23:59 UTC**,迫近)
-- phase: submission(冲分中)
-- current objective: 提升 **cryptarithm** 瓶颈类正确率(论坛共识 0.86→0.89 的杠杆)
-- best known local/CV: 各 kernel 自带 held-out eval(见 submissions.md);⚠ 无统一 CV 汇总
-- best known LB/public: **~0.85(v14 replay)**;base ~0.47,榜首 ~0.89;v15 提交结果待回收
-- current blocker: cryptarithm 类偏弱;截止前提交额度有限(5 次/天/队)
-- next task: 回收 v15(cryptarithm-weighted synth)线上分;截止前用满额度
+- status: **active** (deadline **2026-06-15 23:59 UTC**, imminent)
+- phase: submission (closing)
+- current objective: **hold the best score (0.85, v14 replay) to close**; only low-cost upside left
+- best known local/CV: per-kernel held-out only (no single canonical CV); see `submissions.md`
+- best known LB/public: **0.85** own real-training (`nemo-replay-v14`); raw account max **0.86** (2026-05-15 public-fork, not own training); top **~0.90**, base ~0.47 (refreshed 2026-06-14)
+- current blocker: 0.85 appears to be the ceiling with current levers — two attempts to beat it
+  (T7 SVD merge 0.82, T11 v15 cryptarithm synth 0.84) both regressed
+- next task: hold 0.85; optional half-dose cryptarithm-only synth (expected ≤0.85)
 
 ## Key links
 - rules: ./rules.md
-- strategy: ./strategy.md
+- strategy: ./strategy.md · zh: ./strategy_zh.md
 - tasks: ./tasks.md
+- tracking (issue #86 tables, EN): ./tracking.md · zh: ./tracking_zh.md
 - submissions: ./submissions.md
 - bugs: ./bugs.md
 - references: ./references.md
 - insights: ./insights.md
-- experiments: ./experiments/(kernels v10/v14/v15、t7 svd-merge、synth 生成器)
+- experiments: ./experiments/ (kernels v10/v14/v15, t7 svd-merge, synth generator)
 - postmortem: ./postmortems/2026-06-14-context-consolidation.md
+- historical hub: GitHub issue #86 (kept open for history; do not use for new status)
 
 ## Current top 3 priorities
-1. v15(cryptarithm 加权合成 CoT)线上分回收;若超过 v14 则在截止前提交。
-2. 截止前(06-15)用满双账号(harrysun2006 / firefly2006)每日提交额度,优先覆盖最佳候选。
-3. 守住已验证的 v14 replay 配方,避免回归(见 bugs.md 的运行期坑)。
+1. Hold the 0.85 (`nemo-replay-v14`) entry through the 2026-06-15 deadline.
+2. (Optional, low-cost) half-dose cryptarithm-only synth variant (~8%) — expected ≤0.85; user decides.
+3. Post-competition: localize the official metric + min-logprob hard-validation set (T12); avoid eval-truncation regressions.
 
 ## Latest update
 - date: 2026-06-14
-- source: PR #95(v15 synth)、worklogs/nemo2.md
-- summary: 在 v14 replay 主干上掺入「cryptarithm 加权确定性合成 CoT」(生成器 in-kernel,2640 条,
-  CoT-answer 一致性 1930/1930),目标抬升 cryptarithm 瓶颈;kernel `nemo-synth-v15` 已 push(running)。
+- source: issue #86 (comments 2–4), PRs #90/#94/#95
+- summary: v14 replay reached **LB 0.85** (+0.18 over prior best 0.67). Two follow-ups to exceed it
+  both regressed: T7 multi-adapter SVD merge → 0.82, T11 v15 cryptarithm synth → 0.84. Recommendation:
+  hold 0.85 to close.

@@ -1,26 +1,42 @@
 # Strategy — nemo
 
+> English canonical. Original Chinese discussion preserved in `tracking_zh.md` / `notes_zh.md` and issue #86.
+
 ## Current direction
-在已验证的 **v14 replay 配方(LB ~0.85)** 主干上,定点提升 **cryptarithm** 瓶颈类:掺入确定性合成
-CoT(v15),并用 **SVD merge**(t7:v14 + ctx4k + v10 → rank-32)在额度内组合多条已训 adapter。
-双账号(harrysun2006 / firefly2006)并行扩大每日提交覆盖。
+**Hold the best score (0.85, `nemo-replay-v14`) to close** (deadline 2026-06-15 23:59 UTC). The faithful
+replay of the public 0.86/0.87 recipe is our ceiling with current levers; two attempts to exceed it both
+regressed (T7 merge 0.82, v15 cryptarithm synth 0.84). Remaining upside is low and high-risk.
 
 ## Open discussions
-> 详细讨论与历史决策(D1–D7 已确认)见 `worklogs/nemo2.md` 的三表;此处仅留当前活跃问题。
+> All D1–D9 from issue #86 were **confirmed 2026-06-12** (see `tracking.md` Table 1). None are still open.
+> The only live question is the optional last-roll variant below.
 
-### D001: 截止前(06-15)提交额度分配
-- status: open
-- context: 每队 5 次/天 × 双账号;v15 running,t7 merge 可选。
-- options: (a) 全押 v15;(b) v15 + t7-merge 对照;(c) 守 v14 不动。
-- current leaning: 优先提交「明显超过 v14」的候选(KCA 自主提交策略 Scenario 1/2)。
-- evidence: `worklogs/nemo2.md`;CLAUDE.md KCA autonomous submission strategy。
-- follow-up: v15 分数回收后定。
+### D001: optional last-roll before the deadline
+- status: open (user-decides)
+- context: ~1.3 days left; v14=0.85 is banked; LB takes the max so downside is bounded.
+- options: (a) hold 0.85; (b) half-dose cryptarithm-only synth (~800 ex, ~8%) to cut dilution.
+- current leaning: **hold** — by the observed pattern, the variant is expected to land ≤0.85.
+- evidence: issue #86 comment 4.
+- follow-up: none unless the user requests the variant.
 
 ## Hypotheses
-- **H1**:cryptarithm 加权合成 CoT(每步预计算、无内联算术、finality 行)能抬升该类正确率而不伤其它类。
-  证据来源:v10「shallow-reasoning regression」教训 → v15 设计(PR #95)。
-- **H2**:仅 merge **自训** adapter(不掺公开 adapter)可在额度内取增益且避免 repack 争议(D3 已确认)。
+- **H1 (validated):** faithful public replay recipe (CCE + MoE tying + lm_head/Mamba LoRA + seq8192 +
+  huikang corpus + replay-math) is the dominant lever (0.67→0.85). Evidence: T10 / issue #86 comment 2.
+- **H2 (refuted):** category-weighted cryptarithm synth lifts total accuracy — single-category gains did
+  not transfer; ~24% synth share slightly diluted other categories. Evidence: T11 / comment 4.
+- **H3 (refuted):** weight-space SVD merge of strong+weak adapters beats the strongest member — dilution,
+  not enhancement. Evidence: T7 / comment 3.
+- **H4 (untested):** rejection-sampling self-distillation (v11) or Unsloth seq8192 (v12) could add headroom —
+  never run (out of budget; v14 replay made them lower-priority).
 
 ## Rejected ideas
-- v6:CoT 但 loss 覆盖 prompt+padding(bug)→ 0.44,已废(改 response-only masking,见 kernel README)。
-- 掺入公开 adapter 做 merge:范围收敛为「仅自训 adapter」(D3)。
+- v6: loss over prompt+padding (no response-only masking) → 0.44.
+- ctx2k: seq2048 right-truncation destroyed the `\boxed{}` supervision tail → 0.42.
+- T7: multi-adapter SVD merge (strong+weak) → 0.82; route **closed**.
+- T11: ~24% cryptarithm synth dose → 0.84; de-prioritized (single-category ≠ total).
+
+## Background analysis (zh source: work/00.nemo.md)
+The competition is **hidden-rule generalization**, not memorization. Hardest categories: bit-manipulation
+and equation/symbol transforms. Ideas A–F (rule-solver distillation, answer+CoT mixing, per-category
+solvers/generators, bit-function enumeration, two-track equation handling, per-category local CV) are
+recorded in `notes_zh.md`; most were superseded by the replay-recipe win. See also `insights.md`.

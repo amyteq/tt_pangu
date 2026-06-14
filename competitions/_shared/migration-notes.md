@@ -28,3 +28,13 @@
 - **`experiements/` 拼写错误目录**:仓库中**不存在**该拼写;只有正确的 `experiments/`。无需更正。
 - **`experiments/` 残留**:移走 nemo 后,`experiments/` 仅剩 `tpu-getting-started/`(见上,真实竞赛,受阻待迁)。其余无 KCA 平台实验目录。
 - **orbit-wars**:迁移前已位于 `competitions/orbit-wars/`(含 `agent/`、`arena/`、原 `README.md` 详细日志等)。本任务**保留原有文件不动**,仅在其上**新增**标准文档集(`competition.yaml`、`rules.md`、`strategy.md`、`tasks.md`、`submissions.md`、`bugs.md`、`references.md`、`insights.md`、`postmortems/`)。原 `README.md`(含 TL;DR 状态快照 + 详细日志)作为该竞赛主文档与证据保留。
+
+## KCT-002 (2026-06-14) — nemo English consolidation
+
+- `competitions/nvidia-nemotron/` 文档由 KCT-001 的中文**临时版**改写为**英文规范版**(canonical English),
+  并新增 `tracking.md`(issue #86 三表英文化 + current status)与 `_zh` sidecars(`tracking_zh.md` 逐字保留
+  issue #86 中文正文、`notes_zh.md` 中文来源指引+关键摘录)。
+- 来源:GitHub issue #86(body + 5 comments)、`work/00.nemo.md`、`work/00.nemotron_3_versions.zip`、
+  `worklogs/nemo*.md`、PR #90/#94/#95。
+- 远程刷新:已于 **2026-06-14** 用 read-only Kaggle API(`kaggle competitions submissions`,双账号,creds 仅 read-for-use 不打印)完成刷新,回填 `submissions.md` / `tracking.md`:own 最好 0.85(v14)、账号原始公开最大 0.86(2026-05-15 public-fork,非自训)、榜首 ~0.90、private LB 未发布;Kaggle submissions API 不暴露数字 submission ID。未做任何 submit/push/upload。
+- issue #86 保持**开放**作历史;后续状态更新改在 `competitions/nvidia-nemotron/`。
