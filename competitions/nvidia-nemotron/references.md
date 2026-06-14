@@ -1,27 +1,42 @@
 # References — nemo
 
+> Each: title / URL or relative path / one-line note / relevance.
+
 ## Kaggle
-- NVIDIA Nemotron Model Reasoning Challenge — slug `nvidia-nemotron-model-reasoning-challenge` — 主竞赛 — 高相关。
-- 基模型 `metric/nemotron-3-nano-30b-a3b-bf16`(Nemotron-3-Nano-30B-A3B,Mamba+MoE) — 提交 adapter 的基座 — 高相关。
+- Competition page — https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge — Overview/Data/Code/Discussion — high.
+- Base model `metric/nemotron-3-nano-30b-a3b-bf16` (Nemotron-3-Nano-30B-A3B, Mamba+MoE) — adapter base — high.
 
 ## Discussions
-- 论坛共识:cryptarithm 是 0.86→0.89 的杠杆 — 见 `worklogs/nemo2.md` — 高相关。
+- Forum consensus: cryptarithm is the 0.86→0.89 lever (but single-category ≠ total) — issue #86 T11 / comment 4 — high.
 
-## Notebooks
-- `experiments/kernel/nemotron-lora-baseline.py` — LoRA SFT baseline(percent-format 源) — 高相关。
-- `experiments/kernels/{nemo-rule4k-v10,nemo-replay-v14,nemo-synth-v15,nemo-merge-t7}/` — 各版本 kernel — 高相关。
+## Notebooks / kernels (ours)
+- `experiments/kernel/nemotron-lora-baseline.py` — LoRA SFT baseline (v5–v9) — high.
+- `experiments/kernels/nemo-rule4k-v10/` (`firefly2006/nemo-rule4k-v10`) — rule-CoT, LB 0.59 — high.
+- `experiments/kernels/nemo-replay-v14/` (`harrysun2006/nemo-replay-v14`) — replay recipe, **LB 0.85** — high.
+- `experiments/kernels/nemo-synth-v15/` (`harrysun2006/nemo-synth-v15`) — cryptarithm synth, LB 0.84 — high.
+- `experiments/kernels/nemo-merge-t7/` (`harrysun2006/nemo-merge-t7`) — SVD merge, LB 0.82 — medium.
+- `experiments/synth/nemo_synth_gen.py`, `experiments/merge/svd_merge.py` — generators/tools — medium.
 
-## Papers / repos
-- 训练语料 dataset:`dgxchen/nemotron-cot-tong`(CoT traces,已注明出处);`mayukh18/nemotron-packages`(离线 wheels);`mohamedamr992/replay-math`(replay)。
+## Public notebooks / repos (external, attributed)
+- `kuangyicheng/nemotron-087-training` — public 0.86/0.87 replay recipe (T10 source) — high.
+- `tonghuikang/nemotron` (https://github.com/tonghuikang/nemotron · https://nemotron.huikang.dev) — Progress-Prize pipeline; per-problem rule-survey; hard-val source — high.
+- `lopure/amplify-top-50-singular-value-retain-84-4-energy` — top-0.89 adapter surgery + embedded official metric + min-logprob hard set (T12 source) — high.
+- `varianceofx/synthetic-dataset-generator-27k` — 10-category deterministic generator + CoT; finality line; unseen-symbol generalization (T11 reference) — high.
+
+## Papers / repos / archives
+- `work/00.nemotron_3_versions.zip` — 3 ChatGPT scripts: `nemotron_v1_answer_only_sft.py`, `nemotron_v2_cot_rule_augmented_sft.py`, `nemotron_v3_merge_svd_submit.py` (inputs to v5/v10/T7) — medium. (Archive of text scripts; not extracted into docs.)
 
 ## Internal notes
-- `experiments/kernel/README.md` — 配方、坑、score 进度 — 高相关。
-- `experiments/synth/nemo_synth_gen.py` — 合成 CoT 生成器(v15) — 高相关。
-- `experiments/merge/svd_merge.py` — SVD adapter merge(t7) — 中相关。
+- `work/00.nemo.md` — ChatGPT competition analysis (zh): essence, data findings, 6 challenges, ideas A–F, techniques — high. (See `notes_zh.md` for an English digest.)
+- `experiments/kernel/README.md` — recipe, gotchas, 0.47→0.61→0.65 progression — high.
+- `docs/tooling/kaggle-kernel-ops.md` — kernel/version model, flat structure, concurrency/quota — medium.
 
 ## Worklogs
-- `worklogs/nemo.md`、`worklogs/nemo2.md` — 策略 hub(中文三表)+ 历史决策 D1–D7 — 高相关。
+- `worklogs/nemo.md`, `worklogs/nemo2.md` — Chinese strategy hub mirror (three tables) + history — high.
 
-## Issues / PRs
-- PR #90(v10 rule-CoT + v14 replay kernels)、PR #94(T7 SVD merge)、PR #95(v15 synth)。
-- nemo 策略追踪 issue(中文 hub) — 见 `worklogs/nemo2.md` 内嵌内容。⚠ issue 号未在本任务内核实。
+## Issues / PRs / commits
+- GitHub issue **#86** — strategy & tracking hub (body + 5 comments; Chinese) — high. (Historical; future updates here.)
+- Sibling hub: issue **#87** (Orbit Wars).
+- Decision issues (open): **#83** (external GPU), **#85** (per-comp YAML + user-pool), **#21** (multi-account quota pool).
+- Known-gotcha issues (open): **#77** (kernel push ≠ LB submit), **#78** (`kca competition refresh-rules` broken on kaggle 2.0.x).
+- PRs (merged): **#90** (v10 + v14 kernels + ruff pin), **#94** (T7 SVD merge), **#95** (v15 synth), **#81/#82/#84/#75** (tooling: kca kaggle submit, push lint gate, kernel/version model, input mount path).
