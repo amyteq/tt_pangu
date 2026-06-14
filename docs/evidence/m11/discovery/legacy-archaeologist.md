@@ -111,18 +111,18 @@ implicitly but not explicitly. Pre-M11, the identity model is:
 - **Event identity** — **not modelled today**. There is no
   `ctf_events` table; the only place "event" lives is in the human's
   `authorized_scope` free-text and in the workflow described in
-  `docs/m11-loop-prompts.md` ("CTFtime calendar → register on event
+  `docs/milestones/m11/loop-prompts.md` ("CTFtime calendar → register on event
   site as a human → ~/.ctf/<event-slug>.json"). This is the M11
   artefact the legacy archaeology must surface as load-bearing — see
   §9 question 1.
 - **Per-event credentials** — current state-of-the-art is "use
   `~/.ctf/<event-slug>.json` or `CTF_<EVENT>_USERNAME` /
   `CTF_<EVENT>_TOKEN`" per the planning Q&A in
-  `docs/m11-loop-prompts.md:621–667`. There is **no on-disk path
+  `docs/milestones/m11/loop-prompts.md:621–667`. There is **no on-disk path
   enforced by the existing artefacts**. The `safety-guard` agent
   treats credential files as policy-sensitive but does not enforce a
   per-event isolation contract.
-- **Team vs individual** — `docs/m11-loop-prompts.md:665` mentions
+- **Team vs individual** — `docs/milestones/m11/loop-prompts.md:665` mentions
   "optional `team_id`" in the credential JSON. Today's `projects`
   table has no team column; M12-T002 introduces `teams` /
   `team_memberships`, but M11 lands before that. CTF events can be
@@ -160,7 +160,7 @@ implicitly but not explicitly. Pre-M11, the identity model is:
   Not CTF, but precedent for per-platform credential file. Project
   CLAUDE.md §"Dev-phase secret policy" allows it.
 - **`~/.ctf/<event-slug>.json`** — proposed per planning Q&A
-  (`docs/m11-loop-prompts.md:665`). **Does not exist on disk yet.**
+  (`docs/milestones/m11/loop-prompts.md:665`). **Does not exist on disk yet.**
   The pre-M11 artefacts have no mention of this path.
 - **`.env` / `.env.local` / `.env.development`** — readable per the
   2026-05-24 dev-phase carve-out (`CLAUDE.md` §"Dev-phase secret
@@ -246,7 +246,7 @@ implicitly but not explicitly. Pre-M11, the identity model is:
   ADR-0005**. Why: today nothing reads that string for CTF; M11 will
   use `ctf_events` directly off `projects.id` instead of routing CTF
   through `competitions`. Evidence: `docs/adr/0005-job-taxonomy.md:30`
-  vs the M11 plan in `docs/m11-loop-prompts.md`. Don't drop the enum
+  vs the M11 plan in `docs/milestones/m11/loop-prompts.md`. Don't drop the enum
   value — just stop treating it as the routing key.
 
 ## 9. Questions for `requirements-skeptic`
@@ -260,7 +260,7 @@ implicitly but not explicitly. Pre-M11, the identity model is:
 - **Per-event credential ownership.** Can two distinct projects share
   one event credential (one human's `~/.ctf/picoctf2024.json` is read
   by two projects), or is credential ↔ project a 1:N enforced
-  contract? Triggered by: `docs/m11-loop-prompts.md:621–667`,
+  contract? Triggered by: `docs/milestones/m11/loop-prompts.md:621–667`,
   `.claude/agents/safety-guard.md:3`.
 - **`target_urls` shape.** Is it `["https://chal.example/api/submit",
   …]` (list of strings) or `[{"url": "…", "method": "POST",
@@ -272,7 +272,7 @@ implicitly but not explicitly. Pre-M11, the identity model is:
   `supabase/migrations/0001_init.sql:217`, `.claude/hooks/guard_tool.py`
   (no CTF-specific egress deny exists).
 - **Flag retention.** Do `ctf_attempts` rows store the flag string
-  itself? `docs/m11-loop-prompts.md:317` says "experiment_runs row
+  itself? `docs/milestones/m11/loop-prompts.md:317` says "experiment_runs row
   with flag_length (NOT value)" — does that policy hold for
   `ctf_attempts` too? Triggered by:
   `src/worker/reviewer.py:59` ("violate competition/CTF rules" — flag
@@ -284,11 +284,11 @@ implicitly but not explicitly. Pre-M11, the identity model is:
 - **Team vs individual flag attribution.** If `ctf_attempts` is
   written under a project but the actual submission was made under a
   team account, how do we attribute the flag for the audit trail?
-  Triggered by: `docs/m11-loop-prompts.md:665` ("optional team_id").
+  Triggered by: `docs/milestones/m11/loop-prompts.md:665` ("optional team_id").
 - **Cross-event flag reuse.** Some events let solvers reuse flags
   across challenges (CTF nostalgia); does `ctf_attempts` need a
   challenge FK or just an event FK? Triggered by: M11 task summary
-  in `docs/m11-loop-prompts.md:102–114` (the table shows challenges
+  in `docs/milestones/m11/loop-prompts.md:102–114` (the table shows challenges
   per event but doesn't address cross-challenge reuse).
 
 ## 10. Parity tests
@@ -320,6 +320,6 @@ implicitly but not explicitly. Pre-M11, the identity model is:
 - `test_m11_ctf_flag_not_echoed` — run a fake flag-submit dry-run
   and grep the stdout/stderr + the `agent_reviews.rationale` field
   + the `ctf_attempts` row for the flag string; assert zero hits.
-  Evidence: `docs/m11-loop-prompts.md:317` ("flag_length (NOT value)").
+  Evidence: `docs/milestones/m11/loop-prompts.md:317` ("flag_length (NOT value)").
 
 Output MUST cover all 10 sections; ≥5 distinct legacy behavior dimensions must be named explicitly, including any multi-account / owner / env mapping the legacy artefact encodes.

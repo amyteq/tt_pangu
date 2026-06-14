@@ -341,5 +341,5 @@ artefact) differ.
   future revision; this ADR does not commit to it.
 - `docs/architecture/discovery-debate-gate.md` — the gate this task
   exercises.
-- `docs/tasks/M13-T000-eval-architecture.md` — the spec this ADR
+- `docs/tasks/m13/M13-T000-eval-architecture.md` — the spec this ADR
   fulfills.

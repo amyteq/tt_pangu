@@ -57,7 +57,7 @@ The guiding principle is the one already in [`github-as-agent-interface.md`](git
 │                                                                          │
 │   PROJECT_STATE.md                                                        │
 │   docs/milestones.md                                                      │
-│   docs/handoffs/m{N}-handoff.md                                          │
+│   docs/milestones/m{N}/handoff.md                                          │
 │   docs/adr/NNNN-*.md                                                      │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -75,7 +75,7 @@ Repeated here verbatim from [ADR-0015](../adr/0015-memory-promotion-model.md):
 
 1. `PROJECT_STATE.md`
 2. `docs/milestones.md`
-3. `docs/handoffs/m{N}-handoff.md`
+3. `docs/milestones/m{N}/handoff.md`
 4. `docs/adr/NNNN-*.md`
 
 Out of scope for this skill: `README.md`, `AGENTS.md`, `CLAUDE.md`,

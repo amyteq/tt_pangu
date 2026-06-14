@@ -36,7 +36,7 @@ Scope: **platform-development coding agents** (Claude Code CLI / VS Code / Deskt
 │   PROJECT_STATE.md                                                           │
 │   docs/adr/<n>-<slug>.md                                                     │
 │   docs/milestones.md                                                         │
-│   docs/handoffs/m{N}-handoff.md                                              │
+│   docs/milestones/m{N}/handoff.md                                              │
 │   docs/m{N}-final-review.md                                                  │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -143,7 +143,7 @@ Tier 3 files are the project's source of truth. They survive context resets, ses
 | `PROJECT_STATE.md` | Current milestone status, active risks, next actions | Milestone closeout + memory-promotion |
 | `docs/milestones.md` | Milestone roster, scope, dependency order | Milestone planning + closeout |
 | `docs/m{N}-final-review.md` | Per-milestone validation matrix and outcome | `milestone-final-review` skill |
-| `docs/handoffs/m{N}-handoff.md` | Cross-session continuity notes | Session closeout, milestone closeout |
+| `docs/milestones/m{N}/handoff.md` | Cross-session continuity notes | Session closeout, milestone closeout |
 | `docs/adr/<n>-<slug>.md` | Long-term architecture decisions | `memory-promotion` after `decision:confirmed` |
 | `docs/tasks/<task-id>.md` | Per-task spec, acceptance criteria, status | Task author + closeout |
 

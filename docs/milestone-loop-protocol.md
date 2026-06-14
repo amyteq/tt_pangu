@@ -3,7 +3,7 @@
 _Shared rules that apply to every milestone Loop Prompt (M0+) unless a
 milestone explicitly overrides one._
 
-Each `docs/m*-loop-prompts.md` should reference this file once at the top
+Each `docs/milestones/m*/loop-prompts.md` should reference this file once at the top
 rather than duplicating the rules per prompt.
 
 ---
@@ -63,7 +63,7 @@ branched off `main`.
      last commit.
   3. `git push` the worktree's branch to the remote.
   4. `gh pr create` against `main` using the milestone's
-     `docs/m{N}-final-review.md` as the PR body.
+     `docs/milestones/m{N}/final-review.md` as the PR body.
 
 - The following **still require explicit human approval** at any time:
   - `git push --force` (any branch)
@@ -102,7 +102,7 @@ one line near the top:
 Follow: docs/milestone-loop-protocol.md
 ```
 
-A milestone's `docs/m{N}-loop-prompts.md` should still spell out:
+A milestone's `docs/milestones/m{N}/loop-prompts.md` should still spell out:
 
 - the milestone's own scope, non-goals, and task list;
 - per-Loop-Prompt read lists, scope, acceptance criteria;

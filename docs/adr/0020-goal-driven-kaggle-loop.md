@@ -5,7 +5,7 @@
 Proposed (M14, 2026-06-10). Subject to confirmation on the M14
 proposal issue after the Discovery / Debate Gate transcripts at
 `docs/evidence/m14/T000/discovery/` have been reviewed, and after the
-five human decisions in `docs/m14-loop-prompts.md` §"Human decisions
+five human decisions in `docs/milestones/m14/loop-prompts.md` §"Human decisions
 needed before starting M14" are pinned.
 
 Supersedes nothing; builds on ADR-0006 (configurable approval gates)
@@ -18,7 +18,7 @@ type).
 M0–M10 shipped the platform's single-shot Kaggle path: register a
 competition, build a baseline notebook, pass the `kernel_push` reviewer
 gate, push **one** human-approved kernel, watch it to terminal, record
-the submission. M10's final review (`docs/m10-final-review.md`)
+the submission. M10's final review (`docs/milestones/m10/final-review.md`)
 confirmed the loop runs end-to-end but also surfaced its limits: push #1
 stalled QUEUED ~66 min and never ran; the watcher used a fixed 60 s
 cadence; there was no notion of a *target* the loop was working toward,
@@ -36,7 +36,7 @@ This ADR pins the architectural decisions; the companion
 [`docs/architecture/goal-driven-kaggle-loop.md`](../architecture/goal-driven-kaggle-loop.md)
 carries the ASCII data-flow, table layouts, state-machine diagram, and
 payload shapes the decisions imply. The ten task specs
-`docs/tasks/M14-T000-*.md` … `M14-T009-*.md` implement it.
+`docs/tasks/m14/M14-T000-*.md` … `M14-T009-*.md` implement it.
 
 Inputs that shape this ADR:
 
@@ -391,9 +391,9 @@ The single sanctioned live multi-push series (M14-T008, evidence
   `kaggle.exploration_stuck` reuse the gate plumbing.
 - ADR-0010 (per-job-type model routing) — `propose-next` reuses the
   `research` route; no parallel router.
-- `docs/m10-final-review.md` — the single-push baseline + the
+- `docs/milestones/m10/final-review.md` — the single-push baseline + the
   QUEUED-stall and `kernels status` 500 history this ADR designs around.
 - `docs/architecture/discovery-debate-gate.md` — the gate this task
   exercises.
-- `docs/tasks/M14-T000-goal-loop-architecture.md` … `M14-T009-*.md` —
+- `docs/tasks/m14/M14-T000-goal-loop-architecture.md` … `M14-T009-*.md` —
   the specs this ADR fulfils.

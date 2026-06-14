@@ -1,4 +1,4 @@
-requirements-skeptic report for M14-T000 (goal-driven Kaggle loop; docs/milestones.md §M14 + docs/m14-loop-prompts.md)
+requirements-skeptic report for M14-T000 (goal-driven Kaggle loop; docs/milestones.md §M14 + docs/milestones/m14/loop-prompts.md)
 
 hidden_constraints:
   1. Kaggle's *actual* per-competition concurrency limit is not a published
@@ -8,11 +8,11 @@ hidden_constraints:
      either over-blocks (wastes the daily budget) or under-blocks (Kaggle
      rejects the push and the loop stalls), and the rollback/stop criterion
      "concurrency enforcement permits a push that violates Kaggle's actual
-     limit" (docs/m14-loop-prompts.md:552-554) cannot be evaluated.
+     limit" (docs/milestones/m14/loop-prompts.md:552-554) cannot be evaluated.
   2. The "today's submissions" window — is it a calendar UTC day, a 24h rolling
      window from first submission, or Kaggle's own reset clock? CLAUDE.md's KCA
      strategy references "00:00 UTC roll-over" but the loop-prompt T005 says
-     "24h rolling window" (docs/m14-loop-prompts.md:291). — consequence if
+     "24h rolling window" (docs/milestones/m14/loop-prompts.md:291). — consequence if
      unanswered: the daily-budget gate (T004) miscounts and either burns a slot
      after Kaggle reset or refuses a legal push.
   3. `goal.md`'s `target_lb_rank` requires knowing the current leaderboard size
@@ -22,7 +22,7 @@ hidden_constraints:
      evaluated offline, and the stuck-detector's "monotone improvement" signal
      is ambiguous (rank can move without a new submission).
   4. The per-batch pre-approved push budget (decision 2 in
-     docs/m14-loop-prompts.md:598-601) needs a cap and an expiry. How many
+     docs/milestones/m14/loop-prompts.md:598-601) needs a cap and an expiry. How many
      pushes does one approval authorise, and does it expire at UTC midnight or
      persist across days? — consequence if unanswered: a stale batch approval
      could authorise pushes the human no longer intends, defeating ADR-0006's
@@ -71,7 +71,7 @@ side_effects:
   4. T007 writes `docs/escalations/<comp>-<ts>.md` into the repo. Does the
      escalation doc ever contain a DSN, credential, or flag? — consequence if
      unanswered: a secret could be committed to git via the escalation doc
-     (the rollback criterion at docs/m14-loop-prompts.md:558-559).
+     (the rollback criterion at docs/milestones/m14/loop-prompts.md:558-559).
 
 edge_cases:
   1. M10-T004 showed a push can stall QUEUED ~66 min and never run. With smart
@@ -80,7 +80,7 @@ edge_cases:
      unanswered: a stuck QUEUED kernel permanently consumes a concurrency slot
      and the loop deadlocks.
   2. The Kaggle `kernels status` API returned 500 for newly-pushed kernels
-     (docs/m10-final-review.md:287-289 / kg.py:287-289). T005's state machine
+     (docs/milestones/m10/final-review.md:287-289 / kg.py:287-289). T005's state machine
      parses `kernels status` for QUEUED/RUNNING — what state is assumed on a
      500, and does the batched `kernels list` path have the same gap? —
      consequence if unanswered: the state machine misclassifies a 500 as
@@ -123,7 +123,7 @@ explicit_unknowns:
     limit and daily-submission reset semantics (UTC midnight vs 24h rolling) —
     needs a human decision pinned on the M14 proposal issue before T004.
   - Whether `target_lb_rank` is a first-class goal type in M14 or deferred to a
-    score-only primitive (decision 1, docs/m14-loop-prompts.md:596-599) —
+    score-only primitive (decision 1, docs/milestones/m14/loop-prompts.md:596-599) —
     human decision.
   - The per-batch push-budget cap default and expiry (decision 2) — human
     decision.

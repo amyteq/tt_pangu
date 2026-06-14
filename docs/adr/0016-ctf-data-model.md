@@ -12,7 +12,7 @@ Cross-link: [`docs/evidence/m11/discovery/design-red-team.md`](../evidence/m11/d
 ## Context
 
 M11 is the first non-Kaggle competition platform on the agent stack.
-The CTFtime workflow (planning Q&A, `docs/m11-loop-prompts.md` §at-a-glance)
+The CTFtime workflow (planning Q&A, `docs/milestones/m11/loop-prompts.md` §at-a-glance)
 needs persistent, queryable records for three things:
 
 1. **Events** — which CTFtime-listed event we are participating in, when
