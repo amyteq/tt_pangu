@@ -16,8 +16,8 @@ This task assumes **M13-T002 closeout is PASS**.
 ## Read first
 
 1. M13-T000, M13-T001, M13-T002 closeouts.
-2. `docs/tasks/m4/M4-T008-titanic-end-to-end.md` (Titanic precedent).
-3. `docs/tasks/m5/M5-T008-house-prices.md` (House Prices RMSLE
+2. `docs/tasks/m4/M4-T008-tc1-titanic-end-to-end.md` (Titanic precedent).
+3. `docs/tasks/m5/M5-T008-tc2-house-prices.md` (House Prices RMSLE
    precedent).
 4. `docs/tasks/m9/M9-T002-baseline-loop.md` (Spaceship Titanic LR
    baseline precedent — CV 0.79144 ±0.0086 in M9 final review).
