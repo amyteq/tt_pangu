@@ -27,7 +27,7 @@ comparison) consumes this suite later.
 3. `src/worker/routing.py` (per-job-type routing).
 4. `tools/kca/research_fetch.py` (cached pages are the input to
    one of the prompts).
-5. `docs/tasks/m5/M5-T002-research-fetch.md` (research-brief precedent).
+5. `docs/tasks/m5/M5-T002-browser-fetch-tool.md` (research-brief precedent).
 6. `.claude/skills/research-brief/SKILL.md` (the skill one prompt
    evaluates against).
 7. `docs/architecture/eval-regression-suite.md` (metric contract).
