@@ -1,9 +1,9 @@
 ---
 name: milestone-final-review
-description: Generate docs/m{N}-final-review.md from a milestone's validation matrix. Use at milestone end, after every Loop Prompt has PASSed. Mirrors the M5/M6 final-review layout — does not invent metrics.
+description: Generate docs/milestones/m{N}/final-review.md from a milestone's validation matrix. Use at milestone end, after every Loop Prompt has PASSed. Mirrors the M5/M6 final-review layout — does not invent metrics.
 ---
 
-# milestone-final-review — write `docs/m{N}-final-review.md`
+# milestone-final-review — write `docs/milestones/m{N}/final-review.md`
 
 Use this skill at milestone end to produce the canonical final review markdown.
 
@@ -28,10 +28,10 @@ Mirror the immediately-prior milestone's final review (`docs/m{N-1}-final-review
 
 _Branch: `<branch>`._
 
-## Milestone exit (per docs/milestones.md)
+## Milestone exit (per docs/milestones/README.md)
 
 > <one-paragraph block-quote of the milestone's exit definition,
->  copied verbatim from docs/milestones.md>
+>  copied verbatim from docs/milestones/README.md>
 
 **Status: met.** <one sentence — how many non-SKIP checks PASSed,
 against which DB/endpoint, with what sandbox notes>
@@ -74,11 +74,11 @@ the Loop Prompts' stop conditions and known-gaps notes>
 
 ## Output
 
-Write to `docs/m{N}-final-review.md`. After writing, print the file
+Write to `docs/milestones/m{N}/final-review.md`. After writing, print the file
 path, the validation matrix's PASS/FAIL/SKIP count, and any items
 deferred to follow-ups.
 
 ## Safety
 
-- READ_ONLY against everything except `docs/m{N}-final-review.md` itself.
+- READ_ONLY against everything except `docs/milestones/m{N}/final-review.md` itself.
 - No git, no gh, no network. Leave commit/push/PR to `worktree-milestone-pr`.

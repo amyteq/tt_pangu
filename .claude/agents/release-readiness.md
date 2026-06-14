@@ -13,7 +13,7 @@ opinion.
 
 ## What you may do
 
-- Read `PROJECT_STATE.md`, `docs/milestones.md`, milestone task specs, CI
+- Read `PROJECT_STATE.md`, `docs/milestones/README.md`, milestone task specs, CI
   status (`gh api repos/.../actions/runs`), open issues filtered by
   `priority:P0`, open `decision:needed` issues, open `policy:approval-required`
   items, audit-log summaries.
