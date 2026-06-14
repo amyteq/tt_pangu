@@ -1,24 +1,42 @@
 # Insights — Orbit Wars
 
 ## Competition-specific insights
-- **官方 `garrison+1` 基线对移动/产兵目标是错的**:中立静态、敌方按 `production*travel_ticks` 增长,需领产兵。
-  Evidence: `./README.md`(exact capture rule,引擎行号)。
-- **终局(k=H)差分净舰值才守恒正确**:对所有 k 计会惩罚在途舰。Evidence: `./README.md`(Forecast key bug)。
+- **Official `garrison+1` baseline is wrong for moving/producing targets** — neutrals are static but enemy
+  planets grow by `production*travel_ticks`; lead the growth. Evidence: `README.md` (exact capture rule, engine refs).
+- **Terminal (k=H) differential net-ship value is conservation-correct** — scoring over all k penalizes ships
+  still in transit. This was the one big lever (556→686). Evidence: `README.md` (Forecast key bug).
+- **少而重 > 多而小** — concentrated strikes (e.g. 27×78 ships) beat many small ones (117×19); ~56% of a top
+  winner's launches are short-hop reinforcement (supply chain). Evidence: `EPISODES.md` #1 (Jake Will).
+- **Top-6 are rule/search engines, no NN** — behavior cloning reproduces the *form* not the *system*
+  (T12: recall@k 0.387 but 0% in arena). Evidence: `EPISODES.md` #2; issue #87 (T12 v2).
+- **Strong tier wins as integrated systems** — 7 transplanted single-mechanism levers all failed on the suite.
 
 ## Potentially reusable insights
 
-### INS-001: 离线 gate 必须对齐线上指标(否则零预测力)
+### INS-001: ladder-predictive offline suite (not self-play)
 - type: rule
 - confidence: high
-- evidence: `./README.md`(self-play 不预测天梯;suite_gate 才对齐)
-- transfer scope: 任何有线上天梯 / 隐藏评测的竞赛
-- status: validated(本竞赛内)
-- notes: 已登记 `_shared/skill-candidates.md`(ladder-predictive-gate)+ `_shared/insights.md`。
+- evidence: `README.md` / issue #87 (self-play 91% but ≈ on ladder; suite gate aligned)
+- transfer scope: any competition with a hidden ladder / online eval
+- status: validated (this competition); logged in `_shared/skill-candidates.md` (ladder-predictive-gate)
 
-### INS-002: 强对手靠一体化系统取胜,单一机制不可移植
+### INS-002: powered paired-seed A/B + bake gate (kill small-sample false positives)
+- type: rule
+- confidence: high
+- evidence: issue #87 (batch noise 8–27%; ≥150 paired seeds ±3.5pt; +7pt bake gate caught a would-be regression)
+- transfer scope: any stochastic-eval optimization
+- status: validated
+
+### INS-003: imitation/BC ≠ playing for integrated-system opponents
 - type: anti-pattern
 - confidence: medium
-- evidence: `./README.md`(5 个 bolt-on 杠杆全不过 cliff)
-- transfer scope: agent / 复杂规划类竞赛
+- evidence: issue #87 (T12 high imitation, 0% arena — distribution shift)
+- transfer scope: imitation-learning on planning/agent tasks
 - status: candidate
-- notes: 推论是「整体重构 > 增量移植」;待更多竞赛验证泛化性。
+
+### INS-004: parallel arena — engine is CPU-bound, GPU useless
+- type: fact
+- confidence: high
+- evidence: `arena/pool.py` (~30–40× across cores; deterministic)
+- transfer scope: pure-Python simulation competitions
+- status: validated

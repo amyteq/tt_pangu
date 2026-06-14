@@ -1,11 +1,15 @@
 # Bugs — Orbit Wars
 
-> 多为「方法论陷阱」而非崩溃;详见 `./README.md` / `./VALIDATION.md`。
+> Mostly methodology pitfalls / rule-sim mismatches, not crashes. Detail in `README.md` / `VALIDATION.md` / issue #87.
 
 | ID | Status | Severity | Area | Summary | Evidence | Next action |
 |---|---|---|---|---|---|---|
-| B1 | fixed | high | eval-methodology | 自博弈离线胜率**不预测天梯**(v3 离线赢 v2.1 91% 却天梯≈) | README.md(self-play 一节) | 改用 `arena/suite_gate.py` 强弱跨度套件门控 |
-| B2 | fixed | medium | eval-methodology | identical-mirror 平局多 → 「no-edge」win% ~39%(2p)/ ~57.5%(4p),非 50% | README.md(calibration notes) | 读 decisive W-L / avg_rank,勿读裸 win% |
-| B3 | fixed | high | value-fn | 对所有 k 计净舰值惩罚在途舰(发射看似亏)→ 近被动(2.5% vs v2.1) | README.md(Forecast key bug) | 改**终局 k=H** 差分(守恒正确) |
-| B4 | fixed | medium | agent-robustness | 任何异常返回 `[]`(被动但不崩,不弃权) | README.md(v1) | 全 agent 用崩溃安全包装 |
-| B5 | open | high | strength-gap | 对强档(evogen1093/multifocus/kuni05)0-15% 的硬 cliff | README.md(incremental path exhausted) | v4 集合规划整体重构,套件门控 |
+| B1 | fixed | high | eval-methodology | self-play win% **does not predict the ladder** (v3 beat v2.1 91% offline yet ≈ on ladder) | README; issue #87 | gate on `arena/suite_gate.py` (strong-weak suite); never self-play |
+| B2 | fixed | medium | eval-methodology | identical-mirror null is ~39% (2p) / ~57.5% (4p), not 50% | README | read decisive W-L / avg_rank |
+| B3 | fixed | medium | eval-methodology | small-batch noise 8–27% (24–60 games) → false positives (T2-R1 "25%") | issue #87 | ≥150 paired seeds (±3.5pt) + ±7pt bake gate |
+| B4 | fixed | high | value-fn | scoring net-ships over all k penalized in-transit ships → near-passive | README (Forecast bug) | terminal (k=H) differential value (conservation-correct) |
+| B5 | fixed | medium | agent-robustness | any exception → return `[]` (passive but never forfeits/crashes) | README | crash-safe wrapper on all agents |
+| B6 | open | high | strength-gap | strong-tier cliff: 0–15% vs evogen1093 / multifocus / kuni05 1240; 7 single-mechanism levers failed | issue #87 | v4 Scheduler integrated rewrite |
+| B7 | wontfix | medium | ml | T12 BC reached high imitation (recall@k 0.387) but 0% in arena — distribution shift | issue #87 c (T12 v2) | de-prioritize BC; DAgger / value distillation if revisited |
+| B8 | fixed | low | ops | torch opponents spawn ~24 OMP threads/worker → 24-core box load 269 (idle spin) | issue #87 worklog | `OMP_NUM_THREADS=1` (recorded in snorlax doc) |
+| B9 | fixed | medium | agent-logic | v4 iter1 "shutter-crash" (mirror 13%): 83% empire in transit chasing a moving hub + 18–63-ship chip-hammers | issue #87 (C4 log) | iter2 guardrails (rear-only forwarding, supply cap 0.5, min hammer mass 80) → parity |
