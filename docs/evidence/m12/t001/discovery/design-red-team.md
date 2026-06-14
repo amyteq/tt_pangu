@@ -2,8 +2,8 @@ design-red-team report for M12-T001 competition-policy generalization
 (read targets: same as the two upstream reports; specifically
 docs/evidence/m12/t001/discovery/legacy-archaeologist.md,
 docs/evidence/m12/t001/discovery/requirements-skeptic.md,
-docs/tasks/M12-T001-discovery-debate-gate.md,
-docs/m12-loop-prompts.md,
+docs/tasks/m12/M12-T001-discovery-debate-gate.md,
+docs/milestones/m12/loop-prompts.md,
 supabase/migrations/0004_m4_competition_repo.sql,
 tools/kca/agent/permission_policy.py,
 docs/adr/0006-configurable-approval-gates.md,
@@ -13,11 +13,11 @@ _Methodology note._ Authored inline by the parent session (Agent / Task
 tool not available in this Loop Prompt; same fallback condition documented
 in `legacy-archaeologist.md` and `requirements-skeptic.md`). The three
 required alternatives (A / B / C) are named verbatim per
-`docs/tasks/M12-T001-discovery-debate-gate.md:64–68`. The proposed design
+`docs/tasks/m12/M12-T001-discovery-debate-gate.md:64–68`. The proposed design
 under attack is the default expectation stated in the same task spec:
 "Pick one of the three alternatives (default expectation: A — folded enum
 — unless the red team's evidence makes B or C decisively better)"
-(docs/tasks/M12-T001-discovery-debate-gate.md:78–80).
+(docs/tasks/m12/M12-T001-discovery-debate-gate.md:78–80).
 
 alternatives:
   1. A. Folded `competition_type` enum on existing `competitions` table — sketch: add `competition_type competition_type_enum NOT NULL DEFAULT 'kaggle'` to `competitions` (supabase/migrations/0004_m4_competition_repo.sql:14–18 is the table being extended); the existing `competition_policy jsonb` (supabase/migrations/0004_m4_competition_repo.sql:18) carries type-specific overrides keyed off the enum; the policy resolver (tools/kca/agent/permission_policy.py:41–51) gains a new arg `competition_type: str` that routes to a per-type `.kca/permissions/<type>-runner.yaml` profile, falling back to the default profile on miss; existing Kaggle rows backfill in one UPDATE; key tradeoff vs proposal: zero-mutation regression for Kaggle rows (the enum default plus untyped jsonb keep ADR-0006 hierarchy intact) at the cost of a permanently jsonb-typed policy surface that can drift over time.
@@ -45,10 +45,10 @@ long_term_costs:
 
 open_disagreements:
   - We do NOT agree that `competition_policy` jsonb (supabase/migrations/0004_m4_competition_repo.sql:18) should remain untyped after M12 ships per-type gates — Alternative A as written leaves keys unbounded; we recommend a **follow-up issue** to add a `CHECK (jsonb_typeof(competition_policy->'approval_gates') = 'object')` or migrate to Alternative D once the M12 gate set stabilises; proposed labels: `area:supabase`, `type:tech-debt`, `priority:P2`. Actionable next step: file the issue at M12-T002 close, cite skeptic §hidden_constraints.6 and §edge_cases.2 as the motivating evidence.
-  - We do NOT agree that "all gates default to owner-only for now" (docs/tasks/M12-T001-discovery-debate-gate.md:90) is documentation-sufficient — without a `human_decisions.approved_by_user_id` column (skeptic §personas_and_accounts.6) the rule is unverifiable in audit; we recommend a **spike** in M12-T007 to record approver identity, or an explicit **follow-up issue** if M12-T007 cannot ship it; proposed labels: `area:supabase`, `area:worker`, `priority:P1`. Actionable next step: ask-human at the M12-T007 reviewer-gate design step whether `approved_by_user_id` is in or out.
-  - We do NOT agree that `'devpost'` and `'hackathon_devpost'` should both be enum values from M12 (docs/tasks/M12-T001-discovery-debate-gate.md:81) without an explicit "what's the difference" rule — skeptic §explicit_unknowns names this; we recommend the ADR-0018 body either (a) define the boundary verbatim (one sentence; e.g. "`'devpost'` = the Devpost platform, `'hackathon_devpost'` = a Devpost-hosted event that follows the hackathon-format submission shape: README + demo + source; non-hackathon Devpost listings get `'devpost'`") or (b) drop `'hackathon_devpost'` until a real case forces it. Actionable next step: ask-human, then encode the chosen rule in ADR-0018 §Consequences.
+  - We do NOT agree that "all gates default to owner-only for now" (docs/tasks/m12/M12-T001-discovery-debate-gate.md:90) is documentation-sufficient — without a `human_decisions.approved_by_user_id` column (skeptic §personas_and_accounts.6) the rule is unverifiable in audit; we recommend a **spike** in M12-T007 to record approver identity, or an explicit **follow-up issue** if M12-T007 cannot ship it; proposed labels: `area:supabase`, `area:worker`, `priority:P1`. Actionable next step: ask-human at the M12-T007 reviewer-gate design step whether `approved_by_user_id` is in or out.
+  - We do NOT agree that `'devpost'` and `'hackathon_devpost'` should both be enum values from M12 (docs/tasks/m12/M12-T001-discovery-debate-gate.md:81) without an explicit "what's the difference" rule — skeptic §explicit_unknowns names this; we recommend the ADR-0018 body either (a) define the boundary verbatim (one sentence; e.g. "`'devpost'` = the Devpost platform, `'hackathon_devpost'` = a Devpost-hosted event that follows the hackathon-format submission shape: README + demo + source; non-hackathon Devpost listings get `'devpost'`") or (b) drop `'hackathon_devpost'` until a real case forces it. Actionable next step: ask-human, then encode the chosen rule in ADR-0018 §Consequences.
   - We do NOT agree that the policy resolver should *silently* fall back to the `default` profile when a type-specific profile is missing (skeptic §hidden_constraints.6) — the canonical failure mode is "silent fallback gives wrong gate"; we recommend the resolver **log a structured warning** (`tool=policy_resolver`, `event=profile_fallback`, `from=<type>`, `to=default`) on every fallback so the audit log records when the type-specific profile was missing. Actionable next step: file as **follow-up issue** for M12-T002 to add the log line; proposed labels: `area:worker`, `type:bug`, `priority:P1`. Cite tools/kca/agent/permission_policy.py:50–51 as the surface to instrument.
-  - We do NOT agree that the M11 `'ctf'` reuse is risk-free if M12 ships the enum value but no profile (docs/tasks/M12-T001-discovery-debate-gate.md:82–83) — an out-of-band experiment can insert a `ctf` row, and the resolver will fall back to `default.yaml`, which has no `ctf_*` op entries (.kca/permissions/default.yaml:1–43) — meaning every CTF op resolves to `_tool_default_decision(operation)` = `"ask"` for unknowns (acceptable) BUT a knowing-bad change to a profile could allow it; we recommend a **follow-up issue** for M11 to ship `ctf-runner.yaml` alongside the first CTF code path; proposed labels: `area:policy`, `area:worker`, `milestone:M11`. Actionable next step: cross-link the follow-up issue from the M12 closing issue when ADR-0018 lands.
+  - We do NOT agree that the M11 `'ctf'` reuse is risk-free if M12 ships the enum value but no profile (docs/tasks/m12/M12-T001-discovery-debate-gate.md:82–83) — an out-of-band experiment can insert a `ctf` row, and the resolver will fall back to `default.yaml`, which has no `ctf_*` op entries (.kca/permissions/default.yaml:1–43) — meaning every CTF op resolves to `_tool_default_decision(operation)` = `"ask"` for unknowns (acceptable) BUT a knowing-bad change to a profile could allow it; we recommend a **follow-up issue** for M11 to ship `ctf-runner.yaml` alongside the first CTF code path; proposed labels: `area:policy`, `area:worker`, `milestone:M11`. Actionable next step: cross-link the follow-up issue from the M12 closing issue when ADR-0018 lands.
 
 > Output MUST include ≥3 alternatives, ≥1 dropped capability with
 > file:line evidence, all four long-term-cost axes, and ≥1

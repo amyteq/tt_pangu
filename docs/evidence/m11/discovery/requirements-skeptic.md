@@ -1,10 +1,10 @@
 # requirements-skeptic report for M11 CTF architecture (T000)
 
 Sources:
-- Task spec: `docs/tasks/M11-T000-discovery-debate-gate.md`
-- Milestone plan: `docs/m11-loop-prompts.md`
+- Task spec: `docs/tasks/m11/M11-T000-discovery-debate-gate.md`
+- Milestone plan: `docs/milestones/m11/loop-prompts.md`
 - Upstream archaeology: `docs/evidence/m11/discovery/legacy-archaeologist.md`
-- Planning Q&A decisions: `docs/m11-loop-prompts.md:621–667` ("Human decisions needed").
+- Planning Q&A decisions: `docs/milestones/m11/loop-prompts.md:621–667` ("Human decisions needed").
 
 _Produced under the M11-T000 Discovery / Debate Gate. The agent body
 lives in `.claude/agents/requirements-skeptic.md`; this artefact is a
@@ -36,7 +36,7 @@ workflow taxonomy._
    validation, the human's first signal is an `accepted=false` HTTP
    400 from the event API.
 4. What is the platform's **flag-string retention policy**?
-   `docs/m11-loop-prompts.md:317` says "experiment_runs row with
+   `docs/milestones/m11/loop-prompts.md:317` says "experiment_runs row with
    flag_length (NOT value)" for the solver loop; does the same rule
    apply to `ctf_attempts.flag`, to `agent_reviews.rationale` (the
    reviewer sees the flag string when reviewing `flag_submit`), and
@@ -50,7 +50,7 @@ workflow taxonomy._
    `flag_submit`; KCA must back off, not retry. The M11 spec doesn't
    declare which side owns the back-off (T007 stop condition says
    "HALT and open a follow-up issue — do not silently retry"
-   per `docs/m11-loop-prompts.md:401`).
+   per `docs/milestones/m11/loop-prompts.md:401`).
 
 ## personas_and_accounts
 
@@ -120,11 +120,11 @@ workflow taxonomy._
    row) or an `ask` op? — consequence: LOCAL_WRITE means the agent
    can widen its own authorization without human review; that is
    the wrong default. The M11 spec implies `LOCAL_WRITE`
-   (`docs/m11-loop-prompts.md:247`) but does not call this out
+   (`docs/milestones/m11/loop-prompts.md:247`) but does not call this out
    as the security-sensitive case it is.
 5. **Filesystem writes under `data/ctf/<event>/<challenge>/`** for
    bundle attachments — are these gitignored above a size cap?
-   `docs/m11-loop-prompts.md:281` says "1MB cap per file; bigger =
+   `docs/milestones/m11/loop-prompts.md:281` says "1MB cap per file; bigger =
    gitignored". What enforces the cap on commit (a `pre-commit`
    hook, a `.gitignore` line, or human discipline)? — consequence:
    a 200MB attachment slipped into the repo bloats every clone
@@ -189,7 +189,7 @@ workflow taxonomy._
    reversal. Does the closing-issue approval comment commit the
    reviewer / project owner to "do not retry this submission" if
    it bounces? The M11 spec says HALT
-   (`docs/m11-loop-prompts.md:585–589`); is HALT enforced by a
+   (`docs/milestones/m11/loop-prompts.md:585–589`); is HALT enforced by a
    feature flag or by human discipline?
 4. **`~/.ctf/<event-slug>.json` deletion** — if the human deletes
    the credential file mid-solve, does the worker fail loudly or

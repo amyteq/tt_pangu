@@ -144,7 +144,7 @@ issue if you want it built.
 ## Cross-references
 
 - Milestone protocol additive section: `docs/milestone-loop-protocol.md` §7.
-- M9.4 planning: `docs/m9_4-loop-prompts.md`.
-- M9.3 skill (sibling milestone): `docs/m9_3-loop-prompts.md`,
+- M9.4 planning: `docs/milestones/m9_4/loop-prompts.md`.
+- M9.3 skill (sibling milestone): `docs/milestones/m9_3/loop-prompts.md`,
   `.claude/skills/design-archaeology/SKILL.md` (M9.3-T001).
 - Origin observation: `docs/meeting-notes/2026-05-24-r3.md` §6.
