@@ -10,6 +10,12 @@ This repository builds a hybrid human + AI coding agent for Kaggle-style competi
 
 Never confuse the two. A platform-development agent editing this repo is not the same as a runtime agent running a Kaggle experiment. See `docs/architecture/platform-vs-runtime-agents.md` for details.
 
+## Read first
+- PROJECT_STATE.md
+- CLAUDE.md if present
+- docs/milestones/README.md if present
+- docs/milestones/*/handoff.md if present
+
 ## Source of truth
 Use this repository as the durable project memory. Do not rely on hidden memory in any single AI product. Important decisions must be written to:
 - `PROJECT_STATE.md`
