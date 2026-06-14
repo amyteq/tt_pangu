@@ -224,7 +224,14 @@ def test_get_decisions_response_shape(client: TestClient) -> None:
     rows = r.json()
     assert rows, "expected at least one pending decision"
     row = rows[0]
-    for field in ("id", "project_id", "decision_type", "prompt", "status", "created_at"):
+    for field in (
+        "id",
+        "project_id",
+        "decision_type",
+        "prompt",
+        "status",
+        "created_at",
+    ):
         assert field in row, f"missing field {field!r} in response row"
 
 

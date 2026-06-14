@@ -216,9 +216,13 @@ def make_app(
     # ------------------------------------------------------------------
     @app.get("/decisions", response_model=list[DecisionRow])
     def list_decisions(
-        status: str = Query("pending", description="Filter by status (e.g. pending, approved, rejected)"),
+        status: str = Query(
+            "pending", description="Filter by status (e.g. pending, approved, rejected)"
+        ),
         limit: int = Query(50, ge=1, le=200, description="Maximum rows to return"),
-        competition_id: Optional[str] = Query(None, description="Filter by competition UUID (via agent_jobs join)"),
+        competition_id: Optional[str] = Query(
+            None, description="Filter by competition UUID (via agent_jobs join)"
+        ),
         x_decision_api_token: Optional[str] = Header(default=None),
     ) -> list[dict]:
         """READ_ONLY: list human_decisions filtered by status, with optional competition_id.
