@@ -7,7 +7,7 @@ Decision: **SKIPPED** as greenfield, per
 `docs/architecture/discovery-debate-gate.md` §"When the gate fires"
 (skip allowed for greenfield `arch:` tasks with no legacy code in
 scope) and the explicit allowance in the M14 Loop Prompt 0 read-list
-(`docs/m14-loop-prompts.md:136`, `:154-156`).
+(`docs/milestones/m14/loop-prompts.md:136`, `:154-156`).
 
 ## Greenfield argument
 
@@ -74,7 +74,7 @@ the skeptic + red-team transcripts.
 The single-account-only scope is itself a load-bearing carry-over of the
 kkr.py lesson: M14 deliberately ships only the **single-account**
 concurrency primitive (T004) and defers the multi-account quota pool to
-issue #21 / M15+ (`docs/m14-loop-prompts.md:45-47`, `:84-87`), precisely
+issue #21 / M15+ (`docs/milestones/m14/loop-prompts.md:45-47`, `:84-87`), precisely
 so the multi-account semantics are designed deliberately later rather
 than half-encoded now.
 

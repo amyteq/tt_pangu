@@ -1,10 +1,10 @@
 # requirements-skeptic report for M13-T000 (eval regression-suite framework)
 
-Source: `docs/tasks/M13-T000-eval-architecture.md`,
+Source: `docs/tasks/m13/M13-T000-eval-architecture.md`,
 strawman `docs/adr/0019-eval-regression-suite.md`,
 companion `docs/architecture/eval-regression-suite.md`,
 parent `docs/milestones.md §M13`,
-parent `docs/m13-loop-prompts.md §"M13 at a glance"`.
+parent `docs/milestones/m13/loop-prompts.md §"M13 at a glance"`.
 
 Upstream: legacy-archaeologist SKIPPED — see
 `docs/evidence/m13/T000/discovery/SKIP-NOTE.md` (greenfield).

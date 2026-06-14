@@ -1,28 +1,8 @@
-# Handoff Prompt for AI Tools
+# Handoff prompt template — moved
 
-You are working on a repository that builds a hybrid human + AI code agent for Kaggle competitions and authorized CTF/lab challenges.
+The generic milestone handoff template now lives at
+**[`docs/milestones/_templates/handoff-prompt.md`](milestones/_templates/handoff-prompt.md)**.
 
-Read these files first:
-1. `PROJECT_STATE.md`
-2. `AGENTS.md`
-3. `CLAUDE.md`
-4. `docs/architecture/model-routing.md`
-5. Latest files in `docs/adr/`
+Per-milestone handoff instances live at `docs/milestones/m{N}/handoff.md`.
 
-Rules:
-- Treat GitHub repository files as the source of truth.
-- Do not rely on hidden memory from any AI product.
-- Make small, reviewable changes.
-- Never expose or commit secrets.
-- Never submit to Kaggle or push remote kernels without explicit human approval.
-- Keep CTF work inside explicitly authorized local/sandbox challenge environments.
-
-Current task:
-[PASTE TASK HERE]
-
-Return:
-- Summary of intended change.
-- Files to modify.
-- Risks and approval needs.
-- Patch or implementation.
-- Suggested tests.
+This stub is kept only so older links keep resolving; prefer the new path.

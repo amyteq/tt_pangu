@@ -259,8 +259,8 @@ on its closing issue.
 
 - [`ADR-0020`](../adr/0020-goal-driven-kaggle-loop.md) — the decisions
   this doc illustrates.
-- `docs/m10-final-review.md` — the single-push baseline; QUEUED-stall +
+- `docs/milestones/m10/final-review.md` — the single-push baseline; QUEUED-stall +
   `kernels status` 500 history.
 - `docs/architecture/discovery-debate-gate.md` — the gate T000 exercises.
-- `docs/m14-loop-prompts.md` — the milestone scope + per-task loop
+- `docs/milestones/m14/loop-prompts.md` — the milestone scope + per-task loop
   prompts.

@@ -70,7 +70,7 @@ contract._
 - **Per-experiment `--env <path>` override.** Legacy CLI allowed
   overriding the dotenv path on a single invocation
   (`tools/legacy/kkr.py:535–537`). The proposed `kca kaggle push`
-  signature (per `docs/m10-loop-prompts.md` "What's in scope") does
+  signature (per `docs/milestones/m10/loop-prompts.md` "What's in scope") does
   not expose a `--env` flag. Evidence: `tools/legacy/kkr.py:2165`.
   Survives in: alternative 2, legacy.
 - **`kernel_sources` cross-owner reuse.** Legacy YAML can reference

@@ -35,7 +35,7 @@ The `memory-promotion` skill targets exactly these four:
 1. `PROJECT_STATE.md` — current milestone, open decisions, completed
    milestones.
 2. `docs/milestones.md` — milestone roster, scope, dependency order.
-3. `docs/handoffs/m{N}-handoff.md` — per-milestone exit state.
+3. `docs/milestones/m{N}/handoff.md` — per-milestone exit state.
 4. `docs/adr/NNNN-*.md` — long-lived architectural decisions.
 
 Other Tier 3 surfaces named in `session-memory-and-audit.md` §4 —
@@ -72,7 +72,7 @@ user-preference questions.
 ## Consequences
 
 - **Human gate is load-bearing.** Every change to `PROJECT_STATE.md`,
-  `docs/milestones.md`, `docs/handoffs/**`, or `docs/adr/**` is now a
+  `docs/milestones.md`, `docs/milestones/*/handoff.md`, or `docs/adr/**` is now a
   human-reviewed diff. No skill writes them silently.
 - **`docs/proposals/` is a staging directory**, not canonical memory.
   Files there accumulate until applied or discarded; a periodic
