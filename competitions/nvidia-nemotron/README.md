@@ -9,7 +9,7 @@
 - phase: submission (closing)
 - current objective: **hold the best score (0.85, v14 replay) to close**; only low-cost upside left
 - best known local/CV: per-kernel held-out only (no single canonical CV); see `submissions.md`
-- best known LB/public: **0.85** (`nemo-replay-v14`); top ~0.89, base ~0.47
+- best known LB/public: **0.85** own real-training (`nemo-replay-v14`); raw account max **0.86** (2026-05-15 public-fork, not own training); top **~0.90**, base ~0.47 (refreshed 2026-06-14)
 - current blocker: 0.85 appears to be the ceiling with current levers — two attempts to beat it
   (T7 SVD merge 0.82, T11 v15 cryptarithm synth 0.84) both regressed
 - next task: hold 0.85; optional half-dose cryptarithm-only synth (expected ≤0.85)

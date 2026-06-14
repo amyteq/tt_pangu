@@ -10,6 +10,7 @@
 | [orbit-wars](orbit-wars/) (orbit) | active | simulation_agent | iteration | suite ~54.8% | **~1137** (adapted-kuni05) | latest-2: [Forecast v3 ~686, kuni05 ~1137] | 强档 cliff(0-15% vs evogen/kuni05) | v4 Scheduler 套件门控,争取 >0% vs evogen1093 |
 
 > LB 说明:nemo 最好 **0.85**(`nemo-replay-v14`,issue #86 comment 2 确认);两次冲 0.85+ 均回归(T7 merge 0.82、v15 synth 0.84)。orbit `~1137` 为已注明出处的 adapted-kuni05(竞争条目),自研 Forecast 线 ~686。详见 [`nvidia-nemotron/tracking.md`](nvidia-nemotron/tracking.md)。
+> Kaggle 只读刷新（2026-06-14）：nemo own 最好 **0.85**(v14);账号原始公开最大 **0.86**(2026-05-15 public-fork,非自训);榜首 **~0.90**;private LB 未发布。详见 [`nvidia-nemotron/submissions.md`](nvidia-nemotron/submissions.md)。
 
 ## Recently updated
 - **2026-06-14** nvidia-nemotron — context consolidation into English canonical docs + `tracking.md` + `_zh` sidecars (KCT-002); v15 synth = 0.84, best held at v14 0.85.

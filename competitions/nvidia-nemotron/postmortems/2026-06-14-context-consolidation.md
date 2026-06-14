@@ -45,7 +45,7 @@
 
 ## Uncertain or missing context
 - Private LB; exact submission IDs; exact train row count; `test.csv`=first-3-train claim (as reported).
-- No live Kaggle status refresh performed at consolidation time. Read-only refresh is now **authorized** (creds in `.vscode/.env.harry`, `.vscode/.env.may`) — pending follow-up to fill in submission IDs / private LB without any submit/push/upload.
+- Read-only Kaggle status **refreshed 2026-06-14** (both accounts via `kaggle competitions submissions`; all submissions `COMPLETE`). Best own real-training = 0.85 (v14); raw account public max = 0.86 (2026-05-15 public-fork); leaderboard top ~0.90. Private LB not released. The Kaggle submissions API exposes no numeric submission ID (date+description is the key).
 
 ## Proposed follow-up issues
 - "nemo: post-deadline archival" (finalize LB/CV + private LB + final postmortem; status → archived).

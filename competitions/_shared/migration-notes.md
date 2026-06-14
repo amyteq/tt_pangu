@@ -36,5 +36,5 @@
   issue #86 中文正文、`notes_zh.md` 中文来源指引+关键摘录)。
 - 来源:GitHub issue #86(body + 5 comments)、`work/00.nemo.md`、`work/00.nemotron_3_versions.zip`、
   `worklogs/nemo*.md`、PR #90/#94/#95。
-- 远程刷新:read-only Kaggle 状态刷新现已**获授权**(creds 在 `.vscode/.env.harry`、`.vscode/.env.may`),作为后续动作回填 submission IDs / private LB(仅 read-only,不 submit/push/upload);本次合并以 issue #86(2026-06-14 ~05:00 UTC 快照)为准。
+- 远程刷新:已于 **2026-06-14** 用 read-only Kaggle API(`kaggle competitions submissions`,双账号,creds 仅 read-for-use 不打印)完成刷新,回填 `submissions.md` / `tracking.md`:own 最好 0.85(v14)、账号原始公开最大 0.86(2026-05-15 public-fork,非自训)、榜首 ~0.90、private LB 未发布;Kaggle submissions API 不暴露数字 submission ID。未做任何 submit/push/upload。
 - issue #86 保持**开放**作历史;后续状态更新改在 `competitions/nvidia-nemotron/`。

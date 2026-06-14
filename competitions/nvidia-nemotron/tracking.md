@@ -5,7 +5,7 @@
 > live here, not in issue #86. `unknown` = not in available evidence.
 
 ## Current snapshot
-- Best: **0.85 (v14 replay)**. Top ~0.89, base ~0.47. Deadline **2026-06-15 23:59 UTC**. Quota 5/team/day.
+- Best **own real-training: 0.85 (v14 replay)**; raw account public max **0.86** (a 2026-05-15 public-fork, not our training — see `submissions.md`). Top **~0.90** (refreshed 2026-06-14), base ~0.47. Deadline **2026-06-15 23:59 UTC**. Quota 5/team/day.
 - Two attempts to beat 0.85 both regressed: **T7 merge = 0.82**, **T11 v15 synth = 0.84**.
 - Recommendation (issue #86 comment 4): **hold 0.85 to close**; marginal return on more quota is low.
 - Last updated in issue #86: 2026-06-14 ~05:00 UTC (snapshot line).
@@ -57,11 +57,11 @@
 | nemo-merge-t7 | harrysun2006 | 0.82 | pushed + evaluated |
 | nemo-synth-v15 | harrysun2006 | 0.84 | pushed + evaluated (last run 2026-06-14) |
 
-> ⚠ No live Kaggle status refresh in this consolidation. Read-only refresh now **authorized** (creds in `.vscode/.env.harry`, `.vscode/.env.may`); pending follow-up (read-only only).
+> ✅ **Refreshed 2026-06-14** via read-only Kaggle API (`kaggle competitions submissions`, both accounts). All listed submissions are `COMPLETE`; private LB not released. See `submissions.md` for the full confirmed table.
 > Reflects issue #86 evidence current to 2026-06-14 ~05:00 UTC.
 
 ## Submission / LB status
-- Best public LB: **0.85** (`nemo-replay-v14`). Private LB: `unknown` (not released / not recorded). See `submissions.md` for the full row-by-row table.
+- Best own-work public LB: **0.85** (`nemo-replay-v14`). Raw account public max **0.86** (2026-05-15 public-fork; not own training). Leaderboard top **~0.90** (2026-06-14). Private LB `unknown` (not released). Full confirmed table: `submissions.md`.
 
 ## Version map
 | LB | Version | Recipe summary |
