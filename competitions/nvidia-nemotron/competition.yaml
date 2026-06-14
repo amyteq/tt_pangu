@@ -1,0 +1,25 @@
+slug: nvidia-nemotron
+kaggle_slug: nvidia-nemotron-model-reasoning-challenge
+title: NVIDIA Nemotron Model Reasoning Challenge
+status: active
+phase: submission
+competition_type: llm
+metric: accuracy (extracted \boxed{} answer; exact match or numeric within 1e-2)
+deadline: 2026-06-15            # 23:59 UTC (per worklogs/nemo2.md snapshot 2026-06-12)
+primary_artifact: notebook
+submission_mode: kernel          # rank<=32 LoRA adapter -> submission.zip via Kaggle kernel
+data_policy: kaggle
+last_updated: 2026-06-14
+best:
+  cv_metric: accuracy
+  cv_score: null                 # held-out eval recorded per-kernel; see submissions.md
+  public_lb: 0.85                # v14 replay (per PR #95 description); ⚠ v15 running, unconfirmed
+  private_lb: null
+  submission_id: null
+current_blocker: "cryptarithm 类为瓶颈(论坛共识 0.86->0.89 杠杆);deadline 2026-06-15 迫近"
+next_task: "v15 cryptarithm-weighted synth 结果回收 + 截止前用满每日提交额度"
+source_notes:
+  - competitions/nvidia-nemotron/experiments/kernel/README.md
+  - worklogs/nemo.md
+  - worklogs/nemo2.md
+  - PR #90 (v10 rule-CoT + v14 replay), PR #94 (T7 SVD merge), PR #95 (v15 synth)
