@@ -20,7 +20,7 @@ Routine.
 ## Read first
 
 1. `PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`
-2. `docs/milestones.md` §M12
+2. `docs/milestones/README.md` §M12
 3. `docs/milestones/m12/loop-prompts.md` Loop Prompt 6
 4. M12-T000 closeout (picked slug)
 5. M12-T002, M12-T003, M12-T004, M12-T005 closeouts

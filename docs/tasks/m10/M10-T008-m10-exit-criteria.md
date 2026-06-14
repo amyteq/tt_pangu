@@ -64,7 +64,7 @@ PASS**.
      A / C / D / E that landed during M10).
    - `README.md` — current-milestone block; bump product-plan
      range if it changes.
-   - `docs/milestones.md` — mark M10 `✓ done` with the validation
+   - `docs/milestones/README.md` — mark M10 `✓ done` with the validation
      matrix tally + the recorded LB score.
    - `docs/milestones/m10/handoff.md` — new file mirroring
      `docs/milestones/m9/handoff.md`. Include any new cross-cutting
@@ -93,7 +93,7 @@ PASS**.
 
 - `docs/milestones/m10/final-review.md` exists; layout matches M9 / M8.5; the
   validation matrix has 0 FAIL rows.
-- `PROJECT_STATE.md`, `README.md`, `docs/milestones.md`, and
+- `PROJECT_STATE.md`, `README.md`, `docs/milestones/README.md`, and
   `docs/milestones/m10/handoff.md` are updated consistently.
 - The PR is open against `main` with the final-review doc as the body.
 - pytest + ruff posture is at-or-better than the LP7 baseline.
@@ -115,7 +115,7 @@ M10-T008 closeout
   docs/milestones/m10/final-review.md: written (mirrors M9 / M8.5 layout; <N>-check matrix)
   PROJECT_STATE.md: updated to M10 complete / M11 next; LR/HGB/LB snapshot recorded for M9 + baseline-tl/alt local + M10-T004 LB for M10
   README.md: current milestone pointer bumped from M10 (planned) to M11 (planned)
-  docs/milestones.md: M10 marked ✓ done with full per-task result table
+  docs/milestones/README.md: M10 marked ✓ done with full per-task result table
   docs/milestones/m10/handoff.md: written (mirrors m9-handoff.md)
   PR url: <link>
   Acceptance: PASS — milestone closeout artifacts complete

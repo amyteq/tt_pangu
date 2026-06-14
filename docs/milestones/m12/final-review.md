@@ -3,7 +3,7 @@
 _Branch: `worktree-m12-execution`._
 _Date: 2026-06-09._
 
-## Milestone exit (per docs/milestones.md M12 + docs/milestones/m12/loop-prompts.md)
+## Milestone exit (per docs/milestones/README.md M12 + docs/milestones/m12/loop-prompts.md)
 
 > Validate the full platform loop with a real Devpost-style hackathon
 > submission end-to-end, and in doing so generalize the
@@ -114,7 +114,7 @@ Approval comment already posted: issue #42 comment
 | 45 | `ruff format --check .` clean | PASS | All files formatted |
 | 46 | `kca run list --json` shows M12 hackathon run with `checklist_completion` metric | PASS | `experiment_runs.id=5964822d-…`, `metric_value=66.67` |
 | 47 | `docs/evidence/m12/t000-candidates.md` exists; 2–3 candidates listed | PASS | 3 candidates listed |
-| 48 | `docs/adr/0018-generalized-competition-type.md` referenced from `docs/milestones.md` §M12 | PASS | ADR-0018 referenced in milestones.md |
+| 48 | `docs/adr/0018-generalized-competition-type.md` referenced from `docs/milestones/README.md` §M12 | PASS | ADR-0018 referenced in milestones.md |
 
 **Tally: 46 PASS / 0 SKIP / 0 FAIL / 1 DEFERRED (T007 real submit — tracked as open item).**
 
@@ -380,4 +380,4 @@ filed as GitHub issues if the user wants to address them:
 - `docs/milestones/m12/handoff.md` — M12 → M13 handoff.
 - `PROJECT_STATE.md` — current milestone = M13.
 - `README.md` — current-milestone pointer updated to M13.
-- `docs/milestones.md` — M12 marked done.
+- `docs/milestones/README.md` — M12 marked done.

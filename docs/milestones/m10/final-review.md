@@ -2,7 +2,7 @@
 
 _Branch: `worktree-m10-petals-to-the-metal`. Date: 2026-05-28._
 
-## Milestone exit (per docs/milestones.md §M10 + docs/milestones/m10/loop-prompts.md)
+## Milestone exit (per docs/milestones/README.md §M10 + docs/milestones/m10/loop-prompts.md)
 
 > Validate the full platform loop with a real Kaggle **kernel push**
 > (notebook submission) for Petals to the Metal — Flower Classification
@@ -251,7 +251,7 @@ sandbox mode and under live-DB with a populated host `.env`.
 ## M11 follow-ups
 
 The next milestone is **M11 (authorized CTF/lab workflow)** — see
-`docs/milestones.md §M11`. M10-surfaced items carried forward (also in
+`docs/milestones/README.md §M11`. M10-surfaced items carried forward (also in
 `docs/milestones/m10/handoff.md`):
 
 1. **#34 — M10-T004 needs a future approved re-push to record an LB
@@ -293,5 +293,5 @@ The next milestone is **M11 (authorized CTF/lab workflow)** — see
 - `docs/milestones/m10/handoff.md` — M10 → M11 handoff.
 - `PROJECT_STATE.md` — updated to M10 complete / M11 next.
 - `README.md` — current milestone pointer updated.
-- `docs/milestones.md` — M10 marked ✓ done with the matrix tally + the
+- `docs/milestones/README.md` — M10 marked ✓ done with the matrix tally + the
   "no LB recorded" note.

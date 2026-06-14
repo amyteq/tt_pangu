@@ -12,7 +12,7 @@ without breaking the existing schema.
 ## Read first
 1. `supabase/migrations/0001_init.sql`
 2. `tools/kca/run.py` (current meta.json / metrics.json shape)
-3. `docs/milestones.md` (M2 section)
+3. `docs/milestones/README.md` (M2 section)
 4. `docs/adr/0002-hybrid-worker-model-routing.md`
 5. ADR-004 in `docs/design-decisions.md` (code/git, artifacts/storage, metadata/Postgres)
 

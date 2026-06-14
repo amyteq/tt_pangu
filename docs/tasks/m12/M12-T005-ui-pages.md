@@ -25,7 +25,7 @@ Routine.
 ## Read first
 
 1. `PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`
-2. `docs/milestones.md` §M12
+2. `docs/milestones/README.md` §M12
 3. `docs/milestones/m12/loop-prompts.md` Loop Prompt 5
 4. `docs/adr/0014-ui-stack.md`
 5. `ui/src/pages/ApprovalInbox.tsx` — typed read pattern + supabase-js shape

@@ -1,6 +1,6 @@
 # M9 → M10 Handoff Prompt
 
-_Generated 2026-05-24 from `docs/milestones/m9/final-review.md` and `docs/milestones.md` § M10._
+_Generated 2026-05-24 from `docs/milestones/m9/final-review.md` and `docs/milestones/README.md` § M10._
 _Amended 2026-05-24 post-merge: M10 is now the **notebook-submission regression
 on Petals to the Metal** (issue #12, decisions confirmed, `ai:ready`).
 The old M10 (authorized CTF/lab) is renumbered to M11._
@@ -34,7 +34,7 @@ per `docs/milestone-loop-protocol.md` §5.
 1. `PROJECT_STATE.md` — current state at M9 exit.
 2. `AGENTS.md` — agent contract for this repo.
 3. `CLAUDE.md` — Claude Code project instructions.
-4. `docs/milestones.md` — **especially the M10 section** (planned
+4. `docs/milestones/README.md` — **especially the M10 section** (planned
    capabilities + exit criteria) plus a re-read of § M9 for what just
    landed.
 5. `docs/milestones/m9/final-review.md` — what landed in M9 (30-check matrix) and
@@ -213,7 +213,7 @@ confirmed. Draft `docs/milestones/m10/loop-prompts.md` mirroring the M9 layout
 `docs/tasks/m10/M10-T00N-*.md` per non-trivial loop prompt. Use
 `docs/milestones/m9/loop-prompts.md` as the template.
 
-The first M10 task (per `docs/milestones.md § M10` + issue #12):
+The first M10 task (per `docs/milestones/README.md § M10` + issue #12):
 
 > Validate the full platform loop with a real Kaggle **kernel push**
 > (notebook submission) for Petals to the Metal — Flower Classification
@@ -231,7 +231,7 @@ is to **write it** using `docs/milestones/m9/loop-prompts.md` as a template.
 The CTF/lab workflow (the previous M10 topic) is renumbered to M11;
 the Devpost/hackathon topic moves to M12; the evaluation /
 reliability / regression suite moves to M13. See
-`docs/milestones.md` for the updated numbering.
+`docs/milestones/README.md` for the updated numbering.
 
 Return:
 - Summary of intended change.

@@ -122,7 +122,7 @@ Task spec: docs/tasks/m9_4/M9_4-T001-requirements-skeptic.md
 
 Read also (background context):
 - PROJECT_STATE.md, AGENTS.md, CLAUDE.md
-- docs/milestones.md (no §M9.4 yet — this milestone lives in m9_4-loop-prompts.md)
+- docs/milestones/README.md (no §M9.4 yet — this milestone lives in m9_4-loop-prompts.md)
 - docs/meeting-notes/2026-05-24-r3.md §6 (做法 3 + 做法 4)
 - .claude/agents/researcher.md (front-matter / scope precedent)
 - .claude/agents/reviewer.md (skeptical-role precedent)

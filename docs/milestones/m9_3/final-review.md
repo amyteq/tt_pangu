@@ -2,7 +2,7 @@
 
 _Generated 2026-05-26 from `docs/milestones/m9_3/loop-prompts.md` + the three task specs and their closeouts._
 
-## Milestone exit (per docs/milestones.md M9.3 + docs/milestones/m9_3/loop-prompts.md)
+## Milestone exit (per docs/milestones/README.md M9.3 + docs/milestones/m9_3/loop-prompts.md)
 
 **Status: PASS.** All three Loop Prompts met every acceptance criterion; no FAIL; no SKIP that materially affected scope.
 
@@ -30,7 +30,7 @@ M9.3 replaces the unbuilt M9.1 plan and retires its loop-prompts file with a def
 | 8 | All 7 extraction keys documented | PASS | confirmed_requirements / changed_requirements / confirmed_design_decisions / changed_design_decisions / open_questions / blockers / proposed_labels all present |
 | 9 | ≥ 6 Must / Must-not rules in memory-promotion SKILL.md | PASS | 7 rules |
 | 10 | memory-promotion SKILL.md ≤ 200 lines | PASS | 125 lines |
-| 11 | ADR-0015 exists; names all 4 canonical files | PASS | `docs/adr/0015-memory-promotion-model.md`; PROJECT_STATE.md / docs/milestones.md / docs/handoffs / docs/adr all referenced |
+| 11 | ADR-0015 exists; names all 4 canonical files | PASS | `docs/adr/0015-memory-promotion-model.md`; PROJECT_STATE.md / docs/milestones/README.md / docs/handoffs / docs/adr all referenced |
 | 12 | `docs/architecture/memory-promotion.md` exists with ASCII data-flow diagram + cross-links | PASS | 35 box-line chars (ASCII diagram); 9 cross-links to session-memory-and-audit / github-as-agent-interface / memory-promotion SKILL / github-issue-triage SKILL |
 | 13 | `docs/proposals/` staging exists (README.md ≤ 30 lines + .gitkeep) | PASS | README 24 lines; .gitkeep present |
 | 14 | `docs/archaeology/kkr.md` ≤ 250 lines with all 10 sections | PASS | 160 lines; 10 `## N` headings |
@@ -38,7 +38,7 @@ M9.3 replaces the unbuilt M9.1 plan and retires its loop-prompts file with a def
 | 16 | `docs/proposals/memory-2026-05-26-m10-pr18.md` ≤ 200 lines with `confirmed_*` + `open_questions` + unchecked checkbox | PASS | 102 lines; both keys present with ≥ 1 entry; `[ ] approved by ____ on ____` unchecked |
 | 17 | `docs/architecture/design-archaeology.md` ≤ 100 lines, cross-links kkr.md | PASS | 89 lines; references `docs/archaeology/kkr.md` as the canonical worked example |
 | 18 | `docs/milestones/m9_1/loop-prompts.md` body ≤ 30 lines; references M9.3 | PASS | 21 lines; "Superseded by M9.3" + pointer to `docs/milestones/m9_3/loop-prompts.md` |
-| 19 | `docs/milestones.md` contains an M9.3 row between M9 and M10 | PASS | M9.3 section inserted after M9.2, before M10 |
+| 19 | `docs/milestones/README.md` contains an M9.3 row between M9 and M10 | PASS | M9.3 section inserted after M9.2, before M10 |
 | 20 | `PROJECT_STATE.md` lists M9.3 under "Completed milestones" | PASS | line under M9 bullet |
 | 21 | `README.md` reflects M9.3 close | PASS | paragraph added after M9 paragraph |
 | 22 | `docs/milestones/m9_3/handoff.md` exists | PASS | this milestone close (see `docs/milestones/m9_3/handoff.md`) |
@@ -82,7 +82,7 @@ If the M9.3 PR reviewer prefers a full pytest run before merge, that is a one-li
 
 ### Canonical-memory updates (one allowed at milestone close per T003 step 5)
 
-- `docs/milestones.md` — M9.3 section added between M9.2 and M10.
+- `docs/milestones/README.md` — M9.3 section added between M9.2 and M10.
 - `PROJECT_STATE.md` — M9.3 added under "Completed milestones".
 - `README.md` — M9.3 paragraph added after M9 paragraph.
 
@@ -106,4 +106,4 @@ M9.3 surfaces no new blockers for M10. The proposed PROJECT_STATE.md patch in `d
 - `docs/proposals/memory-2026-05-26-m10-pr18.md` — the canonical worked example for memory-promotion (one unchecked patch proposal).
 - `docs/milestones/m9_1/loop-prompts.md` — retired; 21-line pointer to M9.3 + deferred-scope list.
 - `docs/milestones/m9_3/loop-prompts.md` — the M9.3 loop-prompts doc (landed in PR #24, planning phase).
-- `docs/milestones.md` §M9.3 — the new milestone row.
+- `docs/milestones/README.md` §M9.3 — the new milestone row.

@@ -9,7 +9,7 @@ a safe tool executor, and a budget tracker skeleton.
 The `AgentWorker` class is a stub in this task; the loop is implemented in M3-T004.
 
 ## Read first
-1. `docs/milestones.md` — M3 "Worker can call kca local tools"
+1. `docs/milestones/README.md` — M3 "Worker can call kca local tools"
 2. `CLAUDE.md` — Operating principles 1 (untrusted data), 3 (side effects), 6 (approval gates)
 3. `tools/kca/_util.py` — `SideEffect` enum for reference
 4. `tools/kca/COMMANDS.md` — allowed tool patterns context

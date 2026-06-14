@@ -8,7 +8,7 @@ Confirm all M3 exit criteria are met. Produce a `docs/milestones/m3/final-review
 analogous to `docs/milestones/m2/final-review.md`.
 
 ## Read first
-1. `docs/milestones.md` — M3 exit criteria
+1. `docs/milestones/README.md` — M3 exit criteria
 2. `docs/milestones/m2/final-review.md` — template for final review format
 3. All `docs/tasks/m3/M3-T*.md` specs
 4. `supabase/migrations/0003_m3_worker.sql`

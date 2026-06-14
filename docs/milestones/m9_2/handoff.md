@@ -1,7 +1,7 @@
 # M9.2 → M10 Handoff Prompt
 
 _Generated 2026-05-26 from `docs/milestones/m9_2/final-review.md` and
-`docs/milestones.md` § M10._
+`docs/milestones/README.md` § M10._
 
 Paste this into a fresh session that is starting **M10
 (notebook-submission regression — Petals to the Metal)**. M9.2 was a
@@ -33,7 +33,7 @@ capture the transcript before opening the milestone PR.
 3. `CLAUDE.md` — Claude Code project instructions (especially the
    dev-phase secret carve-out; note that the `save-log` script does
    NOT use the carve-out).
-4. `docs/milestones.md` — M10 section + the new M9.2 entry.
+4. `docs/milestones/README.md` — M10 section + the new M9.2 entry.
 5. `docs/milestones/m9/final-review.md` — M9 ship summary + the five
    cross-cutting follow-ups (A–E) that landed as issues.
 6. `docs/milestones/m9_2/final-review.md` — what landed in M9.2 (26-check

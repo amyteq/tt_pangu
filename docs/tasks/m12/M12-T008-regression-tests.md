@@ -22,7 +22,7 @@ write to the DB; it only reads.
 ## Read first
 
 1. `PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`
-2. `docs/milestones.md` §M12
+2. `docs/milestones/README.md` §M12
 3. `docs/milestones/m12/loop-prompts.md` Loop Prompt 8
 4. `tests/test_m9_e2e.py` — dry-run pattern, no creds
 5. `tests/test_m9_smoke.py` — DB-gated pattern

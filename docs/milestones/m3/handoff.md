@@ -1,6 +1,6 @@
 # M3 → M4 Handoff Prompt
 
-_Backfilled 2026-05-22 from `docs/milestones.md` (M3 section) and `docs/milestones/m3/loop-prompts.md`. M3 predates the final-review file convention; there is no `docs/milestones/m3/final-review.md`._
+_Backfilled 2026-05-22 from `docs/milestones/README.md` (M3 section) and `docs/milestones/m3/loop-prompts.md`. M3 predates the final-review file convention; there is no `docs/milestones/m3/final-review.md`._
 
 Paste this into a fresh session that is starting **M4 (Kaggle competition workflow v0)** work.
 
@@ -15,7 +15,7 @@ You are working on the `tt_pangu` / `kaggle-code-agent` repository. **M0–M3 ar
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md` — especially the **M4** section (M4-T000 through M4-T010).
+4. `docs/milestones/README.md` — especially the **M4** section (M4-T000 through M4-T010).
 5. `docs/milestones/m3/loop-prompts.md` — what M3 actually built (worker skeleton,
    workspace strategy, approval-gate plumbing).
 6. `docs/milestones/m4/loop-prompts.md` — sequenced task prompts for M4.

@@ -21,7 +21,7 @@ Closes # <!-- none — direct user request 2026-05-24 -->
 ## Docs / inventory impact
 
 - [x] CLAUDE.md updated: operating principle #8 (secrets) and GitHub-collaboration section
-- [x] No PROJECT_STATE.md / docs/milestones.md change (policy doc only)
+- [x] No PROJECT_STATE.md / docs/milestones/README.md change (policy doc only)
 
 ## Evidence
 

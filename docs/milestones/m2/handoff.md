@@ -1,6 +1,6 @@
 # M2 → M3 Handoff Prompt
 
-_Backfilled 2026-05-22 from `docs/milestones/m2/final-review.md` and `docs/milestones.md` § M3._
+_Backfilled 2026-05-22 from `docs/milestones/m2/final-review.md` and `docs/milestones/README.md` § M3._
 
 Paste this into a fresh session that is starting **M3 (Python-first competition worker v0)** work.
 
@@ -15,7 +15,7 @@ You are working on the `tt_pangu` / `kaggle-code-agent` repository. **M0, M1, an
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md` — especially the **M3** section.
+4. `docs/milestones/README.md` — especially the **M3** section.
 5. `docs/milestones/m2/final-review.md` — what landed in M2 and the validation matrix.
 6. `docs/milestones/m3/loop-prompts.md` — sequenced task prompts for M3.
 7. `docs/milestones/_templates/handoff-prompt.md` — canonical handoff template.
@@ -53,7 +53,7 @@ enforces budget + approval gates.
 ## Current task
 
 Start with **Prompt 0 of `docs/milestones/m3/loop-prompts.md`** (or the first task in
-`docs/milestones.md` § M3 if loop prompts haven't been written yet). Goal of
+`docs/milestones/README.md` § M3 if loop prompts haven't been written yet). Goal of
 M3: a job runs locally end-to-end — prompt → workspace → LLM tool loop →
 `kca` tool call → recorded result — with budget limits (turns, cost,
 runtime) enforced and approval gates firing when configured.

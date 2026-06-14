@@ -1,6 +1,6 @@
 # M7 → M8 Handoff Prompt
 
-_Backfilled 2026-05-22 from `docs/milestones/m7/final-review.md` and `docs/milestones.md` § M8._
+_Backfilled 2026-05-22 from `docs/milestones/m7/final-review.md` and `docs/milestones/README.md` § M8._
 
 Paste this into a fresh session that is starting **M8 (product UI shell)** work.
 
@@ -18,7 +18,7 @@ UI shell on top of the same control plane and CLI/API surface.
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md` — especially the **M8** section (planned capabilities
+4. `docs/milestones/README.md` — especially the **M8** section (planned capabilities
    and exit criteria).
 5. `docs/milestones/m7/final-review.md` — what landed in M7 (28/28 checks PASS) and
    the M8 follow-ups list.
@@ -88,7 +88,7 @@ There is no `docs/milestones/m8/loop-prompts.md` yet. Your first task is to draf
 M8 loop prompts (mirroring the M7 structure: numbered prompts per task, an
 exit-criteria prompt, autonomous-run guidance, a closeout checklist) before
 implementing anything substantive. Sequence the M8 work around the
-deliverables in `docs/milestones.md` § M8:
+deliverables in `docs/milestones/README.md` § M8:
 
 - Project/competition dashboard.
 - Prompt/task queue.
@@ -101,7 +101,7 @@ deliverables in `docs/milestones.md` § M8:
 - Decision-gate UI showing `operation`, `cv_score`, `cost_so_far`, artifact,
   and Approve / Reject / Ask-agent-to-improve actions.
 
-Stack constraints (per `docs/milestones.md` § M8): TypeScript-first React
+Stack constraints (per `docs/milestones/README.md` § M8): TypeScript-first React
 (Next.js or Vite/React) developed in Claude Code; Supabase client must
 never bypass the policy gates that M6/M7 enforce.
 

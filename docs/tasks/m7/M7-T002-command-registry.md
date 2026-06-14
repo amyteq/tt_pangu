@@ -13,7 +13,7 @@ records metadata about every kca subcommand group.
 ## Read first
 1. `tools/kca/kca.py`   (build_parser, current add_parsers pattern)
 2. `tools/kca/agent/skill_loader.py`   (from Prompt 1)
-3. `docs/milestones.md`   (M7 — Command vs Skill distinction)
+3. `docs/milestones/README.md`   (M7 — Command vs Skill distinction)
 4. `docs/meeting-notes/2026-05-21-r1.md`   (§2: KCA CLI command suggestions)
 
 ## Scope / Files / Implementation guidance

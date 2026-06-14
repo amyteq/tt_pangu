@@ -4,7 +4,7 @@ _Branch: `worktree-m9_2-impl` (per-milestone worktree per
 `docs/milestone-loop-protocol.md` §5)._
 _Date: 2026-05-26._
 
-## Milestone exit (per docs/milestones.md M9.2 + docs/milestones/m9_2/loop-prompts.md)
+## Milestone exit (per docs/milestones/README.md M9.2 + docs/milestones/m9_2/loop-prompts.md)
 
 > Add a `/save-log <name|id>` Claude Code project skill that exports a
 > stopped or completed background-session transcript to
@@ -53,7 +53,7 @@ itself.
 | 19 | M9.2-T001 — `logs/` NOT in `.gitignore` | PASS | Re-verified post-edit: `git check-ignore -v logs/.gitkeep` resolves to the negation rule. |
 | 20 | M9.2-T001 — `python -m pytest tests/ -q` green, no regression | PASS | 79 passed / 14 skipped in 7.98s. Identical to pre-M9.2 baseline (79/14 — see PROJECT_STATE before this milestone). |
 | 21 | M9.2-T002 — `docs/milestones/m9_2/final-review.md` written | PASS | This file. |
-| 22 | M9.2-T002 — `docs/milestones.md` marks M9.2 ✓ done | PASS | Header status line + §M9.2 entry both updated. |
+| 22 | M9.2-T002 — `docs/milestones/README.md` marks M9.2 ✓ done | PASS | Header status line + §M9.2 entry both updated. |
 | 23 | M9.2-T002 — `PROJECT_STATE.md` current-milestone returns to M10 | PASS | Block updated. |
 | 24 | M9.2-T002 — `README.md` current-milestone returns to M10 | PASS | Block was already pointing at M10 (M9.2 did not seat itself as the "active" milestone since it was a short, parallel operator-tooling track); the `/save-log` line added in T001 is the only README change. |
 | 25 | M9.2-T002 — `docs/milestones/m9_2/handoff.md` written | PASS | Mirrors `docs/milestones/_templates/handoff-prompt.md` shape. |
@@ -125,7 +125,7 @@ itself.
 ### M9.2-T002 — Exit criteria + closeout
 
 - `docs/milestones/m9_2/final-review.md` (this file).
-- `docs/milestones.md` — §M9.2 marked `✓ done`; header status line
+- `docs/milestones/README.md` — §M9.2 marked `✓ done`; header status line
   updated.
 - `PROJECT_STATE.md` — current milestone returns to M10 with a brief
   note that M9.2 closed the operator-tooling gap.
@@ -207,7 +207,7 @@ Tracked changes:
 - `.gitignore` — add `!logs/` + `!logs/**` after `**/logs/*`.
 - `README.md` — add "Claude Code project skills" subsection mentioning
   `/save-log`.
-- `docs/milestones.md` — mark §M9.2 `✓ done`; update header status
+- `docs/milestones/README.md` — mark §M9.2 `✓ done`; update header status
   line.
 - `PROJECT_STATE.md` — current-milestone block updated.
 

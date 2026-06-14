@@ -19,7 +19,7 @@ single real submission under an explicit human-approval gate.
 
 M9 is **not** a leaderboard-chasing milestone. The acceptance criterion is
 that the loop *runs end-to-end correctly under the approval gates*, not that
-the LB score is high. The CV thresholds in `docs/milestones.md` §M9 are
+the LB score is high. The CV thresholds in `docs/milestones/README.md` §M9 are
 sanity guards, not targets.
 
 Direct entry into M9 is blocked until **all** are true:
@@ -101,7 +101,7 @@ Follow: docs/milestone-loop-protocol.md
 Task spec: docs/tasks/m9/M9-T000-kaggle-credentials.md
 
 Read also (background context):
-- PROJECT_STATE.md, AGENTS.md, CLAUDE.md, docs/milestones.md §M9
+- PROJECT_STATE.md, AGENTS.md, CLAUDE.md, docs/milestones/README.md §M9
 - docs/milestones/m8/handoff.md
 - docs/engineering-practice.md
 - env.example

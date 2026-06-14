@@ -4,6 +4,21 @@ _Task: `temp/01.docs-housekeeping.md` (HK-001). Docs-only migration; no source
 code, tests, migrations, workflows, or KCA core touched. Executed in worktree
 `worktree-docs-housekeeping-hk001`._
 
+> **Update (post-merge follow-ups).** The original migration (PR #96) kept two
+> compatibility stubs and could not edit `.claude/**` (read-only in that worktree):
+>
+> - PR #97 — updated the milestone agent/skill path references under
+>   `.claude/agents/**` and `.claude/skills/**` (follow-up #1 below).
+> - This PR — **retired both compatibility stubs** (`docs/milestones.md`,
+>   `docs/handoff-prompt.md`) and repointed every remaining active reference to the
+>   new paths (`docs/milestones/README.md`, `docs/milestones/_templates/handoff-prompt.md`),
+>   including the previously-blocked `.github/workflows/claude-routine.yml` and
+>   `.github/pull_request_template.md`. Old-path references now remain only in
+>   historical `logs/**` / `worklogs/**` session dumps (point-in-time records).
+>
+> Sections below describe the original PR #96 state and are retained as the
+> historical record; where they say a stub "remains", it has since been retired.
+
 ## Summary
 
 Consolidated all milestone-related documentation under `docs/milestones/` and

@@ -7,7 +7,7 @@ M4: Kaggle competition workflow v0.
 Confirm all M4 exit criteria are met. Produce `docs/milestones/m4/final-review.md`.
 
 ## Read first
-1. `docs/milestones.md` — M4 exit criteria
+1. `docs/milestones/README.md` — M4 exit criteria
 2. `docs/milestones/m3/final-review.md` — template
 3. All `docs/tasks/m4/M4-T*.md` specs
 4. `supabase/migrations/0004_m4_competition_repo.sql`
