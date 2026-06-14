@@ -3,7 +3,7 @@
 - Session name: `orbit2`
 - Job id: `3d955971`
 - Session id: `3d955971-5fb5-4ac7-9d07-91c4f4808e97`
-- Status: `blocked`
+- Status: `completed`
 - Source transcript: `/home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu/3d955971-5fb5-4ac7-9d07-91c4f4808e97.jsonl`
 
 ---
@@ -5161,11 +5161,11 @@ All checks passed!
 > - **T8 强档 A/B**(vs multifocus + kuni05,各 300 局 × 2 配置,运行中)
 > - **T12 教师数据生成**(300 局 kuni05 对局,~15 万样本,排队自动接续)
 > 
-> **3. T8 真·同步到达(§9-4)v1 已实现**并推 PR #80([`4fe18a8`](https://github.com/amyteq/tt_pangu/commit/4fe18a89226b5deccf929ee3b86657a70c44a2e0)):枚举到达回合 K、最远源先发、近源延后、同回合合兵。两轮全新种子 A/B:**vs evogen 合计 15.7% vs 基线 12.6%(+3.1pt,900 局/配置,两轮同号)**,starter 无回退。真实正信号,但未过我们自己的 +7pt 烘焙线 → 保持 env-gate OFF,下一轮迭代 K±1 容差合流和占领后驻防。
+> **3. T8 真·同步到达(§9-4)v1 已实现**并推 PR #80(`4fe18a8`):枚举到达回合 K、最远源先发、近源延后、同回合合兵。两轮全新种子 A/B:**vs evogen 合计 15.7% vs 基线 12.6%(+3.1pt,900 局/配置,两轮同号)**,starter 无回退。真实正信号,但未过我们自己的 +7pt 烘焙线 → 保持 env-gate OFF,下一轮迭代 K±1 容差合流和占领后驻防。
 > 
 > **4. 你的新指示全部落实**:D2/D5 已回写(分数稳定已记录:kuni05 ~1137 / Forecast v3 ~686);**`VALIDATION.md`**(T10,6 门提交前清单)已落档;2p/4p 通用设计原则写入正文;§9-2 防守增强立项为 T11。
 > 
-> **5. RL/蒸馏(D4 确认 → T12)已启动 Phase A**:路线 = 行为克隆 kuni05 → 轻量策略网 → 可选自博弈微调 → 过 T10 门才提交。数据生成器 `arena/distill_gen.py` 已建成、冒烟通过([`a4b525b`](https://github.com/amyteq/tt_pangu/commit/a4b525bd054a0bf3a831a5a4c6e5532af636949a))。下一步是网络结构 + snorlax GPU 训练(届时需临时 `sv down vllm-coder` 释放显存)。
+> **5. RL/蒸馏(D4 确认 → T12)已启动 Phase A**:路线 = 行为克隆 kuni05 → 轻量策略网 → 可选自博弈微调 → 过 T10 门才提交。数据生成器 `arena/distill_gen.py` 已建成、冒烟通过(`a4b525b`)。下一步是网络结构 + snorlax GPU 训练(届时需临时 `sv down vllm-coder` 释放显存)。
 > 
 > **注意一点**:中途一次 `git stash` 误回退了 forecast.py 并污染了一轮 A/B,已发现、恢复并重跑,上面引用的数据都来自干净重跑。snorlax 两个任务的结果会写在 `snorlax:~/work/t8_strong.log` 和 `distill_gen.log`,下个 session 可直接接续。
 
@@ -7096,7 +7096,7 @@ $ gh api -X PATCH repos/amyteq/tt_pangu/issues/comments/4682420861 -F body=@"$CL
 > 
 > ## T12 RL/蒸馏:Phase B 全管线已落地,v0 学生是弱基线
 > 
-> **管线**(全部提交至 PR #80,commit [`dc9f362`](https://github.com/amyteq/tt_pangu/commit/dc9f362a83d1edf5c03d7a2bca133ac8ed225b73)):
+> **管线**(全部提交至 PR #80,commit `dc9f362`):
 > 1. **`distill_prep.py`** — 用 bit-exact 飞行模拟把教师的 `[源, 角度, 兵力]` 动作**解码回目标星球**(454 条原始动作 → 392 个 (src,tgt) 发射对,解码率 ~86%),再对每回合生成全部 (我方星球 × 目标) 配对特征。snorlax 上 300 局 → **13.45M 配对样本,47k 正例(0.35%)**。
 > 2. **`distill_train.py`** — 16-64-64 双头 MLP(发射概率 + 兵力比例),按局分组切分防泄漏,类不平衡加权;权重导出为 npz 供无 torch 推理。snorlax 上 6 epoch 训完。
 > 3. **`student.py`** — numpy 前向的学生 agent,复用 forecast 的拦截解算与路径遮挡检查。
@@ -8152,7 +8152,7 @@ $ gh api -X PATCH repos/amyteq/tt_pangu/issues/comments/4682420861 -F body=@"$CL
 > 
 > 2. **T8 v2(K±1 容差合流)已实现并完成 A/B**:近失的 share 不再让整个波次作废 —— ETA 落在 K+1 的照发(按真实到达回合计价),太慢的留守。结果(全新种子 14000+,300 局/配置):**14.7% vs 基线 12.0%(+2.7pt)** —— 与 v1 的 +3.1pt 同量级,容差合流没有叠加增益。T8 的结论越来越清晰:co-arrival 在 evogen 层稳定 +3pt 但过不了 +7pt 烘焙线,顶档完全无效;建议下一步并入 T9 ThreatLedger 做整体协同(已写入工作日志)。
 > 
-> 3. **多账号提交工具已落地**(`competitions/orbit-wars/submit.py`,commit [`56bccf6`](https://github.com/amyteq/tt_pangu/commit/56bccf6a7e014854d6ed95e12448d40443973c28)):按 kkr.py 的 `_load_env_for_owner` 模式做 dotenv 账号切换,`--account harry`(默认)/ `--account may`(`.vscode/.env.may` → firefly2006,worktree 下自动回退主 checkout 路径),dry-run 两个账号都验证通过。**一个需要你拍板的点**:Kaggle 是 one-account-per-user,同一比赛从第二账号提交需要合规方式(两账号属于不同人且正式组队,或 may 账号只用于其他比赛)。工具默认**拒绝**对 Orbit Wars 的二号账号提交,需 `--i-confirm-compliance` 才放行 —— 请在 issue 上确认合规方式后我再启用。真实提交无论哪个账号都仍走人工批准流程。
+> 3. **多账号提交工具已落地**(`competitions/orbit-wars/submit.py`,commit `56bccf6`):按 kkr.py 的 `_load_env_for_owner` 模式做 dotenv 账号切换,`--account harry`(默认)/ `--account may`(`.vscode/.env.may` → firefly2006,worktree 下自动回退主 checkout 路径),dry-run 两个账号都验证通过。**一个需要你拍板的点**:Kaggle 是 one-account-per-user,同一比赛从第二账号提交需要合规方式(两账号属于不同人且正式组队,或 may 账号只用于其他比赛)。工具默认**拒绝**对 Orbit Wars 的二号账号提交,需 `--i-confirm-compliance` 才放行 —— 请在 issue 上确认合规方式后我再启用。真实提交无论哪个账号都仍走人工批准流程。
 > 
 > ## 排队中
 > 
@@ -8709,7 +8709,7 @@ edited
 > - **t14:20.0% vs evogen(基线 11.7%,+8.3pt),starter 96.5%** —— 与并行 session 的本地确认(+7.0pt)**双机一致**,三个种子块全部同向,首个过 +7pt 烘焙线的参数级增益;
 > - t12:12.8%,回落到噪声带 —— 印证了"25 选 1 必须独立确认"的纪律,t12 就是选择偏差。
 > 
-> 并行 session 已完成后续动作(工作日志可查):**t14 烘焙为 v3.2**(`PROJ_H=26` / 轻驻军 / 松上限,commit [`d3e3f09`](https://github.com/amyteq/tt_pangu/commit/d3e3f099485721037d05961c6342804ed6252d25)),VALIDATION 6 门全 PASS(含 4p avg_rank 1.01 —— 符合你的 2p/4p 通用原则),并按 D2 执行了提交:**latest-2 现为 [kuni05-重提, v3.2]**,今日额度用 2/5。我把工作日志里遗留的"确认轮运行中"行原地更新为最终结果,两边记录已合并无冲突。
+> 并行 session 已完成后续动作(工作日志可查):**t14 烘焙为 v3.2**(`PROJ_H=26` / 轻驻军 / 松上限,commit `d3e3f09`),VALIDATION 6 门全 PASS(含 4p avg_rank 1.01 —— 符合你的 2p/4p 通用原则),并按 D2 执行了提交:**latest-2 现为 [kuni05-重提, v3.2]**,今日额度用 2/5。我把工作日志里遗留的"确认轮运行中"行原地更新为最终结果,两边记录已合并无冲突。
 > 
 > ## 今日全线总结
 > 
@@ -9100,7 +9100,7 @@ edited
 > 
 > ## ✅ v3.2+co-arrival 试验版已提交(may 2/5)
 > 
-> - **构建**:`agent/versions/v3_2_coarr.py` —— v3.2 单文件上把 `OW_COARRIVAL` 默认翻为 1(K±1 容差版,`COARR_TOL=1`),其余与 v3.2 完全一致,commit [`d1fc307`](https://github.com/amyteq/tt_pangu/commit/d1fc3079e05c65a6a7e5f416661724aa2119606f) 已推送。
+> - **构建**:`agent/versions/v3_2_coarr.py` —— v3.2 单文件上把 `OW_COARRIVAL` 默认翻为 1(K±1 容差版,`COARR_TOL=1`),其余与 v3.2 完全一致,commit `d1fc307` 已推送。
 > - **提交前 sanity 三过**:starter 97.5%(无弱档回退)、evogen 21.2%(与 v3.2 基线带一致)、镜像 v3.2 50.0%,160 局零崩溃。
 > - **已提交为 firefly2006**,状态 PENDING。
 > 
@@ -9851,7 +9851,7 @@ Command running in background with ID: b6rinoyvy. Output is being written to: /t
 > - **反直觉**:败者的多源同到达波次(14 次)远多于胜者(4 次)却输了 —— **协同形式不值钱,单击绝对规模才值钱**。这直接修正 T8 预期,也解释了为什么 co-arrival 过不了烘焙线。
 > - 可行动启示已列:进攻规模纪律(2-3× overkill)、短跳供应链重立项、决战聚兵。批量分析(5-10 局)管线已就绪,你说一声就跑。
 > 
-> ## 2. T12 v1 已在 snorlax 开跑(commit [`bd2c14f`](https://github.com/amyteq/tt_pangu/commit/bd2c14f8aeb94d0f610eb3407586d22993249ad2))
+> ## 2. T12 v1 已在 snorlax 开跑(commit `bd2c14f`)
 > 
 > 给蒸馏管线加了 6 个**前向模拟特征**(到达时刻守军、到达时刻归属、视界内翻盘、在途友/敌军到达量 —— 正是教师规划器真正推理的量,对症 v0 的失败模式)。snorlax 上 prep → train → 180 局评测全链已启动,~30 分钟出结果。
 > 
@@ -9932,7 +9932,7 @@ ok
 
 > T12 v1 已收尾并落档,工作日志更新完毕。当前状态一览:
 > 
-> **T12 v1 最终数据**(snorlax 全链 prep→train→eval,commit [`bd2c14f`](https://github.com/amyteq/tt_pangu/commit/bd2c14f8aeb94d0f610eb3407586d22993249ad2)):
+> **T12 v1 最终数据**(snorlax 全链 prep→train→eval,commit `bd2c14f`):
 > - 前向模拟特征带来全面跃升:vs starter 25→**56.7%**,vs v2.1 0→**20.0%**,recall@k 0.117→**0.170**
 > - 但 vs evogen 仍 0%,距离"胜过 v3.2 才提交"的标准还很远
 > 
@@ -11013,7 +11013,7 @@ ok
 
 > 本轮指示已全部启动,当前状态:
 > 
-> ## 已完成(commit [`a3c650f`](https://github.com/amyteq/tt_pangu/commit/a3c650f52a6191bdaa11642075c852ab9112945f))
+> ## 已完成(commit `a3c650f`)
 > 
 > 1. **T14 短跳供应链**:实现(`OW_SUPPLY`,≤25 距离短跳、只向前线)+ 功效 A/B 完赛 —— **无增益**(基线 15.0% / supply 13.0% / d35 12.3%,轻微负向)。与 OVERKILL、CONSOLIDATE 形成一致规律:**"集中→重击"是强档一体化系统的涌现行为,单独移植任何一环进贪心规划器都不起作用**。下一步这条线索并入 T9/T13(把集中与进攻调度做成一个整体),不再做孤立旋钮。
 > 2. **版本联赛表harness**(`arena/league.py` → `LEAGUE.md`):按你的要求建成 —— 在线版本 + 候选版本的循环赛矩阵,按平均胜率排名,带状态标注(online 槽位归属 / candidate / anchor)。关键设计:**纯文件制**(所有参赛者用烘焙默认值的快照文件,不用 env overrides —— 因为 overrides 会泄漏到镜像对局的双方),所打即所提交。
@@ -12262,7 +12262,7 @@ ok
 > - **方案 2(Qwen3-1.7B 在线决策):不可行** —— 评测端四重硬约束:`actTimeout: 1`(每回合 1 秒,replay config 实测)、CPU-only 无 GPU、无网络(vllm 无从谈起)、提交包体积限制(1.7B 即使 4-bit 也 ~1GB)。1.7B 在 CPU 上 ~1-3 token/s,超时 10-100 倍。**建议改定位:LLM 当离线教练**(分析 episode、提炼策略 —— 本质上现在就是这个用法)。
 > - **方案 1(top-episode 训练 NN):技术可行,管线已有 70%** —— 这正是 T12 的升级版:episode 下载、bit-exact 动作解码、训练、学生 agent 都是现成的。缺的是批量 top 玩家 episode ID(走 T1 数据集)和时序模型(小 transformer,CPU 推理 <50ms 满足 1s 限制,snorlax 4090 训练)。预期管理:T12 v0→v1 的斜率说明 11 天内反超规则引擎是小概率,维持你拍板的方案 B 定位(本地验证/may 槽实测)。建议顺序:**T1 批量下载(数据两用:BC 训练 + 实战档案)→ 时序 BC v2**。
 > 
-> ## T9/T13 推进:决战姿态机已实现(commit [`c385d02`](https://github.com/amyteq/tt_pangu/commit/c385d023c59bd123665c11abc20d3721cace37e2))
+> ## T9/T13 推进:决战姿态机已实现(commit `c385d02`)
 > 
 > 吸取六连阴性教训(孤立旋钮全失败),这次做的是**调度层的姿态机**而不是发射规则:
 > 
@@ -13209,7 +13209,7 @@ ok
 > ## 方案 1(top-episode NN)管线已就位
 > 
 > 1. **数据**:公开 episodes 数据集 2026-06-08 快照(1.28GB 原始 replay JSON)正在本地下载(~60%,凭据不出本机 —— 最初想在 snorlax 上下载被安全分类器正确拦下,密钥不该进 ssh 命令行);
-> 2. **`episodes_index.py`**(commit [`d15bd59`](https://github.com/amyteq/tt_pangu/commit/d15bd591b4d0570f31a4fad51493b65a5e731326)):全集扫描 → CSV 索引(对局双方/胜者/局长/终局船数),并输出 top 胜者排行 —— 这同时是 T1 replay mining 的基础设施;
+> 2. **`episodes_index.py`**(commit `d15bd59`):全集扫描 → CSV 索引(对局双方/胜者/局长/终局船数),并输出 top 胜者排行 —— 这同时是 T1 replay mining 的基础设施;
 > 3. **`episodes_prep.py`**:按胜者名单筛选对局,提取**胜者侧**的 (态势, 动作) 配对(22 维 v1 特征格式,与现有训练器直接兼容)—— 教师从本地 kuni05(~1240)升级到实战 top 胜者(~1500-1700);
 > 4. 下载完成后自动链:索引 → 筛 top 胜者 → 提取 → snorlax/本地训练 → 学生 v2 评测 → 进联赛表。LLM 按你的决定转离线辅助定位。
 > 
@@ -14970,7 +14970,7 @@ ok
 > - **模型卡**:已发布(comment §一,22 维特征逐项 + labels + PyTorch 训练参数全列);
 > - **may 替换提案**:已发(comment §三),等你回"提案可"即提交 kuni05-adapted;
 > - **天梯裁决已入档**:t14 兑现 +39 / co-arrival 判负 -44 / kuni05 回爬 1075;
-> - 所有推断已写入 issue 实战案例表 + EPISODES.md(commit [`7823a59`](https://github.com/amyteq/tt_pangu/commit/7823a595b9d3373b3f36d4028e1ab5beefa1eaf8)),工作日志同步。
+> - 所有推断已写入 issue 实战案例表 + EPISODES.md(commit `7823a59`),工作日志同步。
 > 
 > **待你的一句话**:may 槽是否按提案执行(kuni05-adapted 上 may)。
 
@@ -16533,7 +16533,7 @@ ok
 > 
 > 我原方案的核心(发射集合 beam search)被 3-agent 对抗评审**数学性证伪**:守恒终值下"己方→己方调度"价值恒等于 0,`value≤0` 门会杀掉一切集结 —— **任何搜索算法在这个价值函数上都表达不出 top 玩家 78-88% 的物流行为**;beam 能加的耦合项恰好 1:1 对应七个已死杠杆。这解释了为什么七连阴性:不是机制不好,是**价值函数在结构上排除了冠军策略类**。
 > 
-> ## 修正案:HUB-AND-HAMMER 策略层(已实现,commit [`261a7a6`](https://github.com/amyteq/tt_pangu/commit/261a7a68623ba2f3f3360b3e00d0383e4d8493f1))
+> ## 修正案:HUB-AND-HAMMER 策略层(已实现,commit `261a7a6`)
 > 
 > 绕开价值盲区 —— 集结作为**政策**而非估值:ledger 精确可出兵量(+能力先验防 v3a 复刻)→ 后方余量全掏流向滞回指定的前进枢纽(物流豁免进攻预算 —— SUPPLY 尸检:1:1 课税是死因之一)→ 枢纽蓄到 `flip_need×1.3` 且 ≥80 船时打 0.9 档重锤 → 全程事件日志。
 > 
@@ -16749,7 +16749,7 @@ issue v11 pushed
 > 3. FM3 修复:悲观双模型估值(do-nothing ∧ 一步反应对手取 min);
 > 4. Isaiah 半档中盘 sizing。
 > 
-> 全部记录:commit [`261a7a6`](https://github.com/amyteq/tt_pangu/commit/261a7a68623ba2f3f3360b3e00d0383e4d8493f1)(含完整设计史:red-team 三份报告的结论都在 commit message 里)、issue 第 11 版(T9/T13 行更新)、工作日志。**仍在等你**:may 槽替换提案(kuni05-adapted)。今天从 T2 阳性烘焙到 v4 平台,主线收获扎实 —— 深度迭代留给下个 session 带着日志继续。
+> 全部记录:commit `261a7a6`(含完整设计史:red-team 三份报告的结论都在 commit message 里)、issue 第 11 版(T9/T13 行更新)、工作日志。**仍在等你**:may 槽替换提案(kuni05-adapted)。今天从 T2 阳性烘焙到 v4 平台,主线收获扎实 —— 深度迭代留给下个 session 带着日志继续。
 
 ## 🤷 User: *please commit all changes in the worktree…*
 
@@ -17484,3 +17484,157 @@ live-db pytest	pass	52s	https://github.com/amyteq/tt_pangu/actions/runs/27469440
 `14:32:35`
 
 📝 Recap: Goal: improve our Orbit Wars ladder agents on issue #87. PR #92 (v4 Scheduler + replay toolchain) is open with all CI green, ready for review. Next: you decide the may-slot replacement (submit kuni05-adapted?) so I can proceed.
+
+## 🤷 User: *merge #92 and clean up local worktree*
+
+`22:14:29`
+
+merge #92 and clean up local worktree
+
+### 🤖 Assistant: *Merging PR #92 (squash, keeping the remote…*
+
+`22:14:52`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Merging PR #92 (squash, keeping the remote branch for audit per project convention), then I'll clean up local worktrees.
+
+#### 💻 Bash: *Verify mergeable then squash-merge PR #92*
+
+`22:14:54`
+
+```bash
+$ cd /home/harry/test/tt_pangu && gh pr view 92 --json state,mergeStateStatus,mergeable --jq '{state,mergeable,mergeStateStatus}' && echo "=== merging (squash, keep remote branch) ===" && gh pr merge 92 --squash 2>&1 | tail -3
+```
+
+```
+{"mergeStateStatus":"CLEAN","mergeable":"MERGEABLE","state":"OPEN"}
+=== merging (squash, keep remote branch) ===
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars
+```
+
+```bash
+$ cd /home/harry/test/tt_pangu && gh pr view 92 --json state,mergedAt --jq '{state, mergedAt}' && echo "=== worktrees ===" && git worktree list
+```
+
+```
+{"mergedAt":"2026-06-13T22:15:01Z","state":"MERGED"}
+=== worktrees ===
+/home/harry/test/tt_pangu                                        539f4da [main]
+/home/harry/test/tt_pangu/.claude/worktrees/dev-temp             59d5cc7 [dev/temp]
+/home/harry/test/tt_pangu/.claude/worktrees/nemo-v10-v14-kernels 822be88 [worktree-nemo-v10-v14-kernels]
+/home/harry/test/tt_pangu/.claude/worktrees/orbit-wars           261a7a6 [worktree-orbit-wars]
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars
+```
+
+### 🤖 Assistant: *PR #92 merged at 22:15 UTC.*
+
+`22:15:31`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> PR #92 merged at 22:15 UTC. The only worktree of mine to clean is `orbit-wars` (the others — dev-temp, nemo — belong to other sessions; the snorlax-doc one is already gone). I'm currently inside it, so I'll exit first, then remove it.
+
+#### ToolSearch
+
+`22:15:32`
+
+**query:** `select:ExitWorktree`
+
+**max_results:** `1`
+
+```json
+[
+  {
+    "type": "tool_reference",
+    "tool_name": "ExitWorktree"
+  }
+]
+```
+
+### 💭 Thinking
+
+`22:15:49`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### ExitWorktree
+
+`22:15:49`
+
+**action:** `keep`
+
+```
+Exited worktree. Your work is preserved at /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars on branch worktree-orbit-wars. Session is now back in /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars.
+```
+
+### 🤖 Assistant: *I'm back but the session's \*home\* directory…*
+
+`22:16:29`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> I'm back but the session's *home* directory is the orbit-wars worktree itself (it was the launch cwd), so the tool returned me right here. The work is fully merged (#92) and the branch is pushed, so the worktree directory is safe to remove — I'll do it from the main repo with `--force` (the only uncommitted content is the local `settings.local.json` permission cache).
+
+#### 💻 Bash: *Remove orbit-wars worktree from main repo, keep branch ref*
+
+`22:16:33`
+
+```bash
+$ cd /home/harry/test/tt_pangu && git worktree remove /home/harry/test/tt_pangu/.claude/worktrees/orbit-wars --force && echo "=== removed; remaining worktrees ===" && git worktree list && echo "=== branch ref preserved (audit) ===" && git rev-parse --verify worktree-orbit-wars 2>/dev/null && git branch --contains 261a7a6 2>/dev/null | head -2
+```
+
+```
+=== removed; remaining worktrees ===
+/home/harry/test/tt_pangu                                        539f4da [main]
+/home/harry/test/tt_pangu/.claude/worktrees/dev-temp             59d5cc7 [dev/temp]
+/home/harry/test/tt_pangu/.claude/worktrees/nemo-v10-v14-kernels 822be88 [worktree-nemo-v10-v14-kernels]
+=== branch ref preserved (audit) ===
+261a7a68623ba2f3f3360b3e00d0383e4d8493f1
+  worktree-orbit-wars
+Shell cwd was reset to /home/harry/test/tt_pangu
+```
+
+### 🤖 Assistant: *Done.*
+
+`22:16:42`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Done.
+> 
+> ## ✅ Merged + cleaned up
+> 
+> - **PR #92 squash-merged** to `main` at 22:15 UTC (CLEAN/MERGEABLE, all CI green). Remote branch `orbit-wars-v4-scheduler` kept for audit per project convention.
+> - **`orbit-wars` worktree removed** (`git worktree remove --force` from the main repo — only discarded the local `settings.local.json` permission cache, which isn't project work).
+> - **Branch ref `worktree-orbit-wars` (261a7a6) preserved** — it holds the full per-step commit history of the session as the audit trail; it's also pushed to the remote.
+> 
+> Remaining worktrees (`dev-temp`, `nemo-v10-v14-kernels`) belong to other sessions — left untouched. The session is now back in the main repo at `/home/harry/test/tt_pangu`.
+> 
+> All v4 Scheduler + replay-mining work is now on `main`. The one open item still awaiting your call is the **may-slot replacement proposal** on issue #87 (kuni05-adapted → may); everything else from this session is shipped and closed out.
+
+### Recap
+
+`22:17:15`
+
+📝 Recap: Goal: climb the Orbit Wars ladder via issue #87. This session shipped v4 Scheduler plus the replay-mining toolchain, now merged to main via PR #92 and the worktree cleaned up. Next: your call on the may-slot swap (kuni05-adapted) on issue #87.

@@ -19852,7 +19852,7 @@ To github.com:amyteq/tt_pangu.git
 > 
 </details>
 
-> Pushed to **PR #82** (commit [`67e1346`](https://github.com/amyteq/tt_pangu/commit/67e1346a46e27a96c13311ceef7160cc47f9ec40)) — the gate passed. Let me exit the worktree and summarize.
+> Pushed to **PR #82** (commit `67e1346`) — the gate passed. Let me exit the worktree and summarize.
 
 ##### ExitWorktree
 
@@ -19878,7 +19878,7 @@ Exited worktree. Your work is preserved at /home/harry/test/tt_pangu/.claude/wor
 > 
 > **3. Resubmit Kaggle** — **v9 is training now** (watcher `b8axjx3zt`), validated locally first (F821 + masking PASS). On completion I'll read the real `val_accuracy` and submit it from Kaggle storage (no download).
 > 
-> **4. Pushed to PR #82** (commit [`67e1346`](https://github.com/amyteq/tt_pangu/commit/67e1346a46e27a96c13311ceef7160cc47f9ec40)) — brought the kernel into the repo under `experiments/nvidia-nemotron-model-reasoning-challenge/` (mirroring `experiments/tpu-getting-started/`): `build_ipynb.py` (source), `kernel-metadata.json`, `validate_kernel.py`, and a README documenting the recipe, score progression (0.47→0.61→0.65), gotchas, and the three failure-prevention layers. The generated `.ipynb` is gitignored as a build artifact.
+> **4. Pushed to PR #82** (commit `67e1346`) — brought the kernel into the repo under `experiments/nvidia-nemotron-model-reasoning-challenge/` (mirroring `experiments/tpu-getting-started/`): `build_ipynb.py` (source), `kernel-metadata.json`, `validate_kernel.py`, and a README documenting the recipe, score progression (0.47→0.61→0.65), gotchas, and the three failure-prevention layers. The generated `.ipynb` is gitignored as a build artifact.
 > 
 > I'm now waiting on v9's run; I'll report `train_loss` + `val_accuracy` and the gated submission when it lands.
 
@@ -20222,7 +20222,7 @@ To github.com:amyteq/tt_pangu.git
 > 
 </details>
 
-> Pushed the doc clarification to PR #81 ([`53dac3b`](https://github.com/amyteq/tt_pangu/commit/53dac3bb50478f8482f95c94b8f3841976cd77c3)). Now posting a full response to your three review points:
+> Pushed the doc clarification to PR #81 (`53dac3b`). Now posting a full response to your three review points:
 
 ##### 💻 Bash: *Post comprehensive response to PR #81 review comments*
 
@@ -20306,7 +20306,7 @@ Exited worktree. Your work is preserved at /home/harry/test/tt_pangu/.claude/wor
 > 
 </details>
 
-> Addressed all three review comments on **PR #81** — both with verification and a code change (commit [`53dac3b`](https://github.com/amyteq/tt_pangu/commit/53dac3bb50478f8482f95c94b8f3841976cd77c3)) plus a full written response ([comment](https://github.com/amyteq/tt_pangu/pull/81#issuecomment-4675653178)):
+> Addressed all three review comments on **PR #81** — both with verification and a code change (commit `53dac3b`) plus a full written response ([comment](https://github.com/amyteq/tt_pangu/pull/81#issuecomment-4675653178)):
 > 
 > 1. **"Can't access a specific version via API"** — **you're right.** Confirmed from the CLI: `kaggle kernels output`/`status` are *latest-run only* (no version selector). So an old version's artifact can't be retrieved via API; `submit -v` reliably targets the just-pushed (latest) version. → Updated the `--version` help + `cmd_submit` docs to say so and recommend omitting `--version`.
 > 
@@ -26112,7 +26112,7 @@ To github.com:amyteq/tt_pangu.git
 > 
 </details>
 
-> Pushed to PR #82 ([`1279f97`](https://github.com/amyteq/tt_pangu/commit/1279f97aa7fa0e4cd55fb2fd9e69ee517f36d5d9)). Now let me open the design issue for the two bigger items (user-pool + YAML config), with the compliance gate front-and-center:
+> Pushed to PR #82 (`1279f97`). Now let me open the design issue for the two bigger items (user-pool + YAML config), with the compliance gate front-and-center:
 
 ##### 💻 Bash: *Open user-pool + YAML design issue*
 
@@ -26229,7 +26229,7 @@ Exited worktree. Your work is preserved at /home/harry/test/tt_pangu/.claude/wor
 > 
 </details>
 
-> Reviewed and addressed all of PR #82's review items (pushed [`1279f97`](https://github.com/amyteq/tt_pangu/commit/1279f97aa7fa0e4cd55fb2fd9e69ee517f36d5d9), response [posted](https://github.com/amyteq/tt_packages/pull/82)):
+> Reviewed and addressed all of PR #82's review items (pushed `1279f97`, response [posted](https://github.com/amyteq/tt_packages/pull/82)):
 > 
 > **Confirmed:** the **v8 `KeyError: 'shape'` fix is in PR #82** — `return_dict=True` + explicit `input_ids`, plus the fail-fast preflight and isolated eval.
 > 
