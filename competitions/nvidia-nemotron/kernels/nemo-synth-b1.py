@@ -1,3 +1,4 @@
+# Nemo Synth B1 — low-dose cryptarithm-only synth (~800, ~9%) on v14 backbone
 # Nemo Synth V15 — v14 replay recipe + cryptarithm-weighted synthetic CoT.
 # Identical to nemo-replay-v14 (CCE, MoE tying, seq8192, LR 3.5e-4, 7h deadline)
 # except ~2.6k deterministic synthetic reasoning examples (60% cryptarithm) are
@@ -38,7 +39,7 @@ SHUFFLE_DATASET = False
 
 # v15 synthetic-data knobs.
 SYNTH_SEED = 42
-MIN_SYNTH_EXAMPLES = 1500
+MIN_SYNTH_EXAMPLES = 600
 
 TARGET_MODULES = [
     "q_proj",
@@ -57,7 +58,7 @@ TARGET_MODULES = [
 # ---- v15: embedded cryptarithm-weighted synthetic CoT generator ----------
 # (adapted from public varianceofx/synthetic-dataset-generator-27k; long CoT
 # with pre-computed intermediate values, finality lines, unseen-symbol queries.
-# committed at experiments/.../synth/nemo_synth_gen.py)
+# committed at kernels/synth/nemo_synth_gen.py)
 import random
 import string  # noqa: F401  (used by the adapted generator functions)
 
@@ -1148,16 +1149,8 @@ PUZZLE_MAKERS = {
 # Cryptarithm-heavy (~60%): it is the bottleneck category, but keep every other
 # format present at lower volume so the adapter does not skew to one prompt shape.
 DEFAULT_MIX = {
-    "cryptarithm_deduce": 900,
-    "cryptarithm_guess": 700,
-    "equation_numeric_deduce": 200,
-    "equation_numeric_guess": 200,
-    "bit": 150,
-    "symbol": 150,
-    "encrypt": 100,
-    "numeral": 80,
-    "unit": 80,
-    "gravity": 80,
+    "cryptarithm_deduce": 450,
+    "cryptarithm_guess": 350,
 }
 
 # Exact-string categories: the CoT must literally contain the boxed answer.

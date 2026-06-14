@@ -1,6 +1,6 @@
 # Bugs — nemo
 
-> Sources: issue #86 (Table 2 / comments), `experiments/kernel/README.md`.
+> Sources: issue #86 (Table 2 / comments), `kernels/README.md`.
 
 | ID | Status | Severity | Area | Summary | Evidence | Next action |
 |---|---|---|---|---|---|---|

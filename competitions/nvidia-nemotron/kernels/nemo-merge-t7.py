@@ -3,7 +3,7 @@
 # The merge itself (v14 @ 1.0 + ctx4k @ 0.25 + v10 @ 0.25, per-module rank-32 SVD
 # of the summed LoRA deltas over the shared Mamba/MoE modules; v14's attention +
 # lm_head carried verbatim) is done by
-#   experiments/nvidia-nemotron-model-reasoning-challenge/merge/svd_merge.py
+#   kernels/nvidia-nemotron-model-reasoning-challenge/merge/svd_merge.py
 # and committed to the repo for audit. Its output (adapter_config.json +
 # adapter_model.safetensors) is attached to this kernel as a private dataset.
 # This kernel just zips those two files into /kaggle/working/submission.zip so a

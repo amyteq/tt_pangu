@@ -81,4 +81,4 @@
 - GitHub issue #86 (body + comments 0–4) — original hub.
 - `tracking_zh.md` — original Chinese tables verbatim.
 - `worklogs/nemo.md`, `worklogs/nemo2.md`; `work/00.nemo.md` (analysis); `notes_zh.md` (EN digest).
-- PRs #90 (v10+v14), #94 (t7), #95 (v15); kernels under `./experiments/`.
+- PRs #90 (v10+v14), #94 (t7), #95 (v15); kernels under `./kernels/`.

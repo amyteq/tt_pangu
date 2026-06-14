@@ -1,0 +1,4 @@
+*.ipynb
+kernel-metadata.json
+_assembled_kernel.py
+__pycache__/
