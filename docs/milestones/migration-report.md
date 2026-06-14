@@ -404,14 +404,20 @@ still say `docs/milestones.md` resolve via the stub (intentional — see below).
 ## Pre-existing dangling references (NOT introduced by this migration)
 
 These prose references pointed at non-existent files **at HEAD already**; the
-migration faithfully updated only their path prefix. Recommend fixing the names
-in a follow-up:
+migration faithfully updated only their path prefix.
 
-- `docs/tasks/m4/M4-T008-titanic-end-to-end.md` → real file is
-  `docs/tasks/m4/M4-T008-tc1-titanic-end-to-end.md` (referenced from
-  `docs/milestones/m13/loop-prompts.md`, `docs/tasks/m13/M13-T003-*`).
-- `docs/tasks/m5/M5-T008-house-prices.md` → real is `...M5-T008-tc2-house-prices.md`.
-- `docs/tasks/m5/M5-T002-research-fetch.md` → real is `...M5-T002-browser-fetch-tool.md`.
+**Fixed** (mistyped task-spec filenames, corrected to the real files in a
+follow-up — references live in `docs/milestones/m13/loop-prompts.md`,
+`docs/tasks/m13/M13-T003-kaggle-replay-suite.md`,
+`docs/tasks/m13/M13-T005-reasoning-benchmark.md`):
+
+- `docs/tasks/m4/M4-T008-titanic-end-to-end.md` → `docs/tasks/m4/M4-T008-tc1-titanic-end-to-end.md` ✅
+- `docs/tasks/m5/M5-T008-house-prices.md` → `docs/tasks/m5/M5-T008-tc2-house-prices.md` ✅
+- `docs/tasks/m5/M5-T002-research-fetch.md` → `docs/tasks/m5/M5-T002-browser-fetch-tool.md` ✅
+
+**Left as-is** (not mistyped names — references to docs that were never created,
+or illustrative examples; no real target exists to point at):
+
 - `docs/milestones/m3/final-review.md` — M3 never had a final-review doc.
 - `docs/milestones/m9_4/handoff.md` — M9.4 never had a handoff doc.
 - Illustrative / hypothetical paths in `docs/meeting-notes/**` (`docs/tasks/M001.md`,
