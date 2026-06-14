@@ -1,8 +1,8 @@
 # design-red-team report for the M11 CTF architecture (T000)
 
 Sources:
-- Proposed design: `docs/tasks/M11-T000-discovery-debate-gate.md` +
-  `docs/m11-loop-prompts.md` (`ctf_events` / `ctf_challenges` /
+- Proposed design: `docs/tasks/m11/M11-T000-discovery-debate-gate.md` +
+  `docs/milestones/m11/loop-prompts.md` (`ctf_events` / `ctf_challenges` /
   `ctf_attempts` schema; new ops `challenge_run` / `flag_submit` /
   `network_egress`; CTFtime → register-as-human → per-event-creds →
   solve → submit workflow).
@@ -13,7 +13,7 @@ _Produced under the M11-T000 Discovery / Debate Gate. The agent body
 lives in `.claude/agents/design-red-team.md`; this artefact is a
 manual execution of that agent's protocol. The "proposed design"
 being refuted is the M11 trajectory described in
-`docs/m11-loop-prompts.md:62–98` — a per-project `ctf_events` table
+`docs/milestones/m11/loop-prompts.md:62–98` — a per-project `ctf_events` table
 with three new approval ops, registered manually by the human and
 written from `tools/kca/ctf.py`._
 
@@ -85,7 +85,7 @@ written from `tools/kca/ctf.py`._
   schema field. The proposed `ctf_attempts` shape captures only
   `accepted` + `http_status` after the fact; the platform has no
   pre-submit gate that consults a per-challenge attempt-counter.
-  Evidence: `docs/m11-loop-prompts.md:111` ("M11-T005 records
+  Evidence: `docs/milestones/m11/loop-prompts.md:111` ("M11-T005 records
   `ctf_attempts` row + `experiment_runs`") and
   `supabase/migrations/0001_init.sql:211–223` (no `attempts_count`
   or `last_attempt_at` column on `ctf_scopes`). Survives in:
@@ -98,7 +98,7 @@ written from `tools/kca/ctf.py`._
   proposed `ctf_attempts` is FK'd to `ctf_challenges`+`ctf_events`
   but does not carry the credential identity that actually made the
   submission (event_account / team_id). Evidence: the M11 task
-  summary at `docs/m11-loop-prompts.md:62–77` mentions team_id only
+  summary at `docs/milestones/m11/loop-prompts.md:62–77` mentions team_id only
   in the credential JSON file, not in the attempts row; the kkr.py
   replay precedent at
   `docs/evidence/m9_4-kkr-replay/legacy-archaeologist.md` §3 calls
@@ -110,21 +110,21 @@ written from `tools/kca/ctf.py`._
   the M11 plan does not surface an analogous flag on `kca ctf flag
   submit` (the credential is implicitly `~/.ctf/<slug>.json` or the
   `CTF_<EVENT>_*` env vars; no override path). Evidence:
-  `docs/m11-loop-prompts.md:621–667` (planning Q&A item 5
+  `docs/milestones/m11/loop-prompts.md:621–667` (planning Q&A item 5
   describes the two paths and treats them as exhaustive).
   Survives in: legacy, alternative 2 (the scope row could carry a
   `credentials_path_override` column), alternative 4 (the
   `--env-file` is a docker flag).
 - **CTF-category enumeration enforced by the schema.** The proposal
   leaves `ctf_challenges.category` as free text per
-  `docs/m11-loop-prompts.md:62–77`; this drops the ability to do
+  `docs/milestones/m11/loop-prompts.md:62–77`; this drops the ability to do
   `WHERE category IN ('web', 'crypto')` queries with type safety.
   Evidence: archaeology §8 (`ctf-sandbox/SKILL.md:31` lists the
   five categories as ambient assumption, not enforced enum). The
   proposal explicitly accepts this; the cost is downstream
   analytics drift.
 - **Stable JSON shape for `kca ctf flag submit --json`.** The
-  proposal at `docs/m11-loop-prompts.md:255–256` says "echo only
+  proposal at `docs/milestones/m11/loop-prompts.md:255–256` says "echo only
   `accepted=true|false` + http status, never the flag string
   itself", but does not pin the JSON keys. Evidence: unavailable
   in the current branch — route to `open_disagreements`.
@@ -185,7 +185,7 @@ blast_radius:      Worst case: a wrong flag is submitted under
   `policy:approval-required`) asking whether M11-T001 should land a
   parallel schema or wait for M12-T002's `competition_type` and
   fold CTF in at M12 close. Evidence:
-  `docs/milestones.md:891–892`, `docs/m12-loop-prompts.md`
+  `docs/milestones.md:891–892`, `docs/milestones/m12/loop-prompts.md`
   (alternative 1 is already partly committed at the M12 layer).
 - `ctf_attempts` has no `event_account` / `team_id` / `submitted_by`
   column to record *which* credential actually hit the event.
@@ -197,7 +197,7 @@ blast_radius:      Worst case: a wrong flag is submitted under
   `docs/evidence/m9_4-kkr-replay/legacy-archaeologist.md` §3.
 - The proposed `network_egress` op is described as "deny outside
   an authorized `ctf_scopes.target_urls` row; ask when scope+URL
-  match" (`docs/m11-loop-prompts.md:212–214`). It is unclear at
+  match" (`docs/milestones/m11/loop-prompts.md:212–214`). It is unclear at
   which layer the deny actually fires — hook (`.claude/hooks/guard_tool.py`),
   reviewer (`src/worker/reviewer.py`), or HTTP client (httpx
   request interceptor). Disagree — next step: ask human which
@@ -210,12 +210,12 @@ blast_radius:      Worst case: a wrong flag is submitted under
   `area:ctf`, `area:schema`, `type:tech-debt`) to revisit
   enum-ifying `category` after M11-T009 once the actual taxonomy is
   empirically known. Evidence:
-  `docs/m11-loop-prompts.md:317` (web+crypto exercised), legacy
+  `docs/milestones/m11/loop-prompts.md:317` (web+crypto exercised), legacy
   archaeology §8 (`ctf-sandbox/SKILL.md:31` ambient five-category
   list).
 - The proposal does not pin a JSON-output shape for `kca ctf flag
   submit --json` beyond "accepted + http status"
-  (`docs/m11-loop-prompts.md:255–256`). Disagree — next step:
+  (`docs/milestones/m11/loop-prompts.md:255–256`). Disagree — next step:
   research-brief whether any downstream tool (the M11 UI Approval
   Inbox, the T008 audit-grep test, the milestone-final-review
   pipeline) parses this output; if yes, pin the keys in ADR-0016.
@@ -224,7 +224,7 @@ blast_radius:      Worst case: a wrong flag is submitted under
   `docs/evidence/m9_4-kkr-replay/design-red-team.md` §dropped_capabilities/4).
 - The proposal treats `~/.ctf/<event-slug>.json` as ambient state
   read by the worker process; the hook-layer carve-out
-  (`docs/m11-loop-prompts.md:213`, "extend `.claude/hooks/guard_tool.py`
+  (`docs/milestones/m11/loop-prompts.md:213`, "extend `.claude/hooks/guard_tool.py`
   to cover `~/.ctf/*.json` reads outside the allow-listed `kca ctf`
   flow") mitigates direct shell reads but not Python `open()`
   calls from inside the worker. Disagree — next step: spike whether

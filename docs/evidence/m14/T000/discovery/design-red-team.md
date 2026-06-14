@@ -54,13 +54,13 @@ dropped_capabilities:
     if `_watch_many` becomes the only path it drops the 1-slug case. survives
     in: any design that keeps `_watch_kernel_until_terminal` as the 1-slug
     path and only switches to `_watch_many` at ">= 2 slugs"
-    (docs/m14-loop-prompts.md:324-325).
+    (docs/milestones/m14/loop-prompts.md:324-325).
   - `cmd_submit`'s existing `KAGGLE_USERNAME`/`KAGGLE_KEY` pre-check envelope —
     evidence: tools/kca/kg.py:145-162. T004 adds the same check to `cmd_push`
     (#62); if it invents a NEW error envelope shape instead of mirroring
     cmd_submit's `{"ok": false, "error": "...not set...", "competition": ...,
     "side_effect": ...}`, downstream test assertions and the M14-T009 test
-    (docs/m14-loop-prompts.md:463-464, "matches cmd_submit's envelope shape")
+    (docs/milestones/m14/loop-prompts.md:463-464, "matches cmd_submit's envelope shape")
     diverge. survives in: any design that copies the cmd_submit envelope
     verbatim.
   - The reviewer gate's flag-redaction discipline carried to the new
@@ -85,7 +85,7 @@ long_term_costs:
   extensibility: The design must survive the next two likely expansions —
     next likely scope: (a) per-account quota pooling (issue #21 / M15+) and
     (b) dataset/model uploads reusing the concurrency+polling logic
-    (docs/m14-loop-prompts.md:82-85). A CLI-local push gate
+    (docs/milestones/m14/loop-prompts.md:82-85). A CLI-local push gate
     (push-gate-in-worker-not-cli alternative names the tension) makes (a)
     harder because the counting logic is not where multi-account selection
     will live.
@@ -110,7 +110,7 @@ open_disagreements:
     filter is batch-scoped before T003 implements fan-out.
   - The strawman's stuck-detector treats a NULL `public_lb_score` ambiguously
     (skeptic edge_cases.4; M10-T004 shipped exactly such a NULL row,
-    docs/m10-final-review.md:54). next step: defer-to-follow-up-issue
+    docs/milestones/m10/final-review.md:54). next step: defer-to-follow-up-issue
     [type:feature area:kaggle priority:P2] OR pin in ADR-0020 that a NULL score
     is "no result, does not advance the non-improving counter" — the red-team
     recommends pinning it in the ADR since T007 cannot ship without a rule.

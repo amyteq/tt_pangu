@@ -2,7 +2,7 @@
 
 This directory is the staging area for patch proposals against the four
 canonical memory files (`PROJECT_STATE.md`, `docs/milestones.md`,
-`docs/handoffs/m{N}-handoff.md`, `docs/adr/NNNN-*.md`). See
+`docs/milestones/m{N}/handoff.md`, `docs/adr/NNNN-*.md`). See
 [ADR-0015](../adr/0015-memory-promotion-model.md) and
 [`docs/architecture/memory-promotion.md`](../architecture/memory-promotion.md).
 

@@ -69,7 +69,7 @@ A future report missing this level of detail in `§3` / `§7` for a multi-accoun
 |---|---|
 | [`inventory-drift-audit`](../../.claude/skills/inventory-drift-audit/SKILL.md) | Sibling. Scans the whole repo for drift; design-archaeology focuses on one artifact's hidden assumptions. No overlap. |
 | [`research-brief`](../../.claude/skills/research-brief/SKILL.md) | Sibling pattern (read-only on untrusted content, evidence-cited). External research; design-archaeology is on-disk legacy. |
-| [`memory-promotion`](../../.claude/skills/memory-promotion/SKILL.md) | `§8` open questions in an archaeology report are good source material for memory-promotion proposals to `docs/handoffs/` or ADRs once the human answers them. Different surfaces, complementary lifecycle. |
+| [`memory-promotion`](../../.claude/skills/memory-promotion/SKILL.md) | `§8` open questions in an archaeology report are good source material for memory-promotion proposals to `docs/milestones/*/handoff.md` or ADRs once the human answers them. Different surfaces, complementary lifecycle. |
 | [`milestone-final-review`](../../.claude/skills/milestone-final-review/SKILL.md) | If a milestone includes a legacy migration, `milestone-final-review` should reference the archaeology report as evidence the discovery gate was crossed. |
 
 ---

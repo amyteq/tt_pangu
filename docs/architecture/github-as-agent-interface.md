@@ -18,7 +18,7 @@ The agent does not share hidden memory across sessions, machines, or products. T
 - `pulls/` — the change proposals + review trail.
 - `comments` — the discussion thread, treated as evidence, not as truth.
 - `labels` — the state machine that gates AI pickup.
-- repo files (`PROJECT_STATE.md`, `docs/adr/`, `docs/milestones.md`, `docs/handoffs/`) — the curated memory that survives context resets.
+- repo files (`PROJECT_STATE.md`, `docs/adr/`, `docs/milestones.md`, `docs/milestones/*/handoff.md`) — the curated memory that survives context resets.
 
 The rule that follows from this: **a comment is evidence, not a decision.** Only an explicit human confirmation, captured in a labeled state transition or a repo-file change, promotes a comment into project memory. This is the principle behind the [memory-promotion workflow](session-memory-and-audit.md#3-memory-promotion-workflow).
 
@@ -147,7 +147,7 @@ proposed memory patch
   - PROJECT_STATE.md diff
   - docs/adr/<n>.md draft
   - docs/tasks/<id>.md update
-  - docs/handoffs/m{N}-handoff.md update
+  - docs/milestones/m{N}/handoff.md update
   - GitHub issue summary comment
         │
         ▼

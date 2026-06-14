@@ -50,7 +50,7 @@ authoritative.
 - **M8.5**: pre-M9 hardening — CI repair + GitHub Issues/PR/labels interface + M9 planning ✓
 - **M9**: live end-to-end Kaggle regression test — Spaceship Titanic ✓
 - **M9.2**: `/save-log` Claude Code session-transcript skill ✓ — operator-tooling milestone; ran in parallel to M10 planning.
-- **M9.3**: `memory-promotion` + `design-archaeology` skills (replaces unbuilt M9.1; retires `docs/m9_1-loop-prompts.md` with deferred-scope notice) ✓
+- **M9.3**: `memory-promotion` + `design-archaeology` skills (replaces unbuilt M9.1; retires `docs/milestones/m9_1/loop-prompts.md` with deferred-scope notice) ✓
 - **M9.4**: Discovery / Debate Gate agents (planning + scaffolding) ✓
 - **M10**: notebook-submission Kaggle regression — Petals to the Metal (kernel-push path) ✓ — one approved real `kaggle kernels push` attempted; no public LB recorded (queue stall + now-fixed kernelspec bug; single-push policy, "accept and continue"); issue #11 (dotenv-leak) closed during M10.
 - **M11**: authorized CTF / lab workflow — PARTIAL (T000–T006 + T008 done 2026-06-09; T007 deferred pending human-supplied live-event credentials + approval)
@@ -58,18 +58,18 @@ authoritative.
 - **M13**: evaluation, reliability, and regression suite ✓ — 6 suites (tool-smoke, kaggle-replay ×3, kernel-dryrun, reasoning), 5 routes, aggregator reports, nightly CI eval cron; 34 PASS / 4 SKIP / 0 FAIL; no paid LLM calls; no real Kaggle calls; `decision:confirmed` gate-bypass per `/goal` directive.
 - **M14**: goal-driven Kaggle workflow ✓ — `kca goal {init,show,update}` + `goal.md`, `kca explore {init,run,rank,prune,propose-next}` local fan-out + screening, per-competition concurrency + daily-budget gate + creds pre-check, smart poller (Fibonacci QUEUED / stable RUNNING / batched `kernels list`), stuck detector + `kaggle.exploration_stuck` escalation, migration 0011 (`goals` + rule columns + `submissions.goal_id` + `experiment_runs.analysis_jsonb`). 21 PASS / 3 SKIP / 0 FAIL. **T008 live = PASS-WITH-DEVIATION**: 2 real kernel pushes (gate/poll/approval/audit all worked) but **0 new LB scores** — push ≠ leaderboard submission (#77) + push #2 alt-backbone kernel data-mount error; best-known LB stays 0.76505. T009 fixed 5 cloud-schema bugs the live run surfaced + added the eval-suite PR gate (#63). Follow-ups #77 (submit step), #78 (refresh-rules port).
 
-See `docs/m8-final-review.md` for M8 validation results (all 28 non-SKIP
-checks PASS), `docs/m8_5-final-review.md` for the M8.5 roll-up (all 26
+See `docs/milestones/m8/final-review.md` for M8 validation results (all 28 non-SKIP
+checks PASS), `docs/milestones/m8_5/final-review.md` for the M8.5 roll-up (all 26
 non-SKIP checks PASS; three PRs landed on `main` as #4, #5, #6),
-`docs/m9-final-review.md` for the M9 roll-up (30 PASS / 1 SKIP / 0 FAIL;
+`docs/milestones/m9/final-review.md` for the M9 roll-up (30 PASS / 1 SKIP / 0 FAIL;
 the SKIP is UI pnpm gates — M9 did not modify UI),
-`docs/m9_4-final-review.md` for the M9.4 roll-up (17 PASS / 1 SKIP /
+`docs/milestones/m9_4/final-review.md` for the M9.4 roll-up (17 PASS / 1 SKIP /
 0 FAIL; the SKIP is the `design-archaeology` skill loader, deferred to
 M9.3-T001 by design),
-`docs/m12-final-review.md` for the M12 roll-up (46 PASS / 0 SKIP / 0 FAIL
+`docs/milestones/m12/final-review.md` for the M12 roll-up (46 PASS / 0 SKIP / 0 FAIL
 / 1 DEFERRED — T007 real-submit pending 3 blocked artefacts),
-`docs/m13-final-review.md` for the M13 roll-up (34 PASS / 4 SKIP / 0 FAIL),
-and `docs/m14-final-review.md` for the M14 roll-up (21 PASS / 3 SKIP /
+`docs/milestones/m13/final-review.md` for the M13 roll-up (34 PASS / 4 SKIP / 0 FAIL),
+and `docs/milestones/m14/final-review.md` for the M14 roll-up (21 PASS / 3 SKIP /
 0 FAIL; T008 live PASS-WITH-DEVIATION — 2 real pushes, 0 LB scores via
 the push≠submit gap #77).
 
@@ -82,7 +82,7 @@ M9 metrics snapshot:
 - New tests: `tests/test_m9_smoke.py` (4 DB-gated assertions),
   `tests/test_m9_e2e.py` (5 dry-run tests, 0 net / 0 DB / 0 creds).
 
-## M10 metrics snapshot (see `docs/m10-final-review.md`, 26 PASS / 1 SKIP / 0 FAIL)
+## M10 metrics snapshot (see `docs/milestones/m10/final-review.md`, 26 PASS / 1 SKIP / 0 FAIL)
 
 - Baseline transfer learning (M10-T002, MobileNetV2): local-slice holdout
   **0.4310** (full-dataset reference ~0.7707); `experiment_run_id=830fc32f-…`.
@@ -98,7 +98,7 @@ M9 metrics snapshot:
 - New tests: `tests/test_m10_smoke.py` (4 DB-gated assertions),
   `tests/test_m10_e2e.py` (dry-run e2e + 0-real-push audit sentinel).
 
-## M13 metrics snapshot (see `docs/m13-final-review.md`, 34 PASS / 4 SKIP / 0 FAIL)
+## M13 metrics snapshot (see `docs/milestones/m13/final-review.md`, 34 PASS / 4 SKIP / 0 FAIL)
 
 - Suites: 6 (tool-smoke, kaggle-replay-titanic, kaggle-replay-spaceship-titanic,
   kaggle-replay-house-prices, kernel-dryrun, reasoning).
@@ -116,7 +116,7 @@ M9 metrics snapshot:
 ## Current milestone: M15 next — goal-loop submit step (#77) + cross-account quota (#21) + FK hardening (#60)
 
 _M10 closed 2026-05-28. M11 PARTIAL + M12 + M13 closed 2026-06-09. M14
-closed 2026-06-10. All numbered milestones M0–M14 in `docs/milestones.md`
+closed 2026-06-10. All numbered milestones M0–M14 in `docs/milestones/README.md`
 are now ✓ done (M11 with T007 deferred; M12 with T007 deferred; M14 with
 T008's "≥ 2 LB scores" PASS-WITH-DEVIATION via the push≠submit gap #77)._
 
@@ -165,8 +165,8 @@ Next prioritised work, in approximate order:
 - T005 local solves: web `flag_length=21`, crypto `flag_length=17`; 2 `ctf_attempts(accepted=true)` in cloud.
 - T006 reviewer-gate: `challenge_run` + `flag_submit` approve round-trips; `network_egress` reject smoke.
 
-See `docs/m11-final-review.md` (23 PASS / 1 SKIP-BLOCKED / 0 FAIL) and
-`docs/handoffs/m11-handoff.md` for the full handoff.
+See `docs/milestones/m11/final-review.md` (23 PASS / 1 SKIP-BLOCKED / 0 FAIL) and
+`docs/milestones/m11/handoff.md` for the full handoff.
 
 ### M11-T007 unblock (human action required)
 
@@ -213,10 +213,10 @@ See `docs/m11-final-review.md` (23 PASS / 1 SKIP-BLOCKED / 0 FAIL) and
 - **F3** — resolver `profile_fallback` event type in `permission_policy.py`.
 - **F4** — `ctf-runner.yaml` permission profile — **DONE in M11** (M11 shipped CTF permission-profile extensions; M12 ADR-0018 F4 is superseded).
 
-See `docs/handoffs/m13-handoff.md` for the M13→post-M13 read-first list,
-`docs/handoffs/m12-handoff.md` for the M12→M13 handoff, and
-`docs/handoffs/m11-handoff.md` for the M11 PARTIAL→M12 handoff
-(`docs/handoffs/m10-handoff.md` and earlier preserved for history).
+See `docs/milestones/m13/handoff.md` for the M13→post-M13 read-first list,
+`docs/milestones/m12/handoff.md` for the M12→M13 handoff, and
+`docs/milestones/m11/handoff.md` for the M11 PARTIAL→M12 handoff
+(`docs/milestones/m10/handoff.md` and earlier preserved for history).
 
 ## Open decisions
 - **ADR-0018** (resolved, M12-T001, 2026-06-09): generalized

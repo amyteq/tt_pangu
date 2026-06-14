@@ -157,4 +157,4 @@ TDD applies to pure business logic and bug fixes when practical.
 - `AGENTS.md` — cross-tool baseline for all agents working in this repo.
 - `CLAUDE.md` — Claude Code project instructions.
 - `docs/milestone-loop-protocol.md` — milestone-loop rules.
-- `docs/milestones.md` — milestone roadmap and acceptance criteria.
+- `docs/milestones/README.md` — milestone roadmap and acceptance criteria.

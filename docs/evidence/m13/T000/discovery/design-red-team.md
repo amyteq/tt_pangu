@@ -2,7 +2,7 @@
 
 Source: strawman `docs/adr/0019-eval-regression-suite.md`,
 companion `docs/architecture/eval-regression-suite.md`,
-spec `docs/tasks/M13-T000-eval-architecture.md`.
+spec `docs/tasks/m13/M13-T000-eval-architecture.md`.
 
 Upstream:
 - legacy-archaeologist: SKIPPED — `docs/evidence/m13/T000/discovery/SKIP-NOTE.md` (greenfield).

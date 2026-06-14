@@ -57,7 +57,7 @@ The product constraints the synthesis must satisfy:
    after migration 0008. ADR-0006's four-level hierarchy is **preserved,
    not superseded**.
 2. **M11 reuse without a second migration.** The enum must carry a
-   `'ctf'` value from day one (docs/tasks/M12-T001-discovery-debate-gate.md:81–83).
+   `'ctf'` value from day one (docs/tasks/m12/M12-T001-discovery-debate-gate.md:81–83).
 3. **Audit-traceable foot-gun rejection.** The Discovery / Debate Gate
    exists because the original `tools/legacy/kkr.py` migration lost
    multi-account semantics silently (`docs/meeting-notes/2026-05-24-r3.md` §6,
@@ -65,7 +65,7 @@ The product constraints the synthesis must satisfy:
    ADR-0018 must NOT introduce a new silent-fallback path.
 4. **Additive, not renaming.** "Renaming any of the existing
    Kaggle-specific surfaces" is explicitly out of scope
-   (docs/m12-loop-prompts.md:116). `kaggle_submit` / `kernel_push` keep
+   (docs/milestones/m12/loop-prompts.md:116). `kaggle_submit` / `kernel_push` keep
    their names; the new `devpost_submit` is additive.
 
 ## Decision
@@ -136,10 +136,10 @@ CREATE TABLE IF NOT EXISTS team_memberships (
 
 The enum literal `('kaggle', 'devpost', 'hackathon_devpost', 'ctf', 'generic')`
 is **non-negotiable** for this ADR: `'ctf'` is reserved so M11 can plug
-in without a second migration (docs/tasks/M12-T001-discovery-debate-gate.md:82–83),
+in without a second migration (docs/tasks/m12/M12-T001-discovery-debate-gate.md:82–83),
 and `'generic'` is the fallback for future hackathon platforms
 (HackerEarth, MLH, Devfolio) that may land in M12.x or M13. No sixth
-value ships in M12; expansion requires a fresh ADR (docs/tasks/M12-T001-discovery-debate-gate.md:111–113).
+value ships in M12; expansion requires a fresh ADR (docs/tasks/m12/M12-T001-discovery-debate-gate.md:111–113).
 
 #### Enum value semantics (one sentence each — addresses skeptic §explicit_unknowns)
 
@@ -220,7 +220,7 @@ ships three new op entries:
 |---|---|---|
 | `devpost_submit` | `ask` | External hackathon submission; analog of `kaggle_submit`'s ADR-0006 conservative default (ADR-0006 is default-allow for `kaggle_submit` but ADR-0018 overrides per-type; see §"Migration impact" below). |
 | `demo_upload` | `ask` | Public artifact publication; analog of `kernel_push`. Not used in M12 (reserved for M12.x demo-video flow). |
-| `team_invite` | `deny` | Out of M12 scope (read-only team membership only; docs/tasks/M12-T001-discovery-debate-gate.md:91–92). |
+| `team_invite` | `deny` | Out of M12 scope (read-only team membership only; docs/tasks/m12/M12-T001-discovery-debate-gate.md:91–92). |
 
 The `default.yaml` profile gets no new entries — unknown ops continue
 to fall through to `_tool_default_decision(operation) == 'ask'` per
@@ -274,7 +274,7 @@ this relaxation.
 - **Positive.** A `WHERE competition_type='devpost'` query is index-supported (`idx_competitions_type`) for the UI list pages and for telemetry.
 - **Positive.** The silent-fallback foot-gun (red-team §blast_radius for Alternative C) is *not* introduced — the resolver emits a structured `profile_fallback` event on every type-specific-profile miss.
 - **Negative.** The `competition_policy` jsonb key surface remains untyped; a Devpost row CAN carry `kaggle_submit: true` and the resolver will honour it. **Accepted with rationale** (preserve ADR-0006 hierarchy verbatim; red-team open_disagreement #1 filed as P2 tech-debt follow-up).
-- **Negative.** The team-scoped owner-only rule is documentation-only in M12 (no `human_decisions.approved_by_user_id` column). **Accepted with rationale** (M12 ships read-only team membership only per docs/tasks/M12-T001-discovery-debate-gate.md:91–92; red-team open_disagreement #2 filed as P1 follow-up for M12-T007).
+- **Negative.** The team-scoped owner-only rule is documentation-only in M12 (no `human_decisions.approved_by_user_id` column). **Accepted with rationale** (M12 ships read-only team membership only per docs/tasks/m12/M12-T001-discovery-debate-gate.md:91–92; red-team open_disagreement #2 filed as P1 follow-up for M12-T007).
 - **Negative.** The `'devpost'` vs `'hackathon_devpost'` boundary is defined by submission-shape; if a future Devpost event has a hackathon-shape submission but is mis-categorised as `'devpost'`, the `hackathon-runner.yaml` profile still binds (the resolver maps both to the same profile per §"Policy resolver shape"). **Accepted** — both values route to the same profile in M12, so the boundary is documentation-only.
 - **Multi-Devpost-account precedent.** Not solved (red-team §dropped_capabilities). If M12.x or M13 needs it, a `competition_credentials` join table is the structural answer; out of M12 scope.
 
