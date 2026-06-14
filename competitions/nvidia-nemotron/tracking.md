@@ -57,7 +57,7 @@
 | nemo-merge-t7 | harrysun2006 | 0.82 | pushed + evaluated |
 | nemo-synth-v15 | harrysun2006 | 0.84 | pushed + evaluated (last run 2026-06-14) |
 
-> ⚠ No live Kaggle status refresh in this consolidation (read-only Kaggle queries need credentials, forbidden to read).
+> ⚠ No live Kaggle status refresh in this consolidation. Read-only refresh now **authorized** (creds in `.vscode/.env.harry`, `.vscode/.env.may`); pending follow-up (read-only only).
 > Reflects issue #86 evidence current to 2026-06-14 ~05:00 UTC.
 
 ## Submission / LB status

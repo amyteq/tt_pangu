@@ -12,6 +12,9 @@
 - **CoT supervision must land at the sequence tail and survive truncation** (`</think>\n\boxed{}`);
   right-truncation at small seq destroys it (ctx2k → 0.42). Evidence: issue #86 T2 / comment 0.
 
+- **response-only loss masking is the key to CoT SFT**: training the loss over prompt+padding (v6) collapsed to 0.44; masking the prompt (labels=-100, response-only) recovered it (v7 0.65). Evidence: `bugs.md` B2 / issue #86 comment 0.
+- **CoT traces must precompute every intermediate value (no inline arithmetic) and end with a finality line**: v10's short rule-traces made greedy reasoning shallow (0.59); v15's generator fixed this (CoT-answer consistency 1930/1930). Evidence: issue #86 T4 / T11; `work/00.nemo.md` ideas A/B.
+
 ## Potentially reusable insights
 
 ### INS-001: push-time static lint + single-example fail-fast preflight

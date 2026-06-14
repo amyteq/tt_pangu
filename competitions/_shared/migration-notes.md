@@ -36,5 +36,5 @@
   issue #86 中文正文、`notes_zh.md` 中文来源指引+关键摘录)。
 - 来源:GitHub issue #86(body + 5 comments)、`work/00.nemo.md`、`work/00.nemotron_3_versions.zip`、
   `worklogs/nemo*.md`、PR #90/#94/#95。
-- 未做远程刷新:read-only Kaggle 查询需 credentials(禁止读取);以 issue #86(2026-06-14 ~05:00 UTC 快照)为准。
+- 远程刷新:read-only Kaggle 状态刷新现已**获授权**(creds 在 `.vscode/.env.harry`、`.vscode/.env.may`),作为后续动作回填 submission IDs / private LB(仅 read-only,不 submit/push/upload);本次合并以 issue #86(2026-06-14 ~05:00 UTC 快照)为准。
 - issue #86 保持**开放**作历史;后续状态更新改在 `competitions/nvidia-nemotron/`。

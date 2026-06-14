@@ -2,11 +2,13 @@
 
 > KCT-002: consolidated the long issue-#86 tracking context into English canonical docs under
 > `competitions/nvidia-nemotron/`. Builds on KCT-001 (PR #100). Chinese originals preserved as `_zh` sidecars.
+> The original KCT-001 postmortem is preserved (English) in [`2026-06-14-kct-001-initial-consolidation.md`](./2026-06-14-kct-001-initial-consolidation.md).
 
 ## Sources read
 - GitHub issue **#86** (body + 5 comments; Chinese strategy/tracking hub) — primary.
 - `work/00.nemo.md` (ChatGPT competition analysis, zh); `work/00.nemotron_3_versions.zip` (3 ChatGPT scripts, names only).
 - `worklogs/nemo.md`, `worklogs/nemo2.md`; `experiments/kernel/README.md`; PRs #90/#94/#95.
+- `experiments/synth/nemo_synth_gen.py`, `experiments/merge/svd_merge.py`, `kernels/*/kernel-metadata.json` (also indexed in `references.md`).
 
 ## Key facts recovered
 - Submit rank≤32 LoRA adapter (Nemotron-3-Nano-30B-A3B, Mamba+MoE); greedy `max_tokens=7680, temp=0`;
@@ -43,7 +45,7 @@
 
 ## Uncertain or missing context
 - Private LB; exact submission IDs; exact train row count; `test.csv`=first-3-train claim (as reported).
-- No live Kaggle status refresh (read-only queries need credentials, forbidden to read).
+- No live Kaggle status refresh performed at consolidation time. Read-only refresh is now **authorized** (creds in `.vscode/.env.harry`, `.vscode/.env.may`) — pending follow-up to fill in submission IDs / private LB without any submit/push/upload.
 
 ## Proposed follow-up issues
 - "nemo: post-deadline archival" (finalize LB/CV + private LB + final postmortem; status → archived).
