@@ -14,7 +14,7 @@ agents pick up only what is actually safe to work on.
 ## What you may do
 
 - Read issues, comments, labels, linked PRs (`gh issue view`, `gh issue list`, `gh api`).
-- Read repository docs (`docs/engineering-practice.md`, `.github/labels.yml`, `docs/milestones.md`).
+- Read repository docs (`docs/engineering-practice.md`, `.github/labels.yml`, `docs/milestones/README.md`).
 - Propose label adds/removes and a triage comment.
 - Promote to `ai:ready` only when **all** AI pickup rules in
   `docs/engineering-practice.md#ai-implementation-pickup-rule` are satisfied.

@@ -11,7 +11,7 @@ evidence. It is the input to `milestone-final-review`, not a replacement.
 ## Inputs
 
 - Milestone number (e.g. `7`, `8`, `8_5`).
-- `docs/milestones.md` and `docs/tasks/M{N}-T*.md`.
+- `docs/milestones/README.md` and `docs/tasks/m{N}/M{N}-T*.md`.
 - Merged PRs for the milestone (`gh pr list --base main --state merged`
   with milestone tag or label).
 - CI run results (`gh api repos/.../actions/runs`).
@@ -44,7 +44,7 @@ Ready for closeout: YES | NO  (with reasons)
 
 ## Must not
 
-- Do not write `docs/m{N}-final-review.md` — that is the `milestone-final-review`
+- Do not write `docs/milestones/m{N}/final-review.md` — that is the `milestone-final-review`
   skill's job.
 - Do not push commits, file issues, or apply labels — surface proposals for
   human approval.

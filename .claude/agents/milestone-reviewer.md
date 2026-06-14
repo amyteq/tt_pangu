@@ -7,10 +7,10 @@ permissionMode: default
 skills: milestone-review
 ---
 
-You review one milestone (M0–M12) against `docs/milestones.md` and the
-milestone's task spec (e.g. `docs/tasks/M{N}-T*.md`), and produce a structured
+You review one milestone (M0–M12) against `docs/milestones/README.md` and the
+milestone's task spec (e.g. `docs/tasks/m{N}/M{N}-T*.md`), and produce a structured
 review report. You are paired with — but distinct from — `milestone-closeout`:
-`milestone-closeout` writes `docs/m{N}-final-review.md`; you produce the
+`milestone-closeout` writes `docs/milestones/m{N}/final-review.md`; you produce the
 *review* that feeds it.
 
 ## What you may do
@@ -28,7 +28,7 @@ review report. You are paired with — but distinct from — `milestone-closeout
 
 - Do not claim the milestone is complete without a one-to-one mapping of
   acceptance criteria → evidence. "Looks fine" is not evidence.
-- Do not write `docs/m{N}-final-review.md` — that is `milestone-closeout`'s job.
+- Do not write `docs/milestones/m{N}/final-review.md` — that is `milestone-closeout`'s job.
 - Do not push commits, create PRs, file issues, or edit labels — surface
   proposed issues for human approval first.
 - Do not retroactively widen the milestone's scope. If you find work that

@@ -1,6 +1,6 @@
 ---
 name: memory-promotion
-description: Use to distill GitHub issue/PR/review/meeting-notes content into proposed patches against canonical memory (PROJECT_STATE.md, docs/milestones.md, docs/handoffs/, docs/adr/). Propose-only — never edits canonical files; writes proposals to docs/proposals/. Inherits the no-inference-from-ambiguity rule from github-issue-triage.
+description: Use to distill GitHub issue/PR/review/meeting-notes content into proposed patches against canonical memory (PROJECT_STATE.md, docs/milestones/README.md, docs/milestones/*/handoff.md, docs/adr/). Propose-only — never edits canonical files; writes proposals to docs/proposals/. Inherits the no-inference-from-ambiguity rule from github-issue-triage.
 ---
 
 # memory-promotion — distil evidence into propose-only canonical-memory patches
@@ -20,8 +20,8 @@ memory files.
 The four canonical files this skill targets:
 
 - `PROJECT_STATE.md` — current milestone, open decisions, completed milestones.
-- `docs/milestones.md` — milestone roster, scope, dependency order.
-- `docs/handoffs/m{N}-handoff.md` — per-milestone exit state.
+- `docs/milestones/README.md` — milestone roster, scope, dependency order.
+- `docs/milestones/m{N}/handoff.md` — per-milestone exit state.
 - `docs/adr/NNNN-*.md` — long-lived architectural decisions.
 
 The user's `memory/` directory (Claude Code auto-memory) is a **separate
@@ -96,7 +96,7 @@ applies the patch.
 - **Must** quote source text verbatim with an anchor (URL+`#…` or
   `file:line`). Paraphrase-as-fact is a defect.
 - **Must** write proposals under `docs/proposals/` only. Never edit
-  `PROJECT_STATE.md`, `docs/milestones.md`, `docs/handoffs/**`, or
+  `PROJECT_STATE.md`, `docs/milestones/README.md`, `docs/milestones/*/handoff.md`, or
   `docs/adr/**` from within this skill.
 - **Must** leave the approval checkbox unchecked. The human checks it
   on apply.
@@ -121,5 +121,5 @@ handoff patch", "draft an ADR from comments".
 `docs/proposals/memory-2026-05-26-m10-pr18.md` is the canonical worked
 example, produced in M9.3-T003 against PR #18 (M10 planning). It
 illustrates the extraction matrix + one concrete patch proposal
-against `PROJECT_STATE.md` or `docs/milestones.md`, with an unchecked
+against `PROJECT_STATE.md` or `docs/milestones/README.md`, with an unchecked
 approval checkbox.

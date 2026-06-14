@@ -12,7 +12,7 @@ while another implements Y.
 
 - Read access to the entire repo (excluding the secret paths in
   `docs/milestone-loop-protocol.md §6`).
-- `docs/milestones.md`, `PROJECT_STATE.md`, ADRs under `docs/adr/`,
+- `docs/milestones/README.md`, `PROJECT_STATE.md`, ADRs under `docs/adr/`,
   inventory maps if any.
 
 ## Drift categories
