@@ -19102,3 +19102,471 @@ main
 `13:34:17`
 
 📝 Recap: Goal was consolidating Kaggle competition docs; both nemo (PR #102) and orbit-wars (PR #103) consolidations are merged to main and their worktrees cleaned up. Nothing is pending — awaiting your next task.
+
+## 🤷 User: *please open a PR from dev/harry branch against…*
+
+`13:41:45`
+
+please open a PR from dev/harry branch against main branch
+
+### 🤖 Assistant: *Let me inspect `dev/harry` before opening…*
+
+`13:42:04`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me inspect `dev/harry` before opening the PR — what it contains vs `main`, and whether it's pushed.
+
+#### 💻 Bash: *Inspect dev/harry vs main*
+
+`13:42:07`
+
+```bash
+$ echo "=== local branches ==="; git branch | grep -E "dev/harry|main"
+echo "=== dev/harry exists locally/remotely? ==="; git rev-parse --verify dev/harry 2>/dev/null && echo "local ✓"; git ls-remote --heads origin dev/harry 2>/dev/null | head -1 || echo "(checking remote needs network)"
+echo "=== ahead/behind main (local) ==="; git rev-list --left-right --count origin/main...dev/harry 2>/dev/null || echo "n/a"
+echo "=== commits on dev/harry not on origin/main ==="; git log --oneline origin/main..dev/harry 2>/dev/null | head -30
+echo "=== diff stat dev/harry vs origin/main ==="; git diff --stat origin/main...dev/harry 2>/dev/null | tail -30
+```
+
+```
+=== local branches ===
+* dev/harry
+  main
+=== dev/harry exists locally/remotely? ===
+3cff165329fe450244f91ad8df01180d12d6ef74
+local ✓
+=== ahead/behind main (local) ===
+0	1
+=== commits on dev/harry not on origin/main ===
+3cff165 update worklogs
+=== diff stat dev/harry vs origin/main ===
+ .claude/settings.local.json     |     6 +-
+ AGENTS.md                       |     6 +
+ work/00.ass.md                  |   374 +
+ work/00.nemo.md                 |   815 ++
+ work/00.nemotron_3_versions.zip |   Bin 0 -> 14003 bytes
+ work/00.orbit.md                |   428 +
+ work/01.hk-001-tasks.md         |   534 ++
+ work/01.hk-001.md               |    31 +
+ work/02.comp_prep_prompt.md     |   461 +
+ work/02.comp_prompt.md          |   725 ++
+ work/02.comp_prompt_nemo.md     |   356 +
+ work/02.comp_prompt_orbit.md    |   366 +
+ work/02.competitions.md         |  3018 ++++++
+ work/03.general_guide.md        |  3144 +++++++
+ worklogs/M9.3.md                |     8 +-
+ worklogs/comp.md                | 19104 ++++++++++++++++++++++++++++++++++++++
+ worklogs/misc.md                |     4 +-
+ worklogs/nemo.md                |    12 +-
+ worklogs/nemo2.md               |  5554 ++++++++++-
+ worklogs/orbit.md               |    42 +-
+ worklogs/orbit2.md              |   184 +-
+ 21 files changed, 35121 insertions(+), 51 deletions(-)
+```
+
+### 🤖 Assistant: *`dev/harry` is the current branch (the repo…*
+
+`13:42:56`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `dev/harry` is the current branch (the repo's working branch). Let me fetch the latest `origin/main` and compute exactly what a `dev/harry → main` PR would contain, and confirm it's pushed.
+
+#### 💻 Bash: *Fetch and compute dev/harry vs main relationship*
+
+`13:43:00`
+
+```bash
+$ git fetch origin 2>&1 | tail -2
+echo "=== origin/main tip ==="; git log --oneline -1 origin/main
+echo "=== dev/harry tip ==="; git log --oneline -1 dev/harry
+echo "=== commits on dev/harry NOT on origin/main ==="; git log --oneline origin/main..dev/harry | head
+echo "=== commits on origin/main NOT on dev/harry (behind count) ==="; git rev-list --count origin/main..dev/harry; echo "behind:"; git rev-list --count dev/harry..origin/main
+echo "=== is origin/dev/harry pushed + up to date? ==="; git ls-remote --heads origin dev/harry
+echo "=== working tree status ==="; git status --short | head
+```
+
+```
+=== origin/main tip ===
+9807a2d docs(orbit): consolidate Orbit Wars tracking context into English canonical docs (KCT-003) (#103)
+=== dev/harry tip ===
+3cff165 update worklogs
+=== commits on dev/harry NOT on origin/main ===
+3cff165 update worklogs
+=== commits on origin/main NOT on dev/harry (behind count) ===
+1
+behind:
+0
+=== is origin/dev/harry pushed + up to date? ===
+3cff165329fe450244f91ad8df01180d12d6ef74	refs/heads/dev/harry
+=== working tree status ===
+```
+
+### 🤖 Assistant: *Clear now: `dev/harry` is exactly \*\*1 commit…*
+
+`13:43:38`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Clear now: `dev/harry` is exactly **1 commit ahead of `main`** (`3cff165 "update worklogs"`, 0 behind), already pushed to origin. A PR would propose that commit's contents: `work/` task/analysis files, `worklogs/comp.md` (+19k) + worklog updates, `AGENTS.md` (+6), and a `.claude/settings.local.json` change. Let me peek at the two non-obvious changes so I can describe (and flag) them.
+
+#### 💻 Bash: *Inspect AGENTS.md and settings.local.json changes on dev/harry*
+
+`13:43:41`
+
+```bash
+$ echo "=== AGENTS.md diff ==="; git diff origin/main...dev/harry -- AGENTS.md
+echo "=== .claude/settings.local.json diff ==="; git diff origin/main...dev/harry -- .claude/settings.local.json
+```
+
+```
+=== AGENTS.md diff ===
+diff --git a/AGENTS.md b/AGENTS.md
+index 1245abf..3b54941 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -10,6 +10,12 @@ This repository builds a hybrid human + AI coding agent for Kaggle-style competi
+ 
+ Never confuse the two. A platform-development agent editing this repo is not the same as a runtime agent running a Kaggle experiment. See `docs/architecture/platform-vs-runtime-agents.md` for details.
+ 
++## Read first
++- PROJECT_STATE.md
++- CLAUDE.md if present
++- docs/milestones/README.md if present
++- docs/milestones/*/handoff.md if present
++
+ ## Source of truth
+ Use this repository as the durable project memory. Do not rely on hidden memory in any single AI product. Important decisions must be written to:
+ - `PROJECT_STATE.md`
+=== .claude/settings.local.json diff ===
+diff --git a/.claude/settings.local.json b/.claude/settings.local.json
+index a8ad483..088eefa 100644
+--- a/.claude/settings.local.json
++++ b/.claude/settings.local.json
+@@ -7,7 +7,11 @@
+       "Bash(echo \"fake-flag-do-not-leak\")",
+       "Bash(env -u KCA_ALLOW_REMOTE python tools/kca/kca.py ctf flag submit --event demo --challenge x --flag-file /tmp/_flag_test.txt --dry-run)",
+       "Bash(echo \"exit=$?\")",
+-      "Bash(env -u KCA_ALLOW_REMOTE python tools/kca/kca.py ctf flag submit --event demo --challenge x --flag-file /tmp/_flag_test.txt)"
++      "Bash(env -u KCA_ALLOW_REMOTE python tools/kca/kca.py ctf flag submit --event demo --challenge x --flag-file /tmp/_flag_test.txt)",
++      "Read(//home/harry/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/**)",
++      "Bash(kaggle kernels *)",
++      "Bash(kaggle models *)",
++      "WebFetch(domain:storage.googleapis.com)"
+     ]
+   },
+   "worktree": {
+```
+
+### 🤖 Assistant: *The diff is clear: `AGENTS.md` gains a useful…*
+
+`13:43:54`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The diff is clear: `AGENTS.md` gains a useful "Read first" section, and `settings.local.json` adds 4 local permission allowlist entries (the machine-local delta that's been present all session). Let me check there's no existing open PR for `dev/harry`, then open it.
+
+#### 💻 Bash: *Check for existing dev/harry PR + file list*
+
+`13:43:57`
+
+```bash
+$ echo "=== existing open PR for dev/harry? ==="; gh pr list --head dev/harry --state open --json number,title 2>&1 | head
+echo "=== full file list in the PR diff ==="; git diff --name-only origin/main...dev/harry
+```
+
+```
+=== existing open PR for dev/harry? ===
+[]
+=== full file list in the PR diff ===
+.claude/settings.local.json
+AGENTS.md
+work/00.ass.md
+work/00.nemo.md
+work/00.nemotron_3_versions.zip
+work/00.orbit.md
+work/01.hk-001-tasks.md
+work/01.hk-001.md
+work/02.comp_prep_prompt.md
+work/02.comp_prompt.md
+work/02.comp_prompt_nemo.md
+work/02.comp_prompt_orbit.md
+work/02.competitions.md
+work/03.general_guide.md
+worklogs/M9.3.md
+worklogs/comp.md
+worklogs/misc.md
+worklogs/nemo.md
+worklogs/nemo2.md
+worklogs/orbit.md
+worklogs/orbit2.md
+```
+
+### 🤖 Assistant: *No existing PR.*
+
+`13:44:12`
+
+> No existing PR. `dev/harry` is 1 commit ahead of `main`, already pushed. Opening the PR.
+
+#### 💻 Bash: *Open PR dev/harry -> main*
+
+`13:44:21`
+
+```bash
+$ cat > /tmp/claude-1000/pr-devharry.md <<'EOF'
+## Summary
+
+Bring the `dev/harry` working materials onto `main` (1 commit ahead, 0 behind — `3cff165 "update worklogs"`).
+
+- **`work/`** — competition task prompts + analysis docs: `00.nemo.md`, `00.orbit.md`, `00.ass.md`, the `02.comp_prompt*` / `02.comp_prep_prompt.md` / `02.competitions.md` task specs, `01.hk-001*` housekeeping specs, `03.general_guide.md`, and `00.nemotron_3_versions.zip` (3 ChatGPT scripts archive). These are the source task files the recent KCT-001/002/003 + HK-001 consolidations were executed from.
+- **`worklogs/`** — adds `comp.md` (consolidated competition session log, ~19k lines) and updates `nemo.md` / `nemo2.md` / `orbit.md` / `orbit2.md` / `misc.md` / `M9.3.md` (daily session dumps).
+- **`AGENTS.md`** — adds a short "Read first" section (PROJECT_STATE.md / CLAUDE.md / docs/milestones/README.md / handoffs).
+
+## Tests / checks
+
+Docs/notes + analysis materials only — no source, tests, migrations, or CI touched. No code changes to validate.
+
+## ⚠️ Please confirm before merge
+
+- **`.claude/settings.local.json`** is included (+4 local permission-allowlist entries: `Read(...nemotron...)`, `Bash(kaggle kernels *)`, `Bash(kaggle models *)`, `WebFetch(domain:storage.googleapis.com)`). This is a **machine-local** settings file; consider whether you want it on `main` or dropped from this PR.
+- `worklogs/comp.md` is large (~19k lines); confirm it's intended for the shared history.
+
+## Remote side effects
+
+- [x] None beyond opening this PR.
+
+---
+
+🤖 Opened on request (dev/harry → main).
+EOF
+gh pr create --base main --head dev/harry \
+  --title "dev/harry: competition task prompts, worklogs, and AGENTS read-first" \
+  --body-file /tmp/claude-1000/pr-devharry.md 2>&1 | tail -3
+```
+
+```
+https://github.com/amyteq/tt_pangu/pull/104
+```
+
+### 🤖 Assistant: *Opened — \*\*PR #104\*\*: https://github.com…*
+
+`13:44:30`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Opened — **PR #104**: https://github.com/amyteq/tt_pangu/pull/104 (`dev/harry` → `main`).
+> 
+> ## What's in it
+> `dev/harry` is exactly **1 commit ahead of `main`** (`3cff165 "update worklogs"`, 0 behind, already pushed). The PR proposes 21 files:
+> - **`work/`** (14 files) — the competition task prompts + analysis the recent KCT/HK consolidations ran from (`00.nemo.md`, `00.orbit.md`, `02.comp_prompt*`, `01.hk-001*`, `03.general_guide.md`, the nemotron scripts zip, etc.).
+> - **`worklogs/`** — adds `comp.md` (~19k lines) and updates `nemo*/orbit*/misc/M9.3`.
+> - **`AGENTS.md`** — a short "Read first" section.
+> 
+> ## ⚠️ Two things I flagged in the PR body for your call before merge
+> 1. **`.claude/settings.local.json` is included** (+4 local permission entries — `Read(...nemotron...)`, `Bash(kaggle kernels *)`, `Bash(kaggle models *)`, `WebFetch storage.googleapis.com`). It's a machine-local settings file — you may not want it on `main`. I left it as-is since you asked to PR the branch as it stands.
+> 2. **`worklogs/comp.md` is large** (~19k lines) — confirm it's meant for shared history.
+> 
+> It's docs/notes only (no code/tests/CI), so nothing to validate. I did **not** merge it — say the word if you'd like it merged (and whether to drop `settings.local.json` first).
+
+### Recap
+
+`13:47:43`
+
+📝 Recap: Consolidating Kaggle competition docs; all four PRs (#100–#103) are merged and worktrees cleaned up. PR #104 (dev/harry → main) is open awaiting your go-ahead to merge, pending your call on whether to drop the local settings.local.json file first.
+
+## 🤷 User: *ok, you're right, please drop .claude/settings…*
+
+`13:50:22`
+
+ok, you're right, please drop .claude/settings.local.json and exclude it from .claude/.gitignore
+
+### 🤖 Assistant: *Good call — `settings.local.json` is machine…*
+
+`13:51:23`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Good call — `settings.local.json` is machine-local and shouldn't be version-controlled. I'll untrack it (`git rm --cached`) and add it to `.claude/.gitignore`, then commit to `dev/harry` so PR #104 updates. Let me check the current `.claude/.gitignore` and status first.
+
+#### 💻 Bash: *Check gitignore state and tracking of settings.local.json*
+
+`13:51:26`
+
+```bash
+$ echo "=== current branch + status ==="; git branch --show-current; git status --short
+echo "=== .claude/.gitignore (if exists) ==="; cat .claude/.gitignore 2>/dev/null || echo "(no .claude/.gitignore)"
+echo "=== is settings.local.json tracked? ==="; git ls-files .claude/settings.local.json
+echo "=== root .gitignore mentions of settings.local? ==="; grep -n "settings.local" .gitignore 2>/dev/null || echo "(none in root .gitignore)"
+```
+
+```
+=== current branch + status ===
+dev/harry
+=== .claude/.gitignore (if exists) ===
+(no .claude/.gitignore)
+=== is settings.local.json tracked? ===
+.claude/settings.local.json
+=== root .gitignore mentions of settings.local? ===
+(none in root .gitignore)
+```
+
+### 🤖 Assistant: *No `.claude/.gitignore` exists yet and `settings…*
+
+`13:51:42`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> No `.claude/.gitignore` exists yet and `settings.local.json` is tracked. I'll create `.claude/.gitignore`, untrack the file (keeping it on disk), and commit to `dev/harry`.
+
+#### 💻 Bash: *Create .claude/.gitignore and untrack settings.local.json*
+
+`13:51:45`
+
+```bash
+$ set -e
+# 1. create .claude/.gitignore (ignore the machine-local settings)
+printf '# Local, machine-specific Claude Code settings — not version-controlled\nsettings.local.json\n' > .claude/.gitignore
+echo "=== .claude/.gitignore ==="; cat .claude/.gitignore
+# 2. untrack settings.local.json (keep the working-tree file on disk)
+git rm --cached .claude/settings.local.json
+echo "=== staged ==="; git status --short
+```
+
+```
+=== .claude/.gitignore ===
+# Local, machine-specific Claude Code settings — not version-controlled
+settings.local.json
+rm '.claude/settings.local.json'
+=== staged ===
+D  .claude/settings.local.json
+?? .claude/.gitignore
+```
+
+### 🤖 Assistant: *`.claude/.gitignore` created and `settings…*
+
+`13:51:52`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `.claude/.gitignore` created and `settings.local.json` untracked (working copy preserved on disk). Let me verify the file survived, then commit and push.
+
+#### 💻 Bash: *Commit the untrack + gitignore on dev/harry*
+
+`13:51:57`
+
+```bash
+$ test -f .claude/settings.local.json && echo "on-disk settings.local.json preserved ✓" || echo "!! file gone"
+git add .claude/.gitignore
+git commit -q -F - <<'MSG'
+chore(.claude): untrack settings.local.json + add .claude/.gitignore
+
+settings.local.json is machine-local Claude Code permission state and should not be
+version-controlled. Remove it from tracking (working copy kept on disk) and add
+.claude/.gitignore so it stays ignored going forward.
+
+Drops the settings.local.json change from PR #104 (dev/harry -> main).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+MSG
+git log --oneline -2
+echo "=== PR diff now still touch settings.local.json as a +4 modification? ==="
+git diff --name-status origin/main...dev/harry -- .claude/settings.local.json .claude/.gitignore
+```
+
+```
+on-disk settings.local.json preserved ✓
+e3f5b77 chore(.claude): untrack settings.local.json + add .claude/.gitignore
+3cff165 update worklogs
+=== PR diff now still touch settings.local.json as a +4 modification? ===
+A	.claude/.gitignore
+D	.claude/settings.local.json
+```
+
+### 🤖 Assistant: *The PR now \*\*deletes\*\* the tracked `settings…*
+
+`13:52:17`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The PR now **deletes** the tracked `settings.local.json` and **adds** `.claude/.gitignore` (the +4 local-permission modification is gone). Pushing to update PR #104.
+
+#### 💻 Bash: *Push dev/harry to update PR #104*
+
+`13:52:19`
+
+```bash
+$ git push origin dev/harry 2>&1 | tail -3
+```
+
+```
+To github.com:amyteq/tt_pangu.git
+   3cff165..e3f5b77  dev/harry -> dev/harry
+```
+
+### 🤖 Assistant: *Done. PR #104 is updated.*
+
+`13:52:32`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Done. PR #104 is updated.
+> 
+> ## What changed on `dev/harry` (new commit `e3f5b77`, fast-forward — no force-push)
+> - **Untracked `.claude/settings.local.json`** via `git rm --cached` — the working copy is **preserved on disk** (your local Claude Code permissions are unaffected), it's just no longer version-controlled.
+> - **Created `.claude/.gitignore`** with `settings.local.json` so it stays ignored going forward.
+> 
+> ## Effect on PR #104 (`dev/harry → main`)
+> The `settings.local.json` entry changed from a `+4` local-permission **modification** to:
+> - `D .claude/settings.local.json` — removes the machine-local file from the repo (it shouldn't have been tracked on `main`)
+> - `A .claude/.gitignore` — ignores it going forward
+> 
+> The rest of the PR is unchanged (`work/` task+analysis files, `worklogs/` updates, `AGENTS.md` read-first section).
+> 
+> Net result: the local settings file is dropped from the PR and excluded via gitignore, exactly as requested. The PR is still open and **not merged** — let me know if you'd like me to merge it.
+
+### Recap
+
+`13:55:41`
+
+📝 Recap: Goal: land the competition-docs consolidation work. PR #104 (dev/harry → main) is open and updated — settings.local.json untracked and gitignored, work/ and worklogs included. Next action: merge PR #104 when you give the word.
