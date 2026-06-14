@@ -10,7 +10,7 @@ Create a minimal, local-first `kca` CLI skeleton that AI agents can call safely.
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md`
+4. `docs/milestones/README.md`
 5. `docs/tooling/legacy-tool-inventory.md`
 6. `docs/tooling/kca-command-spec.md`
 7. `docs/tooling/kca-side-effect-levels.md`

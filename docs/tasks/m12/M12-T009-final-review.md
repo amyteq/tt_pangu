@@ -6,7 +6,7 @@ M12: live end-to-end hackathon regression on a Devpost-style event.
 ## Goal
 Run the M12 validation matrix; write `docs/milestones/m12/final-review.md`
 mirroring the M9 / M9.4 / M10 layout; update canonical memory
-(`PROJECT_STATE.md`, `README.md`, `docs/milestones.md`,
+(`PROJECT_STATE.md`, `README.md`, `docs/milestones/README.md`,
 `docs/milestones/m12/handoff.md`); commit per-Loop-Prompt; push the
 worktree branch; open the milestone PR against `main`.
 
@@ -19,7 +19,7 @@ Routine. Closeout task.
 ## Read first
 
 1. `PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`
-2. `docs/milestones.md` §M12 (current state — to be marked done)
+2. `docs/milestones/README.md` §M12 (current state — to be marked done)
 3. `docs/milestones/m12/loop-prompts.md` (full milestone scope)
 4. All M12 task closeouts (T000–T008)
 5. `docs/milestones/m9/final-review.md`, `docs/milestones/m9_4/final-review.md`,
@@ -70,7 +70,7 @@ Routine. Closeout task.
      PASS / FAIL / SKIP + evidence link).
    - "Exit criteria" roll-up against the list in
      `docs/milestones/m12/loop-prompts.md` "Required tests / evidence" + the
-     bullets in `docs/milestones.md` §M12.
+     bullets in `docs/milestones/README.md` §M12.
    - "What landed" prose summary (ADR-0018, migration 0009,
      adapter, skill, profiles, UI pages, real Devpost submission
      metadata).
@@ -81,7 +81,7 @@ Routine. Closeout task.
      decisions list; record any new blockers surfaced during M12.
    - `README.md` — bump current-milestone section; reference
      `docs/milestones/m12/final-review.md` if applicable.
-   - `docs/milestones.md` §M12 — mark `✓ done`; add a one-line
+   - `docs/milestones/README.md` §M12 — mark `✓ done`; add a one-line
      shipped summary (date + key artefacts) using the same format
      as §M9 / §M9.4 done-marks.
 4. Write `docs/milestones/m12/handoff.md` using
@@ -124,7 +124,7 @@ Routine. Closeout task.
 
 - `docs/milestones/m12/final-review.md` exists; reports PASS (or PASS-with-SKIP
   for documented exceptions); per-task matrix populated.
-- `PROJECT_STATE.md`, `README.md`, `docs/milestones.md` §M12, and
+- `PROJECT_STATE.md`, `README.md`, `docs/milestones/README.md` §M12, and
   `docs/milestones/m12/handoff.md` updated.
 - One commit per Loop Prompt landed on the worktree branch.
 - Branch pushed to origin.
@@ -141,7 +141,7 @@ Routine. Closeout task.
 ## Permissions
 
 - File writes to: `docs/milestones/m12/final-review.md`, `PROJECT_STATE.md`,
-  `README.md`, `docs/milestones.md` (§M12 done-mark only),
+  `README.md`, `docs/milestones/README.md` (§M12 done-mark only),
   `docs/milestones/m12/handoff.md`.
 - `git add`, `git commit`, `git push` to the worktree branch.
 - `gh pr create`, `gh issue edit`, `gh issue comment` — all
@@ -157,7 +157,7 @@ M12-T009 closeout
   Canonical memory updated:
     - PROJECT_STATE.md: current milestone = M13
     - README.md: bumped
-    - docs/milestones.md §M12: marked ✓ done
+    - docs/milestones/README.md §M12: marked ✓ done
     - docs/milestones/m12/handoff.md: written
   Commits: <N> commits on branch worktree-m12-planning (one per Loop Prompt)
   PR: <gh pr url>

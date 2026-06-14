@@ -17,7 +17,7 @@ green, and the 33 labels from `.github/labels.yml` are synced on `origin`.
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md` §M9
+4. `docs/milestones/README.md` §M9
 5. `docs/engineering-practice.md`
 6. `docs/milestones/m8_5/final-review.md`
 7. `env.example`

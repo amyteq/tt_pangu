@@ -17,7 +17,7 @@ picked slug feeds every later task.
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md` §M12
+4. `docs/milestones/README.md` §M12
 5. `docs/engineering-practice.md`
 6. `docs/milestones/m12/loop-prompts.md` §"M12 at a glance"
 7. `docs/milestones/m9/handoff.md`

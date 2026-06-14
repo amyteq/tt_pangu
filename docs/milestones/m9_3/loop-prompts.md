@@ -21,7 +21,7 @@ M9.3 hardens two specific gaps that surfaced during M7–M9:
    issue/PR/review comments and meeting notes are promoted to canonical
    memory inconsistently. M9.3 ships a `memory-promotion` skill that
    distils evidence into propose-only patches against the four
-   canonical memory files (`PROJECT_STATE.md`, `docs/milestones.md`,
+   canonical memory files (`PROJECT_STATE.md`, `docs/milestones/README.md`,
    `docs/milestones/*/handoff.md`, `docs/adr/`). Human gate is load-bearing.
 
 M9.3 **replaces** the unbuilt `docs/milestones/m9_1/loop-prompts.md` entirely;
@@ -50,7 +50,7 @@ Direct entry into M9.3 is blocked until **all** are true:
 | Real memory-promotion proposal | `docs/proposals/memory-2026-05-26-m10-pr18.md` | T003 |
 | Design-archaeology architecture doc | `docs/architecture/design-archaeology.md` | T003 |
 | M9.1 retirement | `docs/milestones/m9_1/loop-prompts.md` (body rewrite) | T003 |
-| Milestone close (state / handoff / final-review) | `docs/milestones.md`, `PROJECT_STATE.md`, `README.md`, `docs/milestones/m9_3/final-review.md`, `docs/milestones/m9_3/handoff.md` | T003 + `worktree-milestone-pr` |
+| Milestone close (state / handoff / final-review) | `docs/milestones/README.md`, `PROJECT_STATE.md`, `README.md`, `docs/milestones/m9_3/final-review.md`, `docs/milestones/m9_3/handoff.md` | T003 + `worktree-milestone-pr` |
 
 ### What's NOT in scope
 
@@ -68,7 +68,7 @@ Direct entry into M9.3 is blocked until **all** are true:
   read-only).
 - Any new `kca` CLI subcommand.
 - Auto-applying memory patches. T003's milestone-close edits to
-  `PROJECT_STATE.md` / `docs/milestones.md` / `README.md` happen via
+  `PROJECT_STATE.md` / `docs/milestones/README.md` / `README.md` happen via
   the propose-only pathway but are explicitly authorised as the one
   closeout edit; all other canonical-memory edits remain gated on
   a human approving a proposal in `docs/proposals/`.
@@ -133,7 +133,7 @@ Task spec: docs/tasks/m9_3/M9.3-T002-memory-promotion-skill.md
 Read also (background context):
 - M9.3-T001 closeout
 - PROJECT_STATE.md (section layout — the skill targets it)
-- docs/milestones.md, docs/milestones/m9/handoff.md, docs/milestones/m8_5/handoff.md
+- docs/milestones/README.md, docs/milestones/m9/handoff.md, docs/milestones/m8_5/handoff.md
 - docs/adr/0014-ui-stack.md (latest ADR — numbering precedent)
 - .claude/skills/github-issue-triage/SKILL.md + .claude/agents/github-issue-triage.md
 - .claude/skills/inventory-drift-audit/SKILL.md, .claude/skills/pr-closeout-review/SKILL.md
@@ -183,7 +183,7 @@ extraction matrix + ≥ 1 proposed patch + unchecked approval
 checkbox). Write docs/architecture/design-archaeology.md (≤ 100
 lines, cross-links kkr.md). Retire docs/milestones/m9_1/loop-prompts.md (body
 ≤ 30 lines, retirement notice + deferred-scope list). Insert M9.3
-row in docs/milestones.md; append M9.3 to PROJECT_STATE.md Completed
+row in docs/milestones/README.md; append M9.3 to PROJECT_STATE.md Completed
 milestones (only if T001 + T002 PASS); reflect M9.3 in README.md.
 Write docs/milestones/m9_3/final-review.md (mirror M9 / M8.5 layout) and
 docs/milestones/m9_3/handoff.md (mirror M9 handoff). Hand off to
@@ -293,7 +293,7 @@ recorded as a `type:decision` issue with `decision:confirmed` BEFORE
 the corresponding task is promoted to `ai:ready`:
 
 1. **Canonical memory file list.** Confirm the four files named in
-   ADR 0015 (`PROJECT_STATE.md`, `docs/milestones.md`,
+   ADR 0015 (`PROJECT_STATE.md`, `docs/milestones/README.md`,
    `docs/milestones/m{N}/handoff.md`, `docs/adr/NNNN-*.md`) are the
    complete set. If `README.md` or `AGENTS.md` should also be
    canonical, decide now — M9.3 ships with the four-file list and

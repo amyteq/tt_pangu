@@ -26,7 +26,7 @@ Routine. (T001's `arch:` gate already covered this design.)
 ## Read first
 
 1. `PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`
-2. `docs/milestones.md` §M12
+2. `docs/milestones/README.md` §M12
 3. `docs/milestones/m12/loop-prompts.md` Loop Prompt 2
 4. `docs/adr/0018-generalized-competition-type.md` (T001 output)
 5. `docs/adr/0006-configurable-approval-gates.md`

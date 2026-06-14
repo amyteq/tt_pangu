@@ -15,7 +15,7 @@ job is allowed to skip on forks; it must pass on push to main.
 1. `.github/workflows/test.yml`
 2. `pyproject.toml`   (dev extras, entry points)
 3. `python -m pytest tests/ -v --tb=short 2>&1 | tail -40`   (current local state)
-4. `docs/milestones.md`   (M7 section)
+4. `docs/milestones/README.md`   (M7 section)
 
 ## Scope / Files / Implementation guidance
 

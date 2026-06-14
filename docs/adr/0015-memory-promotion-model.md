@@ -34,7 +34,7 @@ The `memory-promotion` skill targets exactly these four:
 
 1. `PROJECT_STATE.md` — current milestone, open decisions, completed
    milestones.
-2. `docs/milestones.md` — milestone roster, scope, dependency order.
+2. `docs/milestones/README.md` — milestone roster, scope, dependency order.
 3. `docs/milestones/m{N}/handoff.md` — per-milestone exit state.
 4. `docs/adr/NNNN-*.md` — long-lived architectural decisions.
 
@@ -72,7 +72,7 @@ user-preference questions.
 ## Consequences
 
 - **Human gate is load-bearing.** Every change to `PROJECT_STATE.md`,
-  `docs/milestones.md`, `docs/milestones/*/handoff.md`, or `docs/adr/**` is now a
+  `docs/milestones/README.md`, `docs/milestones/*/handoff.md`, or `docs/adr/**` is now a
   human-reviewed diff. No skill writes them silently.
 - **`docs/proposals/` is a staging directory**, not canonical memory.
   Files there accumulate until applied or discarded; a periodic
@@ -84,7 +84,7 @@ user-preference questions.
   that may *cite* but not patch canonical memory); `memory-promotion`
   proposes patches against the four canonical files only.
 - **Milestone closeout** stays the conventional channel for
-  PROJECT_STATE.md and docs/milestones.md updates. The `memory-promotion`
+  PROJECT_STATE.md and docs/milestones/README.md updates. The `memory-promotion`
   skill produces proposals that the closeout step applies, rather
   than skipping the proposal step.
 - **The `memory/` auto-memory is sandboxed off.** Users who change

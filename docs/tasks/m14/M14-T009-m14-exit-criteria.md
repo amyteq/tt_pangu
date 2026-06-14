@@ -44,7 +44,7 @@ PASS-WITH-DEVIATION; document it).
    `milestone-final-review` writes `docs/milestones/m14/final-review.md` mirroring
    the M10 / M8.5 layout.
 4. **Source-of-truth updates (protocol §5):** PROJECT_STATE.md, README.md,
-   `docs/milestones.md` (mark M14), `docs/milestones/m14/handoff.md`.
+   `docs/milestones/README.md` (mark M14), `docs/milestones/m14/handoff.md`.
 5. **`worktree-milestone-pr`:** commit per Loop Prompt (T000…T009), push
    the worktree branch, open the M14 PR against `main`.
 
@@ -71,7 +71,7 @@ PASS-WITH-DEVIATION; document it).
 - ALLOWED: `tests/test_m14_*.py`, `.github/workflows/*` (eval-delta-check
   step), `docs/adr/0019-eval-regression-suite.md` (failure_threshold
   addendum), `docs/milestones/m14/final-review.md`, `PROJECT_STATE.md`, `README.md`,
-  `docs/milestones.md`, `docs/milestones/m14/handoff.md`.
+  `docs/milestones/README.md`, `docs/milestones/m14/handoff.md`.
 - FORBIDDEN: new feature code in `tools/kca/` / `src/worker/` (fixes
   route back to the owning task); `gh pr merge`.
 
@@ -101,7 +101,7 @@ M14-T009 closeout
 
 ## Stop condition
 Stop after 60 turns. HALT and ask if:
-- Any M14 exit criterion (per `docs/milestones.md` §M14) is unmet — do
+- Any M14 exit criterion (per `docs/milestones/README.md` §M14) is unmet — do
   NOT fabricate a PASS; record FAIL/SKIP with the reason.
 - `eval-delta-check` cannot reuse the M13 nightly runner without a
   workflow restructure beyond scope — pin the minimal change and confirm.

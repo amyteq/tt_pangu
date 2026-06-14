@@ -14,7 +14,7 @@ text.
 1. `supabase/migrations/0001_init.sql` — current `research_items` columns
 2. `supabase/migrations/0004_m4_competition_repo.sql` — additive ALTER style
 3. `docs/adr/0009-competition-repo-strategy.md` — competition_id linkage
-4. `docs/milestones.md` (M5 section)
+4. `docs/milestones/README.md` (M5 section)
 
 ## Schema additions
 

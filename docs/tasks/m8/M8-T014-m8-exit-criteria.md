@@ -13,7 +13,7 @@ Verify ALL M8 exit criteria. Gate before M8 is declared complete.
 ## Read first
 1. All prior M8 task specs (`docs/tasks/m8/M8-T000` through `M8-T013`).
 2. `docs/milestones/m7/final-review.md` (template).
-3. `docs/milestones.md` (§ Milestone final-review protocol).
+3. `docs/milestones/README.md` (§ Milestone final-review protocol).
 4. `docs/milestones/_templates/handoff-prompt.md` (handoff template).
 
 ## Validation matrix (run each, report PASS / FAIL / SKIP)
@@ -84,15 +84,15 @@ Also update, in order:
 1. `PROJECT_STATE.md` — set current milestone to M9, summarise M8
    deliverables, clear M8 open decisions.
 2. `README.md` — update "Current milestone" from M8 to M9.
-3. `docs/milestones.md` — mark M8 ✓ done with one-line summary; bump
+3. `docs/milestones/README.md` — mark M8 ✓ done with one-line summary; bump
    the header status line (the stale "M6 done, M7 in planning" line
    should already have been fixed during M7 closeout; if not, fix it now).
 4. `docs/milestones/m8/handoff.md` — per-milestone handoff prompt for the
    next AI tool / session that will start M9 (live Kaggle regression test
-   for Spaceship Titanic, per `docs/milestones.md § M9`). Use
+   for Spaceship Titanic, per `docs/milestones/README.md § M9`). Use
    `docs/milestones/_templates/handoff-prompt.md` as the canonical template. Populate:
      - Read-first list (`PROJECT_STATE.md`, `AGENTS.md`, `CLAUDE.md`, M9
-       section of `docs/milestones.md`, `docs/milestones/m8/final-review.md`, latest
+       section of `docs/milestones/README.md`, `docs/milestones/m8/final-review.md`, latest
        ADRs, `docs/architecture/m8-ui-shell.md`,
        `docs/architecture/kca-cli-architecture.md`).
      - "State at M8 exit" (1–3 lines summarising what landed +
@@ -100,14 +100,14 @@ Also update, in order:
      - "Current task" stub for the first M9 task (typically Prompt 0
        of `docs/milestones/m9/loop-prompts.md` once that file exists; if not yet
        written, the first task is to draft it).
-   This step is required by `docs/milestones.md § Milestone final-review
+   This step is required by `docs/milestones/README.md § Milestone final-review
    protocol`; do not skip it.
 
 ## Acceptance criteria
 - Validation matrix above all PASS (or SKIP with documented reason).
 - `docs/milestones/m8/final-review.md` exists and mirrors the m7 layout.
 - `M8 EXIT CRITERIA MET` printed.
-- `PROJECT_STATE.md`, `README.md`, `docs/milestones.md`, and
+- `PROJECT_STATE.md`, `README.md`, `docs/milestones/README.md`, and
   `docs/milestones/m8/handoff.md` updated as listed above.
 
 Report: full matrix, final status.

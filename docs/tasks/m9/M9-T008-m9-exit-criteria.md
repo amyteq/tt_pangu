@@ -37,7 +37,7 @@ This task assumes **M9-T000 through M9-T007 closeouts are all PASS**.
 3. Update `PROJECT_STATE.md` to record M9 completion and point to M10
    (CTF workflow) or the next priority.
 4. Update `README.md` (if it lists current milestones).
-5. Update `docs/milestones.md` if any planned capability changed during
+5. Update `docs/milestones/README.md` if any planned capability changed during
    M9.
 6. Append `docs/milestones/m9/handoff.md` mirroring `m8-handoff.md`.
 7. Call `milestone-final-review` to produce `docs/milestones/m9/final-review.md`.

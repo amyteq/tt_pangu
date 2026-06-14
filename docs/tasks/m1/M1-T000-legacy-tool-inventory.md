@@ -18,7 +18,7 @@ Existing helper scripts and their descriptions have already been placed in:
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md`
+4. `docs/milestones/README.md`
 5. `docs/architecture/model-routing.md`
 6. latest files in `docs/adr/`
 7. `tools/legacy/TOOLS.md`

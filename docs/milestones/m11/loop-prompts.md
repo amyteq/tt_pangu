@@ -127,7 +127,7 @@ Follow: docs/milestone-loop-protocol.md (especially §7 Discovery / Debate Gate)
 Task spec: docs/tasks/m11/M11-T000-discovery-debate-gate.md
 
 Read also (background context):
-- PROJECT_STATE.md, AGENTS.md, CLAUDE.md, docs/milestones.md §M11
+- PROJECT_STATE.md, AGENTS.md, CLAUDE.md, docs/milestones/README.md §M11
 - docs/architecture/discovery-debate-gate.md
 - docs/architecture/design-archaeology.md
 - docs/milestones/m9/handoff.md
@@ -463,11 +463,11 @@ Read also (background context):
 
 Mission (full version in task spec):
 Run the milestone validation matrix (10 checks from
-docs/milestones.md §M11 + the per-task closeout assertions), then
+docs/milestones/README.md §M11 + the per-task closeout assertions), then
 call milestone-final-review to write docs/milestones/m11/final-review.md
 mirroring the M9 / M10 layout. Write docs/architecture/m11-ctf-
 workflow.md if not already drafted. Update PROJECT_STATE.md,
-README.md, and docs/milestones.md §M11 to `✓ done`. Write
+README.md, and docs/milestones/README.md §M11 to `✓ done`. Write
 docs/milestones/m11/handoff.md per docs/milestones/_templates/handoff-prompt.md.
 
 Override note: this is the only Loop Prompt in M11 that calls

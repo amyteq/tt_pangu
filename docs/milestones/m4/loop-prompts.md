@@ -42,7 +42,7 @@ competition repo, implementing the full ADR-0009 competition repo strategy:
 
 ```
 Read the following files before doing anything else:
-1. docs/milestones.md  (M4 section and task table)
+1. docs/milestones/README.md  (M4 section and task table)
 2. docs/milestones/m3/final-review.md  (M3 follow-ups that are M4 scope)
 3. docs/adr/0009-competition-repo-strategy.md  (how platform tools reach competition repo)
 4. docs/tasks/m4/M4-T000-pyproject-kca-entry-point.md

@@ -1,6 +1,6 @@
 # M13 → M14 Handoff Prompt
 
-_Generated 2026-06-09 from `docs/milestones/m13/final-review.md` and `docs/milestones.md` §M11._
+_Generated 2026-06-09 from `docs/milestones/m13/final-review.md` and `docs/milestones/README.md` §M11._
 
 Paste this into a fresh session that is starting **M11 (authorized
 CTF/lab workflow)** — the platform's next pending milestone — or picking
@@ -30,7 +30,7 @@ by user prioritization. M11 and M12 are still planned but not yet started.
 1. `PROJECT_STATE.md` — current state at M13 exit.
 2. `AGENTS.md` — agent contract for this repo.
 3. `CLAUDE.md` — Claude Code project instructions.
-4. `docs/milestones.md` — **especially §M11** (authorized CTF/lab
+4. `docs/milestones/README.md` — **especially §M11** (authorized CTF/lab
    workflow) and the updated §M13 (now ✓ done).
 5. `docs/milestones/m13/final-review.md` — what landed in M13 (34 PASS / 4 SKIP /
    0 FAIL matrix) and the deviation detail.
@@ -169,7 +169,7 @@ remain open — not addressed by M10 or M13.
 
 ## Current task
 
-**Start M11 (authorized CTF/lab workflow).** Per `docs/milestones.md
+**Start M11 (authorized CTF/lab workflow).** Per `docs/milestones/README.md
 §M11`. If `docs/milestones/m11/loop-prompts.md` does not yet exist, the first M11
 task is to **write it** using `docs/milestones/m10/loop-prompts.md` /
 `docs/milestones/m9/loop-prompts.md` as templates, then write the per-Loop-Prompt

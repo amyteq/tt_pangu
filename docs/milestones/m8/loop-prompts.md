@@ -98,7 +98,7 @@ inside the normal sandbox on `localhost:5173`.
 
 ```
 Read:
-1. docs/milestones.md   (M8 section — stack constraints + planned capabilities)
+1. docs/milestones/README.md   (M8 section — stack constraints + planned capabilities)
 2. docs/milestones/m7/handoff.md   (M7 → M8 handoff, M7 follow-ups)
 3. docs/architecture/kca-cli-architecture.md   (the surface M8 calls into)
 4. docs/adr/   (latest ADRs — match style)
@@ -731,7 +731,7 @@ Read:
 3. supabase/migrations/0007_m8_tool_audit.sql   (agent_tool_audit)
 4. tools/kca/decisions.py                       (approve / reject CLI)
 5. tools/kca/agent/permission_policy.py         (decision semantics)
-6. docs/milestones.md   (M8 § Decision-gate UI requirements)
+6. docs/milestones/README.md   (M8 § Decision-gate UI requirements)
 
 Goal: the most important M8 page. A human sees every pending decision,
 approves / rejects / asks-the-agent-to-improve, and the write path goes
@@ -1125,22 +1125,22 @@ Also update, in order:
   1. PROJECT_STATE.md — set current milestone to M9, summarise M8
      deliverables, clear M8 open decisions.
   2. README.md — update "Current milestone" from M8 to M9.
-  3. docs/milestones.md — mark M8 ✓ done with one-line summary; bump
+  3. docs/milestones/README.md — mark M8 ✓ done with one-line summary; bump
      the header status line (the stale "M6 done, M7 in planning" line
      should already have been fixed during M7 closeout; if not, fix it now).
   4. docs/milestones/m8/handoff.md — per-milestone handoff prompt for the
      next AI tool / session that will start M9 (live Kaggle regression test
-     for Spaceship Titanic, per docs/milestones.md § M9). Use
+     for Spaceship Titanic, per docs/milestones/README.md § M9). Use
      docs/milestones/_templates/handoff-prompt.md as the canonical template. Populate:
        - Read-first list (PROJECT_STATE.md, AGENTS.md, CLAUDE.md, M9
-         section of docs/milestones.md, docs/milestones/m8/final-review.md, latest
+         section of docs/milestones/README.md, docs/milestones/m8/final-review.md, latest
          ADRs, docs/architecture/m8-ui-shell.md, docs/architecture/kca-cli-architecture.md).
        - "State at M8 exit" (1–3 lines summarising what landed +
          exit-matrix outcome + M9 follow-ups list).
        - "Current task" stub for the first M9 task (typically Prompt 0
          of docs/milestones/m9/loop-prompts.md once that file exists; if not yet
          written, the first task is to draft it).
-     This step is required by docs/milestones.md § Milestone final-review
+     This step is required by docs/milestones/README.md § Milestone final-review
      protocol; do not skip it.
 
 Do NOT git add or commit unless the human explicitly requests it.
@@ -1233,7 +1233,7 @@ After M8 EXIT CRITERIA MET, before moving to M9:
 - [ ] docs/milestones/m8/final-review.md created with validation matrix.
 - [ ] PROJECT_STATE.md updated: current milestone = M9.
 - [ ] README.md current milestone updated to M9.
-- [ ] docs/milestones.md M8 marked ✓ done; stale "M6 done, M7 in planning"
+- [ ] docs/milestones/README.md M8 marked ✓ done; stale "M6 done, M7 in planning"
       header at line 3 cleared.
 - [ ] docs/milestones/m8/handoff.md written from docs/milestones/_templates/handoff-prompt.md template.
 - [ ] No `SERVICE_ROLE` strings or other secret material in the `ui/` bundle.

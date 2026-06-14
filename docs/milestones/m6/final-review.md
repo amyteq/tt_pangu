@@ -2,7 +2,7 @@
 
 _Branch: `main`._
 
-## Milestone exit (per docs/milestones.md)
+## Milestone exit (per docs/milestones/README.md)
 
 > Multi-agent review + OTEL telemetry + local-model layer. A sync
 > reviewer fires before high-stakes operations (`kaggle_submit`,

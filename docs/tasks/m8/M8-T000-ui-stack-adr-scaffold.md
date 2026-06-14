@@ -12,7 +12,7 @@ Decide and document the UI stack, then scaffold the `ui/` workspace with
 Vite + React + TypeScript + Tailwind + `@supabase/supabase-js`.
 
 ## Read first
-1. `docs/milestones.md` (M8 section — stack constraints + planned capabilities)
+1. `docs/milestones/README.md` (M8 section — stack constraints + planned capabilities)
 2. `docs/milestones/m7/handoff.md` (M7 → M8 handoff, M7 follow-ups)
 3. `docs/architecture/kca-cli-architecture.md` (the surface M8 calls into)
 4. `docs/adr/` (latest ADRs — match style)

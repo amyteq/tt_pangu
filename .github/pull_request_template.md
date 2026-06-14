@@ -27,7 +27,7 @@ Closes #
 ## Docs / inventory impact
 
 - [ ] Updated `docs/` for any behaviour or interface change
-- [ ] Updated `PROJECT_STATE.md` / `docs/milestones.md` if a milestone or status changed
+- [ ] Updated `PROJECT_STATE.md` / `docs/milestones/README.md` if a milestone or status changed
 - [ ] Updated ADR under `docs/adr/` if an architectural decision was made
 - [ ] No doc update needed (explain why)
 

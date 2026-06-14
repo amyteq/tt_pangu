@@ -2,7 +2,7 @@
 
 _Branch: `worktree-m14-goal-loop`. Date: 2026-06-10._
 
-## Milestone exit (per docs/milestones.md §M14)
+## Milestone exit (per docs/milestones/README.md §M14)
 
 > Goal: lift the platform from M10's single-shot, human-approved push into a
 > goal-tracking loop. Declare a target up front, fan out candidate experiments
@@ -59,7 +59,7 @@ inserted-then-cleaned-up.
 | 21 | D — `ruff check .` clean | PASS | "All checks passed!" |
 | 22 | D — `ruff format --check .` clean | PASS | "139 files already formatted" (3 M14 test files auto-formatted during this task). |
 | 23 | T008 — live end-to-end records ≥ 2 LB scores under the goal loop | PASS-WITH-DEVIATION | 2 real kernel pushes executed (gate fired, poller watched both to terminal, per-push audit rows written), but **0 new LB scores**: push≠submit gap (#77) + push #2 alt-backbone kernel errored on a missing data mount. Best-known LB stays M10's 0.76505. See "Deviations" §1. |
-| 24 | D — source of truth updated (PROJECT_STATE / README / milestones / handoffs) | PASS | This review + `PROJECT_STATE.md`, `README.md`, `docs/milestones.md §M14`, `docs/milestones/m14/handoff.md`. |
+| 24 | D — source of truth updated (PROJECT_STATE / README / milestones / handoffs) | PASS | This review + `PROJECT_STATE.md`, `README.md`, `docs/milestones/README.md §M14`, `docs/milestones/m14/handoff.md`. |
 
 **Tally: 21 PASS / 3 SKIP / 0 FAIL** for the offline-verifiable checks
 (rows 1–19, 21–22, 24). Rows 20 and 23 are PASS-with-note /

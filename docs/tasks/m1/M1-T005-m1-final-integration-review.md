@@ -10,7 +10,7 @@ Review the full M1 implementation, run smoke tests, ensure docs match behavior, 
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md`
+4. `docs/milestones/README.md`
 5. all `docs/tasks/m1/M1-*.md`
 6. `docs/tooling/*.md`
 7. `tools/kca/`

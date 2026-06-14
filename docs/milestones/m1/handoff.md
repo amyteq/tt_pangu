@@ -1,6 +1,6 @@
 # M1 → M2 Handoff Prompt
 
-_Backfilled 2026-05-22 from `docs/milestones.md` (M1 section) and `docs/milestones/m1/loop-prompts.md`. M1 predates the `docs/m{x}-final-review.md` convention; there is no M1 final-review file._
+_Backfilled 2026-05-22 from `docs/milestones/README.md` (M1 section) and `docs/milestones/m1/loop-prompts.md`. M1 predates the `docs/m{x}-final-review.md` convention; there is no M1 final-review file._
 
 Paste this into a fresh Claude Code / Codex / ChatGPT session that is starting **M2 (Supabase / control plane foundation)** work.
 
@@ -15,7 +15,7 @@ You are working on the `tt_pangu` / `kaggle-code-agent` repository — a hybrid 
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md` — especially the **M2** section.
+4. `docs/milestones/README.md` — especially the **M2** section.
 5. `docs/milestones/m1/loop-prompts.md` — what M1 actually built and which conventions it
    set (skill naming, `kca` CLI shape, side-effect levels, `runs/<competition>/<run_id>/`
    artifact layout).
@@ -56,7 +56,7 @@ Start with the first task of M2 (Supabase / control plane foundation). Define
 the schema and data model that supports MVP-1 artifacts and future worker
 jobs; bring up a local Supabase stack and let a local/dev worker record run
 events to it without needing a product UI. Pick the first task from
-`docs/milestones.md` § M2 and confirm the plan with the human before writing
+`docs/milestones/README.md` § M2 and confirm the plan with the human before writing
 migrations.
 
 ## Return

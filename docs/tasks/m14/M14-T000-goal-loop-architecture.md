@@ -24,7 +24,7 @@ discovery only.
 
 ## Read first
 
-1. `docs/milestones.md` §M14
+1. `docs/milestones/README.md` §M14
 2. `docs/milestone-loop-protocol.md` §7 (Discovery / Debate Gate)
 3. `docs/architecture/discovery-debate-gate.md` (canonical acceptance lines)
 4. `.claude/agents/requirements-skeptic.md`

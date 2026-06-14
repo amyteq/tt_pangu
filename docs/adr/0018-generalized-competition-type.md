@@ -22,7 +22,7 @@ Accepted (M12-T001, 2026-06-09).
 
 ## Context
 
-`docs/milestones.md` §M12 commits the platform to validating a non-Kaggle
+`docs/milestones/README.md` §M12 commits the platform to validating a non-Kaggle
 hackathon-submission path (Devpost) on the picked target `h01`
 (docs/evidence/m12/t000-candidates.md:14). M11 will reuse the same
 `competitions` surface for CTF challenges. M9 and M10 already established

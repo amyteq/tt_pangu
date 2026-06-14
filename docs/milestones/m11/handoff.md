@@ -1,6 +1,6 @@
 # M11 → M12 Handoff Prompt
 
-_Generated 2026-06-09 from `docs/milestones/m11/final-review.md` and `docs/milestones.md` §M11._
+_Generated 2026-06-09 from `docs/milestones/m11/final-review.md` and `docs/milestones/README.md` §M11._
 _M11 status: PARTIAL — T000–T006 + T008 done; T007 deferred pending human-supplied live-event credentials + approval comment._
 
 Paste this into a fresh session that is starting **M12 (Devpost / hackathon workflow)**
@@ -31,7 +31,7 @@ credentials and `decision:confirmed` on the closing issue.
 1. `PROJECT_STATE.md` — current state at M11 partial exit.
 2. `AGENTS.md` — agent contract for this repo.
 3. `CLAUDE.md` — Claude Code project instructions.
-4. `docs/milestones.md` — M11 (partial landed deliverables + follow-up list) + M12 section.
+4. `docs/milestones/README.md` — M11 (partial landed deliverables + follow-up list) + M12 section.
 5. `docs/milestones/m11/final-review.md` — 23 PASS / 1 SKIP-BLOCKED / 0 FAIL validation matrix; all seven M11 follow-ups A–G.
 6. `docs/architecture/m11-ctf-workflow.md` — 7-section CTF workflow architecture.
 7. `docs/adr/0016-ctf-data-model.md` — CTF DB table shape.
@@ -104,7 +104,7 @@ flag recovered. Halted cleanly without attempting any submission.
 - `.claude/settings.json`, `.claude/settings.local.json`, `.claude/hooks/guard_tool.py`, `.claude/skills/ctf-sandbox/SKILL.md` (updated)
 - `docs/architecture/m11-ctf-workflow.md`
 - `docs/milestones/m11/final-review.md`, `docs/milestones/m11/handoff.md` (this file)
-- `PROJECT_STATE.md`, `README.md`, `docs/milestones.md`, `docs/tasks/README.md` (updated)
+- `PROJECT_STATE.md`, `README.md`, `docs/milestones/README.md`, `docs/tasks/README.md` (updated)
 
 ## Cross-cutting follow-ups from M11 (file as GitHub issues)
 

@@ -11,7 +11,7 @@ Implement `tools/kca/agent/skill_loader.py` — reads `.kca/skills/<name>/SKILL.
 parses YAML frontmatter, performs `$arg` substitution.
 
 ## Read first
-1. `docs/milestones.md`   (M7 section — four-layer model + skill format)
+1. `docs/milestones/README.md`   (M7 section — four-layer model + skill format)
 2. `docs/meeting-notes/2026-05-21-r1.md`   (§1–3: skill YAML frontmatter design)
 3. `tools/kca/kca.py`   (current subcommand registration pattern)
 4. `src/worker/_types.py`   (JobPolicy shape, for approval-policy integration)

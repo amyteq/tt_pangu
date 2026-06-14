@@ -112,7 +112,7 @@ Source of truth:
 - PROJECT_STATE.md
 - AGENTS.md
 - CLAUDE.md
-- docs/milestones.md
+- docs/milestones/README.md
 - docs/milestones/m8/final-review.md
 - .github/workflows/test.yml
 - temp/ui-build-lint.log
@@ -235,7 +235,7 @@ Source of truth:
 - PROJECT_STATE.md
 - AGENTS.md
 - CLAUDE.md
-- docs/milestones.md
+- docs/milestones/README.md
 - temp/engineering_practice_summary.md
 - temp/engineering_practice_details.md
 - .github/workflows/claude.yml
@@ -413,7 +413,7 @@ Read first:
 - PROJECT_STATE.md
 - AGENTS.md
 - CLAUDE.md
-- docs/milestones.md
+- docs/milestones/README.md
 - docs/milestones/m8/final-review.md
 - docs/milestones/m8/handoff.md
 - docs/engineering-practice.md
@@ -527,7 +527,7 @@ Read:
 - PROJECT_STATE.md
 - AGENTS.md
 - CLAUDE.md
-- docs/milestones.md
+- docs/milestones/README.md
 - docs/milestones/m8/final-review.md
 - .github/workflows/test.yml
 - .github/workflows/claude.yml

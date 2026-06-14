@@ -3,7 +3,7 @@
 _Branch: `main` (no worktree — direct execution per user preference)._
 _Date: 2026-05-24._
 
-## Milestone exit (per docs/milestones.md M9 + docs/milestones/m9/loop-prompts.md)
+## Milestone exit (per docs/milestones/README.md M9 + docs/milestones/m9/loop-prompts.md)
 
 > Validate the full platform loop with a real Kaggle submission for
 > Spaceship Titanic (binary classification, public leaderboard, no cash
@@ -252,7 +252,7 @@ post-merge. Summary:
 Additional M10 entry-point note:
 
 - **First M10 task: authorized CTF/lab workflow.** Per
-  `docs/milestones.md § M10`. CTF scope (challenge metadata + container
+  `docs/milestones/README.md § M10`. CTF scope (challenge metadata + container
   lab + writeup) is now unblocked since M9 closed.
 
 ## Files of interest (one-line each)
@@ -277,4 +277,4 @@ Additional M10 entry-point note:
 - `docs/milestones/m9/handoff.md` — M9 → M10 handoff with follow-ups A–E.
 - `PROJECT_STATE.md` — updated to M9 complete / M10 next.
 - `README.md` — current milestone pointer updated.
-- `docs/milestones.md` — M9 marked done with LB and CV snapshot.
+- `docs/milestones/README.md` — M9 marked done with LB and CV snapshot.

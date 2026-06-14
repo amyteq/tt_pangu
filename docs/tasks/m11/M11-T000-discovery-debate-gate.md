@@ -22,7 +22,7 @@ downstream M11 work.
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md` §M11
+4. `docs/milestones/README.md` §M11
 5. `docs/architecture/discovery-debate-gate.md` — verbatim acceptance lines
 6. `docs/architecture/design-archaeology.md`
 7. `docs/milestone-loop-protocol.md` §7

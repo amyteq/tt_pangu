@@ -19,7 +19,7 @@ is honoured here too.
 1. `PROJECT_STATE.md`
 2. `AGENTS.md`
 3. `CLAUDE.md`
-4. `docs/milestones.md` §M10
+4. `docs/milestones/README.md` §M10
 5. `docs/engineering-practice.md`
 6. `docs/milestones/m9/final-review.md` (M9-T000 deviation)
 7. `docs/milestones/m9/handoff.md`
