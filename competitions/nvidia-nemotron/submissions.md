@@ -19,8 +19,7 @@
 
 ## Kernel push status
 - All listed kernels were pushed and evaluated (LB returned). v15 (`nemo-synth-v15`) was the last run (2026-06-14).
-- ⚠ No live Kaggle status refresh performed in this consolidation (read-only Kaggle queries require credentials,
-  which are forbidden to read). Status above reflects issue #86 evidence current to 2026-06-14 ~05:00 UTC.
+- ⚠ No live Kaggle status refresh performed in this consolidation. Read-only refresh is now **authorized** (creds in `.vscode/.env.harry`, `.vscode/.env.may`); pending follow-up to fill in submission IDs / private LB (read-only only — no submit/push/upload). Status above reflects issue #86 evidence current to 2026-06-14 ~05:00 UTC.
 
 ## Submission checklist
 - [ ] local validation passed (validate_kernel.py + fail-fast preflight)
