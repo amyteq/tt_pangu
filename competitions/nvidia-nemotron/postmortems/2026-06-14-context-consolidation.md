@@ -1,44 +1,50 @@
 # Postmortem: context consolidation (nemo, 2026-06-14)
 
-> KCT-001 整理时,从仓库笔记重建 nemo 上下文的快照。只记录有证据的内容,缺口显式标注。
+> KCT-002: consolidated the long issue-#86 tracking context into English canonical docs under
+> `competitions/nvidia-nemotron/`. Builds on KCT-001 (PR #100). Chinese originals preserved as `_zh` sidecars.
 
 ## Sources read
-- `competitions/nvidia-nemotron/experiments/kernel/README.md`(配方、坑、score 进度)
-- `worklogs/nemo.md`、`worklogs/nemo2.md`(中文策略 hub;2026-06-12 快照 + D1–D7)
-- 各 `kernels/*/kernel-metadata.json`、`experiments/synth/nemo_synth_gen.py`、`experiments/merge/svd_merge.py`
-- PR #90 / #94 / #95(合并说明)
+- GitHub issue **#86** (body + 5 comments; Chinese strategy/tracking hub) — primary.
+- `work/00.nemo.md` (ChatGPT competition analysis, zh); `work/00.nemotron_3_versions.zip` (3 ChatGPT scripts, names only).
+- `worklogs/nemo.md`, `worklogs/nemo2.md`; `experiments/kernel/README.md`; PRs #90/#94/#95.
 
 ## Key facts recovered
-- 赛制:提交 **rank≤32 LoRA adapter**(基模 Nemotron-3-Nano-30B-A3B,Mamba+MoE);评测端 greedy
-  `max_tokens=7680, temp=0`;提取 `\boxed{}` 比对(精确或数值 1e-2);指标 **accuracy**;9 类推理题;
-  train ~9500 行;测试集隐藏;每队 **5 次/天**;**deadline 2026-06-15 23:59 UTC**。
-- LB 进度:base ~0.47 → v5 0.61 → v7 0.65(06-12 前最佳)→ v14 replay **~0.85**(PR #95 描述);榜首 ~0.89。
-- 双账号:harrysun2006 / firefly2006(B 方向并行)。
+- Submit rank≤32 LoRA adapter (Nemotron-3-Nano-30B-A3B, Mamba+MoE); greedy `max_tokens=7680, temp=0`;
+  extract `\boxed{}` (exact or numeric 1e-2); metric accuracy; 9 reasoning categories; train ~9500; hidden test.
+- Deadline 2026-06-15 23:59 UTC; 5 submissions/team/day; top ~0.89; base ~0.47.
+- LB progression: v5 0.61 → v7 0.65 → ctx4k 0.67 → v10 0.59 → **v14 replay 0.85 (best)** → T7 merge 0.82 → v15 synth 0.84.
 
 ## Decisions recovered
-- D1 B 方向提交授权 ✅;D2 v11 自蒸馏 GPU 预算 ✅;D3 SVD merge 仅限**自训** adapter ✅;
-  D4 Unsloth 路线优先级 ✅;D5 外部 GPU 选型(#83)✅;D6 #85 YAML/user-pool **赛后再做** ✅;
-  D7 inline 更新机制 ✅。(详见 `worklogs/nemo2.md` 表1)
+- D1–D9 all confirmed 2026-06-12 (see `tracking.md` Table 1). Merge scope = own adapters only (D3); #85 tooling post-comp (D6); seq8192 + ≤8h guard (D9).
+- Closing recommendation (comment 4): **hold 0.85**.
 
 ## Open blockers
-- cryptarithm 类正确率偏低(瓶颈,论坛 0.86→0.89 杠杆)。
-- deadline 迫近(06-15);每日提交额度有限。
+- 0.85 appears to be the ceiling with current levers; beating it likely needs undisclosed top-tier tricks.
 
 ## Active tasks recovered
-- v15(cryptarithm-weighted synth)线上分回收;截止前用满双账号额度;t7 SVD merge 对照(可选)。
+- Hold 0.85 to deadline; optional half-dose cryptarithm-only synth (user-decides).
 
 ## Known submissions/results recovered
-- 见 `submissions.md`(identity 0.47 / v5 0.61 / v7 0.65 有证据;v10/v14/v15/t7 部分 LB 待回填)。
+- See `submissions.md` / `tracking.md` (kernel push + LB table). Private LB `unknown`.
 
 ## Bugs recovered
-- 见 `bugs.md`(ptxas-blackwell、数据 glob、BatchEncoding `.shape`、prompt+padding loss、F821/`.shape` 预检、cryptarithm 弱)。
+- See `bugs.md` (ctx2k truncation, v6 masking, BatchEncoding fail-fast, eval truncation T13, ptxas, data glob, timeout, cryptarithm single≠total).
 
 ## Reusable insights
-- response-only masking 是 CoT SFT 关键;CoT 中间值预计算;push 前 lint + 单样本预检(见 `insights.md`、`_shared/`)。
+- Faithful public-recipe replay is the dominant lever; augmentations dilute it; eval harness must mirror the
+  official metric; push-time lint + fail-fast preflight. See `insights.md` / `_shared/`.
+
+## Chinese→English translations performed
+- Issue #86 Tables 1–3 (D1–D9, T1–T13, References) → `tracking.md` (EN). Comments 2/4 key conclusions → EN in `tracking.md`/`strategy.md`/`insights.md`.
+- Interim Chinese KCT-001 docs (README/rules/strategy/tasks/submissions/bugs/references/insights) → rewritten English canonical.
+
+## _zh sidecars created
+- `tracking_zh.md` (verbatim issue #86 body, Chinese 3 tables), `notes_zh.md` (zh source pointers + key comment excerpts).
 
 ## Uncertain or missing context
-- v14 / v15 / t7 的确切公开/私有 LB(v14 ~0.85 来自 PR 描述;v15 running)。
-- 精确 train 行数;nemo 追踪 issue 号(本任务未联网核实)。
+- Private LB; exact submission IDs; exact train row count; `test.csv`=first-3-train claim (as reported).
+- No live Kaggle status refresh (read-only queries need credentials, forbidden to read).
 
 ## Proposed follow-up issues
-- 「nemo 截止后归档」:回填 submissions.md 全部 CV/LB,补 final postmortem。
+- "nemo: post-deadline archival" (finalize LB/CV + private LB + final postmortem; status → archived).
+- "nemo: port official metric + min-logprob hard-val set (T12)".
