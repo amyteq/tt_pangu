@@ -1,42 +1,51 @@
-# Postmortem: context consolidation (orbit-wars, 2026-06-14)
+# Postmortem: context consolidation (orbit-wars, KCT-003, 2026-06-14)
 
-> KCT-001 整理时,从仓库笔记重建 orbit-wars 上下文的快照。完整细节见同目录 `../README.md`(详细日志)。
+> KCT-003: consolidated the long issue-#87 tracking context into English canonical docs under
+> `competitions/orbit-wars/`. Builds on KCT-001. Chinese originals preserved as `_zh` sidecars.
+> The original KCT-001 postmortem is preserved (English) in
+> [`2026-06-14-kct-001-initial-consolidation.md`](./2026-06-14-kct-001-initial-consolidation.md).
 
 ## Sources read
-- `competitions/orbit-wars/README.md`(详细日志:版本史、设计研究、dead-ends)
-- `competitions/orbit-wars/EPISODES.md`、`LEAGUE.md`、`VALIDATION.md`
-- `competitions/orbit-wars/agent/versions/v4.py`(v4 Scheduler 头注释)
-- `worklogs/orbit.md`、`worklogs/orbit2.md`(中文三表 hub)
-- GitHub issue #87、PR #92(本任务未联网核实正文)
+- GitHub issue **#87** (body + 15 comments; Chinese strategy/tracking hub) — primary.
+- `work/00.orbit.md` (A1/A2 analysis, zh); `competitions/orbit-wars/README.md` / `EPISODES.md` / `LEAGUE.md` / `VALIDATION.md`.
+- `worklogs/orbit.md`, `worklogs/orbit2.md`; PRs #80 / #89 / #92.
 
 ## Key facts recovered
-- Kaggle Orbit Wars(id 138420,$50,000 Featured,~4137 teams,deadline 2026-06-23)。
-- 天梯 **1v1**,μ0=600,配对 μ 更新;每天 5 次提交,保留最新 2 个。
-- 引擎纯 Python CPU-bound;评测端 torch 实证可用。
+- $50,000 Featured; 1v1 μ-ladder (μ0=600, pairwise update); deadline 2026-06-15→**2026-06-23**; 5/day, latest-2 scored;
+  id 138420. Engine pure-Python CPU-bound (GPU useless); torch usable eval-side.
 
 ## Decisions recovered
-- 接受**双轨拆分**(2026-06-10):kuni05(~1137,attributed)为竞争条目 + 自研 Forecast 线。
-- 方向 **D1=C**(低成本继续);提交位策略待 deadline 前最后窗口定(D2)。
-- 一切改动用 `arena/suite_gate.py` 套件门控,不用自博弈。
+- D1–D5 confirmed 2026-06-12: D1=C; D2 freeze best-2 in last 3 days; D3 snorlax compute; D4 RL/distill via T10 gate; D5 inline marks.
 
 ## Open blockers
-- 硬 cliff:对强档(evogen 1093 / multifocus / kuni05 1240)0-15%;5 个增量杠杆全不过。
+- Strong-tier cliff (0–15% vs evogen/multifocus/kuni05); 7 single-mechanism levers failed; v4 at parity not yet ahead.
 
 ## Active tasks recovered
-- v4 Scheduler 集合规划对套件门控,争取首个 >0% vs evogen1093;再决定是否换提交位。
+- v4 Scheduler next cut (counter-attack window / cluster hammer / FM3 opponent-response); D2 final-2 freeze; T1 replay mining.
 
-## Known submissions/results recovered
-- adapted-kuni05 ~1137(↑);Forecast v3 ~686;v2.1 556(退役)。LB 头部 ~1713,top-10 ~1500-1600。
-  详见 `submissions.md` / `LEAGUE.md`。
+## Known submissions/results recovered (read-only refresh 2026-06-14)
+- harrysun2006 latest-2: adapted-kuni05 1085.4 + v3.2 660.0; retired peaks kuni05 1151.0, v3 686.1, v2.1 555.8.
+- firefly2006 latest-2: v3_2_coarr 648.8 + v3.2 636.7. Leaderboard top ~1746. Private LB not released. See `submissions.md`.
 
 ## Bugs recovered
-- 见 `bugs.md`(自博弈不预测天梯、mirror 非 50% 基准、终局差分价值、崩溃安全、强档 cliff)。
+- See `bugs.md` (self-play≠ladder, mirror null, terminal differential value, crash-safe, strong-tier cliff, BC shift, OMP threads, v4 iter1 shutter-crash).
 
 ## Reusable insights
-- 离线 gate 必须对齐线上指标;强档靠一体化系统(见 `insights.md`、`_shared/`)。
+- Ladder-predictive suite (not self-play); powered paired-seed A/B + bake gate; imitation ≠ playing; parallel CPU arena. See `insights.md` / `_shared/`.
+
+## Chinese→English translations performed
+- Issue #87 tables (D1–D5, T1–T14, §9, levers, agent-evolution) → `tracking.md` (EN). Key conclusions → EN in `tracking.md`/`strategy.md`/`insights.md`.
+- Interim Chinese KCT-001 docs (rules/strategy/tasks/submissions/bugs/references/insights/postmortem) → rewritten English canonical (README kept; compact current-status block prepended).
+
+## _zh sidecars created
+- `tracking_zh.md` (verbatim issue #87 body, Chinese tables), `notes_zh.md` (zh source pointers + key excerpts).
+
+## Kaggle read-only status commands run
+- `kaggle competitions submissions orbit-wars` (harrysun2006 + firefly2006) and `kaggle competitions leaderboard orbit-wars --show`
+  (creds read-for-use only, never printed). No submit/push/dataset.
 
 ## Uncertain or missing context
-- 私有/最终榜 μ 细节;v4 最新套件门控数值(以 `worklogs/orbit2.md` / issue #87 最新为准)。
+- Private/final-ladder μ (not released); exact submission IDs (API exposes none — date+description is the key).
 
 ## Proposed follow-up issues
-- 「orbit-wars: v4 套件门控结果 + 提交位决策(deadline 06-23)」(见 `tasks.md`)。
+- "orbit-wars: last-3-days final-2 freeze + post-deadline archival" (record final submitted 2/account; backfill final ladder + private LB; status → archived).

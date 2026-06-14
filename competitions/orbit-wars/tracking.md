@@ -1,0 +1,101 @@
+# Tracking — Orbit Wars
+
+> English consolidation of GitHub issue **#87** ("[Orbit Wars] 长期跟踪与策略讨论"). Original Chinese tables
+> preserved verbatim in [`tracking_zh.md`](./tracking_zh.md). Future status updates live here, not in issue #87.
+> `unknown` = not in available evidence.
+
+## Current snapshot
+- **$50,000 Featured, 1v1 μ-ladder, deadline 2026-06-23** (final eval ~2 weeks after); id 138420; 5/day, latest-2 scored.
+- Direction **D1 = C** (low-cost continue). Incremental path largely exhausted (7 single-mechanism levers failed);
+  strong tier wins as integrated systems.
+- **Ladder (refreshed 2026-06-14, read-only Kaggle):**
+  - harrysun2006 latest-2: adapted-kuni05 (attributed) **1085.4** + v3.2 **660.0**
+  - firefly2006 (may) latest-2: v3_2_coarr **648.8** + v3.2 **636.7**
+  - retired peaks: adapted-kuni05 **1151.0**, Forecast v3 686.1, v2.1 555.8
+- **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
+  (evogen 1093 / multifocus / kuni05 1240).
+
+## Preserved issue tracking tables (translated → English)
+
+### Open Discussions (all confirmed 2026-06-12)
+| ID | Topic | Decision |
+|---|---|---|
+| D1 | Overall direction | ✅ **C** — low-cost continue (replay mining + suite param optimization) |
+| D2 | Submission-slot strategy | ✅ submit locally-validated improvements; freeze + re-submit best-2 in the last 3 days |
+| D3 | Compute | ✅ snorlax (RTX 4090, 24-core) for large sweeps; SSH verified (PR #89) |
+| D4 | RL/distillation route | ✅ try on snorlax; submit only if it beats incumbent via the T10 gate → T12 |
+| D5 | Comment-marking permission | ✅ allowed (inline marks) |
+
+### TODO / Plan (T1–T14)
+| ID | Task | Status | Evidence |
+|---|---|---|---|
+| T1 | Replay mining (public episode dataset → heuristic params) | 📋 queued | issue #87 |
+| T2 | Suite systematic param optimization (`OW_*`) | ✅ **R2 positive → t14 baked as v3.2 (+7pt)**; 6/6 VALIDATION | issue #87; `sweep_opt.py` |
+| T4 | Endgame + Comet module | 📋 queued | issue #87 |
+| T5 | Ladder monitoring + status-table upkeep | 🟢 ongoing | issue #87 |
+| T6 | Confirm eval-side torch usable | ✅ done (kuni05 torch ~1137/1151) | issue #87 |
+| T7 | 2p/4p split strategy | ❌ rejected (ladder is 1v1; 4p = robustness only) | issue #87 |
+| T8 | True co-arrival (synchronized arrival) | ✅ real but +3pt (evogen layer only; 0 vs strong tier) → default OFF (`OW_COARRIVAL`) | issue #87 |
+| T9 | §7 architecture → v4 "Scheduler" (hub-and-hammer; merges T13) | 🟢 platform built; **parity with v3.2 (49.3%)**, iterating | issue #87; PR #92 |
+| T10 | Local validation checklist (`VALIDATION.md`) | 🟢 ongoing (must pass arena gates before submit) | `VALIDATION.md` |
+| T11 | Dynamic defense reserve (ledger constraint) | ❌ no-op (constraint never triggers) | issue #87 |
+| T12 | RL/distillation (BC kuni05/top-6 → policy net) | 🟢 background — v0/v1/v2: high imitation, ~0% arena (BC shift) | issue #87 |
+| T13 | Dynamic strategy ID & counter | 🟢 merged into v4 (posture v1 ❌; counter-attack window → v4) | issue #87 |
+| T14 | Short-hop supply chain | ❌ no gain (mechanical forwarding) | issue #87 |
+
+### §9 priority completion (ChatGPT framework)
+| Item | Completion | Gap |
+|---|---|---|
+| 1. Exact geometry + ETA | ~85% | sun-avoidance waypoint routing; comet trajectory |
+| 2. Dynamic defense reserve | ~70% | unified ThreatLedger timeline → v4 |
+| 3. ROI expansion | ~90% | opening-sequence (salvo failed) |
+| 4. Synchronized attack | ~80% (done) | replay correction: single-strike scale > sync form |
+| 5. 2p/4p split | N/A | ladder is 1v1 only |
+| 6. Large-sample local validation | ~80% | tactical event logging; 500+/config routine |
+| 7. Lightweight fast online code | ~95% | basically none (single-file, ~4 ms/turn) |
+
+### Levers (suite-gated results)
+| Lever | Status | Result |
+|---|---|---|
+| Forward-sim differential value (v3) | ✅ kept | only big gain (556→686) |
+| Phase-scaled in-flight cap (v2.1) | ◻︎ neutral | ~tie (harmless) |
+| Defense reinforcement (v3.1) | ◻︎ self-play only | 0 suite gain |
+| Consolidation / safe_drain / multi-source salvo / opening planner / PROJ_H scan / OW_* random | ❌ rejected | no gain or regression |
+| OVERKILL multiplier | ❌ | monotonic negative |
+| co-arrival (T8) | ◻︎ OFF | +3pt evogen layer only; on-ladder +~12 (may) |
+
+## Agent / idea progress
+- **Done & scored:** v1 → v2 → v2.1 (556) → v3 Forecast (686) → v3.1 → **v3.2 (660 current)** → v4 Scheduler (parity).
+- **Two-track:** attributed adapted-kuni05 (1151 peak / 1085 current) as competitive entry + own Forecast line.
+- **Closed routes:** 7 single-mechanism levers; BC distillation (high imitation, 0% arena).
+
+## Local arena / evaluation status
+- Parallel arena (`arena/pool.py`, ~30–40×, deterministic, 2p+4p); paired-seed A/B; **ladder-predictive suite gate**.
+- Protocol: ≥150 paired seeds (±3.5pt) + ±7pt bake gate; `VALIDATION.md` 6 gates (crash 0 / weak-tier pass /
+  4p avg_rank 1.01 / p99 8.3 ms / single-file). v3.2 passed 6/6.
+
+## Kernel push / submission status
+- Submission mode = **agent file** (no Kaggle kernel for this competition). All listed submissions `COMPLETE`.
+- ⚠ **Refreshed 2026-06-14** via read-only Kaggle API (`kaggle competitions submissions`, both accounts). See `submissions.md`.
+
+## Leaderboard / ladder status
+- harrysun2006 latest-2: kuni05 **1085.4**, v3.2 **660.0**. firefly2006 latest-2: v3_2_coarr **648.8**, v3.2 **636.7**.
+- Leaderboard top **~1746** (Isaiah @ Tufa Labs 1745.9, Jake Will 1740.8). Private LB `unknown` (not released).
+
+## Version map
+| Ladder μ | Version | Summary |
+|---:|---|---|
+| 279.0 / 385.3 | Value-targeting | first agents |
+| 538.3 | Interceptor v2 | orbital lead + threat reserve |
+| 555.8 | v2.1 | intercept economist + phase-scaled cap + frontier garrison |
+| 686.1 | **v3 Forecast** | **bit-exact forward sim + terminal differential net-ship value (own peak)** |
+| ≈v3 | v3.1 | + sim-driven defense (self-play only) |
+| 660.0 | **v3.2** | t14-tuned (H26/FF5/FD20/CE3.2/CL1.3); +7pt vs evogen; 6/6 gates (current own entry) |
+| 648.8 | v3_2_coarr | v3.2 + co-arrival ON (may account; on-ladder +~12 vs v3.2) |
+| parity | v4 Scheduler | hub-and-hammer integrated rewrite (≈v3.2, iterating) |
+| 1151.0 / 1085.4 | adapted-kuni05 | attributed public agent; competitive entry (peak / current) |
+
+## Evidence links
+- GitHub issue #87 (body + 15 comments) — original hub. `tracking_zh.md` — original Chinese verbatim.
+- `README.md` (detailed log), `EPISODES.md`, `LEAGUE.md`, `VALIDATION.md`; `worklogs/orbit.md`, `worklogs/orbit2.md`.
+- `work/00.orbit.md` (A1/A2 analysis); `notes_zh.md` (EN digest). PRs #80 / #89 / #92.

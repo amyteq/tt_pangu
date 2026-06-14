@@ -1,29 +1,31 @@
 slug: orbit-wars
 kaggle_slug: orbit-wars
 title: Orbit Wars
+aliases: [orbit, "orbit wars"]
+tracking_issue: 87               # GitHub issue #87 (historical hub; future updates live here)
 status: active
 phase: iteration
 competition_type: simulation_agent
 metric: skill-rating (μ) ladder, 1v1 (2-player), μ0=600, pairwise win/loss μ update
-deadline: 2026-06-23           # final eval ~2 weeks after
+deadline: 2026-06-23             # final eval ~2 weeks after
+prize: "$50,000 Featured"
+competition_id: 138420
 primary_artifact: agent
-submission_mode: agent          # single-file agent on kaggle_environments; <=5/day, latest 2 tracked
-data_policy: generated          # self-play / public-agent suite on the kaggle_environments engine
-last_updated: 2026-06-14
+submission_mode: agent           # single-file agent (or tar.gz) on kaggle_environments; <=5/day, latest 2 scored
+data_policy: generated           # self-play + public-agent suite on the engine; public episode dataset for replay mining
+last_updated: 2026-06-14         # ladder confirmed via read-only Kaggle API refresh 2026-06-14
 best:
   cv_metric: suite-average win% (ladder-predictive opponent suite)
-  cv_score: 0.548               # v2.1 suite-avg; suite-avg ~54% maps to ladder ~556-690 (our line)
-  public_lb: 1137               # adapted-kuni05 (attributed competitive entry); own Forecast v3 ~686
-  private_lb: null
-  submission_id: null
-current_blocker: "硬 cliff:对强档(evogen 1093 / multifocus / kuni05 1240)仅 0-15%;5 个增量杠杆全部不过"
-next_task: "D1=C 低成本继续;v4 Scheduler(set planner)对套件门控,争取首个 >0% vs evogen1093"
+  cv_score: 0.548                # v2.1 suite-avg baseline; our line ~54% maps to ladder ~556-686
+  public_lb: 686.1               # best OWN-agent ladder peak (Forecast v3); v3.2 current 660.0
+  attributed_entry_lb: 1151.0    # adapted-kuni05 (attributed public agent) peak; current re-submit 1085.4
+  private_lb: null               # not released
+  submission_id: null            # Kaggle submissions API exposes no numeric id
+current_blocker: "strong-tier cliff: ~100% vs weak agents, 0-15% vs strong tier (evogen 1093 / multifocus / kuni05 1240); 7 single-mechanism levers failed"
+next_task: "v4 Scheduler next cut (counter-attack window / cluster-targeted hammer); freeze best-2 for re-submission in last 3 days (D2)"
 source_notes:
-  - competitions/orbit-wars/README.md
-  - competitions/orbit-wars/EPISODES.md
-  - competitions/orbit-wars/LEAGUE.md
-  - competitions/orbit-wars/VALIDATION.md
-  - worklogs/orbit.md
-  - worklogs/orbit2.md
-  - GitHub issue #87 (协作 hub)
-  - PR #92 (v4 Scheduler hub-and-hammer)
+  - GitHub issue #87 (strategy & tracking hub)
+  - competitions/orbit-wars/README.md (detailed log), EPISODES.md, LEAGUE.md, VALIDATION.md
+  - worklogs/orbit.md, worklogs/orbit2.md
+  - work/00.orbit.md (A1/A2 analysis, zh)
+  - PR #80 (agent+arena), PR #89 (snorlax compute doc), PR #92 (v4 Scheduler)

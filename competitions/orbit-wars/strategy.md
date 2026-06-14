@@ -1,29 +1,49 @@
 # Strategy — Orbit Wars
 
-> 完整版本史、设计研究与 dead-ends 见 `./README.md`(详细日志)。此处只留当前方向与活跃讨论。
+> English canonical. Original Chinese discussion preserved in `tracking_zh.md` / `notes_zh.md` and issue #87.
+> Full version history, design studies and dead-ends are in [`README.md`](./README.md) (detailed log).
 
 ## Current direction
-**接受双轨拆分**(closeout 2026-06-10,方向 D1=C「低成本继续」):
-- **竞争性条目**:`adapted-kuni05`(公开 LB-1240.5 agent,**已注明出处**)~1137,仍向 ~1240 爬升。
-- **自研线**:`Forecast v3.1`(从零;bit-exact 前向模拟 + 差分终局净舰值 + 防守)~686;v4「Scheduler」
-  在其上做集合规划 beam search(`agent/versions/v4.py`,issue #87 / PR #92)。
-- 用「强弱跨度公开 agent 套件」(`arena/suite_gate.py`)门控,**不**用自博弈(自博弈不预测天梯)。
+**D1 = C (low-cost continue):** replay mining + suite-gated parameter optimization, plus the v4 "Scheduler"
+rewrite — rather than (A) wind down or (B) a full multi-week coordinated-planner rewrite. Accept the
+**two-track split**: an attributed adapted public agent (kuni05) as the competitive ladder entry, and our own
+from-scratch Forecast line developed in parallel. **Everything is gated on the ladder-predictive opponent
+suite (`arena/suite_gate.py`), never self-play.**
 
-## Open discussions
-> 完整 D 表见 `worklogs/orbit2.md` / issue #87;此处留当前活跃项。
+## Open discussions (issue #87 — all confirmed 2026-06-12)
+- **D1 direction = C** (low-cost continue). 
+- **D2 submission slots:** submit locally-validated improvements; in the last 3 days freeze and re-submit the
+  best 2 (latest-2 scored). 
+- **D3 compute:** snorlax (RTX 4090 box, 24-core CPU) approved for large-sample sweeps (PR #89). 
+- **D4 RL/distillation:** allowed on snorlax; only submit if it beats the incumbent through the T10 gate. 
+- **D5 inline comment-marking:** allowed.
 
-### D001: 提交位策略(latest-2 tracked)
-- status: open
-- context: 当前 latest-2 = [Forecast v3 ~686, kuni05 ~1137];再提交任何版本都会挤掉其一。
-- options: 保持现状 / 最后 24-48h 用一个位换自研最强版。
-- current leaning: 保持 kuni05;deadline(06-23)前最后窗口视 v4(C 线)成果再定。
-- evidence: `worklogs/orbit2.md`(D2);`./README.md`(submission trade-off)。
-- follow-up: v4 套件门控结果。
+> No discussions are currently open; the live question is the last-3-days final-2 freeze (D2).
+
+## Orbit-specific strategy categories
+- **Rules / engine facts:** deterministic orbits; exact capture rule (`ships > garrison_at_arrival`); first-hit
+  fleet consumption; same-tick same-owner combat summing. See `rules.md` / `README.md`.
+- **Geometry / simulation:** bit-exact forward simulator (0 error vs engine over 3,672 planet-step cells) —
+  the core asset enabling differential terminal net-ship value.
+- **Baseline agent design:** intercept-aim + exact capture math + in-flight cap + frontier garrison (v1→v2.1).
+- **Local arena / eval harness:** parallel arena (`arena/pool.py`, ~30–40×, deterministic, 2p+4p);
+  paired-seed A/B; **ladder-predictive suite gate** (the "self-play doesn't predict the ladder" product).
+- **1v1 strategy:** the scored mode; all tuning targets it.
+- **4-player FFA:** not scored; kept only as a robustness test (player-count-agnostic design, per Harry).
 
 ## Hypotheses
-- **H1**:强档靠**一体化协同规划系统**取胜(开局序列搜索 + 多源汇兵 + supply chain + 多波次 + 前向模拟),
-  单一机制不可移植 → v4 走「集合规划」整体重构而非继续 bolt-on。证据:`./README.md`「design study」。
+- **H1 (validated):** bit-exact forward sim + conservation-correct **terminal differential net-ship value** is
+  the one big lever (556→686). Evidence: README; issue #87 levers table.
+- **H2 (refuted, ×7):** single mechanisms transplanted from the strong tier transfer — consolidation,
+  safe_drain, defense-reinforce (self-play only), multi-source salvo, opening-planner, PROJ_H scan, OW_* random
+  search all failed on the suite. Strong agents win as integrated systems. Evidence: issue #87.
+- **H3 (open):** an integrated **hub-and-hammer scheduler (v4)** can convert the assembly machinery into wins —
+  currently at parity with v3.2; the value function's frozen-opponent assumption (red-team FM3) is the bottleneck.
+- **H4 (refuted):** behavior-cloning top players reproduces their play — T12 reached high imitation
+  (recall@k 0.387) but **0% in arena** (BC distribution shift). Distillation de-prioritized.
 
 ## Rejected ideas
-> 五个增量杠杆均**试过→否决**(套件门控,均不过 cliff),详见 `./README.md`:
-- consolidation ✗、safe_drain ✗(v3a)、defense(仅自博弈有效)、multi-source ✗、opening-planner ✗。
+- Consolidation (long-range forwarding) ✗; safe_drain ✗; multi-source salvo (no ETA align) ✗; opening-sequence
+  planner ✗; `PROJ_H` horizon scan ✗; OW_* random search ✗ (noise); OVERKILL multiplier ✗ (monotonic negative);
+  T14 short-hop supply ✗ (mechanical forwarding); posture machine v1 ✗ (BRACE too often); T11 ledger constraint
+  = no-op. co-arrival (T8): real but +3pt (evogen layer only) → default OFF (kept as `OW_COARRIVAL`).
