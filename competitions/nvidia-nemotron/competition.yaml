@@ -1,25 +1,29 @@
 slug: nvidia-nemotron
 kaggle_slug: nvidia-nemotron-model-reasoning-challenge
 title: NVIDIA Nemotron Model Reasoning Challenge
+aliases: [nemo, nemotron]
+tracking_issue: 86               # GitHub issue #86 (historical hub; future updates live here)
 status: active
 phase: submission
 competition_type: llm
 metric: accuracy (extracted \boxed{} answer; exact match or numeric within 1e-2)
-deadline: 2026-06-15            # 23:59 UTC (per worklogs/nemo2.md snapshot 2026-06-12)
+deadline: 2026-06-15             # 23:59 UTC (issue #86 snapshot)
 primary_artifact: notebook
 submission_mode: kernel          # rank<=32 LoRA adapter -> submission.zip via Kaggle kernel
-data_policy: kaggle
-last_updated: 2026-06-14
+data_policy: kaggle              # + public Kaggle datasets (huikang corpus / replay-math / wheels), real training (no repack)
+last_updated: 2026-06-14         # LB confirmed via read-only Kaggle API refresh 2026-06-14
 best:
   cv_metric: accuracy
-  cv_score: null                 # held-out eval recorded per-kernel; see submissions.md
-  public_lb: 0.85                # v14 replay (per PR #95 description); ⚠ v15 running, unconfirmed
+  cv_score: null                 # per-kernel held-out only; not a single canonical CV
+  public_lb: 0.85               # best OWN real-training (nemo-replay-v14); raw account max 0.86 (2026-05-15 public-fork, not own training)
   private_lb: null
-  submission_id: null
-current_blocker: "cryptarithm 类为瓶颈(论坛共识 0.86->0.89 杠杆);deadline 2026-06-15 迫近"
-next_task: "v15 cryptarithm-weighted synth 结果回收 + 截止前用满每日提交额度"
+  submission_id: null            # submission IDs not recorded in available evidence
+current_blocker: "0.85 (v14 replay) appears to be the ceiling with current levers; T7 merge (0.82) and v15 synth (0.84) both regressed"
+next_task: "Hold 0.85 to close (deadline 2026-06-15); optional low-cost half-dose cryptarithm-only synth variant"
 source_notes:
+  - GitHub issue #86 (strategy & tracking hub)
   - competitions/nvidia-nemotron/experiments/kernel/README.md
   - worklogs/nemo.md
   - worklogs/nemo2.md
-  - PR #90 (v10 rule-CoT + v14 replay), PR #94 (T7 SVD merge), PR #95 (v15 synth)
+  - work/00.nemo.md (ChatGPT competition analysis, zh)
+  - PR #90 (v10 + v14), PR #94 (T7 SVD merge), PR #95 (v15 synth), PRs #81/#82/#84/#75 (tooling)
