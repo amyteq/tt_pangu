@@ -209,11 +209,11 @@ $ gh pr list --state all --head worktree-docs-arch-github-session --json number,
 > 
 > ## Worktree
 > - Path: `.claude/worktrees/docs-arch-github-session`
-> - Branch: `worktree-docs-arch-github-session` @ [`98788a8`](https://github.com/amyteq/tt_pangu/commit/98788a80c6c4d8358d5a5492ad0ff5f0aa8e2f12)
+> - Branch: `worktree-docs-arch-github-session` @ `98788a8`
 > - Clean, tracking `origin/worktree-docs-arch-github-session` (up to date).
 > 
 > ## Change (1 commit ahead of main)
-> **[`98788a8`](https://github.com/amyteq/tt_pangu/commit/98788a80c6c4d8358d5a5492ad0ff5f0aa8e2f12) — docs(arch): GitHub-as-agent-interface and session-memory-and-audit design notes**
+> **`98788a8` — docs(arch): GitHub-as-agent-interface and session-memory-and-audit design notes**
 > 
 > Adds two architecture notes distilled from `docs/meeting-notes/2026-05-24-r3.md` §A1 Q1/Q2/Q3/Q7:
 > 

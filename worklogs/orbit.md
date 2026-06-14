@@ -20310,7 +20310,7 @@ $ cd "$(git rev-parse --show-toplevel)" && git add competitions pyproject.toml &
 > 
 </details>
 
-> Committed as [`625ac0f`](https://github.com/amyteq/tt_pangu/commit/625ac0fef82945051d0603d19ebb0f127f1295fd) (settings.local.json left alone, nothing merged or pushed).
+> Committed as `625ac0f` (settings.local.json left alone, nothing merged or pushed).
 > 
 > **Submission summary** (per the submission protocol; you've authorized it):
 > - **File:** `competitions/orbit-wars/agent/main.py` (v2.1 — single file, imports only `kaggle_environments` which is present at runtime)
@@ -25174,7 +25174,7 @@ b59e69f feat(orbit-wars): v3 Forecast planner (forward-sim value fn) — beats v
 > 
 </details>
 
-> Committed ([`b59e69f`](https://github.com/amyteq/tt_pangu/commit/b59e69f4e762f7432edcad964507c652dab76a32), status table refreshed; kuni05 gitignored; nothing merged/pushed). Let me check the current ladder standings to report.
+> Committed (`b59e69f`, status table refreshed; kuni05 gitignored; nothing merged/pushed). Let me check the current ladder standings to report.
 
 #### 💻 Bash: *Check current ladder scores*
 
@@ -25236,7 +25236,7 @@ SubmissionStatus.COMPLETE
 > - **Bit-exact forward simulator** (validated 0 error vs the engine).
 > - **Differential terminal net-ship value** — the conservation-correct value function (after I found & fixed the transit-penalty bug that made the first cut near-passive at 2.5%).
 > - **Beats v2.1: 88.8% (1000+) and 91.2% / 91.7% on held-out 5000+ seeds** — robust, not seed-luck. 95-97% vs starter. ~4 ms/turn, self-play clean, ruff-clean, single-file.
-> - Committed as [`b59e69f`](https://github.com/amyteq/tt_pangu/commit/b59e69f4e762f7432edcad964507c652dab76a32) with the refreshed status table; **nothing merged or pushed**.
+> - Committed as `b59e69f` with the refreshed status table; **nothing merged or pushed**.
 > 
 > ## Live ladder
 > | Submission | Score |
@@ -26336,7 +26336,7 @@ b59e69f feat(orbit-wars): v3 Forecast planner (forward-sim value fn) — beats v
 > 
 </details>
 
-> Committed ([`f49b123`](https://github.com/amyteq/tt_pangu/commit/f49b123da477398e44840b189a448d0b1151f815)). Let me check the live ladder — Forecast v3's score should be in by now, which tells us where our *own* line actually lands (key signal for how hard to keep grinding).
+> Committed (`f49b123`). Let me check the live ladder — Forecast v3's score should be in by now, which tells us where our *own* line actually lands (key signal for how hard to keep grinding).
 
 #### 💻 Bash: *Check ladder scores*
 
@@ -26452,7 +26452,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" && git log --oneline -1
 > 
 > ## What I did this round (closing-the-gap attempt)
 > - Diagnosed *how* Forecast loses to kuni05: it **out-expands us and overruns us** (we go to 8 planets then collapse to 0; no active defense).
-> - Built **sim-based defensive reinforcement** (v3.1): owned planets the projection shows flipping get added to the candidate set and defended. Found & fixed a definition-ordering bug. Result: **v3.1 beats v3 62-66% offline**, promoted to main, committed ([`f49b123`](https://github.com/amyteq/tt_pangu/commit/f49b123da477398e44840b189a448d0b1151f815)).
+> - Built **sim-based defensive reinforcement** (v3.1): owned planets the projection shows flipping get added to the candidate set and defended. Found & fixed a definition-ordering bug. Result: **v3.1 beats v3 62-66% offline**, promoted to main, committed (`f49b123`).
 > 
 > ## The wall (the important part)
 > Forecast v3's **real ladder score came in at 561 — tied with v2.1 (556), both below the 600 baseline.** Despite v3 beating v2.1 **91% offline**, it bought **~0 ladder points**.
@@ -27050,7 +27050,7 @@ e80d000 feat(orbit-wars): diverse-opponent gate (ladder-predictive) + cliff diag
 > 
 </details>
 
-> Option 1 delivered and committed ([`e80d000`](https://github.com/amyteq/tt_pangu/commit/e80d0009b54593fedef57dc9af05988ee18a96db)). 
+> Option 1 delivered and committed (`e80d000`). 
 > 
 > ## What we now have: a ladder-predictive gate
 > `arena/suite_gate.py` — a fixed suite of 7 public agents spanning weak→strong (random → starter → adilshamim → pub_tactical → evogen1093 [1093] → multifocus → kuni05 [1240]). **Validated**: suite-average reproduces the real ladder ordering (ours ~54% ≈ 556-561, kuni05 89.6% ≈ 1114), where self-play completely failed to. Every future change can now be measured for *real* ladder impact before spending a submission.
@@ -27059,7 +27059,7 @@ e80d000 feat(orbit-wars): diverse-opponent gate (ladder-predictive) + cliff diag
 > A **hard cliff**: we win ~100% vs everything weak and **0-4% vs everything strong**. We're not "mediocre everywhere" — we're "perfect below us, helpless above us," parked exactly at the boundary. And it proved v3.1's defense (62% vs v3 in self-play) is **worthless on the real field** (v3 == v3.1 == 54.2% on the suite). That alone justified building the gate — it stopped us shipping illusory gains.
 > 
 > ## Current state
-> - Committed through [`e80d000`](https://github.com/amyteq/tt_pangu/commit/e80d0009b54593fedef57dc9af05988ee18a96db); nothing merged. Vendored opponents gitignored (reconstructable).
+> - Committed through `e80d000`; nothing merged. Vendored opponents gitignored (reconstructable).
 > - Ladder: kuni05 ~1114 (our live competitive entry), our own line ~560. main.py = v3.1 (held, not resubmitted — correctly, since it won't beat 1114 and would retire kuni05).
 > - Tasks #1/#2/#4 done; #5 (close the gap) now has a real measuring stick.
 > 
@@ -27617,7 +27617,7 @@ bda5f46 docs(orbit-wars): study evogen1093 — strong tier wins via coordinated 
 
 `06:47:31`
 
-> Study complete and committed ([`bda5f46`](https://github.com/amyteq/tt_pangu/commit/bda5f460ea1ab39fcdf73ebbad34c01acdba88d1)).
+> Study complete and committed (`bda5f46`).
 > 
 > ## The answer: how to beat the strong tier
 > 
@@ -27636,7 +27636,7 @@ bda5f46 docs(orbit-wars): study evogen1093 — strong tier wins via coordinated 
 > - Then opening-sequence planning, then supply chains.
 > - Crucially, we now have the **ladder-predictive suite gate** to measure each of these for real — no more illusory self-play gains.
 > 
-> State: committed through [`bda5f46`](https://github.com/amyteq/tt_pangu/commit/bda5f460ea1ab39fcdf73ebbad34c01acdba88d1); nothing merged; kuni05 (~1114) remains our live competitive entry; main.py = v3.1 (held).
+> State: committed through `bda5f46`; nothing merged; kuni05 (~1114) remains our live competitive entry; main.py = v3.1 (held).
 > 
 > This was a study task — I've delivered the findings and the prioritized, evidence-backed plan. The natural next step is to **build multi-source coordination** and gate it vs evogen1093. Want me to go ahead and build it?
 
@@ -28118,7 +28118,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" && git log --oneline -1
 
 `06:53:52`
 
-> Built, tested, and committed ([`6f1d347`](https://github.com/amyteq/tt_pangu/commit/6f1d347bbaedeb30070f8ec7ecea1d0f495f5910)) — with an honest negative result and a refined diagnosis.
+> Built, tested, and committed (`6f1d347`) — with an honest negative result and a refined diagnosis.
 > 
 > ## Result: multi-source coordination didn't crack the cliff
 > **Still 0% vs the entire strong tier; suite average 53.6% ≈ v3's 54.2%.** No movement. The #1 evidence-backed lever — the thing *both* strong agents do — bought us nothing.
@@ -28135,7 +28135,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" && git log --oneline -1
 > 1. **One more on-target attempt: opening-sequence planning** (lever #2). It directly attacks the *out-expansion* we actually lose — unlike multi-source, which addressed the wrong half. It's the one unexplored lever pointed at the real weakness. Moderate effort, gated on the suite.
 > 2. **Accept the split** — we've thoroughly and rigorously explored increments and shown they don't reach the strong tier. kuni05 (~1114, attributed) stands as our competitive entry; Forecast (~561, ours from scratch, beats every weak agent) is a solid honest build. Closing the rest would be a multi-week kuni05-class rewrite.
 > 
-> State: committed through [`6f1d347`](https://github.com/amyteq/tt_pangu/commit/6f1d347bbaedeb30070f8ec7ecea1d0f495f5910); main.py = v3.1 (held); nothing merged; kuni05 live at ~1114.
+> State: committed through `6f1d347`; main.py = v3.1 (held); nothing merged; kuni05 live at ~1114.
 > 
 > My honest read: **try option 1 once** (opening planner is genuinely on-target, unlike the last lever), and if it also doesn't transfer, accept the split rather than commit to a multi-week rewrite. Want me to build the opening-sequence planner, or stop here?
 
@@ -28536,7 +28536,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" && git log --oneline -1
 > 
 </details>
 
-> Done and committed ([`1b5d492`](https://github.com/amyteq/tt_pangu/commit/1b5d4925eaa6e1e9ec4f2df21ce8ec71463dbdfd)). Let me update the task tracker to reflect the conclusion.
+> Done and committed (`1b5d492`). Let me update the task tracker to reflect the conclusion.
 
 #### TaskUpdate
 
@@ -28575,7 +28575,7 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>" && git log --oneline -1
 > 1. **Accept the split** (recommended): **kuni05 (~1114, attributed)** is our competitive ladder entry; **Forecast v3.1 (~561)** is a legitimate from-scratch agent that beats every weak public agent and takes ~15% off the weakest strong one. Stop here.
 > 2. **Full coordinated-planner rewrite** — reimplement an evogen/kuni05-class system from the ground up. Multi-week, high-risk, and even then uncertain to beat a 1240 agent.
 > 
-> Everything is committed ([`1b5d492`](https://github.com/amyteq/tt_pangu/commit/1b5d4925eaa6e1e9ec4f2df21ce8ec71463dbdfd)); nothing merged; kuni05 live at ~1114; main.py = v3.1.
+> Everything is committed (`1b5d492`); nothing merged; kuni05 live at ~1114; main.py = v3.1.
 > 
 > I don't think I should keep building levers — the data says they won't pay off. Do you want to **accept the split and wrap up** (I can do a final closeout: clean README summary, ensure submissions are in the right state), or **commit to the full rewrite** knowing the cost/risk? Your call.
 
@@ -28798,7 +28798,7 @@ b59e69f feat(orbit-wars): v3 Forecast planner (forward-sim value fn) — beats v
 > Wrapped up. Here's the closeout.
 > 
 > ## Final state
-> **Decision: accept the split** — committed as [`b922872`](https://github.com/amyteq/tt_pangu/commit/b9228723ef69ef5e4ac7ca5458c65dc9803b73b0) (9 commits on `worktree-orbit-wars`, **nothing merged or pushed**, awaiting your review).
+> **Decision: accept the split** — committed as `b922872` (9 commits on `worktree-orbit-wars`, **nothing merged or pushed**, awaiting your review).
 > 
 > **Live ladder entries** (the comp keeps your latest 2 active — already optimal, no new submission):
 > - **adapted-kuni05** (LB 1240.5 public agent, *attributed*) — **~1124 ↑** — competitive entry.
@@ -29103,7 +29103,7 @@ EXIT:0
 
 **`2026-06-11`** `14:17:31`
 
-请新建一个长期讨论跟踪 Orbit Wars 比赛的issue, 将 PR #80 README.md (https://github.com/amyteq/tt_pangu/blob/[b9228723ef69ef5e4ac7ca5458c65dc9803b73b0](https://github.com/amyteq/tt_pangu/commit/b9228723ef69ef5e4ac7ca5458c65dc9803b73b0)/competitions/orbit-wars/README.md) 中有价值的内容(比如实验跟踪表格), temp/orbit.md (ChatGPT 和你之前给出的分析和建议), 我会在那里和你讨论接下来的方向
+请新建一个长期讨论跟踪 Orbit Wars 比赛的issue, 将 PR #80 README.md (https://github.com/amyteq/tt_pangu/blob/b9228723ef69ef5e4ac7ca5458c65dc9803b73b0/competitions/orbit-wars/README.md) 中有价值的内容(比如实验跟踪表格), temp/orbit.md (ChatGPT 和你之前给出的分析和建议), 我会在那里和你讨论接下来的方向
 
 ### 🤖 Assistant: *I'll create a long-running tracking issue…*
 
@@ -30720,7 +30720,7 @@ To github.com:amyteq/tt_pangu.git
 > 
 </details>
 
-> 推送成功([`28fce4a`](https://github.com/amyteq/tt_pangu/commit/28fce4aace1df504821b5c607f8e9fe852c42c63))。清理临时 worktree,然后重写 issue:
+> 推送成功(`28fce4a`)。清理临时 worktree,然后重写 issue:
 
 #### 💻 Bash: *Clean up temp worktree*
 
@@ -31047,7 +31047,7 @@ The file /home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu/memory/MEMO
 > 
 > ## ✅ dev/temp 分支(零 CI)
 > 
-> - A1/A2 两份分析已拆分提交到 **`dev/temp` 分支 `temp/` 目录**(commit [`28fce4a`](https://github.com/amyteq/tt_pangu/commit/28fce4aace1df504821b5c607f8e9fe852c42c63))。
+> - A1/A2 两份分析已拆分提交到 **`dev/temp` 分支 `temp/` 目录**(commit `28fce4a`)。
 > - **验证过 CI 配置**:所有 workflow 只在 `push main` / PR / dispatch / schedule 触发,推 `dev/temp` 天然零 CI,无需改 workflow。
 > - 过程中处理了两个坑:`dev/temp` 被另一个会话的 worktree 占用(改用 detached 临时 worktree 操作)、远端被并发推进(rebase 后再推,未 force-push);根目录 `.gitignore` 忽略 `temp/`,提交用了 `add -f`。
 > 
@@ -32155,7 +32155,7 @@ https://github.com/amyteq/tt_pangu/issues/87#issuecomment-4682420861
 > 
 > **没有任何旋钮组合显著胜过现默认值**——前两轮的"赢家"全是小样本噪声 + 选择偏差。±7pt 烘焙门槛起了关键作用:如果按 R1 直接烘焙 t05,agent 会**变差**(5.3% vs 11.3%)。默认值保持不变,`main.py` 未动。
 > 
-> **方法论产出(比结果更值钱):** 同一配置 vs evogen 的批间波动高达 **8-27%**(24-60 局批)。此后一切对比强制 **≥150 配对种子**(300 局,±3.5pt),该协议已固化进 `sweep_opt.py` 文档串并推送([`cb52e34`](https://github.com/amyteq/tt_pangu/commit/cb52e342de030b85066d199de489a94feaa80942),PR #80 同步)。
+> **方法论产出(比结果更值钱):** 同一配置 vs evogen 的批间波动高达 **8-27%**(24-60 局批)。此后一切对比强制 **≥150 配对种子**(300 局,±3.5pt),该协议已固化进 `sweep_opt.py` 文档串并推送(`cb52e34`,PR #80 同步)。
 > 
 > ## ✅ 已回写(均为原地更新)
 > 
@@ -32594,7 +32594,7 @@ All checks passed!
 > 
 </details>
 
-> T8 v2 已提交([`0baa21d`](https://github.com/amyteq/tt_pangu/commit/0baa21dabe2f78641b89e51481cdede121e8d79e))。查 snorlax 上 T2 的完整进度:
+> T8 v2 已提交(`0baa21d`)。查 snorlax 上 T2 的完整进度:
 
 #### 💻 Bash: *Check T2 progress on snorlax*
 
@@ -33656,7 +33656,7 @@ https://github.com/amyteq/tt_pangu/issues/87#issuecomment-4682420861
 > **1. T2-R2 完赛 = 首个过线杠杆 🎉**
 > - snorlax 功效搜索(26 配置 × 300 局)收割:TOP = **t14**(17.7%)
 > - 本地全新种子块确认:**19.0±4.4 vs 基线 12.0±3.7(+7.0pt,恰好过烘焙线;三块合并 600 局 z≈3.3,统计扎实)**
-> - **烘焙为 v3.2**(H26/FF5/FD20/CE3.2/CL1.3),main.py 重建,快照 `v3_2.py`([`d3e3f09`](https://github.com/amyteq/tt_pangu/commit/d3e3f099485721037d05961c6342804ed6252d25))
+> - **烘焙为 v3.2**(H26/FF5/FD20/CE3.2/CL1.3),main.py 重建,快照 `v3_2.py`(`d3e3f09`)
 > 
 > **2. VALIDATION.md 六门全 PASS**:崩溃 0、弱档全过(starter 91.7%)、强档 +7pt 已确认、**4p avg_rank 1.01**(t14 的激进参数在 4p 也大幅受益,印证"同一套算法适配多模式"的设计原则)、p99 8.3ms、单文件。
 > 
@@ -33665,7 +33665,7 @@ https://github.com/amyteq/tt_pangu/issues/87#issuecomment-4682420861
 > - **kuni05 重提保槽** → latest-2 = **[kuni05-重提, v3.2]**;旧 kuni05 峰值 1137 / v3 686 已记录在案,备最后 3 天冻结时选用
 > - 注:分类器一度以"D2 未确认"拦截,我引用你在 issue 中的 D2 书面授权后单条重试通过
 > 
-> **4. T8 收官**:v2(K±1 容差合流)+2.7pt ≈ v1,无叠加增益;定论 = co-arrival 是 evogen 层 +3pt 量级杠杆,默认 OFF([`0baa21d`](https://github.com/amyteq/tt_pangu/commit/0baa21dabe2f78641b89e51481cdede121e8d79e))。
+> **4. T8 收官**:v2(K±1 容差合流)+2.7pt ≈ v1,无叠加增益;定论 = co-arrival 是 evogen 层 +3pt 量级杠杆,默认 OFF(`0baa21d`)。
 > 
 > **5. T11 诚实负结果**:账本约束(只收紧不放宽)A/B 300 局**两臂逐局完全相同**——约束在实战中从不触发(threat reserve + 在途上限已覆盖)。深层 ThreatLedger 并入 T9 再议。
 > 
