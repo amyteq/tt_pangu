@@ -4,6 +4,26 @@ Kaggle **Orbit Wars** ($50,000 Featured, deadline **2026-06-23**, ~4137 teams).
 Agent-vs-agent RTS on `kaggle_environments`; **1v1 (2-player)** skill-rating ladder, μ0=600
 (LB top ≈ 1732, top-10 ≈ 1500–1600 as of 2026-06-10).
 
+## Current status (2026-06-14, KCT-003 consolidation)
+
+> Live tracking now lives in [`tracking.md`](./tracking.md) (issue #87 tables, English) and the docs below;
+> the long chronological log is retained further down this file as the historical record.
+> Issue #87 is kept open for history but is no longer the place for new status updates.
+
+- **status:** active (deadline **2026-06-23**; final eval ~2 weeks after)
+- **direction:** D1=**C** (low-cost continue: replay mining + suite-gated param optimization); incremental path
+  largely exhausted (7 single-mechanism levers failed) — strong tier wins as integrated systems.
+- **best own real-training agent:** Forecast **v3.2** (t14-tuned: H26/FF5/FD20/CE3.2/CL1.3), 6/6 VALIDATION gates.
+- **ladder (refreshed 2026-06-14, read-only Kaggle):**
+  - harrysun2006 latest-2: `submission_kuni.tar.gz` (adapted kuni05, **attributed**) **1085.4** + `main.py` v3.2 **660.0**
+  - firefly2006 (may) latest-2: `v3_2_coarr.py` **648.8** + `main.py` v3.2 **636.7**
+  - retired peaks: adapted-kuni05 **1151.0**, Forecast v3 686.1, v2.1 555.8. Leaderboard top **~1746**.
+- **current blocker:** strong-tier cliff — ~100% vs weak agents, **0–15% vs the strong tier**
+  (evogen 1093 / multifocus / kuni05 1240). Private LB not released.
+- **next:** v4 "Scheduler" (hub-and-hammer; parity with v3.2 so far) next cut = counter-attack window /
+  cluster-targeted hammer; freeze best-2 for re-submission in the last 3 days (D2).
+
+
 ## TL;DR — final status (closeout 2026-06-10)
 
 Two tracks; **accepted the split** after rigorously exhausting the incremental path.

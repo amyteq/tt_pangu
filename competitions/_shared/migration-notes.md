@@ -38,3 +38,17 @@
   `worklogs/nemo*.md`、PR #90/#94/#95。
 - 远程刷新:已于 **2026-06-14** 用 read-only Kaggle API(`kaggle competitions submissions`,双账号,creds 仅 read-for-use 不打印)完成刷新,回填 `submissions.md` / `tracking.md`:own 最好 0.85(v14)、账号原始公开最大 0.86(2026-05-15 public-fork,非自训)、榜首 ~0.90、private LB 未发布;Kaggle submissions API 不暴露数字 submission ID。未做任何 submit/push/upload。
 - issue #86 保持**开放**作历史;后续状态更新改在 `competitions/nvidia-nemotron/`。
+
+## KCT-003 (2026-06-14) — orbit-wars English consolidation
+
+- `competitions/orbit-wars/` 文档由 KCT-001 的中文**临时版**改写为**英文规范版**(canonical English),
+  并新增 `tracking.md`(issue #87 表格英文化:D1–D5 / T1–T14 / §9 / levers / 版本演进 + 刷新后天梯)与
+  `_zh` sidecars(`tracking_zh.md` 逐字保留 issue #87 中文正文、`notes_zh.md` 中文来源指引+摘录)。
+  既有英文 `README.md`(详细日志)、`EPISODES.md` / `LEAGUE.md` / `VALIDATION.md` / `agent/` / `arena/`
+  保留不动;README 顶部加了一段「Current status (2026-06-14)」紧凑状态块。
+  KCT-001 postmortem 译成英文保留为 `postmortems/2026-06-14-kct-001-initial-consolidation.md`。
+- 来源:GitHub issue #87(body + 15 comments)、`work/00.orbit.md`(A1/A2 分析)、`worklogs/orbit*.md`、PR #80/#89/#92。
+- 远程刷新:已于 **2026-06-14** 用 read-only Kaggle API(`kaggle competitions submissions orbit-wars` 双账号 +
+  `leaderboard`,creds 仅 read-for-use 不打印)完成:harry latest-2 = kuni05 1085.4 / v3.2 660.0;may latest-2 =
+  v3_2_coarr 648.8 / v3.2 636.7;峰值 kuni05 1151.0 / v3 686.1;榜首 ~1746;private LB 未发布。未做任何 submit/push/upload。
+- issue #87 保持**开放**作历史;后续状态更新改在 `competitions/orbit-wars/`。
