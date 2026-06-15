@@ -1,0 +1,122 @@
+# Equation frontier — post-competition R&D plan
+
+> The `equation` category was the single **unsolved** category: ≤2/16 (T12 min-logprob hard-val) and
+> 5/23 (eval/hard_val_ids.json) for *every* adapter incl. the 0.86 soup, and `surgery` couldn't move it.
+> Even a dedicated external-teacher CoT run (andy279, 800 equation traces) regressed overall (0.81 —
+> dilution). This note is the durable plan to crack it on a future **RTX Pro 6000** GPU session.
+> Status: research-backed plan; nothing run yet. Companion task entries in `tasks.md` (§Equation frontier).
+
+## 1. What the task actually is (precise)
+A few-shot **transformation-rule induction** problem (≈ ARC-AGI for symbol/number equations):
+- **Symbolic/transformation** (`make_cryptarithm_*`, `make_symbol_puzzle`): the prompt gives examples
+  `A op B = result` where `op ∈ {+,-,*,/}`; each operator applies a *secret per-operator transformation*
+  mapping the two operand strings to a result string (positional permutation, char substitution, reversal,
+  interleave, index arithmetic, …). Sometimes an example uses **unseen symbols** → the rule must be
+  inferred *structurally*, not memorised. Task: induce each operator's rule from the examples, apply to a query.
+- **Numeric deduce/guess** (`make_equation_numeric_*`): induce `f(x)` (linear/quadratic/floor/arithmetic/
+  geometric/sequence) from `(x → f(x))` pairs and apply to a query.
+
+**Hard eval constraint:** the submission is a static rank≤32 LoRA; at grading it does **greedy CoT decode
+(temp=0, ≤7680 tokens) with NO tool/code execution**. So the rule induction must happen *in the chain of
+thought*. (We can use anything — solvers, code, teacher models — at TRAINING time only.)
+
+## 2. Why we missed it (root cause — precise codebase gaps)
+- **Tiny rule set.** `lib/nemo_synth_gen.py` `_RULE_REGISTRY` = **8** rules; `lib/nemo_solver.py` `_REWRITES`
+  = **9** (`concat_ab/ba`, `rev_*`, `interleave`, `swap_inner`, `left/right_dup`, `rev_concat`). The full
+  positional-map space for 2-char operands is **~256** — we covered ~3%. The model learned *those rules*, not
+  the **meta-skill of inducing an arbitrary rule** → ~0.4% coverage of real `equation` prompts.
+- **Parser drops variable-length operands.** `nemo_solver.py` `_parse_eq_line` hard-codes `len(lhs) != 5`
+  (i.e. assumes exactly `A op B` with 2-char operands) → silently skips any 1-/3-char-operand prompt.
+- **No numeric solver in the Option-C pipeline** — `SOLVERS["equation"]` has no `f(x)` solver, so real numeric
+  equation prompts produced zero verified CoT.
+- **Answer-first CoT.** The generator CoT jumps to "the rule is X → apply" without showing candidate
+  enumeration/rejection → teaches the answer, not the induction procedure (the OOD-generalization lever, §4).
+- High-dose category augmentation **diluted** the clean replay recipe (B8 / single-cat ≠ total): andy279
+  (≈17% dose incl. 800 equation) dropped 0.85→0.81. So an equation specialist must be **low-dose and/or
+  souped**, not blended at high dose into the main adapter.
+- Local hard-val is a **noisy** LB predictor (surgery +1/78 → 0.00 LB delta) — gate on it, but don't trust small deltas.
+
+## 3. Approaches
+All are buildable offline; the output is **greedy-CoT-decodable training traces** that teach induce→verify→apply.
+
+**A. Exhaustive positional-map solver + compositional generator (teach the meta-skill).**
+Replace the 8/9 fixed rules with the **full positional enumeration**: every output position drawn from
+{A0,A1,B0,B1}(+constants) → ~256–625 maps for 2-char operands; generalise to variable-length operands +
+2–3-step compositions + per-char bijections. **SOAR-style relabeling**: candidate maps the solver tries that
+are consistent with a *subset* of examples become *new* synthetic puzzles (with that map as ground truth) →
+free, diverse training data. Validate generalisation on a **held-out rule distribution** (rules absent from training).
+
+**B. Offline solver over REAL train.csv prompts → verified CoT (audit "option G", confirmed by the winners).**
+Run the §A solver on real prompts; keep only maps reproducing ALL examples **and** the held-out query answer
+(ground truth) → distil into CoT. Concrete fixes first: (i) drop the `len(lhs)!=5` hard-code in `nemo_solver.py`
+(support 1-/3-char operands); (ii) add the 256-map enumeration to `_REWRITES`/`_RULE_REGISTRY`. Verified-real-prompt CoT can't poison.
+
+**C. Numeric sub-solver (brute force over the 5 classes) — fills the Option-C gap.**
+Add `solve_equation_numeric` to `SOLVERS["equation"]`: try linear → quadratic → arithmetic-diff → geometric-ratio
+→ floor-div(k); keep the class reproducing all pairs; distil derivation into CoT. (PySR/LaSR only if real prompts exceed the 5 classes.)
+
+**D. Enumerate→verify→apply CoT format (the OOD-generalization lever).**
+Replace answer-first CoT with the structure (from §4): list a *closed, named* candidate set → test each against
+**every** example (show predicted vs actual, ✓/✗) → eliminate inconsistent → apply the survivor → `\boxed{}`. Example skeleton:
+```
+Candidates: [R1 concat_ab, R2 swap_inner, R3 interleave, ...]
+R1 on ex1: A='XY',B='ZW' → 'XYZW' vs actual 'XYZW' ✓ ; ex2: ... ✓  → consistent
+R2 on ex1: → 'YXZW' vs 'XYZW' ✗  → eliminated
+... only R1 consistent → apply to query 'AB','CD' → \boxed{ABCD}
+```
+Ablate this vs answer-first on the held-out hard-val.
+
+**E. Soup integration + dose control (avoid dilution).**
+Train an **equation specialist** LoRA (v14 backbone + the A/B/C data), then **soup** it with v14 (and the
+0.86 members) at a tuned weight; gate on T12 hard-val that it lifts `equation` *without* dropping bit/cipher.
+Do NOT high-dose-blend into the main adapter (B8).
+
+**F. RLVR / GRPO with a verifiable reward (connects to the existing GRPO task in `tasks.md`).**
+Reward = does the model's induced rule reproduce all examples + the correct query answer? This is the
+literature's strongest path for rule/puzzle reasoning (Logic-RL family). Heavy (online rollouts); run after A–C give a stable SFT base + the local metric.
+
+## 4. Research-backed techniques (external; cited)
+> Competition-specific post-comp writeups were **not yet published** at close — revisit the discussion/GitHub/HF
+> for winners' equation handling. The community signal we DO have (below) already points the same way as the lit.
+
+**Competition signal (community, medium trust) — the winning architecture is "brute-force solver → teacher CoT".**
+- tonghuikang (Progress-Prize winner) [repo](https://github.com/tonghuikang/nemotron) tracks *rule-found / hypothesis-formed / rule-unknown* per puzzle → an offline solver runs per puzzle, teacher CoT only where the solver succeeds. Mirrors our Option C.
+- andy279 [raw-traces](https://huggingface.co/datasets/andy279/nemotron-reasoning-challenge-raw-traces): "deterministic brute-force solvers first discover the hidden rule, then teacher models generate reasoning with the discovered rule prepended." → **the lever is a richer solver, not more LLM.**
+- ⚠ **Coverage ceiling:** andy279 reports **399 transformation puzzles that no teacher (incl. GPT-5.4 high-effort) could solve** — a structural hard tail (rules outside any finite positional DSL). Expect a ceiling, not 100%.
+
+**ARC-AGI induction (this task ≈ ARC).**
+- **TTT (test-time training) — the dominant ARC-AGI lever — is FORBIDDEN here** (static LoRA, greedy single pass). ARC Prize 2024 report: no static-transduction solution >11%. So our setting is the hardest case for few-shot induction; manage expectations. [ARC Prize 2024](https://arxiv.org/pdf/2412.04604), [2025](https://arxiv.org/html/2601.10904v1)
+- **SOAR** (ICML 2025) — alternate LLM program-search with *hindsight relabeling*: failed search programs become correct solutions for synthetic tasks → free diverse training data; distil search traces. [arXiv 2507.14172](https://arxiv.org/abs/2507.14172). **Directly applicable** (Approach A's relabel step).
+- Hypothesis-enumerate→verify→apply is the through-line (CodeARC fine-tuning on synthesis traces: +31% rel; ABPR's hypothesis-test-debug; Meta-CoT linearized search traces). [CodeARC 2503.23145](https://arxiv.org/html/2503.23145v2), [Meta-CoT 2501.04682](https://arxiv.org/abs/2501.04682)
+
+**Inductive program synthesis for strings.**
+- **Exhaustive positional enumeration is the right offline solver here** (not generic FlashFill): for 2-char operands → 4-char results, every output position draws from {A0,A1,B0,B1}(+constants) → only **~256–625 candidate maps**, enumerable in microseconds/puzzle. Covers every permutation/interleave/swap/reverse/concat variant our 9-rule registry misses. [FlashFill++ POPL'23](https://www.microsoft.com/en-us/research/wp-content/uploads/2022/12/flashfillpp-popl-23-camera-ready.pdf), [DSL-synthesis OOPSLA'25](https://arxiv.org/pdf/2508.16063)
+- Content-dependent rules (char-class/value, not just position) fall outside the positional DSL → need lookup-table/char-class extensions (part of the 399 hard tail).
+
+**Symbolic regression (numeric sub-type).** PySR / LaSR (NeurIPS'24, LLM-guided) fit `f(x)` from few points — but **overkill**: our numeric family is a known 5-class set (linear/quadratic/floor/arith/geom) → a brute-force parameter search over those classes suffices and is trivially buildable. [LaSR 2409.09359](https://arxiv.org/abs/2409.09359)
+
+**Teaching induction via CoT distillation (the format lever).**
+- **CoT granularity drives OOD generalization** — complete, step-by-step chains beat answer-first; QA-style fails OOD even with 10k+ examples ([Beyond In-Distribution Success, 2502.18273](https://arxiv.org/html/2502.18273)). Our current generator CoT is **answer-first** ("the rule is X → apply") — it teaches the answer, not *how to find it*. **Replace with enumerate→verify-each-against-all→reject→apply** (template in §3-D). Closed, named candidate set to avoid rule hallucination (ILP-LLM, [AAAI'25](https://arxiv.org/html/2408.16779v1)).
+- STaR/self-verification underpins the verify step ([STaR](https://arxiv.org/abs/2203.14465); [S2R 2502.12853](https://arxiv.org/pdf/2502.12853)).
+
+**RLVR / GRPO (ties to the existing GRPO task).** Verifiable reward = induced rule reproduces all examples + the query; heavy online rollouts; gate behind EQ-1..3.
+
+## 5. Prioritised tasks (EQ-0 needs no GPU; EQ-1+ need an RTX Pro 6000)
+0. **EQ-0 (no GPU, do first): quantify the DSL gap + fix the solver.** Download the public andy279
+   transformation set (~10,741 ex), run a 256-map positional solver over it → measure coverage and
+   characterise the unsolvable tail (~399 hard puzzles). Fix `lib/nemo_solver.py`: drop the `len(lhs)!=5`
+   hard-code, add the 256-map enumeration to `_REWRITES`/`_RULE_REGISTRY`, add `solve_equation_numeric`
+   (5-class brute force). **Deliverable: a coverage number that says whether this can move `equation` at all** — gates the GPU spend.
+1. **EQ-1 (GPU)** generator + induce→verify→apply CoT (Approaches A + D): compositional rule-DSL + SOAR
+   relabeling + the enumerate-verify CoT format; validate on a **held-out rule distribution**.
+2. **EQ-2 (GPU)** verified real-prompt CoT (Approaches B + C): run the fixed solver on real prompts (+ numeric
+   sub-solver), distil verified traces (optionally reuse the public andy279 hard-cat traces if rules permit).
+3. **EQ-3 (GPU)** equation-specialist LoRA → **soup with v14** (Approach E), T12-gate (lift `equation`, hold
+   bit/cipher; low dose); run the §D format ablation here.
+4. **EQ-4 (GPU, stretch)** RLVR/GRPO with the rule-reproduction verifiable reward on the equation set (Approach F) — after EQ-1..3.
+
+## 6. Success criteria & guardrails
+- **Metric:** `equation` accuracy on `eval/hard_val_ids.json` (official extract+verify) — target a clear lift over the soup's 5/23, AND no regression in bit/cipher (T12 gate).
+- **Compliance:** keep it a real rank≤32 LoRA (no repack); external-teacher CoT only if rules permit (verify) — Approaches A–C can be fully own-work (our own solver/generator), preferred.
+- **Dilution guard:** specialist + soup, low dose; LB keeps the max, so an equation soup can't lower the banked 0.86.
+- Evaluate locally first (no quota burn); only submit candidates that beat the soup on hard-val.
