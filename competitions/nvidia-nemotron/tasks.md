@@ -24,6 +24,18 @@
 > **Dropped: T6 (Unsloth seq8192)** — superseded; v14 already does seq8192 + the full recipe, so the
 > marginal value is ~0.
 
+## Equation frontier (post-comp R&D — needs RTX Pro 6000)
+> The only **unsolved** category (≤2/16 hard-val for every adapter incl. the 0.86 soup; surgery couldn't
+> move it; high-dose teacher CoT diluted to 0.81). Full plan + rationale + research in
+> [`equation-frontier.md`](./equation-frontier.md). It is few-shot **transformation-rule induction**
+> (≈ ARC-AGI), inducible only in greedy CoT at eval (no tools). Winners used **brute-force solver → teacher
+> CoT** (our Option C, richer solver); TTT is forbidden by our static-LoRA constraint; expect a coverage ceiling.
+- **EQ-0** (no GPU, do first) quantify the DSL gap: 256-map positional solver over the public andy279 set → coverage number; fix `nemo_solver.py` (`len(lhs)!=5` hard-code, 256-map enum, add numeric solver). Gates the GPU spend.
+- **EQ-1** rich *compositional* rule-DSL generator + induce→verify→apply CoT (teach the meta-skill, not 8 fixed rules) + SOAR relabeling; validate on a held-out rule distribution.
+- **EQ-2** offline DSL-search solver over REAL train.csv equation prompts → verified real-prompt CoT (audit "option G", richer DSL) + symbolic regression (PySR/gplearn) for the numeric sub-type.
+- **EQ-3** train an equation-specialist LoRA on EQ-1/EQ-2 → **soup with v14**, T12-gated (lift `equation`, hold bit/cipher; low dose — avoid the B8 dilution).
+- **EQ-4** (stretch) RLVR/GRPO with a rule-reproduction verifiable reward (ties into the GRPO task above), after EQ-1..3.
+
 ## Validated this competition
 - **Model-soup of comparable+complementary adapters** beats each member (v14+c1+b1 soup → 0.86). The
   reusable lever for the next competition: train N diverse same-base fine-tunes, then soup+SVD-rank-cap.
