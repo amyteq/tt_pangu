@@ -10,12 +10,12 @@
 - Forum consensus: cryptarithm is the 0.86→0.89 lever (but single-category ≠ total) — issue #86 T11 / comment 4 — high.
 
 ## Notebooks / kernels (ours)
-- `experiments/kernel/nemotron-lora-baseline.py` — LoRA SFT baseline (v5–v9) — high.
-- `experiments/kernels/nemo-rule4k-v10/` (`firefly2006/nemo-rule4k-v10`) — rule-CoT, LB 0.59 — high.
-- `experiments/kernels/nemo-replay-v14/` (`harrysun2006/nemo-replay-v14`) — replay recipe, **LB 0.85** — high.
-- `experiments/kernels/nemo-synth-v15/` (`harrysun2006/nemo-synth-v15`) — cryptarithm synth, LB 0.84 — high.
-- `experiments/kernels/nemo-merge-t7/` (`harrysun2006/nemo-merge-t7`) — SVD merge, LB 0.82 — medium.
-- `experiments/synth/nemo_synth_gen.py`, `experiments/merge/svd_merge.py` — generators/tools — medium.
+- `kernels/nemotron-lora-baseline.py` — LoRA SFT baseline (v5–v9) — high.
+- `kernels/` (`firefly2006/nemo-rule4k-v10`) — rule-CoT, LB 0.59 — high.
+- `kernels/` (`harrysun2006/nemo-replay-v14`) — replay recipe, **LB 0.85** — high.
+- `kernels/` (`harrysun2006/nemo-synth-v15`) — cryptarithm synth, LB 0.84 — high.
+- `kernels/` (`harrysun2006/nemo-merge-t7`) — SVD merge, LB 0.82 — medium.
+- `lib/nemo_synth_gen.py`, `lib/svd_merge.py` — generators/tools — medium.
 
 ## Public notebooks / repos (external, attributed)
 - `kuangyicheng/nemotron-087-training` — public 0.86/0.87 replay recipe (T10 source) — high.
@@ -28,7 +28,7 @@
 
 ## Internal notes
 - `work/00.nemo.md` — ChatGPT competition analysis (zh): essence, data findings, 6 challenges, ideas A–F, techniques — high. (See `notes_zh.md` for an English digest.)
-- `experiments/kernel/README.md` — recipe, gotchas, 0.47→0.61→0.65 progression — high.
+- `kernels/README.md` — recipe, gotchas, 0.47→0.61→0.65 progression — high.
 - `docs/tooling/kaggle-kernel-ops.md` — kernel/version model, flat structure, concurrency/quota — medium.
 
 ## Worklogs

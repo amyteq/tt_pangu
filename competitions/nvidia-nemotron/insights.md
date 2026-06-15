@@ -20,7 +20,7 @@
 ### INS-001: push-time static lint + single-example fail-fast preflight
 - type: rule
 - confidence: high
-- evidence: `experiments/kernel/README.md`; issue #86 (F821 / `.shape` each cost ~2h GPU)
+- evidence: `kernels/README.md`; issue #86 (F821 / `.shape` each cost ~2h GPU)
 - transfer scope: any GPU kernel / long training competition
 - status: candidate (logged in `_shared/skill-candidates.md`)
 

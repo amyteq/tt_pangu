@@ -22,7 +22,7 @@ current_blocker: "0.85 (v14 replay) appears to be the ceiling with current lever
 next_task: "Hold 0.85 to close (deadline 2026-06-15); optional low-cost half-dose cryptarithm-only synth variant"
 source_notes:
   - GitHub issue #86 (strategy & tracking hub)
-  - competitions/nvidia-nemotron/experiments/kernel/README.md
+  - competitions/nvidia-nemotron/kernels/README.md
   - worklogs/nemo.md
   - worklogs/nemo2.md
   - work/00.nemo.md (ChatGPT competition analysis, zh)
