@@ -11,3 +11,6 @@ agent/versions/kuni05/
 
 # Vendored third-party gate opponents (reconstruct via arena/_extract_pub.py from public notebooks)
 agent/versions/suite/
+
+# T16 measurement: generated instrumented twin (regenerate with arena/_make_measure.py)
+agent/versions/forecast_measure.py
