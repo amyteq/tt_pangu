@@ -6,10 +6,15 @@
 > Kaggle's submissions API exposes no numeric submission ID; the (date + description) pair is the key.
 > Quota: 5/team/day.
 
-## Real-training campaign (own work — 2026-06-09 → 2026-06-14)
+## Real-training campaign (own work — 2026-06-09 → 2026-06-15)
 
 | Date (UTC) | Account | Version | Public LB | Private LB | Status | Description (kernel) |
 |---|---|---|---:|---:|---|---|
+| 2026-06-15 ~12 | harrysun2006 | **soup** | **0.86** | unknown | COMPLETE | **SVD model-soup of v14+c1+b1 (0.4/0.3/0.3) → rank-32 — new best, own real-training** |
+| 2026-06-15 01:12 | harrysun2006 | c1 | 0.85 | unknown | COMPLETE | v14 backbone + verified real-prompt solver-CoT (balanced ~1800) |
+| 2026-06-15 00:52 | harrysun2006 | c2 | 0.83 | unknown | COMPLETE | v14 backbone + verified solver-CoT (hard-cat emphasis ~1000) |
+| 2026-06-15 01:02 | firefly2006 | b2 | 0.84 | unknown | COMPLETE | v14 backbone + cryptarithm+bit synth (~11%) |
+| 2026-06-15 00:52 | firefly2006 | b1 | 0.85 | unknown | COMPLETE | v14 backbone + cryptarithm-only synth (~9%) |
 | 2026-06-14 05:53 | harrysun2006 | v15 (T11) | 0.84 | unknown | COMPLETE | v14 backbone + 2640 cryptarithm-weighted synth (60% crypt), seq8192, 337/337 steps |
 | 2026-06-13 23:54 | harrysun2006 | t7 merge | 0.82 | unknown | COMPLETE | SVD merge v14@1.0 + ctx4k@0.25 + v10@0.25, per-module rank-32 |
 | 2026-06-12 23:36 | harrysun2006 | **v14 (T10)** | **0.85** | unknown | COMPLETE | replay recipe: huikang corpus (7830) + replay-math (2.0M ans tok), seq8192, 254/254 steps, CCE + MoE tying + lm_head/in_proj/out_proj |
@@ -31,13 +36,15 @@
 | 2026-05-15 00:18 | harrysun2006 | **0.86** | unknown | COMPLETE | "[LB] [SCORE] [0.86]" — public fork |
 
 ## Best score — honest reading
-- **Best own real-training submission: 0.85** (`nemo-replay-v14`, 2026-06-12). This is the headline used
-  across the docs and issue #86 (compliance line: real training, no repack).
-- **Raw account public max: 0.86** — from a **2026-05-15 public-fork** submission (`[LB][SCORE][0.86]`),
-  not our own training. Kaggle's standing public score takes the max over all submissions, so the
-  account's displayed public LB may reflect 0.86 rather than 0.85. Recorded here for accuracy; the
-  team's *own-work* best remains 0.85.
-- Current leaderboard top: **~0.90** (refreshed 2026-06-14; was ~0.89 in the issue snapshot).
+- **Best own real-training submission: 0.86** (`nemo-merge-soup`, 2026-06-15) — an SVD **model-soup** of
+  three own-trained, comparable+complementary 0.85 adapters (v14 replay + c1 verified-solver-CoT + b1
+  cryptarithm-synth, weights 0.4/0.3/0.3, rank-32). Real training, no repack (D3-compliant). This broke the
+  0.85 ceiling (+0.01).
+- Earlier own-work best was 0.85 (`nemo-replay-v14`). The final-sprint individual runs tied or trailed it
+  (b1 0.85, c1 0.85, b2 0.84, c2 0.83); only the **soup** exceeded it.
+- Note: a 2026-05-15 **public-fork** submission also showed 0.86, but that was a repack (not own training);
+  the soup now gives a **compliant own-work 0.86**.
+- Current leaderboard top: **~0.90** (refreshed 2026-06-15).
 
 ## Submission checklist
 - [ ] local validation passed (validate_kernel.py + fail-fast preflight)

@@ -5,10 +5,10 @@
 > live here, not in issue #86. `unknown` = not in available evidence.
 
 ## Current snapshot
-- Best **own real-training: 0.85 (v14 replay)**; raw account public max **0.86** (a 2026-05-15 public-fork, not our training — see `submissions.md`). Top **~0.90** (refreshed 2026-06-14), base ~0.47. Deadline **2026-06-15 23:59 UTC**. Quota 5/team/day.
-- Two attempts to beat 0.85 both regressed: **T7 merge = 0.82**, **T11 v15 synth = 0.84**.
-- Recommendation (issue #86 comment 4): **hold 0.85 to close**; marginal return on more quota is low.
-- Last updated in issue #86: 2026-06-14 ~05:00 UTC (snapshot line).
+- Best **own real-training: 0.86 (`nemo-merge-soup` = SVD soup of v14+c1+b1)**. Top **~0.90** (refreshed 2026-06-15), base ~0.47. Deadline **2026-06-15 23:59 UTC**. Quota 5/team/day.
+- The 0.85 ceiling (v14) was broken by a **model-soup of comparable+complementary 0.85 adapters** (v14 + c1 + b1, each 0.85 on different data → **soup 0.86**). Earlier strong+weak merge (T7=0.82) and high-dose synth (v15=0.84) regressed.
+- Recommendation: **hold 0.86 to close**.
+- Last updated: 2026-06-15.
 
 ## Preserved issue tracking tables (translated → English)
 
@@ -43,9 +43,10 @@
 | T13 | fix held-out eval truncation (`EVAL_MAX_NEW` 512→7680 + `EVAL_TIME_CAP`=1800s) | ✅ done (in v10) | issue #86 T13 |
 
 ## Experiment / idea progress
-- **Done & scored:** ctx4k (0.67), ctx2k (0.42), v10 (0.59), v14 (**0.85**), t7 merge (0.82), v15 synth (0.84).
-- **Planned, not run:** v11 self-distillation (T5), v12 Unsloth (T6, superseded), T12 metric/hard-val.
-- **Closed routes:** T7 weight-space merge (strong+weak dilutes); category-weighted synth (single ≠ total).
+- **Done & scored:** ctx4k (0.67), ctx2k (0.42), v10 (0.59), v14 (0.85), t7 merge (0.82), v15 synth (0.84), b1 (0.85), b2 (0.84), c1 (0.85), c2 (0.83), **soup v14+c1+b1 (0.86, best)**.
+- **Planned, not run:** v11 self-distillation (T5), v12 Unsloth (T6, superseded), T12 metric/hard-val, GRPO/RL.
+- **Validated route:** **model-soup of comparable+complementary adapters** beats each member (0.85→0.86).
+- **Closed routes:** T7 strong+weak merge (dilutes, 0.82); high-dose category-weighted synth (single ≠ total).
 
 ## Kernel push status
 | Kernel | Account | LB | State |
@@ -53,15 +54,19 @@
 | nemo-cot-ctx4k | harrysun2006 | 0.67 | pushed + evaluated |
 | nemo-cot-ctx2k | firefly2006 | 0.42 | pushed + evaluated |
 | nemo-rule4k-v10 | firefly2006 | 0.59 | pushed + evaluated |
-| nemo-replay-v14 | harrysun2006 | **0.85** | pushed + evaluated (best) |
+| nemo-replay-v14 | harrysun2006 | 0.85 | pushed + evaluated |
 | nemo-merge-t7 | harrysun2006 | 0.82 | pushed + evaluated |
-| nemo-synth-v15 | harrysun2006 | 0.84 | pushed + evaluated (last run 2026-06-14) |
+| nemo-synth-v15 | harrysun2006 | 0.84 | pushed + evaluated |
+| nemo-synth-b1 | firefly2006 | 0.85 | pushed + evaluated |
+| nemo-synth-b2 | firefly2006 | 0.84 | pushed + evaluated |
+| nemo-solver-c1 | harrysun2006 | 0.85 | pushed + evaluated |
+| nemo-solver-c2 | harrysun2006 | 0.83 | pushed + evaluated |
+| **nemo-merge-soup** | harrysun2006 | **0.86** | pushed + evaluated (**best**) |
 
-> ✅ **Refreshed 2026-06-14** via read-only Kaggle API (`kaggle competitions submissions`, both accounts). All listed submissions are `COMPLETE`; private LB not released. See `submissions.md` for the full confirmed table.
-> Reflects issue #86 evidence current to 2026-06-14 ~05:00 UTC.
+> ✅ **Refreshed 2026-06-15** via read-only Kaggle API (`kaggle competitions submissions`, both accounts). All listed submissions are `COMPLETE`; private LB not released. See `submissions.md` for the full confirmed table.
 
 ## Submission / LB status
-- Best own-work public LB: **0.85** (`nemo-replay-v14`). Raw account public max **0.86** (2026-05-15 public-fork; not own training). Leaderboard top **~0.90** (2026-06-14). Private LB `unknown` (not released). Full confirmed table: `submissions.md`.
+- Best own-work public LB: **0.86** (`nemo-merge-soup`, SVD soup of v14+c1+b1 — real training, no repack). Leaderboard top **~0.90** (2026-06-15). Private LB `unknown` (not released). Full confirmed table: `submissions.md`.
 
 ## Version map
 | LB | Version | Recipe summary |
@@ -73,9 +78,14 @@
 | 0.67 | ctx4k (T1) | masked CoT, seq4096 |
 | 0.42 | ctx2k (T2) | masked CoT, seq2048 (truncation bug) |
 | 0.59 | v10 (T4) | rule-aware CoT (rule + long-CoT mix) |
-| **0.85** | **v14 (T10)** | **public replay recipe: CCE + MoE tying + lm_head/Mamba LoRA + seq8192 + huikang corpus + replay-math** |
-| 0.82 | t7 | SVD merge v14+ctx4k+v10 → rank32 |
+| 0.85 | v14 (T10) | public replay recipe: CCE + MoE tying + lm_head/Mamba LoRA + seq8192 + huikang corpus + replay-math |
+| 0.82 | t7 | SVD merge v14+ctx4k+v10 → rank32 (strong+weak, regressed) |
 | 0.84 | v15 (T11) | v14 backbone + cryptarithm-weighted synth (~24%) |
+| 0.85 | b1 | v14 backbone + cryptarithm-only synth (~9%) |
+| 0.84 | b2 | v14 backbone + cryptarithm+bit synth (~11%) |
+| 0.85 | c1 | v14 backbone + verified real-prompt solver-CoT (balanced ~1800) |
+| 0.83 | c2 | v14 backbone + verified solver-CoT (hard-cat emphasis ~1000) |
+| **0.86** | **soup** | **SVD model-soup of v14+c1+b1 (0.4/0.3/0.3) → rank32 — comparable+complementary, BEST** |
 
 ## Evidence links
 - GitHub issue #86 (body + comments 0–4) — original hub.
