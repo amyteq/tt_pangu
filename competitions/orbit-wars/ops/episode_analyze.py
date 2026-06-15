@@ -42,10 +42,25 @@ SUN_R = 10.0
 SUN_DANGER = SUN_R + 2.0  # "repeated near-sun ticks below danger radius" signal
 
 EP_COLS = [
-    "episode_id", "date_analyzed", "our_seat", "our_username", "our_agent",
-    "opp_name", "opp_class", "result", "steps", "our_final_ships",
-    "opp_final_ships", "launches", "attacks", "reinforces", "atk_size_mean",
-    "sun_collision", "hard_bug", "winner_reason", "followup_task",
+    "episode_id",
+    "date_analyzed",
+    "our_seat",
+    "our_username",
+    "our_agent",
+    "opp_name",
+    "opp_class",
+    "result",
+    "steps",
+    "our_final_ships",
+    "opp_final_ships",
+    "launches",
+    "attacks",
+    "reinforces",
+    "atk_size_mean",
+    "sun_collision",
+    "hard_bug",
+    "winner_reason",
+    "followup_task",
 ]
 
 
@@ -123,7 +138,7 @@ def analyze(path: str, our_usernames: set[str]) -> list[dict]:
             obs = dict(obs0)
             obs["player"] = seat
             planets = {p[0]: p for p in obs.get("planets", [])}
-            for mv in (st[seat].get("action") or []):
+            for mv in st[seat].get("action") or []:
                 try:
                     _src, _ang, n = int(mv[0]), float(mv[1]), int(mv[2])
                 except Exception:
@@ -146,15 +161,20 @@ def analyze(path: str, our_usernames: set[str]) -> list[dict]:
         # late near-sun = collapse signal (second half of game)
         late_sun = worst is not None and worst[0] >= len(steps) // 2
         if n_sun > 0:
-            hard.append(f"sun-proximity ticks={n_sun} worst(step={worst[0]},dist={worst[1]})")
+            hard.append(
+                f"sun-proximity ticks={n_sun} worst(step={worst[0]},dist={worst[1]})"
+            )
         rew = rewards[seat]
         orew = rewards[1 - seat]
         result = "tie"
         if rew is not None and orew is not None:
             result = "win" if rew > orew else ("loss" if rew < orew else "tie")
         stats = {
-            "attacks": attacks, "reinforces": reinforces,
-            "atk_size_mean": round(sum(atk_sizes) / len(atk_sizes), 1) if atk_sizes else 0.0,
+            "attacks": attacks,
+            "reinforces": reinforces,
+            "atk_size_mean": round(sum(atk_sizes) / len(atk_sizes), 1)
+            if atk_sizes
+            else 0.0,
         }
         # opponent quick stats for the reason heuristic
         opp_atk = []
@@ -163,7 +183,7 @@ def analyze(path: str, our_usernames: set[str]) -> list[dict]:
             obs = dict(obs0)
             obs["player"] = 1 - seat
             pl = {p[0]: p for p in obs.get("planets", [])}
-            for mv in (st[1 - seat].get("action") or []):
+            for mv in st[1 - seat].get("action") or []:
                 try:
                     n = int(mv[2])
                     dec = _decode_target(mv, obs)
@@ -172,20 +192,36 @@ def analyze(path: str, our_usernames: set[str]) -> list[dict]:
                     n = 0
                 if dec and pl.get(dec[0], [None, None])[1] not in (-1, seat, None):
                     opp_atk.append(n)
-        opp_stats = {"atk_size_mean": round(sum(opp_atk) / len(opp_atk), 1) if opp_atk else 0.0}
+        opp_stats = {
+            "atk_size_mean": round(sum(opp_atk) / len(opp_atk), 1) if opp_atk else 0.0
+        }
         reason = _winner_reason(seat, result == "win", stats, opp_stats, late_sun)
         sun_flag = "YES" if n_sun > 0 else "no"
         hard_flag = "; ".join(hard) if hard else "none"
         row = {
-            "episode_id": episode_id, "date_analyzed": "", "our_seat": seat,
-            "our_username": agents[seat], "our_agent": "unknown",
-            "opp_name": opp, "opp_class": "unknown", "result": result,
+            "episode_id": episode_id,
+            "date_analyzed": "",
+            "our_seat": seat,
+            "our_username": agents[seat],
+            "our_agent": "unknown",
+            "opp_name": opp,
+            "opp_class": "unknown",
+            "result": result,
             "steps": len(steps),
-            "our_final_ships": round(_final_ships(last[0].get("observation", {}), seat)),
-            "opp_final_ships": round(_final_ships(last[0].get("observation", {}), 1 - seat)),
-            "launches": launches, "attacks": attacks, "reinforces": reinforces,
-            "atk_size_mean": stats["atk_size_mean"], "sun_collision": sun_flag,
-            "hard_bug": hard_flag, "winner_reason": reason, "followup_task": "",
+            "our_final_ships": round(
+                _final_ships(last[0].get("observation", {}), seat)
+            ),
+            "opp_final_ships": round(
+                _final_ships(last[0].get("observation", {}), 1 - seat)
+            ),
+            "launches": launches,
+            "attacks": attacks,
+            "reinforces": reinforces,
+            "atk_size_mean": stats["atk_size_mean"],
+            "sun_collision": sun_flag,
+            "hard_bug": hard_flag,
+            "winner_reason": reason,
+            "followup_task": "",
         }
         rows.append(row)
         print(
