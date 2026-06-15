@@ -37,3 +37,18 @@ Deliberately NOT pursued: another v11 stage-2 SFT (T5 — cipher-heavy + self-di
   - **`firefly2006/nemo-v11-sft-d` (running).** Compliant own-work SFT on may's v11-sample-b verified corpus (261 CoTs). Low-EV (T12 + self-distillation saturation) but uses a slot.
   - **`firefly2006/nemo-andy279-prep` (COMPLETE) + `nemo-andy279-train` (running).** The andy279 HF dataset is gated; unblocked with an HF read token embedded only in the private Kaggle prep kernel (repo copy keeps `_HF_TOKEN` empty + Kaggle-Secret/env fallback). Prep emitted **34,522** frontier teacher CoTs (bit 17,275 / equation 10,525 / cipher 6,722; solver-guided "find the rule" style). Train weaves a per-category-capped subset (equation 800 / bit 600 / cipher 300) into the v14 replay recipe → fresh rank-32 LoRA. No harry↔may *adapter* sharing needed (both may directions train fresh on the public v14 recipe). ⚠ Rotate the HF token after close.
 - Submissions to the leaderboard remain gated on explicit human approval (CLAUDE.md).
+
+## Final outcome (2026-06-15 ~22:35 UTC)
+All final-sprint candidates submitted + scored on the public LB:
+
+| submission | public LB | note |
+|---|---:|---|
+| **soup (v14+c1+b1)** | **0.86** | **best — banked** |
+| surgery `scale_1.15` | 0.86 | tied; near-duplicate of soup (LoRA ×1.15) → no hedge value |
+| v14 (replay) | 0.85 | robust single adapter; hard-val 0.764 (= soup) |
+| andy279 frontier | **0.81** | ❌ regressed — external-teacher solver-CoT (~17% dose) diluted the v14 recipe |
+| v11 self-distill | **0.80** | ❌ regressed — rejection-sampled CoT diluted further |
+
+**Verdict:** none of the three final directions beat 0.86. Adapter **surgery** = neutral (0.86, confirmed it can't add `equation` capability). The **andy279 frontier** + **v11** *training* directions both **regressed** (0.81 / 0.80) — the "augmentation dilutes the clean replay recipe / single-category ≠ total" lesson (B8) held even against high-quality external-teacher CoT. The **0.86 model-soup is the ceiling.**
+
+**Final private-LB selection: `soup` (0.86) + `v14` (0.85)** — best + the most diverse robust hedge (NOT the surgery duplicate, NOT the regressed andy279/v11). Manually selected (avoid the auto "2-highest-public" = soup+surgery no-hedge trap).

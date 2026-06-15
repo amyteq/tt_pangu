@@ -27,10 +27,19 @@ The final-sprint submissions themselves are listed in the campaign table below.
 - **`equation` is unsolved by everyone (≤2/16)** — the only real frontier; cipher-heavy data does not touch it.
 - **Decision (2026-06-15):** hold the 0.86 soup; stand down the cipher-heavy v11 stage-2 SFTs (a2 corpus was 94% cipher → same regression risk). Remaining daily slots left unused.
 
+### Final-sprint extra submissions (2026-06-15, all scored)
+| submission | account | public LB | note |
+|---|---|---:|---|
+| surgery `scale_1.15` | harrysun2006 | 0.86 | spectral surgery on the soup (×1.15 LoRA); **tied/duplicate** of soup → no hedge value |
+| andy279 frontier | firefly2006 | **0.81** | v14 recipe + 1700 external-teacher solver-CoT (eq/bit) → **regressed** (dilution) |
+| v11 self-distill | firefly2006 | **0.80** | v14 recipe + 261 rejection-sampled CoT → **regressed** |
+
+None beat the 0.86 soup; the augmentation-dilutes / single-cat≠total lesson held even against external-teacher CoT.
+
 ### Final private-LB selection (lock before 23:59 UTC)
 Select the **two** submissions that count for private scoring:
 1. **soup — 0.86** (`2026-06-15 03:22`): best public + robust on hard-val.
-2. **v14 — 0.85** (`2026-06-12 23:36`): equal public LB to c1 but **much stronger on hard-val (0.764 vs c1 0.389)** → safer second pick than c1/b1/v15. (soup + v14 are correlated — soup is 40% v14 — but the v14 family is the demonstrably robust one, so the concentration is intentional.)
+2. **v14 — 0.85** (`2026-06-12 23:36`): equal public LB to c1 but **much stronger on hard-val (0.764 vs c1 0.389)** → safer second pick. **Pick v14, NOT the surgery 0.86** (a near-duplicate of soup = no hedge) and NOT andy279/v11 (regressed). Manually select to avoid the auto "2-highest-public" = soup+surgery no-hedge trap.
 
 ## Real-training campaign (own work — 2026-06-09 → 2026-06-15)
 
