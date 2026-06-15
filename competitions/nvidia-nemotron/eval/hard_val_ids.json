@@ -1,0 +1,365 @@
+{
+  "_meta": {
+    "purpose": "category-stratified hard-validation set for local eval (T12)",
+    "selection": "solver-unfit rows per category (proxy for hidden new-rule difficulty) + format edges",
+    "metric": "official extract+verify (eval/official_metric.py); numeric 1e-2 or exact string",
+    "coverage_solved_total": {
+      "bit": [
+        158,
+        1602
+      ],
+      "cipher": [
+        605,
+        1576
+      ],
+      "equation": [
+        6,
+        1555
+      ],
+      "gravity": [
+        1597,
+        1597
+      ],
+      "numeral": [
+        1576,
+        1576
+      ],
+      "unit": [
+        1594,
+        1594
+      ]
+    },
+    "note": "per-row hidden-LB contribution is unknown; rebuild with same criteria if train.csv changes"
+  },
+  "hard": {
+    "bit": [
+      {
+        "id": "5c4e308a",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "6806d715",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "f84c009a",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "f6a95641",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "4166067c",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "ec192379",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "5374b4ba",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "f17db8d6",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "34b9db0e",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "51da116f",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "e8970401",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "41a702a8",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "2f7f58de",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "18544cb0",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "c0c70a35",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "4dbb8138",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "6a186446",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "094de91f",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "9cfc388d",
+        "answer_type": "binary8"
+      },
+      {
+        "id": "2d790c98",
+        "answer_type": "binary8"
+      }
+    ],
+    "cipher": [
+      {
+        "id": "df6ead3d",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "2411f83a",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "145c9296",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "ec14170e",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "d4519f28",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "d7d182c5",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "f05e77f3",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "d75ea138",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "44405d5d",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "dcf4518b",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "7447875a",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "c3d2893c",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "6fd6e409",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "221798d9",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "d441b4aa",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "eda9e743",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "42dd5593",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "5738dc2a",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "e379414c",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "3db042cf",
+        "answer_type": "string/symbol"
+      }
+    ],
+    "equation": [
+      {
+        "id": "904e3a54",
+        "answer_type": "numeric"
+      },
+      {
+        "id": "e07fffa6",
+        "answer_type": "numeric"
+      },
+      {
+        "id": "7b3d06f7",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "9081e954",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "d78128b2",
+        "answer_type": "numeric"
+      },
+      {
+        "id": "69aa57b3",
+        "answer_type": "numeric"
+      },
+      {
+        "id": "db564ba9",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "2a5e45a4",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "750adc0c",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "ca109b5e",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "d67cbe5f",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "58fed63a",
+        "answer_type": "numeric"
+      },
+      {
+        "id": "e8011eb6",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "94e41495",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "baab28bb",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "cf4c04c0",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "fc7e4f9b",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "2f46a715",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "9346686a",
+        "answer_type": "string/symbol"
+      },
+      {
+        "id": "e3890bf7",
+        "answer_type": "string/symbol"
+      }
+    ],
+    "gravity": [],
+    "numeral": [],
+    "unit": []
+  },
+  "anchors": {
+    "bit": [
+      {
+        "id": "fd48ee2f"
+      },
+      {
+        "id": "034930e2"
+      },
+      {
+        "id": "7af6e047"
+      }
+    ],
+    "cipher": [
+      {
+        "id": "d300a576"
+      },
+      {
+        "id": "ef9b4967"
+      },
+      {
+        "id": "f692a1d8"
+      }
+    ],
+    "equation": [
+      {
+        "id": "b989c740"
+      },
+      {
+        "id": "6b393b81"
+      },
+      {
+        "id": "2f485a40"
+      }
+    ],
+    "gravity": [
+      {
+        "id": "5fbcebc2"
+      },
+      {
+        "id": "4292f351"
+      },
+      {
+        "id": "39e10935"
+      }
+    ],
+    "numeral": [
+      {
+        "id": "abdda9e5"
+      },
+      {
+        "id": "76006f59"
+      },
+      {
+        "id": "51125e5e"
+      }
+    ],
+    "unit": [
+      {
+        "id": "7ce54d1f"
+      },
+      {
+        "id": "985ec868"
+      },
+      {
+        "id": "5953f4c8"
+      }
+    ]
+  },
+  "format_edges": {
+    "leading_zero_binary": [
+      "aedef8e4",
+      "5028d953",
+      "6e80733d",
+      "264b2118",
+      "a794d193",
+      "87c4e31b",
+      "9bd65991",
+      "412186a6"
+    ]
+  }
+}

@@ -7,23 +7,10 @@
 > Kaggle's submissions API exposes no numeric submission ID; the (date + description) pair is the key.
 > Quota: 5/team/day.
 
-## Final-sprint submissions (2026-06-15) — B / C / model-soup
-
-> Confirmed `COMPLETE` via the live Kaggle submissions API on 2026-06-15. The **3-way model
-> soup is own work** (SVD merge of our own v14/c1/b1 adapters — compliant, D3 own-adapters-only)
-> and is the **new own-training best at 0.86**, edging the v14 replay (0.85).
-
-| Date (UTC) | Account | Version | Public LB | T12 hard-val (72) | Private LB | Status | Description (kernel) |
-|---|---|---|---:|---:|---:|---|---|
-| 2026-06-15 03:22 | harrysun2006 | **soup** | **0.86** | **0.764** | unknown | COMPLETE | SVD rank32 of v14(0.4)+c1(0.3)+b1(0.3) — 3 complementary 0.85 adapters (replay / verified-solver-CoT / cryptarithm-synth) |
-| 2026-06-15 01:12 | harrysun2006 | c1 | 0.85 | 0.389 | unknown | COMPLETE | Solver C1: v14 backbone + 1800 verified real-prompt CoT (cipher/bit/numeral/gravity/unit), seq8192 |
-| 2026-06-15 00:52 | harrysun2006 | c2 | 0.83 | 0.278 | unknown | COMPLETE | Solver C2: v14 backbone + 1000 verified CoT (hard-cat: bit/equation/cipher), seq8192 |
-| 2026-06-15 01:02 | firefly2006 | b2 | 0.84 | not eval'd | unknown | COMPLETE | Synth B2: v14 backbone + cryptarithm+bit synth ~1000 (~11%), seq8192 |
-| 2026-06-15 00:52 | firefly2006 | b1 | 0.85 | not eval'd | unknown | COMPLETE | Synth B1: v14 backbone + cryptarithm-only synth ~800 (~9%), seq8192 |
-
-### T12 hard-val ranking (official-metric, min-logprob hardest 72; `harrysun2006/nemo-t12-hardval` v2, 2026-06-15)
+## T12 hard-val ranking (official-metric, min-logprob hardest 72; `harrysun2006/nemo-t12-hardval` v2, 2026-06-15)
 Greedy decode (official `max_tokens=7680, temp=0`), `\boxed{}`/last-number extractor, exact-or-1e-2 match.
 Hard-val = min-logprob hardest-N-per-category (16 each bit/equation/cipher, 8 each numeral/gravity/unit).
+The final-sprint submissions themselves are listed in the campaign table below.
 
 | adapter | hard-val acc | bit | equation | cipher | numeral/gravity/unit |
 |---|---:|---|---|---|---|
@@ -45,10 +32,15 @@ Select the **two** submissions that count for private scoring:
 1. **soup — 0.86** (`2026-06-15 03:22`): best public + robust on hard-val.
 2. **v14 — 0.85** (`2026-06-12 23:36`): equal public LB to c1 but **much stronger on hard-val (0.764 vs c1 0.389)** → safer second pick than c1/b1/v15. (soup + v14 are correlated — soup is 40% v14 — but the v14 family is the demonstrably robust one, so the concentration is intentional.)
 
-## Real-training campaign (own work — 2026-06-09 → 2026-06-14)
+## Real-training campaign (own work — 2026-06-09 → 2026-06-15)
 
 | Date (UTC) | Account | Version | Public LB | Private LB | Status | Description (kernel) |
 |---|---|---|---:|---:|---|---|
+| 2026-06-15 ~12 | harrysun2006 | **soup** | **0.86** | unknown | COMPLETE | **SVD model-soup of v14+c1+b1 (0.4/0.3/0.3) → rank-32 — new best, own real-training** |
+| 2026-06-15 01:12 | harrysun2006 | c1 | 0.85 | unknown | COMPLETE | v14 backbone + verified real-prompt solver-CoT (balanced ~1800) |
+| 2026-06-15 00:52 | harrysun2006 | c2 | 0.83 | unknown | COMPLETE | v14 backbone + verified solver-CoT (hard-cat emphasis ~1000) |
+| 2026-06-15 01:02 | firefly2006 | b2 | 0.84 | unknown | COMPLETE | v14 backbone + cryptarithm+bit synth (~11%) |
+| 2026-06-15 00:52 | firefly2006 | b1 | 0.85 | unknown | COMPLETE | v14 backbone + cryptarithm-only synth (~9%) |
 | 2026-06-14 05:53 | harrysun2006 | v15 (T11) | 0.84 | unknown | COMPLETE | v14 backbone + 2640 cryptarithm-weighted synth (60% crypt), seq8192, 337/337 steps |
 | 2026-06-13 23:54 | harrysun2006 | t7 merge | 0.82 | unknown | COMPLETE | SVD merge v14@1.0 + ctx4k@0.25 + v10@0.25, per-module rank-32 |
 | 2026-06-12 23:36 | harrysun2006 | **v14 (T10)** | **0.85** | unknown | COMPLETE | replay recipe: huikang corpus (7830) + replay-math (2.0M ans tok), seq8192, 254/254 steps, CCE + MoE tying + lm_head/in_proj/out_proj |
@@ -70,15 +62,19 @@ Select the **two** submissions that count for private scoring:
 | 2026-05-15 00:18 | harrysun2006 | **0.86** | unknown | COMPLETE | "[LB] [SCORE] [0.86]" — public fork |
 
 ## Best score — honest reading
-- **Best own real-training submission: 0.86** (the 3-way model **soup**, 2026-06-15 — SVD merge of our
-  own v14/c1/b1 adapters; compliant own-work, D3). Edges the v14 replay (0.85). T12 confirms it is
-  robust on hard problems (hard-val 0.764, tied with v14), not a lucky public-LB artifact.
-- **Previous own-training best: 0.85** (`nemo-replay-v14`, 2026-06-12) — still the strongest *single*
-  adapter and the recommended second private-LB selection.
-- **Raw account public max: 0.86** — also matched by a **2026-05-15 public-fork** submission
-  (`[LB][SCORE][0.86]`), not our own training. The 0.86 soup above reaches the same number via
-  compliant own-work, so the account's public max and own-work best now coincide at 0.86.
-- Current leaderboard top: **~0.90** (refreshed 2026-06-14; was ~0.89 in the issue snapshot).
+- **Best own real-training submission: 0.86** (`nemo-merge-soup`, 2026-06-15) — an SVD **model-soup** of
+  three own-trained, comparable+complementary 0.85 adapters (v14 replay + c1 verified-solver-CoT + b1
+  cryptarithm-synth, weights 0.4/0.3/0.3, rank-32). Real training, no repack (D3-compliant). This broke the
+  0.85 ceiling (+0.01).
+- Earlier own-work best was 0.85 (`nemo-replay-v14`). The final-sprint individual runs tied or trailed it
+  (b1 0.85, c1 0.85, b2 0.84, c2 0.83); only the **soup** exceeded it.
+- **T12 hard-val (2026-06-15) confirms the soup is robust**, not a public-LB fluke: 0.764 on the hardest 72,
+  tied with v14 and best of all candidates; the augmented adapters (c1/c2/v15) regress to at/below base
+  there. → Final private-LB selection: **soup (0.86) + v14 (0.85)** (v14 is the strongest single adapter
+  and far ahead of c1 on hard-val).
+- Note: a 2026-05-15 **public-fork** submission also showed 0.86, but that was a repack (not own training);
+  the soup now gives a **compliant own-work 0.86**.
+- Current leaderboard top: **~0.90** (refreshed 2026-06-15).
 
 ## Submission checklist
 - [ ] local validation passed (validate_kernel.py + fail-fast preflight)
