@@ -19570,3 +19570,836 @@ To github.com:amyteq/tt_pangu.git
 `13:55:41`
 
 📝 Recap: Goal: land the competition-docs consolidation work. PR #104 (dev/harry → main) is open and updated — settings.local.json untracked and gitignored, work/ and worklogs included. Next action: merge PR #104 when you give the word.
+
+## 🤷 User: *merge PR #104*
+
+`22:47:37`
+
+merge PR #104
+
+### 🤖 Assistant: *Checking PR #104 status before merging.*
+
+`22:47:50`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Checking PR #104 status before merging.
+
+#### 💻 Bash: *Check PR #104 CI status*
+
+`22:47:52`
+
+```bash
+$ gh pr view 104 --json mergeable,mergeStateStatus,statusCheckRollup 2>&1 | python3 -c "import sys,json; d=json.load(sys.stdin); print('mergeable:',d['mergeable'],'| state:',d['mergeStateStatus']); [print(' ',c.get('name'),'->',c.get('status'),c.get('conclusion')) for c in d.get('statusCheckRollup',[])] or print('  (no checks)')"
+```
+
+```
+mergeable: CONFLICTING | state: DIRTY
+  eval (mocked nightly) -> COMPLETED SUCCESS
+  no-db pytest -> COMPLETED SUCCESS
+  eval-delta-check (PR gate) -> COMPLETED SUCCESS
+  live-db pytest -> COMPLETED SUCCESS
+  eval (rolling diff) -> COMPLETED SKIPPED
+  ruff lint + format check -> COMPLETED SUCCESS
+  ui build + lint + typecheck + test -> COMPLETED SUCCESS
+```
+
+### 🤖 Assistant: *PR #104 is now `CONFLICTING` — `main` advanced…*
+
+`22:48:13`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> PR #104 is now `CONFLICTING` — `main` advanced past `dev/harry` (likely worklog commits) and the worklog edits conflict. Let me fetch and identify exactly what changed and which files conflict.
+
+#### 💻 Bash: *Fetch and diagnose the conflict on dev/harry vs main*
+
+`22:48:18`
+
+```bash
+$ git fetch origin 2>&1 | tail -2
+echo "=== origin/main tip now ==="; git log --oneline -1 origin/main
+echo "=== dev/harry tip ==="; git log --oneline -1 dev/harry
+echo "=== commits on origin/main NOT on dev/harry (dev/harry behind by) ==="; git rev-list --count dev/harry..origin/main
+git log --oneline dev/harry..origin/main | head
+echo "=== merge-base ==="; git merge-base dev/harry origin/main | xargs git log --oneline -1
+echo "=== files that would conflict (merge-tree dry run) ==="
+git merge-tree $(git merge-base dev/harry origin/main) dev/harry origin/main 2>/dev/null | grep -A1 "changed in both" | grep -E "\.md|\.json" | head -20 || echo "(merge-tree format varies; will test-merge)"
+```
+
+```
+From github.com:amyteq/tt_pangu
+   9807a2d..28c0dc7  main       -> origin/main
+=== origin/main tip now ===
+28c0dc7 chore(worklogs): daily Claude session dump (2026-06-15 02:01 AEST) (#105)
+=== dev/harry tip ===
+e3f5b77 chore(.claude): untrack settings.local.json + add .claude/.gitignore
+=== commits on origin/main NOT on dev/harry (dev/harry behind by) ===
+1
+28c0dc7 chore(worklogs): daily Claude session dump (2026-06-15 02:01 AEST) (#105)
+=== merge-base ===
+9807a2d docs(orbit): consolidate Orbit Wars tracking context into English canonical docs (KCT-003) (#103)
+=== files that would conflict (merge-tree dry run) ===
+  base   100644 0b58341580f1993706b428296c465b4d44fc8b9f worklogs/nemo2.md
+```
+
+### 🤖 Assistant: *A daily worklog dump (`#105`, 2026-06-15…*
+
+`22:49:11`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> A daily worklog dump (`#105`, 2026-06-15) landed on `main` after `dev/harry` diverged, conflicting in worklog files. I need to merge `main` into `dev/harry` and resolve — let me see the actual conflicts first (merge without committing, abortable).
+
+#### 💻 Bash: *Attempt merge to surface conflicts*
+
+`22:49:14`
+
+```bash
+$ git merge origin/main --no-commit --no-ff 2>&1 | tail -8
+echo "=== unmerged (conflicting) files ==="; git diff --name-only --diff-filter=U
+echo "=== conflict marker counts per file ==="; for f in $(git diff --name-only --diff-filter=U); do echo "$f: $(grep -c '^<<<<<<<' "$f" 2>/dev/null) conflict hunks"; done
+```
+
+```
+Auto-merging worklogs/comp.md
+CONFLICT (add/add): Merge conflict in worklogs/comp.md
+Auto-merging worklogs/nemo2.md
+CONFLICT (content): Merge conflict in worklogs/nemo2.md
+Automatic merge failed; fix conflicts and then commit the result.
+=== unmerged (conflicting) files ===
+worklogs/comp.md
+worklogs/nemo2.md
+=== conflict marker counts per file ===
+worklogs/comp.md: 1 conflict hunks
+worklogs/nemo2.md: 1 conflict hunks
+```
+
+### 🤖 Assistant: *Two files conflict (1 hunk each): `worklogs…*
+
+`22:49:27`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Two files conflict (1 hunk each): `worklogs/comp.md` (add/add) and `worklogs/nemo2.md` (content). Both are append-only session logs. Let me size up each side of the conflicts to resolve sensibly.
+
+#### 💻 Bash: *Measure conflict hunk sizes on both sides*
+
+`22:49:31`
+
+```bash
+$ for f in worklogs/comp.md worklogs/nemo2.md; do
+  echo "===== $f ====="
+  ours=$(awk '/^<<<<<<</{c=1;next} /^=======$/{c=0} c' "$f" | wc -l)
+  theirs=$(awk '/^=======$/{c=1;next} /^>>>>>>>/{c=0} c' "$f" | wc -l)
+  total=$(wc -l < "$f")
+  echo "total lines: $total | ours(dev/harry) hunk: $ours | theirs(origin/main) hunk: $theirs"
+  echo "--- conflict marker line numbers ---"; grep -nE '^(<<<<<<<|=======|>>>>>>>)' "$f"
+done
+```
+
+```
+===== worklogs/comp.md =====
+total lines: 19575 | ours(dev/harry) hunk: 0 | theirs(origin/main) hunk: 468
+--- conflict marker line numbers ---
+15783:================= harrysun2006 submissions =================
+15800:================= firefly2006 submissions =================
+17611:================= harrysun2006 submissions =================
+17625:================= firefly2006 (may) submissions =================
+17631:================= leaderboard top 5 =================
+19105:<<<<<<< HEAD
+19106:=======
+19575:>>>>>>> origin/main
+===== worklogs/nemo2.md =====
+total lines: 15901 | ours(dev/harry) hunk: 0 | theirs(origin/main) hunk: 3133
+--- conflict marker line numbers ---
+9151:======================================================================
+9153:======================================================================
+9194:======================================================================
+9196:======================================================================
+9226:======================================================================
+9228:======================================================================
+12766:<<<<<<< HEAD
+12767:=======
+15901:>>>>>>> origin/main
+```
+
+### 🤖 Assistant: *Both conflicts are at the \*\*end of file\*…*
+
+`22:50:08`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Both conflicts are at the **end of file**: `dev/harry`'s side is **empty** and `origin/main` (the #105 daily dump) has **appended** content (468 lines in `comp.md`, 3133 in `nemo2.md`) that `dev/harry` lacks. The correct resolution is to **keep the appended content** (take theirs for that hunk). Let me verify the conflict markers are unique, then resolve.
+
+#### 💻 Bash: *Confirm exactly one conflict marker set per file*
+
+`22:50:11`
+
+```bash
+$ for f in worklogs/comp.md worklogs/nemo2.md; do
+  echo "$f: <<< $(grep -c '^<<<<<<< HEAD$' "$f") | === $(grep -c '^=======$' "$f") | >>> $(grep -c '^>>>>>>> origin/main$' "$f")"
+done
+echo "(expect 1 / 1 / 1 each — confirms a single end-of-file conflict per file)"
+```
+
+```
+worklogs/comp.md: <<< 1 | === 1 | >>> 1
+worklogs/nemo2.md: <<< 1 | === 1 | >>> 1
+(expect 1 / 1 / 1 each — confirms a single end-of-file conflict per file)
+```
+
+### 🤖 Assistant: *Exactly 1/1/1 — safe to resolve by removing…*
+
+`22:50:17`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Exactly 1/1/1 — safe to resolve by removing the marker lines (ours side is empty, so the appended content is kept). Resolving both, then verifying no markers remain.
+
+#### 💻 Bash: *Resolve conflicts by keeping appended content; verify clean*
+
+`22:50:21`
+
+```bash
+$ for f in worklogs/comp.md worklogs/nemo2.md; do
+  perl -i -ne 'next if /^<<<<<<< HEAD$/ || /^=======$/ || /^>>>>>>> origin\/main$/; print' "$f"
+done
+echo "=== verify NO conflict markers remain anywhere in the tree ==="
+git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- 'worklogs/*.md' 2>/dev/null && echo "!! markers remain" || echo "clean — no conflict markers ✓"
+echo "=== tail of resolved comp.md (should end with theirs content, no markers) ==="; tail -3 worklogs/comp.md
+echo "=== line counts now ==="; wc -l worklogs/comp.md worklogs/nemo2.md
+```
+
+```
+=== verify NO conflict markers remain anywhere in the tree ===
+worklogs/M10.md:3552:============================= test session starts ==============================
+worklogs/M10.md:3564:============================== 3 passed in 1.22s ===============================
+worklogs/M10.md:5388:=========================== short test summary info ============================
+worklogs/M10.md:12089:=========================== short test summary info ============================
+worklogs/M10.md:12091:============================== 1 failed in 3.29s ===============================
+worklogs/M10.md:12272:=========================== short test summary info ============================
+worklogs/M10.md:12274:============================== 1 failed in 3.26s ===============================
+worklogs/M10.md:12523:=========================== short test summary info ============================
+worklogs/M10.md:12527:=========================== short test summary info ============================
+worklogs/M10.md:16493:<<<<<<< HEAD
+worklogs/M10.md:16496:=======
+worklogs/M10.md:16499:>>>>>>> origin/main
+worklogs/M11.md:18234:============================= test session starts ==============================
+worklogs/M11.md:18256:============================== 13 passed in 0.34s ==============================
+worklogs/M11.md:18274:============================= test session starts ==============================
+worklogs/M11.md:18296:========================= 5 passed, 8 skipped in 0.06s =========================
+worklogs/M11.md:18690:============================== 13 passed in 0.33s ==============================
+worklogs/M11.md:19051:============================= test session starts ==============================
+worklogs/M11.md:19073:======================== 13 passed in 61.83s (0:01:01) =========================
+worklogs/M11.md:23612:============================= test session starts ==============================
+worklogs/M11.md:23653:============================== 32 passed in 0.10s ==============================
+worklogs/M11.md:23708:=========================== short test summary info ============================
+worklogs/M11.md:23710:========================= 1 failed, 18 passed in 1.71s =========================
+worklogs/M11.md:23801:======================== 18 passed, 1 skipped in 1.55s =========================
+worklogs/M11.md:23819:============================= test session starts ==============================
+worklogs/M11.md:23841:======================= 127 passed, 14 skipped in 7.80s ========================
+worklogs/M11.md:24001:======================== 50 passed, 1 skipped in 0.81s =========================
+worklogs/M11.md:30012:============================= test session starts ==============================
+worklogs/M11.md:30050:============================== 29 passed in 2.47s ==============================
+worklogs/M11.md:55726:============================= test session starts ==============================
+worklogs/M11.md:55743:============================== 8 passed in 0.26s ===============================
+worklogs/M11.md:55772:=========================== short test summary info ============================
+worklogs/M11.md:55780:============================== 7 errors in 0.15s ===============================
+worklogs/M11.md:55812:============================== 7 skipped in 0.01s ==============================
+worklogs/M11.md:55885:============================= test session starts ==============================
+worklogs/M11.md:55901:============================== 7 passed in 4.52s ===============================
+worklogs/M11.md:55948:======================= 169 passed, 29 skipped in 10.66s =======================
+worklogs/M11.md:56017:============================== 8 passed in 0.23s ===============================
+worklogs/M11.md:59126:=========================== short test summary info ============================
+worklogs/M11.md:59138:=========================== short test summary info ============================
+worklogs/M11.md:59178:============================== 69 passed in 2.72s ==============================
+worklogs/M11.md:59577:============================= test session starts ==============================
+worklogs/M11.md:59589:============================== 8 passed in 0.27s ===============================
+worklogs/M11.md:59603:=========================== short test summary info ============================
+worklogs/M11.md:59611:============================== 7 errors in 0.14s ===============================
+worklogs/M11.md:59774:==================================== ERRORS ====================================
+worklogs/M11.md:59794:============================= test session starts ==============================
+worklogs/M11.md:59805:============================== 7 skipped in 0.01s ==============================
+worklogs/M11.md:61874:<<<<<<< HEAD
+worklogs/M11.md:61876:=======
+worklogs/M11.md:61878:>>>>>>> 664f4c4 (M11: final review — 23 PASS / 1 SKIP-BLOCKED (T007) / 0 FAIL)
+worklogs/M11.md:61909:<<<<<<< HEAD
+worklogs/M11.md:61915:=======
+worklogs/M11.md:61925:>>>>>>> 664f4c4 (M11: final review — 23 PASS / 1 SKIP-BLOCKED (T007) / 0 FAIL)
+worklogs/M11.md:61945:<<<<<<< HEAD
+worklogs/M11.md:61947:=======
+worklogs/M11.md:61949:>>>>>>> 664f4c4 (M11: final review — 23 PASS / 1 SKIP-BLOCKED (T007) / 0 FAIL)
+worklogs/M11.md:62001:<<<<<<< HEAD
+worklogs/M11.md:62003:=======
+worklogs/M11.md:62005:>>>>>>> 664f4c4 (M11: final review — 23 PASS / 1 SKIP-BLOCKED (T007) / 0 FAIL)
+worklogs/M11.md:62025:<<<<<<< HEAD
+worklogs/M11.md:62078:=======
+worklogs/M11.md:62129:>>>>>>> 664f4c4 (M11: final review — 23 PASS / 1 SKIP-BLOCKED (T007) / 0 FAIL)
+worklogs/M11.md:62164:>>>>>>> 664f4c4 (M11: final review — 23 PASS / 1 SKIP-BLOCKED (T007) / 0 FAIL)
+worklogs/M11.md:62268:=======
+worklogs/M11.md:62280:>>>>>>> 664f4c4 (M11: final review — 23 PASS / 1 SKIP-BLOCKED (T007) / 0 FAIL)
+worklogs/M11.md:62303:<<<<<<< HEAD$
+worklogs/M11.md:62309:=======$
+worklogs/M11.md:62319:>>>>>>> 664f4c4 (M11: final review M-bM-^@M-^T 23 PASS / 1 SKIP-BLOCKED (T007) / 0 FAIL)$
+worklogs/M11.md:62511:<<<<<<< HEAD
+worklogs/M11.md:65670:============================== 34 passed in 2.38s ==============================
+worklogs/M12.md:11748:=========================== short test summary info ============================
+worklogs/M12.md:11780:=========================== short test summary info ============================
+worklogs/M12.md:16212:=========================== short test summary info ============================
+worklogs/M12.md:19642:============================= test session starts ==============================
+worklogs/M12.md:19655:============================== 4 passed in 0.03s ===============================
+worklogs/M12.md:19709:=========================== short test summary info ============================
+worklogs/M12.md:19715:==================== 1 failed, 54 passed, 4 errors in 6.70s ====================
+worklogs/M12.md:19801:======================== 56 passed, 7 skipped in 6.18s =========================
+worklogs/M12.md:19851:======================== 94 passed, 14 skipped in 7.79s ========================
+worklogs/M12.md:26866:============================= test session starts ==============================
+worklogs/M12.md:26881:============================== 6 passed in 0.11s ===============================
+worklogs/M12.md:26917:=========================== short test summary info ============================
+worklogs/M12.md:27325:============================= test session starts ==============================
+worklogs/M12.md:27344:============================== 10 passed in 0.13s ==============================
+worklogs/M12.md:32713:============================= test session starts ==============================
+worklogs/M12.md:32730:============================== 8 passed in 0.05s ===============================
+worklogs/M12.md:32860:============================= test session starts ==============================
+worklogs/M12.md:32918:============================== 49 passed in 4.82s ==============================
+worklogs/M12.md:32974:============================= test session starts ==============================
+worklogs/M12.md:32991:============================== 8 passed in 0.04s ===============================
+worklogs/M12.md:38411:============================= test session starts ==============================
+worklogs/M12.md:38426:============================== 6 passed in 0.31s ===============================
+worklogs/M12.md:38810:=========================== short test summary info ============================
+worklogs/M12.md:38813:========================= 1 failed, 6 passed in 1.23s ==========================
+worklogs/M12.md:47691:=========================== short test summary info ============================
+worklogs/M12.md:54339:============================= test session starts ==============================
+worklogs/M12.md:54354:============================== 6 passed in 0.29s ===============================
+worklogs/M12.md:54372:============================= test session starts ==============================
+worklogs/M12.md:54388:============================== 7 skipped in 0.02s ==============================
+worklogs/M12.md:54437:=========================== short test summary info ============================
+worklogs/M12.md:54443:========================= 2 xfailed, 5 errors in 2.30s =========================
+worklogs/M12.md:54739:============================= test session starts ==============================
+worklogs/M12.md:54755:========================= 5 passed, 2 xfailed in 5.07s =========================
+worklogs/M12.md:54875:============================== 6 passed in 0.31s ===============================
+worklogs/M12.md:60880:<<<<<<< HEAD
+worklogs/M12.md:60882:=======
+worklogs/M12.md:60884:>>>>>>> origin/main
+worklogs/M12.md:60936:<<<<<<< HEAD
+worklogs/M12.md:60938:=======
+worklogs/M12.md:60940:>>>>>>> origin/main
+worklogs/M12.md:60962:<<<<<<< HEAD
+worklogs/M12.md:61005:=======
+worklogs/M12.md:61058:>>>>>>> origin/main
+worklogs/M12.md:61108:<<<<<<< HEAD
+worklogs/M12.md:61114:=======
+worklogs/M12.md:61120:>>>>>>> origin/main
+worklogs/M12.md:62344:<<<<<<< HEAD
+worklogs/M12.md:62350:=======
+worklogs/M12.md:62360:>>>>>>> origin/main
+worklogs/M12.md:62416:<<<<<<< HEAD
+worklogs/M12.md:62431:=======
+worklogs/M12.md:62437:>>>>>>> origin/main
+worklogs/M12.md:62481:<<<<<<< HEAD
+worklogs/M12.md:62492:=======
+worklogs/M12.md:62503:>>>>>>> origin/main
+worklogs/M12.md:62872:<<<<<<< HEAD
+worklogs/M12.md:62878:=======
+worklogs/M12.md:62888:>>>>>>> origin/main
+worklogs/M12.md:63032:<<<<<<< HEAD
+worklogs/M12.md:63059:=======
+worklogs/M12.md:63068:>>>>>>> origin/main
+worklogs/M12.md:63110:<<<<<<< HEAD
+worklogs/M12.md:63120:=======
+worklogs/M12.md:63133:>>>>>>> origin/main
+worklogs/M12.md:63574:=========================== short test summary info ============================
+worklogs/M13.md:14883:=========================== short test summary info ============================
+worklogs/M13.md:19434:=========================== short test summary info ============================
+worklogs/M13.md:30241:================== 105 passed, 4 skipped in 76.95s (0:01:16) ===================
+worklogs/M13.md:33932:=========================== short test summary info ============================
+worklogs/M13.md:38949:=========================== short test summary info ============================
+worklogs/M13.md:41258:============================= test session starts ==============================
+worklogs/M13.md:41283:============================== 16 passed in 0.19s ==============================
+worklogs/M13.md:46011:============================= test session starts ==============================
+worklogs/M13.md:46029:============================== 9 passed in 0.03s ===============================
+worklogs/M13.md:46099:============================== 9 passed in 0.03s ===============================
+worklogs/M13.md:46145:================== 130 passed, 4 skipped in 89.51s (0:01:29) ===================
+worklogs/M13.md:51708:============================= test session starts ==============================
+worklogs/M13.md:51718:============================== 6 passed in 3.75s ===============================
+worklogs/M13.md:51764:============================= test session starts ==============================
+worklogs/M13.md:51774:======================== 6 passed in 157.67s (0:02:37) =========================
+worklogs/M13.md:51792:============================= test session starts ==============================
+worklogs/M13.md:51802:============================== 6 skipped in 0.01s ==============================
+worklogs/M13.md:52589:============================= test session starts ==============================
+worklogs/M13.md:52605:========================= 6 passed, 6 skipped in 3.73s =========================
+worklogs/M13.md:52774:============================= test session starts ==============================
+worklogs/M13.md:52784:============================= slowest 10 durations =============================
+worklogs/M13.md:52792:============================== 6 passed in 3.69s ===============================
+worklogs/M13.md:54000:<<<<<<< HEAD
+worklogs/M13.md:54005:=======
+worklogs/M13.md:54010:>>>>>>> origin/main
+worklogs/M13.md:54286:=================================== FAILURES ===================================
+worklogs/M13.md:55592:=========================== short test summary info ============================
+worklogs/M13.md:55615:=================================== FAILURES ===================================
+worklogs/M13.md:55633:=========================== short test summary info ============================
+worklogs/M13.md:55635:============================== 1 failed in 0.30s ===============================
+worklogs/M13.md:58521:<<<<<<< HEAD
+worklogs/M13.md:58523:=======
+worklogs/M13.md:58525:>>>>>>> origin/main
+worklogs/M13.md:58578:<<<<<<< HEAD
+worklogs/M13.md:58580:=======
+worklogs/M13.md:58583:>>>>>>> origin/main
+worklogs/M13.md:58621:<<<<<<< HEAD
+worklogs/M13.md:58666:=======
+worklogs/M13.md:58729:>>>>>>> origin/main
+worklogs/M13.md:58736:<<<<<<< HEAD
+worklogs/M13.md:58743:=======
+worklogs/M13.md:58761:>>>>>>> origin/main
+worklogs/M13.md:59125:<<<<<<< HEAD
+worklogs/M13.md:59129:=======
+worklogs/M13.md:59131:>>>>>>> origin/main
+worklogs/M13.md:59365:<<<<<<< HEAD
+worklogs/M13.md:59367:=======
+worklogs/M13.md:59369:>>>>>>> origin/main
+worklogs/M13.md:59460:<<<<<<< HEAD
+worklogs/M13.md:59471:=======
+worklogs/M13.md:59492:>>>>>>> origin/main
+worklogs/M8.5.md:2400:======================== 79 passed, 10 skipped in 6.91s ========================
+worklogs/M8.5.md:2825:======================== 79 passed, 10 skipped in 6.88s ========================
+worklogs/M8.5.md:8093:======================== 79 passed, 10 skipped in 7.00s ========================
+worklogs/M8.5.md:11767:======================== 79 passed, 10 skipped in 7.02s ========================
+worklogs/M8.5.md:14285:======================== 79 passed, 10 skipped in 7.02s ========================
+worklogs/M8.md:3922:======================== 59 passed, 9 skipped in 6.44s =========================
+worklogs/M8.md:6921:======================== 59 passed, 9 skipped in 6.39s =========================
+worklogs/M8.md:6930:============================= test session starts ==============================
+worklogs/M8.md:6937:============================ 68 deselected in 0.06s ============================
+worklogs/M8.md:6993:============================== 68 passed in 8.15s ==============================
+worklogs/M8.md:8252:=========================== short test summary info ============================
+worklogs/M8.md:8256:========================= 3 failed, 12 passed in 0.42s =========================
+worklogs/M8.md:8297:============================= test session starts ==============================
+worklogs/M8.md:8321:============================== 15 passed in 0.36s ==============================
+worklogs/M8.md:8333:======================== 59 passed, 9 skipped in 6.40s =========================
+worklogs/M8.md:10099:=========================== short test summary info ============================
+worklogs/M8.md:10103:============================== 3 failed in 0.06s ===============================
+worklogs/M8.md:10176:============================= test session starts ==============================
+worklogs/M8.md:10188:============================== 3 passed in 0.02s ===============================
+worklogs/M8.md:10210:======================== 62 passed, 9 skipped in 6.46s =========================
+worklogs/M8.md:11798:======================== 62 passed, 9 skipped in 6.43s =========================
+worklogs/M8.md:12223:======================== 62 passed, 9 skipped in 6.43s =========================
+worklogs/M8.md:14326:============================= test session starts ==============================
+worklogs/M8.md:14340:============================== 5 passed in 0.33s ===============================
+worklogs/M8.md:15653:======================== 62 passed, 9 skipped in 6.43s =========================
+worklogs/M8.md:16300:============================= test session starts ==============================
+worklogs/M8.md:16322:======================== 12 passed, 1 skipped in 0.47s =========================
+worklogs/M8.md:16349:============================== 13 passed in 0.53s ==============================
+worklogs/M8.md:17011:======================== 74 passed, 10 skipped in 6.91s ========================
+worklogs/M8.md:17043:======================== 12 passed, 1 skipped in 0.45s =========================
+worklogs/M8.md:17357:======================== 77 passed, 7 skipped in 6.89s =========================
+worklogs/M8.md:17362:============================== 13 passed in 0.52s ==============================
+worklogs/M9.1.md:1383:============================= test session starts ==============================
+worklogs/M9.1.md:1396:============================== 4 skipped in 0.01s ==============================
+worklogs/M9.1.md:1420:============================= test session starts ==============================
+worklogs/M9.1.md:1433:============================== 4 passed in 0.06s ===============================
+worklogs/M9.1.md:1486:============================= test session starts ==============================
+worklogs/M9.1.md:1499:============================== 4 skipped in 0.06s ==============================
+worklogs/M9.md:6108:=================================== FAILURES ===================================
+worklogs/M9.md:6164:=========================== short test summary info ============================
+worklogs/M9.md:6167:======================== 2 failed, 87 passed in 11.90s =========================
+worklogs/M9.md:6460:============================= test session starts ==============================
+worklogs/M9.md:6470:=================================== FAILURES ===================================
+worklogs/M9.md:6504:=========================== short test summary info ============================
+worklogs/M9.md:6506:============================== 1 failed in 0.65s ===============================
+worklogs/M9.md:6755:============================== 2 passed in 0.29s ===============================
+worklogs/M9.md:6780:=========================== short test summary info ============================
+worklogs/M9.md:6787:========================= 6 failed, 83 passed in 8.66s =========================
+worklogs/M9.md:6832:=========================== short test summary info ============================
+worklogs/M9.md:6835:============================== 2 failed in 4.63s ===============================
+worklogs/M9.md:6890:======================= 87 passed, 2 deselected in 8.57s =======================
+worklogs/M9.md:15767:============================= test session starts ==============================
+worklogs/M9.md:15781:============================== 5 passed in 0.29s ===============================
+worklogs/M9.md:18339:=========================== short test summary info ============================
+worklogs/M9.md:18773:============================= test session starts ==============================
+worklogs/M9.md:18784:============================== 2 passed in 0.28s ===============================
+worklogs/M9.md:18813:=========================== short test summary info ============================
+worklogs/M9.md:18863:============================== 2 passed in 0.09s ===============================
+worklogs/M9.md:20860:=========================== short test summary info ============================
+worklogs/M9.md:20907:=========================== short test summary info ============================
+worklogs/M9.md:20910:============================== 2 failed in 4.23s ===============================
+worklogs/M9.md:22798:============================= test session starts ==============================
+worklogs/M9.md:22811:============================== 4 passed in 0.06s ===============================
+worklogs/M9.md:22829:============================= test session starts ==============================
+worklogs/M9.md:22842:============================== 4 skipped in 0.01s ==============================
+worklogs/M9.md:22921:============================== 4 passed in 0.07s ===============================
+worklogs/M9.md:22931:======================== 79 passed, 14 skipped in 6.95s ========================
+worklogs/M9.md:26075:============================= test session starts ==============================
+worklogs/M9.md:26086:============================== 2 passed in 0.28s ===============================
+worklogs/M9.md:26731:============================= test session starts ==============================
+worklogs/M9.md:26745:============================== 5 passed in 1.12s ===============================
+worklogs/M9.md:26765:============================= test session starts ==============================
+worklogs/M9.md:26779:============================== 5 passed in 1.12s ===============================
+worklogs/M9.md:26859:============================== 5 passed in 1.14s ===============================
+worklogs/M9.md:29492:=========================== short test summary info ============================
+worklogs/M9.md:29576:=========================== short test summary info ============================
+worklogs/M9.md:30072:=========================== short test summary info ============================
+worklogs/M9.md:30267:============================= test session starts ==============================
+worklogs/M9.md:30281:============================== 5 passed in 0.30s ===============================
+worklogs/comp.md:15783:================= harrysun2006 submissions =================
+worklogs/comp.md:15800:================= firefly2006 submissions =================
+worklogs/comp.md:17611:================= harrysun2006 submissions =================
+worklogs/comp.md:17625:================= firefly2006 (may) submissions =================
+worklogs/comp.md:17631:================= leaderboard top 5 =================
+worklogs/nemo.md:12714:================= dennisfong_nvidia-nemotron-sfttrainer-training/ =================
+worklogs/nemo.md:12749:================= dgxchen_training-with-unsloth-to-achieve-0-85-lb/ =================
+worklogs/nemo.md:12794:================= huikang_end-to-end-finetuning-for-lb-0-85/ =================
+worklogs/nemo.md:21237:<<<<<<< HEAD
+worklogs/nemo.md:21244:=======
+worklogs/nemo.md:21270:>>>>>>> origin/main
+worklogs/nemo.md:24787:<<<<<<< HEAD
+worklogs/nemo.md:24794:=======
+worklogs/nemo.md:24820:>>>>>>> origin/main
+worklogs/nemo2.md:9151:======================================================================
+worklogs/nemo2.md:9153:======================================================================
+worklogs/nemo2.md:9194:======================================================================
+worklogs/nemo2.md:9196:======================================================================
+worklogs/nemo2.md:9226:======================================================================
+worklogs/nemo2.md:9228:======================================================================
+worklogs/orbit.md:10973:========== README.md ==========
+worklogs/orbit.md:11165:========== main.py ==========
+worklogs/orbit.md:11227:========== agents.md ==========
+\!\! markers remain
+=== tail of resolved comp.md (should end with theirs content, no markers) ===
+`13:55:41`
+
+📝 Recap: Goal: land the competition-docs consolidation work. PR #104 (dev/harry → main) is open and updated — settings.local.json untracked and gitignored, work/ and worklogs included. Next action: merge PR #104 when you give the word.
+=== line counts now ===
+  19572 worklogs/comp.md
+  15898 worklogs/nemo2.md
+  35470 total
+```
+
+### 🤖 Assistant: *The `git grep` is mostly \*\*false positives…*
+
+`22:50:54`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The `git grep` is mostly **false positives** — pytest separator lines (`====...`) and literal conflict-marker *text* recorded inside session-dump logs (e.g. `>>>>>>> 664f4c4 (M11: final review…)`). The authoritative check is git's unmerged-file list. Let me verify precisely.
+
+#### 💻 Bash: *Authoritative unmerged-file check + exact marker check*
+
+`22:50:59`
+
+```bash
+$ echo "=== AUTHORITATIVE: git unmerged files (diff-filter=U) ==="; git diff --name-only --diff-filter=U || true
+echo "(if empty after I git add, merge is resolved)"
+echo
+echo "=== ACTIVE conflict markers in the 2 files I resolved (exact patterns) ==="
+for f in worklogs/comp.md worklogs/nemo2.md; do
+  n=$(grep -cE '^(<<<<<<< HEAD|=======|>>>>>>> origin/main)$' "$f")
+  echo "$f: $n exact-conflict-marker lines"
+done
+echo
+echo "=== are M10/M11/M12/M13/nemo.md in the unmerged set? (else their <<< are log content) ==="
+git diff --name-only --diff-filter=U | grep -E "M1[0-3]\.md|nemo\.md" || echo "NONE of those are unmerged → their markers are committed log content ✓"
+```
+
+```
+=== AUTHORITATIVE: git unmerged files (diff-filter=U) ===
+worklogs/comp.md
+worklogs/nemo2.md
+(if empty after I git add, merge is resolved)
+
+=== ACTIVE conflict markers in the 2 files I resolved (exact patterns) ===
+worklogs/comp.md: 0 exact-conflict-marker lines
+worklogs/nemo2.md: 0 exact-conflict-marker lines
+
+=== are M10/M11/M12/M13/nemo.md in the unmerged set? (else their <<< are log content) ===
+NONE of those are unmerged → their markers are committed log content ✓
+```
+
+### 🤖 Assistant: *Confirmed: only `comp.md` and `nemo2.md`…*
+
+`22:51:10`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Confirmed: only `comp.md` and `nemo2.md` were truly conflicting (now resolved, 0 markers); the `<<<`/`>>>` in other worklogs are committed log *content* (recorded past conflicts), not active. Completing the merge.
+
+#### 💻 Bash: *Stage resolved files and complete merge commit*
+
+`22:51:13`
+
+```bash
+$ git add worklogs/comp.md worklogs/nemo2.md
+echo "=== unmerged now (should be empty) ==="; git diff --name-only --diff-filter=U || true; echo "(end)"
+git commit --no-edit 2>&1 | tail -3
+echo "=== merge commit ==="; git log --oneline -1
+echo "=== dev/harry vs origin/main now ==="; echo "ahead:"; git rev-list --count origin/main..dev/harry; echo "behind:"; git rev-list --count dev/harry..origin/main
+```
+
+```
+=== unmerged now (should be empty) ===
+(end)
+[dev/harry 85af4a5] Merge remote-tracking branch 'origin/main' into dev/harry
+=== merge commit ===
+85af4a5 Merge remote-tracking branch 'origin/main' into dev/harry
+=== dev/harry vs origin/main now ===
+ahead:
+3
+behind:
+0
+```
+
+### 🤖 Assistant: *Merge resolved — `dev/harry` is now 3 ahead…*
+
+`22:51:19`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Merge resolved — `dev/harry` is now 3 ahead, **0 behind** `main`. Pushing to update PR #104.
+
+#### 💻 Bash: *Push dev/harry and recheck mergeability*
+
+`22:51:22`
+
+```bash
+$ git push origin dev/harry 2>&1 | tail -3
+echo "=== PR #104 mergeable now? ==="
+sleep 2
+gh pr view 104 --json mergeable,mergeStateStatus 2>&1 | python3 -c "import sys,json;d=json.load(sys.stdin);print('mergeable:',d['mergeable'],'| state:',d['mergeStateStatus'])"
+```
+
+```
+To github.com:amyteq/tt_pangu.git
+   e3f5b77..85af4a5  dev/harry -> dev/harry
+=== PR #104 mergeable now? ===
+mergeable: UNKNOWN | state: UNKNOWN
+```
+
+### 🤖 Assistant: *GitHub is recomputing mergeability.*
+
+`22:51:33`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> GitHub is recomputing mergeability. Let me wait and recheck.
+
+#### 💻 Bash: *Poll PR #104 mergeability*
+
+`22:51:35`
+
+```bash
+$ for i in 1 2 3 4 5; do
+  s=$(gh pr view 104 --json mergeable,mergeStateStatus 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['mergeable'],d['mergeStateStatus'])")
+  echo "attempt $i: $s"
+  case "$s" in MERGEABLE*|CONFLICTING*) break;; esac
+  sleep 5
+done
+```
+
+```
+attempt 1: MERGEABLE UNSTABLE
+```
+
+### 🤖 Assistant: *`MERGEABLE` now, CI re-running (`UNSTABLE…*
+
+`22:51:42`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `MERGEABLE` now, CI re-running (`UNSTABLE`). Let me wait for checks to complete.
+
+#### 💻 Bash: *Poll until CI completes on PR #104* *[async `#bzuw6l4qx`]*
+
+`22:51:48`
+
+```bash
+$ for i in $(seq 1 20); do
+  out=$(gh pr view 104 --json mergeable,mergeStateStatus,statusCheckRollup 2>/dev/null)
+  st=$(echo "$out" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['mergeable'],d['mergeStateStatus'])")
+  pend=$(echo "$out" | python3 -c "import sys,json;d=json.load(sys.stdin);print(sum(1 for c in d.get('statusCheckRollup',[]) if c.get('status')!='COMPLETED'))")
+  echo "attempt $i: $st | pending checks: $pend"
+  case "$st" in "MERGEABLE CLEAN") break;; "CONFLICTING"*) echo "conflict!"; break;; esac
+  [ "$pend" = "0" ] && break
+  sleep 20
+done
+echo "=== final check rollup ==="
+gh pr view 104 --json statusCheckRollup 2>/dev/null | python3 -c "import sys,json;[print(' ',c.get('name'),'->',c.get('conclusion') or c.get('status')) for c in json.load(sys.stdin).get('statusCheckRollup',[])]"
+```
+
+```
+Command running in background with ID: bzuw6l4qx. Output is being written to: /tmp/claude-1000/-home-harry-test-tt-pangu/c9acca8e-8190-4b33-a370-bb0441517e91/tasks/bzuw6l4qx.output. You will be notified when it completes. To check interim output, use Read on that file path.
+```
+
+### 🤖 Assistant: *The poll loop backgrounded itself.*
+
+`22:53:57`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The poll loop backgrounded itself. Let me do a direct single status check.
+
+#### 💻 Bash: *Direct PR #104 status check*
+
+`22:54:00`
+
+```bash
+$ gh pr view 104 --json mergeable,mergeStateStatus,statusCheckRollup 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);print('mergeable:',d['mergeable'],'| state:',d['mergeStateStatus']);[print(' ',c.get('name'),'->',c.get('status'),c.get('conclusion')) for c in d.get('statusCheckRollup',[])]"
+```
+
+```
+mergeable: MERGEABLE | state: UNSTABLE
+  eval (mocked nightly) -> COMPLETED SUCCESS
+  no-db pytest -> COMPLETED SUCCESS
+  eval-delta-check (PR gate) -> COMPLETED SUCCESS
+  live-db pytest -> COMPLETED SUCCESS
+  eval (rolling diff) -> COMPLETED SKIPPED
+  ruff lint + format check -> COMPLETED SUCCESS
+  ui build + lint + typecheck + test -> IN_PROGRESS
+```
+
+### 🤖 Assistant: *Only the UI check remains (`IN_PROGRESS`…*
+
+`22:54:08`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Only the UI check remains (`IN_PROGRESS`); everything else is green. The background poll (`bzuw6l4qx`) is tracking it and will notify on completion. Waiting for that.
+
+#### 👀 Read `bzuw6l4qx.output`
+
+`22:54:10`
+
+<details>
+<summary><code>/tmp/claude-1000/-home-harry-test-tt-pangu/c9acca8e-8190-4b33-a370-bb0441517e91/tasks/bzuw6l4qx.output</code></summary>
+
+```
+attempt 1: MERGEABLE UNSTABLE | pending checks: 6
+attempt 2: MERGEABLE UNSTABLE | pending checks: 5
+attempt 3: MERGEABLE UNSTABLE | pending checks: 2
+attempt 4: MERGEABLE UNSTABLE | pending checks: 2
+attempt 5: MERGEABLE UNSTABLE | pending checks: 2
+attempt 6: MERGEABLE UNSTABLE | pending checks: 1
+attempt 7: MERGEABLE UNSTABLE | pending checks: 1
+
+```
+</details>
+
+### 💭 Thinking
+
+`22:54:20`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Single mergeability check*
+
+`22:54:21`
+
+```bash
+$ gh pr view 104 --json mergeable,mergeStateStatus 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['mergeable'],d['mergeStateStatus'])"
+```
+
+```
+MERGEABLE CLEAN
+```
+
+### 🤖 Assistant: *CI is now complete — `MERGEABLE` / `CLEAN…*
+
+`22:54:27`
+
+> CI is now complete — `MERGEABLE` / `CLEAN`, all checks green. Merging PR #104.
+
+#### 💻 Bash: *Squash-merge PR #104*
+
+`22:54:28`
+
+```bash
+$ gh pr merge 104 --squash 2>&1 | tail -3; echo "---"; gh pr view 104 --json state,mergedAt,mergeCommit 2>&1 | python3 -c "import sys,json; d=json.load(sys.stdin); print('state:',d['state'],'| mergedAt:',d['mergedAt'],'| commit:',(d.get('mergeCommit') or {}).get('oid','')[:12])"
+```
+
+```
+---
+state: MERGED | mergedAt: 2026-06-14T22:54:32Z | commit: c204545b6e90
+```
+
+### 🤖 Assistant: *\*\*PR #104 merged.\*\* ✅*
+
+`22:54:39`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> **PR #104 merged.** ✅
+> 
+> ## Summary
+> - **Squash commit:** `c204545b6e90` on `main` — brings the `dev/harry` materials in: `work/` task+analysis files, `worklogs/` updates (incl. `comp.md`), `AGENTS.md` "Read first" section, and the `.claude/settings.local.json` removal + new `.claude/.gitignore`.
+> - **Conflict resolution:** when I went to merge, a newer daily worklog dump (`#105`, 2026-06-15) had landed on `main` and conflicted in `worklogs/comp.md` and `worklogs/nemo2.md`. Both conflicts were end-of-file appends where `dev/harry`'s side was empty and `main` had newer content — I merged `origin/main` into `dev/harry`, **kept the newer appended content** (no data lost), pushed, and re-verified clean (the `<<<`/`>>>` strings in other worklogs are committed log *text*, not active conflicts).
+> - CI was green (`CLEAN`/`MERGEABLE`) at merge; remote branch retained per convention.
+> 
+> ## Net effect of this PR on `main`
+> - `settings.local.json` is now **untracked + gitignored** (machine-local file removed from the repo; working copies stay on disk).
+> - `work/` task prompts + analysis and the consolidated `worklogs/comp.md` are now on `main`.
+> - `AGENTS.md` gained the "Read first" pointer block.
+> 
+> All four competition/housekeeping consolidations (#100/#102/#103) plus this `dev/harry` PR (#104) are now on `main`. Nothing outstanding — let me know if you'd like the local `dev/harry` branch fast-forwarded to `main` or any other cleanup.
+
+### Recap
+
+`22:54:53`
+
+📝 Recap: Goal: land the competition docs/work onto main. All PRs (#100, #102, #103, #104) are merged, including dev/harry with its worklog conflicts resolved. Nothing pending; optionally fast-forward local dev/harry to main if you want.
