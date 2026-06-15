@@ -34,11 +34,15 @@ suite (`arena/suite_gate.py`), never self-play.**
 ## Hypotheses
 - **H1 (validated):** bit-exact forward sim + conservation-correct **terminal differential net-ship value** is
   the one big lever (556→686). Evidence: README; issue #87 levers table.
-- **H2 (refuted, ×7):** single mechanisms transplanted from the strong tier transfer — consolidation,
+- **H2 (refuted, ×9):** single mechanisms transplanted from the strong tier transfer — consolidation,
   safe_drain, defense-reinforce (self-play only), multi-source salvo, opening-planner, PROJ_H scan, OW_* random
-  search all failed on the suite. Strong agents win as integrated systems. Evidence: issue #87.
-- **H3 (open):** an integrated **hub-and-hammer scheduler (v4)** can convert the assembly machinery into wins —
-  currently at parity with v3.2; the value function's frozen-opponent assumption (red-team FM3) is the bottleneck.
+  search, plus the v4a counter-attack-window hammer and v4f best-response value (2026-06-16) all failed on the
+  suite. Strong agents win as integrated systems. Evidence: issue #87; `postmortems/2026-06-16-overkill-revival.md`.
+- **H3 (open, narrowed):** an integrated **hub-and-hammer scheduler (v4)** can convert the assembly machinery
+  into wins — currently at parity with v3.2. The two scoped FM3 attacks both failed (2026-06-16): crediting the
+  counter-attack window (v4a) was null (−0.3pt vs evogen, despite the window opening 36.9% of turns) and a 1-ply
+  best-response value (v4f) regressed (−9pt, over-defensive). The frozen-opponent assumption is not fixable by a
+  bolt-on; the deeper blocker is the strong-tier cliff (v4 ~1% vs kuni05), not a missing concentration lever.
 - **H4 (refuted):** behavior-cloning top players reproduces their play — T12 reached high imitation
   (recall@k 0.387) but **0% in arena** (BC distribution shift). Distillation de-prioritized.
 
@@ -47,3 +51,5 @@ suite (`arena/suite_gate.py`), never self-play.**
   planner ✗; `PROJ_H` horizon scan ✗; OW_* random search ✗ (noise); OVERKILL multiplier ✗ (monotonic negative);
   T14 short-hop supply ✗ (mechanical forwarding); posture machine v1 ✗ (BRACE too often); T11 ledger constraint
   = no-op. co-arrival (T8): real but +3pt (evogen layer only) → default OFF (kept as `OW_COARRIVAL`).
+  v4a counter-attack-window hammer ✗ (null −0.3pt; window opens 36.9% of turns but no conversion); v4f best-
+  response value ✗ (−9pt, over-defensive) — both kept default-OFF (`OW_V4A` / `OW_V4F`), 2026-06-16.
