@@ -4,6 +4,11 @@
 > creds in `.vscode/.env.harry` / `.vscode/.env.may`, read-for-use only). `publicScore` = ladder μ rating.
 > All rows confirmed `COMPLETE`. Private LB empty in API → `unknown`. The competition keeps only the **latest 2**
 > per account on the ladder. Kaggle's submissions API exposes no numeric submission ID.
+>
+> **Live-loop refresh 2026-06-15 (KCT-OW-LIVE-002, read-only):** harry latest-2 = `submission_kuni.tar.gz`
+> **μ1086.5** + `main.py` v3.2 **μ655.7**; may latest-2 = `v3_2_coarr.py` **μ644.0** + `main.py` v3.2 **μ630.1**.
+> Cycle decision **NO_SUBMIT** (no candidate beats an active slot; v4 = parity; budget/quota preserved).
+> co-arrival (may) still ~+14 over its v3.2 twin on-ladder. Live state in `live/`; loop in `ops/`.
 
 ## harrysun2006
 

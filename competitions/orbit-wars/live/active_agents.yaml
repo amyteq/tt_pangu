@@ -1,0 +1,69 @@
+meta:
+  cycle: 2026-06-15 16:00 UTC
+  task: KCT-OW-LIVE-002
+  submit_decision: NO_SUBMIT
+agents:
+  harry:submission_kuni.tar.gz:
+    agent_id: harry:submission_kuni.tar.gz
+    account: harry
+    username: harrysun2006
+    submission_time: null
+    file: submission_kuni.tar.gz
+    version: null
+    slot_order: latest1
+    status: neutral
+    public_lb_mu: 1086.5
+    private_lb: null
+    source: kaggle read-only status
+    last_checked: 2026-06-15 16:00 UTC
+    last_episode_seen: null
+    evidence: null
+    notes: null
+  harry:main.py:
+    agent_id: harry:main.py
+    account: harry
+    username: harrysun2006
+    submission_time: null
+    file: main.py
+    version: null
+    slot_order: latest2
+    status: neutral
+    public_lb_mu: 649.5
+    private_lb: null
+    source: kaggle read-only status
+    last_checked: 2026-06-15 16:00 UTC
+    last_episode_seen: null
+    evidence: null
+    notes: null
+  may:v3_2_coarr.py:
+    agent_id: may:v3_2_coarr.py
+    account: may
+    username: firefly2006
+    submission_time: null
+    file: v3_2_coarr.py
+    version: null
+    slot_order: latest1
+    status: neutral
+    public_lb_mu: 644.0
+    private_lb: null
+    source: kaggle read-only status
+    last_checked: 2026-06-15 16:00 UTC
+    last_episode_seen: null
+    evidence: null
+    notes: null
+  may:main.py:
+    agent_id: may:main.py
+    account: may
+    username: firefly2006
+    submission_time: null
+    file: main.py
+    version: null
+    slot_order: latest2
+    status: neutral
+    public_lb_mu: 630.1
+    private_lb: null
+    source: kaggle read-only status
+    last_checked: 2026-06-15 16:00 UTC
+    last_episode_seen: null
+    evidence: null
+    notes: null
