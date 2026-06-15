@@ -9,7 +9,7 @@
 
 | # | Episode | 对局 | 结果 | 核心 insight | 落实情况 |
 |---|---|---|---|---|---|
-| 1 | [79586066](https://www.kaggle.com/competitions/orbit-wars/leaderboard?submissionId=53517858&episodeId=79586066) | 213tubo vs **Jake Will**(top-5) | Jake Will 胜,t190 全灭 | 少而重 >> 多而小;增援(供应链)占胜者 56% 发射;同到达形式不值钱 | OVERKILL ❌ / T14 supply ❌(孤立移植均无效)→ 并入 T9/T13 一体化设计 |
+| 1 | [79586066](https://www.kaggle.com/competitions/orbit-wars/leaderboard?submissionId=53517858&episodeId=79586066) | 213tubo vs **Jake Will**(top-5) | Jake Will 胜,t190 全灭 | 少而重 >> 多而小;增援(供应链)占胜者 56% 发射;同到达形式不值钱 | OVERKILL ❌ / T14 supply ❌ / v4 一体化二版(v4a 反击窗口 −0.3pt、v4f 对手响应 −9pt)❌(2026-06-16)→ 八连否定,瓶颈是强档悬崖本身 |
 
 ---
 
@@ -58,12 +58,14 @@ P0 的 81 次进攻挤在 t110-140 = 崩盘后小股挣扎,平均 19 船,逐一�
 | 进攻规模纪律(overkill) | `OW_OVERKILL` 1.5/2/3× 功效 A/B(种子 18000+) | ❌ 单调负(18.0→9.3→2.0→0.7%):重击是**集中的结果**,不是出兵规则 |
 | 短跳供应链 | `OW_SUPPLY`(≤25 短跳向前)功效 A/B(种子 19000+) | ❌ 无增益(15.0 vs 13.0/12.3%);联赛镜像局 24-25% 大败 |
 | 同到达修正 | T8 已收官(evogen 层 +3pt,默认 OFF);may 槽 v3_2_coarr 天梯实测中 | 天梯裁决中 |
-| 决战聚兵 / 风格反制 | → T9/T13 一体化调度(对手大军在途 → 收缩集结 → 重锤反击) | 设计中 |
+| 决战聚兵 / 风格反制 | v4 hub-and-hammer 内做两版(2026-06-16):**v4a** 反击窗口锤(`OW_V4A` 策略层:敌野战军在途+目标无援时加锤/重排/放行中性锤)、**v4f** 对手响应价值(`OW_V4F` 在估值时给目标追加敌最优增援) | ❌ 双双未过门(150 配对种子 vs evogen,种子 21000+):v4a **−0.3pt**(虽窗口 36.9% 回合开启仍零增益 → 实锤无效,非未触发);v4f **−9.0pt**(响应模型令其过度防守:打弱 starter 反升 91→94%,打 evogen 因消极输船数);both −8.0pt。默认 OFF,记入被否清单 |
 
-**方法论结论(三连阴性后)**:强档的"集中→重击"是开局搜索 + 供应链 + 多波次 + 在途台账
-**一体化系统**的涌现行为;任何单环节移植进贪心价值规划器都已被功效 A/B 否定
-(OVERKILL、SUPPLY、co-arrival、MULTISRC、CONSOLIDATE、OPENING 六连)。增量路线的剩余
-空间在 T9/T13 的调度层重构,而非旋钮。
+**方法论结论(2026-06-16 更新,五连→八连阴性)**:强档的"集中→重击"是开局搜索 +
+供应链 + 多波次 + 在途台账**一体化系统**的涌现行为;任何单环节移植进贪心价值规划器都已被
+功效 A/B 否定(OVERKILL、SUPPLY、co-arrival、MULTISRC、CONSOLIDATE、OPENING、**v4a 反击
+窗口、v4f 对手响应**八连)。更深一层:集中术的启示取自**顶档**(Jake Will/Isaiah),而 v4
+对 kuni05 仍仅 ~1% —— 我们够不到"集中才有意义"的局面,瓶颈是悬崖本身而非缺一个 OVERKILL
+旋钮。**不要在这些旋钮上再扫参**(= 已否的 OW_* 随机搜索)。详见 `postmortems/2026-06-16-overkill-revival.md`。
 
 ---
 

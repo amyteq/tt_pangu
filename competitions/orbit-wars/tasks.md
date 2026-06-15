@@ -3,9 +3,12 @@
 > Derived from issue #87 TODO/Plan table (T1–T16). Full English tracking in `tracking.md`.
 
 ## Now
-- **v4 "Scheduler"** (hub-and-hammer, T9/T13): at parity with v3.2 (49.3% on 150 paired seeds); next cut =
-  counter-attack window (hammer when opponent's main force is in transit) + cluster-targeted hammer + Isaiah
-  mid-game sizing + FM3 opponent-response term in the value function.
+- **v4 "Scheduler"** (hub-and-hammer, T9/T13): at parity with v3.2 (49.3% on 150 paired seeds). OVERKILL-revival
+  cut **closed FAILED (2026-06-16)**: counter-attack window (v4a, `OW_V4A`) null −0.3pt and FM3 best-response
+  value (v4f, `OW_V4F`) regressed −9pt vs evogen at 150 seeds; both default-OFF. Diagnostic: the v4a window opens
+  36.9% of turns yet yields no conversion → the bottleneck is the strong-tier cliff itself (v4 ~1% vs kuni05),
+  not a missing concentration lever. Remaining untried sub-cuts (cluster-targeted hammer, Isaiah two-band sizing)
+  are lower-priority. See `postmortems/2026-06-16-overkill-revival.md`.
 
 ## Next
 - D2 last-3-days freeze: pick the best 2 versions per account and re-submit (latest-2 scored).
