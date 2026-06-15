@@ -24,6 +24,17 @@
   41% of dropped targets are captured anyway within 5 turns; same frequent-gap → ladder-null mechanism as
   co-arrival). Measure-first did its job: parked before building. Reopen via a gate-only prototype only if v4 stalls.
 
+## 4p ladder finding (KCT-OW-LIVE-002, 2026-06-15)
+- 🔴 **The μ-ladder is ~half 4-player FFA and 4p updates μ** (verified from flyingfox's 205-episode history; ~83% net μ
+  from 2p, ~17% from 4p). Prior "1v1 only" assumption was wrong; our line is 2p-tuned. Full analysis: `EPISODES.md` #3.
+- ✅ **T17: 4p placement gate** `arena/eval_4p.py` (avg_rank / 1st-rate / elim-by-t50 / planets@t50) — every future
+  candidate now gated in BOTH 2p and 4p (Harry's standing directive). Our v3.2/v4 4p avg_rank ≈ 1.8 (not broken, untuned).
+- ❌ **Naive 4p-aware mode** (`OW_4P_MODE`: owner-aware `_term` + don't-be-early-aggressor + survival reserve; 2p
+  byte-identical, gated): A/B vs 3×v3_2 = 1.719 avg_rank / 28% 1st vs baseline 1.469 / 53% — WORSE (unconditional
+  damping cedes advantage when we're dominant). Kept default-OFF. 8th lever to test negative naively.
+- 📋 **T18: situational 4p strategy** — damp aggression / raise survival ONLY when outgunned (multiple stronger rivals),
+  press when dominant; needs a diverse-strong 4p field to validate (local homogeneous field can't). Framework in place.
+
 ## Backlog / background
 - T12 RL/distillation (D4): de-prioritized to background after v0/v1/v2 (BC ≠ playing); next would be
   DAgger / value distillation / forward-sim features.
