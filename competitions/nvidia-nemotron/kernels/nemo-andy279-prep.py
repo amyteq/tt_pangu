@@ -10,11 +10,31 @@ import re
 import subprocess
 import sys
 
+import os
+
 subprocess.run(
     [sys.executable, "-m", "pip", "install", "-q", "datasets", "huggingface_hub"],
     check=True,
 )
 from datasets import load_dataset
+from huggingface_hub import login
+
+# andy279 is a GATED HF dataset → authenticate. Token resolution order:
+#   1) Kaggle Secret HF_TOKEN, 2) env HF_TOKEN, 3) the embedded constant below.
+# This repo copy keeps _HF_TOKEN EMPTY (never commit a credential); the value is
+# injected only into the private copy pushed to Kaggle (read from .vscode/.env).
+_HF_TOKEN = ""  # noqa: S105  (injected at push time; empty in source control)
+_tok = os.environ.get("HF_TOKEN") or _HF_TOKEN
+try:
+    from kaggle_secrets import UserSecretsClient
+
+    if not _tok:
+        _tok = UserSecretsClient().get_secret("HF_TOKEN")
+except Exception:  # noqa: BLE001
+    pass
+assert _tok, "no HF token (set Kaggle Secret HF_TOKEN, env HF_TOKEN, or inject _HF_TOKEN)"
+login(token=_tok)
+print("HF login: ok")
 
 
 def classify(p):
@@ -37,7 +57,7 @@ def classify(p):
 _BOXED = re.compile(r"\\boxed\{([^}]*)(?:\}|$)")
 KEEP_CATS = {"bit", "equation", "cipher"}
 
-ds = load_dataset("andy279/nemotron-reasoning-challenge", split="train")
+ds = load_dataset("andy279/nemotron-reasoning-challenge", split="train", token=_tok)
 print("andy279 train rows:", len(ds))
 print("example keys:", list(ds[0].keys()))
 
