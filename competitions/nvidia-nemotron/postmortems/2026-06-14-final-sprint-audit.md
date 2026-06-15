@@ -138,6 +138,13 @@ build on top of v14 (v10/v15/t7) underperformed it.
 | E. v11 rejection-sampling self-distill | unknown | medium | multi-session sampling | many | many | high | ❌ |
 | F. confirm/select v14 + archival | 0.85 | locks score | none | 0 | 0 | none | ✅ with A |
 
+### 9b. Additional directions surfaced in PR #106 review
+| Option | Idea | Assessment | Recommend? |
+|---|---|---|---|
+| G. **Mine real equation/cryptarithm rules → expand solver** | the C-solver's fixed rewrite library only matched **0.4%** of real `equation` prompts; reverse-engineer the actual per-operator rules from train.csv to lift coverage, yielding *verified real-prompt* cryptarithm CoT (vs synthetic) | The strongest untried cryptarithm angle: real, verified, on-distribution. Caveat B8 (single-cat ≠ total) still applies. ~3–4h build + 1 kernel | ⚠ worth a slot if C1/C2 don't beat 0.85 |
+| H. **Better merge — only if a 2nd *strong* adapter appears** | T7 failed because it merged strong+weak (dilution, INS-003). A merge can only help among *comparable, complementary* members | We have exactly **one** strong adapter (v14). If an in-flight b/c kernel lands ≈0.85 on *different* data, a v14+that merge becomes worth trying. **NB: the submission is a SINGLE rank-≤32 LoRA — the eval loads one `lora_path`; "a collection of adapters" is only submittable by merging them into one (= T7), not as an ensemble.** | ⚠ conditional on a 2nd strong adapter |
+| I. **Teacher-model distillation of CoT** | use a strong external reasoner to generate CoT toward the *known* train answers, SFT the Nemotron LoRA on it (richer than the base-model self-distill of T5/v11), esp. for bit/equation where the deterministic solver coverage is thin | Plausible higher-quality hard-category data. The adapter stays a Nemotron LoRA (you distill *outputs*, not weights). ⚠ verify comp rules permit external-model-generated training data; needs a capable teacher (local coder LLMs aren't strong puzzle reasoners) | ⚠ verify rules first; medium-effort |
+
 ## 10. Post-audit decision (user-directed)
 With **~33h** actually remaining (clock 2026-06-14 14:42 UTC) — not ~10h — the timeline objection to option C
 relaxes. User approved a best-effort last-window swing: **2 pushes per account (harry + may) attempting B and C**,
