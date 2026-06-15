@@ -1,0 +1,113 @@
+{
+  "best": "scale_1.15",
+  "best_acc": 0.7435897435897436,
+  "baseline_acc": 0.7307692307692307,
+  "results": {
+    "soup_baseline": {
+      "acc": 0.7307692307692307,
+      "per_category": {
+        "bit": "20/23",
+        "cipher": "23/23",
+        "equation": "5/23",
+        "gravity": "3/3",
+        "numeral": "3/3",
+        "unit": "3/3"
+      },
+      "modules_touched": 0
+    },
+    "scale_0.90": {
+      "acc": 0.717948717948718,
+      "per_category": {
+        "bit": "20/23",
+        "cipher": "22/23",
+        "equation": "5/23",
+        "gravity": "3/3",
+        "numeral": "3/3",
+        "unit": "3/3"
+      },
+      "modules_touched": 6005
+    },
+    "scale_1.15": {
+      "acc": 0.7435897435897436,
+      "per_category": {
+        "bit": "21/23",
+        "cipher": "23/23",
+        "equation": "5/23",
+        "gravity": "3/3",
+        "numeral": "3/3",
+        "unit": "3/3"
+      },
+      "modules_touched": 6005
+    },
+    "scale_1.30": {
+      "acc": 0.7435897435897436,
+      "per_category": {
+        "bit": "21/23",
+        "cipher": "23/23",
+        "equation": "5/23",
+        "gravity": "3/3",
+        "numeral": "3/3",
+        "unit": "3/3"
+      },
+      "modules_touched": 6005
+    },
+    "denoise_e0.95": {
+      "acc": 0.717948717948718,
+      "per_category": {
+        "bit": "19/23",
+        "cipher": "23/23",
+        "equation": "5/23",
+        "gravity": "3/3",
+        "numeral": "3/3",
+        "unit": "3/3"
+      },
+      "modules_touched": 6005
+    },
+    "lopure_e0.844_a1.25": {
+      "acc": 0.7435897435897436,
+      "per_category": {
+        "bit": "21/23",
+        "cipher": "23/23",
+        "equation": "5/23",
+        "gravity": "3/3",
+        "numeral": "3/3",
+        "unit": "3/3"
+      },
+      "modules_touched": 6005
+    },
+    "lopure_e0.844_a1.50": {
+      "acc": 0.7051282051282052,
+      "per_category": {
+        "bit": "19/23",
+        "cipher": "22/23",
+        "equation": "5/23",
+        "gravity": "3/3",
+        "numeral": "3/3",
+        "unit": "3/3"
+      },
+      "modules_touched": 6005
+    },
+    "mamba_e0.95_a1.30": {
+      "acc": 0.7435897435897436,
+      "per_category": {
+        "bit": "21/23",
+        "cipher": "23/23",
+        "equation": "5/23",
+        "gravity": "3/3",
+        "numeral": "3/3",
+        "unit": "3/3"
+      },
+      "modules_touched": 46
+    }
+  },
+  "ranking": [
+    "scale_1.15",
+    "scale_1.30",
+    "lopure_e0.844_a1.25",
+    "mamba_e0.95_a1.30",
+    "soup_baseline",
+    "scale_0.90",
+    "denoise_e0.95",
+    "lopure_e0.844_a1.50"
+  ]
+}
