@@ -46,10 +46,12 @@ def _parse_submissions(text: str) -> list[dict]:
     status publicScore privateScore. We split on 2+ spaces after the header."""
     rows = []
     lines = [ln for ln in text.splitlines() if ln.strip()]
-    hdr_i = next((i for i, ln in enumerate(lines) if ln.lower().startswith("filename")), None)
+    hdr_i = next(
+        (i for i, ln in enumerate(lines) if ln.lower().startswith("filename")), None
+    )
     if hdr_i is None:
         return rows
-    for ln in lines[hdr_i + 1:]:
+    for ln in lines[hdr_i + 1 :]:
         if set(ln.strip()) <= {"-", " "}:
             continue
         parts = [c for c in __import__("re").split(r"\s{2,}", ln.strip()) if c]
@@ -72,14 +74,21 @@ def build_slots(account: str) -> dict:
     latest2 = rows[:2]  # Kaggle lists newest-first; latest-2 are scored
     slots = []
     for i, r in enumerate(latest2):
-        slots.append({
-            "slot_order": "latest1" if i == 0 else "latest2",
-            "file": r["file"],
-            "public_lb_mu": r["public_score"],
-            "status": "neutral",  # reclassified by episode evidence later
-        })
-    return {"account": account, "username": user, "error": err,
-            "n_submissions_seen": len(rows), "latest2": slots}
+        slots.append(
+            {
+                "slot_order": "latest1" if i == 0 else "latest2",
+                "file": r["file"],
+                "public_lb_mu": r["public_score"],
+                "status": "neutral",  # reclassified by episode evidence later
+            }
+        )
+    return {
+        "account": account,
+        "username": user,
+        "error": err,
+        "n_submissions_seen": len(rows),
+        "latest2": slots,
+    }
 
 
 def write_status_md(results: list[dict]) -> None:
@@ -103,7 +112,9 @@ def write_status_md(results: list[dict]) -> None:
             lines.append("|---|---|---:|---|")
             for s in r["latest2"]:
                 mu = "?" if s["public_lb_mu"] is None else f"{s['public_lb_mu']:.1f}"
-                lines.append(f"| {s['slot_order']} | `{s['file']}` | {mu} | {s['status']} |")
+                lines.append(
+                    f"| {s['slot_order']} | `{s['file']}` | {mu} | {s['status']} |"
+                )
         lines.append("")
     with open(STATUS_MD, "w") as f:
         f.write("\n".join(lines) + "\n")

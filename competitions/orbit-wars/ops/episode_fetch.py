@@ -56,7 +56,9 @@ def fetch(episode_id: str, timeout: int = 60) -> str | None:
             return None
         with open(dst, "wb") as f:
             f.write(data)
-        print(f"  {episode_id}: downloaded {len(data)} bytes -> {os.path.relpath(dst, COMP)}")
+        print(
+            f"  {episode_id}: downloaded {len(data)} bytes -> {os.path.relpath(dst, COMP)}"
+        )
         return dst
     except Exception as e:  # noqa: BLE001 - network best-effort
         print(f"  {episode_id}: fetch failed ({type(e).__name__}: {e})")

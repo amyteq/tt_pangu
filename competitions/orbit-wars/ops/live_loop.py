@@ -40,21 +40,38 @@ def _now():
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
 
-def one_cycle(submit_if_gated: bool, dry_run: bool,
-              candidate: str | None = None, candidate_verdict: str | None = None) -> dict:
+def one_cycle(
+    submit_if_gated: bool,
+    dry_run: bool,
+    candidate: str | None = None,
+    candidate_verdict: str | None = None,
+) -> dict:
     print(f"=== Orbit live-loop cycle @ {_now()} (KCT-OW-LIVE-002) ===")
-    summary = {"ts": _now(), "episodes_analyzed": 0, "hard_bugs": 0,
-               "submit_decision": "NO_SUBMIT"}
+    summary = {
+        "ts": _now(),
+        "episodes_analyzed": 0,
+        "hard_bugs": 0,
+        "submit_decision": "NO_SUBMIT",
+    }
 
     # 1. read-only account/slot status (both accounts)
     print("[1] read-only Kaggle status (both accounts)")
     slots = {a: am.build_slots(a) for a in ka.known_accounts()}
     am.write_status_md(list(slots.values()))
-    our_users = {s["username"] for s in slots.values() if s.get("username") and s["username"] != "?"}
+    our_users = {
+        s["username"]
+        for s in slots.values()
+        if s.get("username") and s["username"] != "?"
+    }
     for a, s in slots.items():
         tag = "ERR:" + str(s["error"]) if s["error"] else "ok"
-        print(f"    {a} ({s['username']}): {tag}; "
-              + ", ".join(f"{sl['slot_order']}={sl['file']}(μ{sl['public_lb_mu']})" for sl in s["latest2"]))
+        print(
+            f"    {a} ({s['username']}): {tag}; "
+            + ", ".join(
+                f"{sl['slot_order']}={sl['file']}(μ{sl['public_lb_mu']})"
+                for sl in s["latest2"]
+            )
+        )
 
     # 2. ingest manually-queued episodes (auto discovery unavailable for this comp)
     print("[2] ingest queued episodes")
@@ -77,17 +94,22 @@ def one_cycle(submit_if_gated: bool, dry_run: bool,
     #    replacement) and may autonomously submit when --submit-if-gated.
     print("[4] submit replacement plan")
     import json as _json
+
     verdict = None
     if candidate_verdict and os.path.isfile(candidate_verdict):
         verdict = _json.load(open(candidate_verdict))
     plan = sm.build_plan(candidate, verdict, "auto", slots)
     sm.write_plan_md(plan)
     summary["submit_decision"] = plan["decision"]
-    print(f"    decision: {plan['decision']} — {plan['reasons'][0] if plan['reasons'] else ''}")
+    print(
+        f"    decision: {plan['decision']} — {plan['reasons'][0] if plan['reasons'] else ''}"
+    )
     if submit_if_gated and plan["decision"] == "SUBMIT":
         sm.do_submit(plan, f"orbit live-loop ({sm.TASK_ID})", dry_run=dry_run)
     elif plan["decision"] != "SUBMIT":
-        sm.audit(f"cycle NO_SUBMIT: {plan['reasons'][0] if plan['reasons'] else 'gated'}")
+        sm.audit(
+            f"cycle NO_SUBMIT: {plan['reasons'][0] if plan['reasons'] else 'gated'}"
+        )
 
     # 5. persist the active-slot model + agent_status.md
     agents = {}
@@ -95,13 +117,24 @@ def one_cycle(submit_if_gated: bool, dry_run: bool,
         for sl in s["latest2"]:
             aid = f"{a}:{sl['file']}"
             agents[aid] = ss.new_record(
-                agent_id=aid, account=a, username=s["username"], file=sl["file"],
-                slot_order=sl["slot_order"], status=sl["status"],
-                public_lb_mu=sl["public_lb_mu"], source="kaggle read-only status",
+                agent_id=aid,
+                account=a,
+                username=s["username"],
+                file=sl["file"],
+                slot_order=sl["slot_order"],
+                status=sl["status"],
+                public_lb_mu=sl["public_lb_mu"],
+                source="kaggle read-only status",
                 last_checked=summary["ts"],
             )
-    ss.save_active(agents, meta={"cycle": summary["ts"], "task": "KCT-OW-LIVE-002",
-                                 "submit_decision": summary["submit_decision"]})
+    ss.save_active(
+        agents,
+        meta={
+            "cycle": summary["ts"],
+            "task": "KCT-OW-LIVE-002",
+            "submit_decision": summary["submit_decision"],
+        },
+    )
     write_agent_status(slots, summary)
     print(f"[5] wrote {os.path.relpath(AGENT_STATUS, COMP)} + active_agents.yaml")
     return summary
@@ -110,9 +143,11 @@ def one_cycle(submit_if_gated: bool, dry_run: bool,
 def write_agent_status(slots: dict, summary: dict) -> None:
     os.makedirs(LIVE, exist_ok=True)
     lines = [
-        "# Orbit Wars — live agent status", "",
+        "# Orbit Wars — live agent status",
+        "",
         f"> cycle {summary['ts']} (KCT-OW-LIVE-002). New submits start `neutral` "
-        "until episode evidence reclassifies them.", "",
+        "until episode evidence reclassifies them.",
+        "",
         "| account | slot | file | public μ | status |",
         "|---|---|---|---:|---|",
     ]
@@ -121,11 +156,15 @@ def write_agent_status(slots: dict, summary: dict) -> None:
             lines.append(f"| {a} | — | (none read) | ? | unknown |")
         for sl in s["latest2"]:
             mu = "?" if sl["public_lb_mu"] is None else f"{sl['public_lb_mu']:.1f}"
-            lines.append(f"| {a} | {sl['slot_order']} | `{sl['file']}` | {mu} | {sl['status']} |")
+            lines.append(
+                f"| {a} | {sl['slot_order']} | `{sl['file']}` | {mu} | {sl['status']} |"
+            )
     lines += [
-        "", f"- episodes analyzed this cycle: {summary['episodes_analyzed']}",
+        "",
+        f"- episodes analyzed this cycle: {summary['episodes_analyzed']}",
         f"- hard bugs detected: {summary['hard_bugs']}",
-        f"- submit decision: **{summary['submit_decision']}**", "",
+        f"- submit decision: **{summary['submit_decision']}**",
+        "",
     ]
     with open(AGENT_STATUS, "w") as f:
         f.write("\n".join(lines) + "\n")
@@ -140,17 +179,26 @@ def main() -> None:
     ap.add_argument("--submit-if-gated", action="store_true")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--candidate", help="designated submit-ready agent file (gated)")
-    ap.add_argument("--candidate-verdict", help="evaluate_candidate JSON for --candidate")
+    ap.add_argument(
+        "--candidate-verdict", help="evaluate_candidate JSON for --candidate"
+    )
     args = ap.parse_args()
     if args.watch:
         n = max(1, min(args.max_cycles, 10))  # hard cap; never indefinite
         for i in range(n):
             print(f"\n--- watch cycle {i + 1}/{n} ---")
-            one_cycle(args.submit_if_gated, args.dry_run, args.candidate, args.candidate_verdict)
+            one_cycle(
+                args.submit_if_gated,
+                args.dry_run,
+                args.candidate,
+                args.candidate_verdict,
+            )
             if i < n - 1:
                 time.sleep(args.interval_minutes * 60)
     else:
-        one_cycle(args.submit_if_gated, args.dry_run, args.candidate, args.candidate_verdict)
+        one_cycle(
+            args.submit_if_gated, args.dry_run, args.candidate, args.candidate_verdict
+        )
 
 
 if __name__ == "__main__":

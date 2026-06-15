@@ -95,7 +95,9 @@ def main():
 
     # Refuse unknown accounts (task: helper "refuses unknown accounts").
     if args.account not in ACCOUNTS and not os.path.exists(args.account):
-        sys.exit(f"REFUSED: unknown account {args.account!r}; allowed: {sorted(ACCOUNTS)}")
+        sys.exit(
+            f"REFUSED: unknown account {args.account!r}; allowed: {sorted(ACCOUNTS)}"
+        )
 
     # A real (non-dry-run) submit must carry the task authorization token.
     if not args.dry_run and not args.authorized_by_task:
@@ -127,7 +129,11 @@ def main():
         "-m",
         args.msg,
     ]
-    auth = f" [authorized-by-task {args.authorized_by_task}]" if args.authorized_by_task else ""
+    auth = (
+        f" [authorized-by-task {args.authorized_by_task}]"
+        if args.authorized_by_task
+        else ""
+    )
     print(f"submitting as {user} (account={args.account}){auth}: {' '.join(cmd)}")
     if args.dry_run:
         print("DRY RUN — nothing sent")

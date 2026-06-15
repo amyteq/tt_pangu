@@ -43,9 +43,7 @@ def known_accounts() -> list[str]:
 def cred_path(account: str) -> str:
     """Resolve the dotenv path for an account, or raise. No file contents read."""
     if account not in _ACCOUNTS:
-        raise AuthError(
-            f"unknown account {account!r}; allowed: {sorted(_ACCOUNTS)}"
-        )
+        raise AuthError(f"unknown account {account!r}; allowed: {sorted(_ACCOUNTS)}")
     base = _ACCOUNTS[account]
     for root in _SEARCH_ROOTS:
         p = os.path.join(root, ".vscode", base)
@@ -107,7 +105,9 @@ def username(account: str) -> str:
     return _parse_dotenv(cred_path(account)).get("KAGGLE_USERNAME", "?")
 
 
-def run_kaggle(args: list[str], account: str, timeout: int = 120) -> subprocess.CompletedProcess:
+def run_kaggle(
+    args: list[str], account: str, timeout: int = 120
+) -> subprocess.CompletedProcess:
     """Run `kaggle <args>` authenticated as `account`. Returns a CompletedProcess
     whose stdout/stderr have been REDACTED of any secret substring. The account
     creds live only in the child's env, never in this process's os.environ."""
@@ -130,6 +130,8 @@ if __name__ == "__main__":
     for acct in known_accounts():
         try:
             _env, user, secrets = load(acct)
-            print(f"{acct:6s} -> username={user}  creds_loaded={'yes' if secrets else 'no-key'}")
+            print(
+                f"{acct:6s} -> username={user}  creds_loaded={'yes' if secrets else 'no-key'}"
+            )
         except AuthError as e:
             print(f"{acct:6s} -> AuthError: {e}")

@@ -30,9 +30,9 @@ sys.path.insert(0, os.path.join(COMP, "arena"))
 import pool as P  # noqa: E402
 
 V = os.path.join(COMP, "agent", "versions")
-STARTER_FLOOR = 85.0          # weak-tier no-regress floor (VALIDATION.md)
-BEAT_MARGIN = 3.0             # 2p must beat the replaced slot by > this (pt)
-RANK4_TOL = 0.2               # 4p avg_rank may worsen by at most this
+STARTER_FLOOR = 85.0  # weak-tier no-regress floor (VALIDATION.md)
+BEAT_MARGIN = 3.0  # 2p must beat the replaced slot by > this (pt)
+RANK4_TOL = 0.2  # 4p avg_rank may worsen by at most this
 
 
 def evaluate(agent: str, baseline: str, games: int, seed0: int, procs: int) -> dict:
@@ -53,8 +53,12 @@ def evaluate(agent: str, baseline: str, games: int, seed0: int, procs: int) -> d
 
     # 3. 4p robustness (hero vs 3x baseline field) — avg_rank, lower is better
     field = [baseline, baseline, baseline]
-    r4 = P.ffa(agent, field, list(range(seed0, seed0 + max(10, games // 3))), procs=procs)
-    r4b = P.ffa(baseline, field, list(range(seed0, seed0 + max(10, games // 3))), procs=procs)
+    r4 = P.ffa(
+        agent, field, list(range(seed0, seed0 + max(10, games // 3))), procs=procs
+    )
+    r4b = P.ffa(
+        baseline, field, list(range(seed0, seed0 + max(10, games // 3))), procs=procs
+    )
     gates["agent_avg_rank4"] = round(r4["avg_rank"], 2)
     gates["baseline_avg_rank4"] = round(r4b["avg_rank"], 2)
     gates["robust_4p"] = r4["avg_rank"] <= r4b["avg_rank"] + RANK4_TOL
@@ -71,7 +75,8 @@ def evaluate(agent: str, baseline: str, games: int, seed0: int, procs: int) -> d
     return {
         "agent": os.path.relpath(agent, COMP),
         "baseline": os.path.relpath(baseline, COMP),
-        "games": games, "seed0": seed0,
+        "games": games,
+        "seed0": seed0,
         "gates": gates,
         "submit_ready": submit_ready,
         "wall_s": round(time.perf_counter() - t0, 1),
