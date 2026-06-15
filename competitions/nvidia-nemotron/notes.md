@@ -112,6 +112,25 @@ What was actually **tried, scored, planned, or never run** (LB from `submissions
 | **v11 rejection-sampling self-distillation** | **planned, NEVER run** | — | D2-approved but out of GPU/time budget; sample base model → keep correct → SFT |
 | **GRPO / PPO / any RL** | **NEVER attempted** | — | `work/00.nemo.md` §8.5 proposed verifiable-reward RL (exact-match reward + format/length penalties) *after* stable SFT; never reached |
 
+### What actually differs between v14 / b1 / b2 / c1 / c2 / soup
+All are **rank-32 LoRA on the same base** (Nemotron-3-Nano-30B-A3B) and — except the soup — share the
+**identical v14 training backbone** (CCE + MoE-128 expert tying + LoRA on lm_head/attention/in_proj/out_proj
++ seq8192 + 7h guard). The only differences are the **training data added** (and, for the soup, that it is a
+merge, not a training run):
+
+| Version | LB | What it is (vs the v14 backbone) |
+|---|---:|---|
+| **v14** | 0.85 | The base recipe: huikang recorded-order corpus + replay-math (2M answer tokens). No extra data. |
+| **b1** | 0.85 | v14 **+ ~800 cryptarithm-only *synthetic* CoT** (~9% of mix). Low synth dose. |
+| **b2** | 0.84 | v14 **+ ~1000 cryptarithm+bit *synthetic* CoT** (~11%). More synth + a bit slice. |
+| **c1** | 0.85 | v14 **+ ~1800 *verified real-prompt* solver-CoT** (balanced cipher/bit/numeral/gravity/unit; kept only where a solver reproduced the ground-truth answer). |
+| **c2** | 0.83 | v14 **+ ~1000 verified solver-CoT, hard-category-weighted** (bit/equation/cipher heavy, less easy data → more dilution). |
+| **soup** | **0.86** | **Not a training run** — an SVD **model-soup** (weighted avg 0.4/0.3/0.3 → rank-32) of **v14 + c1 + b1**. Combines the three comparable, complementary members. |
+
+So: **v14** = recipe only; **b1/b2** add *synthetic* (made-up) puzzle CoT; **c1/c2** add *verified real-prompt*
+solver-distilled CoT (answers checked against ground truth); **soup** merges v14+c1+b1 into one rank-32 adapter
+and is the only one that exceeded 0.85 (the model-soup effect — INS-004).
+
 **Honest summary:** no reinforcement-learning run has happened. "RL-adjacent" ideas are rejection-sampling
 self-distillation (planned, not run) and the deterministic **solver-distillation** (c1=0.85 / c2=0.83). Every
 attempt to add signal **on top of** the clean replay recipe regressed or **tied** (best add-on = 0.85);
