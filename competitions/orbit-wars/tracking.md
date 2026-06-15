@@ -26,7 +26,7 @@
 | D4 | RL/distillation route | ✅ try on snorlax; submit only if it beats incumbent via the T10 gate → T12 |
 | D5 | Comment-marking permission | ✅ allowed (inline marks) |
 
-### TODO / Plan (T1–T14)
+### TODO / Plan (T1–T16)
 | ID | Task | Status | Evidence |
 |---|---|---|---|
 | T1 | Replay mining (public episode dataset → heuristic params) | 📋 queued | issue #87 |
@@ -42,11 +42,13 @@
 | T12 | RL/distillation (BC kuni05/top-6 → policy net) | 🟢 background — v0/v1/v2: high imitation, ~0% arena (BC shift) | issue #87 |
 | T13 | Dynamic strategy ID & counter | 🟢 merged into v4 (posture v1 ❌; counter-attack window → v4) | issue #87 |
 | T14 | Short-hop supply chain | ❌ no gain (mechanical forwarding) | issue #87 |
+| T15 | Comet trajectory prediction (model `comets` path → feed `project()` swept-collision + `_path_blocked`; close §9-1 gap) | 📋 chartered — **measure-first**: comet incidence + decided-games in episode dataset gates the build; env-gated `OW_COMET` | issue #87 |
+| T16 | Sun/planet-avoidance waypoint routing (blocked direct path → tangent re-aim / 1-hop relay; §9-1 gap) | ◻︎ **measured → PARK** (2026-06-15). Instrumented twin `forecast_measure.py` (8/8 identity-proven) over 80 games: value-positive launches dropped by `_path_blocked` are frequent (107/game starter, 639 mirror) but the recoverable value is **loose-optimistic 17–26% → realistic 6–15% of committed** after 3-agent adversarial review (only 35.5% of "recoverable" drops are value-positive; **41% of dropped targets are captured anyway within 5 turns**; re-aim haircut). **≈1.4–2.7pt win-rate < +7pt bake bar**, same frequent-gap-→-ladder-null mechanism as T8 co-arrival. Reopen only via a gate-only prototype if v4 stalls. | issue #87; `arena/measure_t16.py` |
 
 ### §9 priority completion (ChatGPT framework)
 | Item | Completion | Gap |
 |---|---|---|
-| 1. Exact geometry + ETA | ~85% | sun-avoidance waypoint routing; comet trajectory |
+| 1. Exact geometry + ETA | ~85% | sun-avoidance waypoint routing → **T16**; comet trajectory → **T15** (both chartered 2026-06-14, measure-first) |
 | 2. Dynamic defense reserve | ~70% | unified ThreatLedger timeline → v4 |
 | 3. ROI expansion | ~90% | opening-sequence (salvo failed) |
 | 4. Synchronized attack | ~80% (done) | replay correction: single-strike scale > sync form |
