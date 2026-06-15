@@ -23,8 +23,16 @@
 - `lopure/amplify-top-50-singular-value-retain-84-4-energy` — top-0.89 adapter surgery + embedded official metric + min-logprob hard set (T12 source) — high.
 - `varianceofx/synthetic-dataset-generator-27k` — 10-category deterministic generator + CoT; finality line; unseen-symbol generalization (T11 reference) — high.
 
-## Papers / repos / archives
-- `work/00.nemotron_3_versions.zip` — 3 ChatGPT scripts: `nemotron_v1_answer_only_sft.py`, `nemotron_v2_cot_rule_augmented_sft.py`, `nemotron_v3_merge_svd_submit.py` (inputs to v5/v10/T7) — medium. (Archive of text scripts; not extracted into docs.)
+## Papers / arXiv (literature scan 2026-06-15; see `research.md` for how each maps to our results)
+- **Model Soups** (Wortsman et al., arXiv 2203.05482) — averaging same-base fine-tunes beats the best individual — **directly explains our 0.86 soup (v14+c1+b1)** — high.
+- **LoRA Soups / AdapterSoup** — weight-averaging / weighted-concatenation of LoRA adapters for skill composition + cross-domain generalization — high (validates merging only same-base members).
+- **Logic-RL** (arXiv 2502.14768) — rule-based RL (RLVR) on ~5K synthetic logic puzzles → generalizes to AIME/AMC — **closest analogue to our hidden-rule task** — high (GRPO design input).
+- **LogicPuzzleRL** (arXiv 2506.04821) — RL on logic puzzles cultivates transferable reasoning routines — high.
+- **Tina: Tiny Reasoning Models via LoRA** (arXiv 2504.15777) — small reasoning models via LoRA + RL; directly relevant to a rank-32 LoRA + RL plan — high.
+- **STaR / ReST / RFT (Rejection-sampling Fine-Tuning)** — sample → filter-by-correctness → SFT; the v11 design basis — high.
+- **SD-Zero** (arXiv 2604.12002), **HDPO** (2603.23871) — newer self-distillation variants reported to beat RFT/GRPO; candidates for post-comp — medium.
+- The State of RL for LLM Reasoning (Raschka) — survey: GRPO vs STaR/ReST tradeoffs — medium.
+- `work/00.nemotron_3_versions.zip` — 3 ChatGPT scripts (inputs to v5/v10/T7) — medium.
 
 ## Internal notes
 - `work/00.nemo.md` — ChatGPT competition analysis (zh): essence, data findings, 6 challenges, ideas A–F, techniques — high. (See `notes_zh.md` for an English digest.)

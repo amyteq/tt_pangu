@@ -11,15 +11,15 @@ deadline: 2026-06-15             # 23:59 UTC (issue #86 snapshot)
 primary_artifact: notebook
 submission_mode: kernel          # rank<=32 LoRA adapter -> submission.zip via Kaggle kernel
 data_policy: kaggle              # + public Kaggle datasets (huikang corpus / replay-math / wheels), real training (no repack)
-last_updated: 2026-06-14         # LB confirmed via read-only Kaggle API refresh 2026-06-14
+last_updated: 2026-06-15         # LB confirmed via read-only Kaggle API refresh 2026-06-15
 best:
   cv_metric: accuracy
   cv_score: null                 # per-kernel held-out only; not a single canonical CV
-  public_lb: 0.85               # best OWN real-training (nemo-replay-v14); raw account max 0.86 (2026-05-15 public-fork, not own training)
+  public_lb: 0.86               # best OWN real-training (nemo-merge-soup = SVD soup of v14+c1+b1); broke the 0.85 ceiling
   private_lb: null
   submission_id: null            # submission IDs not recorded in available evidence
-current_blocker: "0.85 (v14 replay) appears to be the ceiling with current levers; T7 merge (0.82) and v15 synth (0.84) both regressed"
-next_task: "Hold 0.85 to close (deadline 2026-06-15); optional low-cost half-dose cryptarithm-only synth variant"
+current_blocker: "none — 0.85 ceiling broken by nemo-merge-soup (0.86), an SVD model-soup of comparable+complementary adapters (v14+c1+b1)"
+next_task: "Hold 0.86 to close (deadline 2026-06-15); post-comp: T12 local metric, KCA-core YAML (#85)"
 source_notes:
   - GitHub issue #86 (strategy & tracking hub)
   - competitions/nvidia-nemotron/kernels/README.md
