@@ -114,3 +114,34 @@ c2:
   code_file: nemo-solver-c2.ipynb
   note: "verified real-prompt CoT, hard-cat emphasis ~1000 (Idea D/E)"
   schedule: overnight
+
+# --- soup: SVD model-soup of v14+c1+b1 -> rank32 (CPU passthrough; NEW BEST 0.86) -
+merge_soup:
+  id: harrysun2006/nemo-merge-soup
+  title: Nemo Merge Soup
+  code_file: nemo-merge-soup.ipynb
+  enable_gpu: false
+  machine_shape: null            # CPU passthrough
+  dataset_sources: [harrysun2006/nemo-merge-soup-adapter]
+  model_sources: []
+  lb: 0.86
+  schedule: daytime
+  note: "weighted SVD soup v14(0.4)+c1(0.3)+b1(0.3); built via lib/svd_merge.py; comparable+complementary -> beat each member"
+
+# --- v11 stage-1: rejection-sampling self-distillation (SAMPLE+FILTER) — post-comp ---
+v11_sample_a:
+  id: harrysun2006/nemo-v11-sample-a2
+  title: Nemo V11 Sample A2
+  code_file: nemo-v11-sample-a.ipynb
+  kernel_sources: [ryanholbrook/nvidia-utility-script]
+  dataset_sources: [harrysun2006/nemo-merge-soup-adapter, mayukh18/nemotron-packages, llkh0a/rtx-wheels]
+  schedule: overnight
+  note: "on-policy sample from base + soup LoRA via vLLM; filter by ground truth; shard 0 (bit/equation/cipher)"
+v11_sample_b:
+  id: firefly2006/nemo-v11-sample-b
+  title: Nemo V11 Sample B
+  code_file: nemo-v11-sample-b.ipynb
+  kernel_sources: [ryanholbrook/nvidia-utility-script]
+  dataset_sources: [mayukh18/nemotron-packages, llkh0a/rtx-wheels]
+  schedule: overnight
+  note: "classic RFT: sample from BASE (no soup; firefly lacks the private soup dataset); shard 1"
