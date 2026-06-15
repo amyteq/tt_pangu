@@ -1,0 +1,116 @@
+# Per-competition kernel config — single source of truth for ALL nemo variants.
+#
+# Modelled on tools/legacy/kkr.yaml: `_base` holds shared fields; each section
+# overrides only what differs. `kernel-metadata.json` is generated on the fly at
+# push/submit time (not source-controlled) via:
+#
+#   python tools/kca/yaml_meta.py build competitions/nvidia-nemotron/kca-nemo.yaml <section> \
+#       --src-dir competitions/nvidia-nemotron/kernels --out <build_dir>
+#   python tools/kca/kca.py kaggle push --kernel-dir <build_dir> --no-watch
+#   # on COMPLETE:
+#   python tools/kca/kca.py kaggle submit --competition nvidia-nemotron-model-reasoning-challenge \
+#       --kernel <id> --version <v> --file submission.zip --message "..."
+#
+# `id` carries the account (harrysun2006 = "harry", firefly2006 = "may"); per-team
+# submission quota (5/day) is shared across both accounts.
+#
+# Annotation keys (lb / schedule / note) are ignored by the metadata generator;
+# they document results and the run cadence (see README "Scheduling").
+
+_base:
+  competition: nvidia-nemotron-model-reasoning-challenge
+  submit_file: submission.zip
+  submit_type: notebook
+  language: python
+  kernel_type: notebook
+  is_private: true
+  enable_gpu: true
+  enable_tpu: false
+  enable_internet: false
+  keywords: [gpu]
+  competition_sources: [nvidia-nemotron-model-reasoning-challenge]
+  dataset_sources:
+    - mayukh18/nemotron-packages
+    - llkh0a/rtx-wheels
+    - huikang/huikang-nemotron-repository-snapshot
+    - mohamedamr992/replay-math
+  kernel_sources: []
+  model_sources: [metric/nemotron-3-nano-30b-a3b-bf16/Transformers/default/1]
+  docker_image: gcr.io/kaggle-private-byod/python@sha256:9fa0da194fad2241d3f01a80581cbecbd3a258b4d1b695e2cbbbc62a0fd205ac
+  machine_shape: NvidiaRtxPro6000
+
+# --- baseline / early SFT kernel (v5–v7, dgxchen CoT corpus) ------------------
+baseline:
+  id: harrysun2006/nemotron-lora-baseline-kca
+  title: Nemotron LoRA Baseline (KCA)
+  code_file: nemotron-lora-baseline.ipynb
+  dataset_sources: [dgxchen/nemotron-cot-tong]
+  kernel_sources: [ryanholbrook/nvidia-utility-script]
+  note: "v5 answer-only 0.61 / v7 response-masked CoT 0.65 / ctx4k 0.67 / ctx2k 0.42"
+  schedule: overnight
+
+# --- v10: rule-aware CoT (firefly2006 / may) ----------------------------------
+v10:
+  id: firefly2006/nemo-rule4k-v10
+  title: Nemo Rule4k V10
+  code_file: nemo-rule4k-v10.ipynb
+  dataset_sources: [dgxchen/nemotron-cot-tong]
+  kernel_sources: [ryanholbrook/nvidia-utility-script]
+  lb: 0.59
+  schedule: overnight
+
+# --- v14: public replay recipe — BEST (harrysun2006 / harry) ------------------
+v14:
+  id: harrysun2006/nemo-replay-v14
+  title: Nemo Replay V14
+  code_file: nemo-replay-v14.ipynb
+  lb: 0.85
+  schedule: overnight
+
+# --- v15: v14 backbone + cryptarithm synth ------------------------------------
+v15:
+  id: harrysun2006/nemo-synth-v15
+  title: Nemo Synth V15
+  code_file: nemo-synth-v15.ipynb
+  lb: 0.84
+  schedule: overnight
+
+# --- t7: multi-adapter SVD merge (CPU passthrough; short, daytime) ------------
+merge_t7:
+  id: harrysun2006/nemo-merge-t7
+  title: Nemo Merge T7
+  code_file: nemo-merge-t7.ipynb
+  enable_gpu: false
+  machine_shape: null            # CPU passthrough
+  dataset_sources: [harrysun2006/nemo-merge-t7-adapter]
+  model_sources: []
+  lb: 0.82
+  schedule: daytime
+
+# --- B: low-dose cryptarithm synth (firefly2006 / may) ------------------------
+b1:
+  id: firefly2006/nemo-synth-b1
+  title: Nemo Synth B1
+  code_file: nemo-synth-b1.ipynb
+  note: "cryptarithm-only synth ~800 (~9%) on v14 backbone"
+  schedule: overnight
+b2:
+  id: firefly2006/nemo-synth-b2
+  title: Nemo Synth B2
+  code_file: nemo-synth-b2.ipynb
+  note: "cryptarithm+bit synth ~1000 (~11%) on v14 backbone"
+  schedule: overnight
+
+# --- C: real-prompt solver-distillation (harrysun2006 / harry) ----------------
+c1:
+  id: harrysun2006/nemo-solver-c1
+  title: Nemo Solver C1
+  code_file: nemo-solver-c1.ipynb
+  note: "verified real-prompt CoT, balanced ~1800 (Idea A)"
+  schedule: overnight
+c2:
+  id: harrysun2006/nemo-solver-c2
+  title: Nemo Solver C2
+  code_file: nemo-solver-c2.ipynb
+  note: "verified real-prompt CoT, hard-cat emphasis ~1000 (Idea D/E)"
+  schedule: overnight

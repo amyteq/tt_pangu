@@ -1,7 +1,7 @@
 # Rules — NVIDIA Nemotron Model Reasoning Challenge
 
 > Facts with evidence; uncertain items marked **⚠ unverified**. Evidence: issue #86 (赛制一句话 + snapshot),
-> `competitions/nvidia-nemotron/experiments/kernel/README.md`, `work/00.nemo.md`.
+> `competitions/nvidia-nemotron/kernels/README.md`, `work/00.nemo.md`.
 
 ## Problem
 9 categories of reasoning problems (incl. cryptarithm, bit-manipulation, equation/symbol transforms).

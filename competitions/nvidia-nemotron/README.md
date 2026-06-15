@@ -23,9 +23,38 @@
 - bugs: ./bugs.md
 - references: ./references.md
 - insights: ./insights.md
-- experiments: ./experiments/ (kernels v10/v14/v15, t7 svd-merge, synth generator)
+- kernel config (single source of truth): ./kca-nemo.yaml
+- kernels (flat percent-`.py` sources): ./kernels/ · shared modules: ./lib/
 - postmortem: ./postmortems/2026-06-14-context-consolidation.md
 - historical hub: GitHub issue #86 (kept open for history; do not use for new status)
+
+## Kernel config & push workflow
+All kernel variations for this competition (both accounts) live in **`./kca-nemo.yaml`**
+(modelled on `tools/legacy/kkr.yaml`): a `_base` section holds shared fields, each named
+section overrides only what differs (`id` carries the account: `harrysun2006`=harry,
+`firefly2006`=may). **`kernel-metadata.json` is no longer source-controlled** — it is
+generated on the fly at push time. Sources are flat: `kernels/<name>.py` (percent format),
+shared dev modules in `lib/` (embedded into the kernels at assemble time).
+
+```sh
+# 1) materialise a push dir (metadata.json + built .ipynb) for one section
+python tools/kca/yaml_meta.py build competitions/nvidia-nemotron/kca-nemo.yaml v14 \
+    --src-dir competitions/nvidia-nemotron/kernels --out "$TMPDIR/kca-build/v14"
+# 2) push (auto-watch off for long runs)
+python tools/kca/kca.py kaggle push --kernel-dir "$TMPDIR/kca-build/v14" --no-watch
+# 3) on COMPLETE, submit from Kaggle storage
+python tools/kca/kca.py kaggle submit -c nvidia-nemotron-model-reasoning-challenge \
+    --kernel harrysun2006/nemo-replay-v14 --version <v> --file submission.zip --message "..."
+```
+
+## Scheduling convention
+- **Long-running training kernels** (`baseline`, `v10`, `v14`, `v15`, `b*`, `c*` — ~5–8h):
+  schedule **~22:00–24:00 AEST** so they run overnight; retrieve + analyze results next
+  morning, then loop on the next direction. Marked `schedule: overnight` in `kca-nemo.yaml`.
+- **Short kernels** (`merge_t7` CPU passthrough, `validate_kernel`): run in **daytime** so a
+  human + AI can watch and react closely. Marked `schedule: daytime`.
+- Each training kernel carries a ≤8h wall-clock guard (B7) so an overnight run always
+  saves + zips before the Kaggle session limit.
 
 ## Current top 3 priorities
 1. Hold the 0.85 (`nemo-replay-v14`) entry through the 2026-06-15 deadline.
