@@ -7,12 +7,13 @@
 ## Status snapshot
 - status: **active** (deadline **2026-06-15 23:59 UTC**, imminent)
 - phase: submission (closing)
-- current objective: **hold the best score (0.85, v14 replay) to close**; only low-cost upside left
+- current objective: **hold the best score (0.86, `nemo-merge-soup`) to close**
 - best known local/CV: per-kernel held-out only (no single canonical CV); see `submissions.md`
-- best known LB/public: **0.85** own real-training (`nemo-replay-v14`); raw account max **0.86** (2026-05-15 public-fork, not own training); top **~0.90**, base ~0.47 (refreshed 2026-06-14)
-- current blocker: 0.85 appears to be the ceiling with current levers — two attempts to beat it
-  (T7 SVD merge 0.82, T11 v15 cryptarithm synth 0.84) both regressed
-- next task: hold 0.85; optional half-dose cryptarithm-only synth (expected ≤0.85)
+- best known LB/public: **0.86 own real-training** (`nemo-merge-soup` = SVD soup of v14+c1+b1); top **~0.90**, base ~0.47 (refreshed 2026-06-15)
+- current blocker: none — the 0.85 ceiling was broken by a model-soup of comparable+complementary
+  adapters (v14 0.85 + c1 0.85 + b1 0.85 on different data → **soup 0.86**); earlier strong+weak
+  merge (T7 0.82) and high-dose synth (v15 0.84) had regressed
+- next task: hold 0.86 to close (deadline 2026-06-15); post-comp: T12 local metric, KCA-core YAML (#85)
 
 ## Key links
 - rules: ./rules.md
@@ -57,13 +58,13 @@ python tools/kca/kca.py kaggle submit -c nvidia-nemotron-model-reasoning-challen
   saves + zips before the Kaggle session limit.
 
 ## Current top 3 priorities
-1. Hold the 0.85 (`nemo-replay-v14`) entry through the 2026-06-15 deadline.
-2. (Optional, low-cost) half-dose cryptarithm-only synth variant (~8%) — expected ≤0.85; user decides.
-3. Post-competition: localize the official metric + min-logprob hard-validation set (T12); avoid eval-truncation regressions.
+1. Hold the **0.86** (`nemo-merge-soup`) entry through the 2026-06-15 deadline.
+2. Post-competition: localize the official metric + min-logprob hard-validation set (T12).
+3. Post-competition: elevate the `kca-<slug>.yaml` + on-the-fly-metadata + flat-layout + scheduling pattern into KCA core (#85).
 
 ## Latest update
-- date: 2026-06-14
-- source: issue #86 (comments 2–4), PRs #90/#94/#95
-- summary: v14 replay reached **LB 0.85** (+0.18 over prior best 0.67). Two follow-ups to exceed it
-  both regressed: T7 multi-adapter SVD merge → 0.82, T11 v15 cryptarithm synth → 0.84. Recommendation:
-  hold 0.85 to close.
+- date: 2026-06-15
+- source: PRs #90/#94/#95/#106/#107; final-sprint kernels b1/b2/c1/c2 + soup
+- summary: final-sprint scores — b1 0.85, b2 0.84, c1 0.85, c2 0.83 (none beat v14's 0.85), but the
+  **v14+c1+b1 SVD model-soup reached 0.86 — new best, own real-training** (+0.01). The 0.85 ceiling fell
+  to a soup of *comparable + complementary* adapters (the §9b-H condition T7's strong+weak merge lacked).
