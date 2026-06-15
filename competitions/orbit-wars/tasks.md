@@ -17,12 +17,12 @@
   from the episode dataset; build only if material. Scope: model `comets` path → feed `project()` swept
   collision + `_path_blocked`; optional comet-payback timing (merge w/ T4). Env-gated `OW_COMET`; suite-gate
   A/B on comet maps + no-regress on comet-free + 4p avg_rank.
-- **T16 sun/planet-avoidance waypoint routing** (§9-1 gap; chartered 2026-06-14, measure-first). Gap:
-  `_path_blocked` only *abandons* a blocked straight launch — never routes around (fleets can't steer
-  mid-flight, so "routing" = tangent re-aim that clears the obstacle, or a 1-hop relay via an owned/capturable
-  intermediate planet, relaunched next turn). Pre-build gate: instrument stock v3.2 to count value-positive
-  launches dropped by `_path_blocked` per game (upper bound on the gain); build only if non-trivial. Env-gated
-  `OW_WAYPOINT`; suite-gate A/B.
+- ~~**T16 sun/planet-avoidance waypoint routing**~~ → **measured → PARK (2026-06-15).** Instrumented
+  stock v3.2 (`arena/measure_t16.py` + identity-proven twin) over 80 games; 3-agent adversarial review.
+  Dropped value-positive launches are frequent but realistic recoverable value is **6–15% of committed
+  ≈ 1.4–2.7pt win-rate, below the +7pt bake bar** (only 35.5% of "recoverable" drops are value-positive;
+  41% of dropped targets are captured anyway within 5 turns; same frequent-gap → ladder-null mechanism as
+  co-arrival). Measure-first did its job: parked before building. Reopen via a gate-only prototype only if v4 stalls.
 
 ## Backlog / background
 - T12 RL/distillation (D4): de-prioritized to background after v0/v1/v2 (BC ≠ playing); next would be

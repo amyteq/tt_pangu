@@ -43,7 +43,7 @@
 | T13 | Dynamic strategy ID & counter | 🟢 merged into v4 (posture v1 ❌; counter-attack window → v4) | issue #87 |
 | T14 | Short-hop supply chain | ❌ no gain (mechanical forwarding) | issue #87 |
 | T15 | Comet trajectory prediction (model `comets` path → feed `project()` swept-collision + `_path_blocked`; close §9-1 gap) | 📋 chartered — **measure-first**: comet incidence + decided-games in episode dataset gates the build; env-gated `OW_COMET` | issue #87 |
-| T16 | Sun/planet-avoidance waypoint routing (blocked direct path → tangent re-aim or 1-hop relay; close §9-1 gap) | 📋 chartered — **measure-first**: instrument stock v3.2 for value-positive launches dropped by `_path_blocked` (upper bound) before building; env-gated `OW_WAYPOINT` | issue #87 |
+| T16 | Sun/planet-avoidance waypoint routing (blocked direct path → tangent re-aim / 1-hop relay; §9-1 gap) | ◻︎ **measured → PARK** (2026-06-15). Instrumented twin `forecast_measure.py` (8/8 identity-proven) over 80 games: value-positive launches dropped by `_path_blocked` are frequent (107/game starter, 639 mirror) but the recoverable value is **loose-optimistic 17–26% → realistic 6–15% of committed** after 3-agent adversarial review (only 35.5% of "recoverable" drops are value-positive; **41% of dropped targets are captured anyway within 5 turns**; re-aim haircut). **≈1.4–2.7pt win-rate < +7pt bake bar**, same frequent-gap-→-ladder-null mechanism as T8 co-arrival. Reopen only via a gate-only prototype if v4 stalls. | issue #87; `arena/measure_t16.py` |
 
 ### §9 priority completion (ChatGPT framework)
 | Item | Completion | Gap |
