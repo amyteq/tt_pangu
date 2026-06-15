@@ -105,17 +105,22 @@ What was actually **tried, scored, planned, or never run** (LB from `submissions
 | Answer-only SFT (v5) | tried, scored | 0.61 | learns the boxed format; ceiling low |
 | CoT SFT + response-only masking (v7 / ctx4k) | tried, scored | 0.65 / 0.67 | masking is essential (v6 unmasked = 0.44, **B2**) |
 | Replay-recipe SFT (**v14**) | tried, scored | **0.85 (best)** | CCE + MoE-128 tying + lm_head/in_proj/out_proj LoRA + seq8192 + huikang corpus + replay-math = the single biggest lever |
-| Synthetic augmentation (v15; b1/b2) | v15 scored; **b1/b2 submitted, LB pending** | 0.84; b1/b2 `unknown` (PENDING) | category-weighted synth diluted v14 (single ≠ total, **B8**); b1/b2 are lower-dose retries |
+| Synthetic augmentation (v15; b1/b2) | scored | v15 0.84; **b1 0.85, b2 0.84** | dose matters: low-dose b1 (~9%) recovered to **0.85** (vs v15 24%→0.84) — confirms dilution; none exceeded 0.85 |
 | SVD multi-adapter merge (T7) | tried, scored | 0.82 | strong+weak merge **dilutes** (INS-003); route closed |
-| Solver-distillation on real prompts (c1/c2) | **running** (LB pending) | `unknown` | verified real-prompt CoT (Idea A/D); the never-built lever, now attempted |
+| Solver-distillation on real prompts (c1/c2) | scored | **c1 0.85, c2 0.83** | verified real-prompt CoT (Idea A/D) tied **0.85** (c1, balanced); hard-cat emphasis (c2) diluted to 0.83; none exceeded 0.85 |
 | **v11 rejection-sampling self-distillation** | **planned, NEVER run** | — | D2-approved but out of GPU/time budget; sample base model → keep correct → SFT |
 | **GRPO / PPO / any RL** | **NEVER attempted** | — | `work/00.nemo.md` §8.5 proposed verifiable-reward RL (exact-match reward + format/length penalties) *after* stable SFT; never reached |
 
 **Honest summary:** no reinforcement-learning run has happened. "RL-adjacent" ideas are rejection-sampling
-self-distillation (planned, not run) and the deterministic **solver-distillation** (running now). Every
-attempt to add signal **on top of** the clean replay recipe (synth, merge) regressed or tied; v14's faithful
-replay (0.85) remains the best. RL, if attempted, should come only after a stable SFT base and a real local
-metric (T12), with reward = official exact-match/numeric-tolerance + a `\boxed{}` format reward.
+self-distillation (planned, not run) and the deterministic **solver-distillation** (c1=0.85 / c2=0.83). Every
+attempt to add signal **on top of** the clean replay recipe regressed or **tied** (best add-on = 0.85);
+v14's faithful replay (0.85) remains the best. RL, if attempted, should come only after a stable SFT base
+and a real local metric (T12), with reward = official exact-match/numeric-tolerance + a `\boxed{}` format reward.
+
+> **Merge route reopened (audit §9b-H):** b1 and c1 both hit **0.85 on *different* data** (cryptarithm synth
+> vs verified real-prompt CoT) — i.e. we now have *comparable, complementary* members, the condition T7
+> lacked (strong+weak → 0.82). An SVD merge of **v14 + c1 + b1** is therefore the best remaining shot at
+> >0.85 (cheap CPU passthrough; subject to quota + deadline).
 
 ## 6. Workflow charts
 
@@ -211,4 +216,4 @@ flowchart TD
 - `postmortems/2026-06-14-final-sprint-audit.md` (plan-vs-actual, options table incl. §9b).
 - `work/00.nemo.md` (ChatGPT analysis: challenges, Ideas A–F, §8 techniques, §9 route, §11 matrix).
 - Read-only solver-coverage pass on `~/competitions/kaggle-…/data/train.csv` (9500 rows) for §4 hard rows.
-- Run/LB status mirrors `submissions.md`/`tracking.md` as of 2026-06-15; **b1/b2 submitted (LB PENDING), c1/c2 running** — all four LB = `unknown` at write time.
+- Run/LB status as of 2026-06-15: final-sprint scores **b1 0.85, b2 0.84, c1 0.85, c2 0.83** (none > v14's 0.85). `tracking.md`/`submissions.md` to be updated with these.

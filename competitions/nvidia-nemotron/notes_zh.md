@@ -94,16 +94,20 @@ gravity/numeral/unit 100%、**cipher 38%、bit 10%、equation 0.4%**——*解�
 | Answer-only SFT (v5) | 已试已评 | 0.61 | 学会 boxed 格式;上限低 |
 | CoT SFT + response-only masking (v7 / ctx4k) | 已试已评 | 0.65 / 0.67 | masking 必需(v6 不 mask = 0.44,**B2**) |
 | Replay 配方 SFT(**v14**) | 已试已评 | **0.85(最好)** | CCE + MoE-128 tying + lm_head/in_proj/out_proj LoRA + seq8192 + huikang 语料 + replay-math = 单一最大杠杆 |
-| 合成数据增强(v15;b1/b2) | v15 已评;**b1/b2 已提交,LB pending** | 0.84;b1/b2 `unknown`(PENDING) | 类别加权合成稀释了 v14(单类≠总分,**B8**);b1/b2 是低剂量重试 |
+| 合成数据增强(v15;b1/b2) | 已评 | v15 0.84;**b1 0.85, b2 0.84** | 剂量是关键:低剂量 b1(~9%)回到 **0.85**(vs v15 24%→0.84)——印证稀释;均未超 0.85 |
 | 多 adapter SVD merge(T7) | 已试已评 | 0.82 | 强+弱合并=**稀释**(INS-003);路线关闭 |
-| 真实 prompt solver 蒸馏(c1/c2) | **运行中**(LB pending) | `unknown` | 已验证的真实 prompt CoT(Idea A/D);从未造过的杠杆,现在尝试 |
+| 真实 prompt solver 蒸馏(c1/c2) | 已评 | **c1 0.85, c2 0.83** | 已验证真实 prompt CoT(Idea A/D)持平 **0.85**(c1,均衡);难类侧重(c2)稀释到 0.83;均未超 0.85 |
 | **v11 拒绝采样自蒸馏** | **已计划,从未跑** | — | D2 已批但无 GPU/时间预算;base 采样→只留答对→SFT |
 | **GRPO / PPO / 任何 RL** | **从未尝试** | — | `work/00.nemo.md` §8.5 提议可验证奖励 RL(精确匹配奖励 + 格式 / 长度惩罚),在稳定 SFT *之后*;从未到达 |
 
 **诚实小结:** 没有任何强化学习真正跑过。「类 RL」想法是拒绝采样自蒸馏(已计划未跑)和确定性
-**solver 蒸馏**(现在运行中)。所有在干净 replay 配方**之上**加信号(synth、merge)的尝试都回归或持平;
-v14 忠实复刻(0.85)仍最好。RL 若做,应在稳定 SFT 基线 + 真正本地 metric(T12)*之后*,
-奖励 = 官方精确匹配 / 数值容差 + `\boxed{}` 格式奖励。
+**solver 蒸馏**(c1=0.85 / c2=0.83)。所有在干净 replay 配方**之上**加信号的尝试都回归或**持平**
+(最好的增补 = 0.85);v14 忠实复刻(0.85)仍最好。RL 若做,应在稳定 SFT 基线 + 真正本地 metric(T12)
+*之后*,奖励 = 官方精确匹配 / 数值容差 + `\boxed{}` 格式奖励。
+
+> **merge 路线重开(audit §9b-H):** b1 与 c1 都在**不同数据**上拿到 **0.85**(cryptarithm 合成 vs
+> 真实 prompt 验证 CoT)——即出现了 *分数相当且互补* 的成员,这正是 T7 缺的条件(强+弱 → 0.82)。
+> 因此 **v14 + c1 + b1** 的 SVD merge 是冲 >0.85 的最佳剩余尝试(便宜的 CPU passthrough;受配额 + 截止限制)。
 
 ## 6. 工作流图
 
@@ -198,4 +202,4 @@ flowchart TD
 - `postmortems/2026-06-14-final-sprint-audit.md`(计划 vs 实际,选项表含 §9b)。
 - `work/00.nemo.md`(ChatGPT 分析:挑战、Ideas A–F、§8 技巧、§9 路线、§11 矩阵)。
 - 对 `~/competitions/kaggle-…/data/train.csv`(9500 行)的只读 solver 覆盖率扫描,用于 §4 难例行。
-- 运行 / LB 状态镜像 `submissions.md`/`tracking.md`(截至 2026-06-15);**b1/b2 已提交(LB PENDING),c1/c2 运行中** —— 撰写时四者 LB 均 `unknown`。
+- 运行 / LB 状态(截至 2026-06-15):冲刺最终分 **b1 0.85, b2 0.84, c1 0.85, c2 0.83**(均未超 v14 的 0.85)。`tracking.md`/`submissions.md` 待据此更新。
