@@ -97,6 +97,13 @@
 | parity | v4 Scheduler | hub-and-hammer integrated rewrite (≈v3.2, iterating) |
 | 1151.0 / 1085.4 | adapted-kuni05 | attributed public agent; competitive entry (peak / current) |
 
+## Live loop (KCT-OW-LIVE-002, 2026-06-15)
+- Bounded live-submission loop under `ops/` (credential-safe two-account status, episode ingest/analyze with
+  sun-collision detection, slot classification, gated autonomous submit). Commands in `ops/README.md`; state
+  in `live/`. Run one cycle: `python competitions/orbit-wars/ops/live_loop.py --once`.
+- Cycle 2026-06-15 (read-only Kaggle): harry [kuni05 **1086.5**, v3.2 **655.7**]; may [v3_2_coarr **644.0**,
+  v3.2 **630.1**]. **NO_SUBMIT** (no candidate beats an active slot; v4 = parity; budget/quota preserved).
+
 ## Evidence links
 - GitHub issue #87 (body + 15 comments) — original hub. `tracking_zh.md` — original Chinese verbatim.
 - `README.md` (detailed log), `EPISODES.md`, `LEAGUE.md`, `VALIDATION.md`; `worklogs/orbit.md`, `worklogs/orbit2.md`.

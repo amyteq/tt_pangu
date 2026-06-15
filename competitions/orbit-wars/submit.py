@@ -4,22 +4,24 @@ Account selection follows tools/legacy/kkr.py:_load_env_for_owner: a dotenv
 file per account sets KAGGLE_USERNAME / KAGGLE_KEY (override=True), so the
 process submits as that account. Known accounts:
 
-    --account harry   ~/.kaggle/kaggle.json default (harrysun2006)
-    --account may     .vscode/.env.may (firefly2006)
+    --account harry   .vscode/.env.harry (harrysun2006)
+    --account may     .vscode/.env.may   (firefly2006)
     --account <path>  any explicit dotenv path
 
-POLICY (CLAUDE.md + Kaggle rules):
-  * Every real submission needs explicit human approval recorded on issue #87
-    (version, A/B evidence, expected score, which latest-2 slot it evicts).
+POLICY (CLAUDE.md + Kaggle rules + task KCT-OW-LIVE-002):
+  * Real submits are authorized autonomously by task KCT-OW-LIVE-002 when its
+    validation/quota/compliance/replacement gates pass; a real (non-dry-run)
+    submit must carry --authorized-by-task as an audit token.
   * Kaggle is one-account-per-user. Submitting the SAME competition from two
     accounts is only legal if the accounts belong to different people properly
-    teamed (or used on different competitions). Until Harry confirms the
-    compliance mode for Orbit Wars, --account may refuses to submit there
-    without --i-confirm-compliance.
+    teamed. may=firefly2006 is a real registered teammate (submissions.md);
+    --account may still requires --i-confirm-compliance.
+  * Secrets are loaded from the dotenv into this process env only and never
+    printed (only account alias + username are shown).
 
 Usage:
     python submit.py --file submission.tar.gz --msg "forecast v3.2 (...)" \
-        [--account harry|may|<dotenv>] [--dry-run]
+        --account harry|may --authorized-by-task KCT-OW-LIVE-002 [--dry-run]
 """
 
 import argparse
@@ -38,30 +40,43 @@ def _first_existing(*paths):
 REPO_ROOT = os.path.normpath(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
 )
-ACCOUNTS = {
-    "harry": None,  # default ~/.kaggle/kaggle.json
-    # .vscode/.env.may is untracked -> absent in worktrees; fall back to the
+
+
+def _cred(basename):
+    # .vscode/.env.* are gitignored -> absent in worktrees; fall back to the
     # main checkout's copy.
-    "may": _first_existing(
-        os.path.join(REPO_ROOT, ".vscode", ".env.may"),
-        os.path.expanduser("~/test/tt_pangu/.vscode/.env.may"),
-    ),
+    return _first_existing(
+        os.path.join(REPO_ROOT, ".vscode", basename),
+        os.path.expanduser(f"~/test/tt_pangu/.vscode/{basename}"),
+    )
+
+
+# Per task KCT-OW-LIVE-002: harry loads .vscode/.env.harry (not ~/.kaggle).
+ACCOUNTS = {
+    "harry": _cred(".env.harry"),
+    "may": _cred(".env.may"),
 }
 COMP = "orbit-wars"
+TASK_ID = "KCT-OW-LIVE-002"
 
 
 def _load_env(path):
+    """Parse the dotenv and return (username, subprocess_env). The secret-bearing
+    vars go ONLY into a COPIED env handed to the kaggle subprocess — never into
+    this process's os.environ (task credential_policy)."""
     creds = {}
     with open(path) as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
-                creds[k.strip()] = v.strip()
-    for k in ("KAGGLE_USERNAME", "KAGGLE_KEY", "KAGGLE_CONFIG_DIR"):
+                creds[k.strip()] = v.strip().strip("'\"")
+    env = dict(os.environ)
+    for k in ("KAGGLE_USERNAME", "KAGGLE_KEY", "KAGGLE_API_TOKEN", "KAGGLE_CONFIG_DIR"):
         if k in creds:
-            os.environ[k] = creds[k]
-    return creds.get("KAGGLE_USERNAME", "?")
+            env[k] = creds[k]
+    env.setdefault("KAGGLE_CONFIG_DIR", "/tmp/claude/.kaggle_noconfig")
+    return creds.get("KAGGLE_USERNAME", "?"), env
 
 
 def main():
@@ -71,14 +86,28 @@ def main():
     ap.add_argument("--account", default="harry")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--i-confirm-compliance", action="store_true")
+    ap.add_argument(
+        "--authorized-by-task",
+        default="",
+        help=f"audit token for autonomous submits (e.g. {TASK_ID})",
+    )
     args = ap.parse_args()
 
+    # Refuse unknown accounts (task: helper "refuses unknown accounts").
+    if args.account not in ACCOUNTS and not os.path.exists(args.account):
+        sys.exit(f"REFUSED: unknown account {args.account!r}; allowed: {sorted(ACCOUNTS)}")
+
+    # A real (non-dry-run) submit must carry the task authorization token.
+    if not args.dry_run and not args.authorized_by_task:
+        sys.exit(
+            "REFUSED: real submit requires --authorized-by-task "
+            f"{TASK_ID} (audit). Use --dry-run for a no-op."
+        )
+
     env_path = ACCOUNTS.get(args.account, args.account)
-    user = "harrysun2006 (default creds)"
-    if env_path:
-        if not os.path.exists(env_path):
-            sys.exit(f"dotenv not found: {env_path}")
-        user = _load_env(env_path)
+    if not env_path or not os.path.exists(env_path):
+        sys.exit(f"credential dotenv not found for account {args.account!r}")
+    user, sub_env = _load_env(env_path)
 
     if args.account != "harry" and not args.i_confirm_compliance:
         sys.exit(
@@ -98,11 +127,13 @@ def main():
         "-m",
         args.msg,
     ]
-    print(f"submitting as {user}: {' '.join(cmd)}")
+    auth = f" [authorized-by-task {args.authorized_by_task}]" if args.authorized_by_task else ""
+    print(f"submitting as {user} (account={args.account}){auth}: {' '.join(cmd)}")
     if args.dry_run:
         print("DRY RUN — nothing sent")
         return
-    subprocess.run(cmd, check=True)
+    # creds live ONLY in sub_env (a copy), never in this process's os.environ
+    subprocess.run(cmd, check=True, env=sub_env)
 
 
 if __name__ == "__main__":

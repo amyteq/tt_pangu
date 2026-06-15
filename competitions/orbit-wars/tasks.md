@@ -31,6 +31,18 @@
 ## Blocked
 - None hard-blocking; constrained by deadline (06-23), 5/day quota, and the strong-tier cliff.
 
+## Live loop (KCT-OW-LIVE-002)
+- **`ops/` bounded live-submission loop built + ran one `--once` cycle (2026-06-15).** Tracks active
+  latest-2 slots across both accounts (read-only Kaggle), credential-safe (`ops/kaggle_auth.py`; secrets
+  never printed/committed), ingests/analyzes episodes (decode + **sun-collision/hard-bug detection**,
+  winner-reason → `live/episodes_index.csv`), classifies agents (`neutral/strong/weak/fix_required/retired/
+  unknown`), and performs **gated autonomous submit** via `submit.py` (budget + quota + compliance +
+  replacement-plan gates). Commands in `ops/README.md`.
+- **Cycle result:** harry [kuni05 μ1086.5, v3.2 μ655.7]; may [v3_2_coarr μ644.0, v3.2 μ630.1]. No queued
+  episodes; **NO_SUBMIT** — no validated candidate beats an active slot (v4 = parity), budget/quota preserved.
+  `live/account_status.md`, `live/agent_status.md`, `live/submit_plans.md`, `live/push_submit_audit.md`,
+  `live/active_agents.yaml` written. No bugs found → no new Tn tasks generated this cycle.
+
 ## Done
 - T2 suite param optimization → **t14 → v3.2 baked (+7pt over baseline)**, 6/6 VALIDATION gates, submitted.
 - T8 co-arrival (real +3pt evogen-layer; default OFF). T10 VALIDATION.md gate. T11 ledger (no-op).
