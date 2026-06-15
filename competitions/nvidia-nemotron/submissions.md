@@ -1,10 +1,45 @@
 # Submissions — nemo
 
-> **Refreshed 2026-06-14 via read-only Kaggle API** (`kaggle competitions submissions`, both accounts;
+> **Refreshed 2026-06-15 via read-only Kaggle API** (`kaggle competitions submissions`, both accounts;
 > creds in `.vscode/.env.harry` / `.vscode/.env.may`, read-for-use only). All rows below are confirmed
 > `SubmissionStatus.COMPLETE`. Private LB column is empty in the API (not released) → `unknown`.
+> 2026-06-15 update adds the final-sprint B/C/soup submissions + the T12 hard-val ranking (below).
 > Kaggle's submissions API exposes no numeric submission ID; the (date + description) pair is the key.
 > Quota: 5/team/day.
+
+## T12 hard-val ranking (official-metric, min-logprob hardest 72; `harrysun2006/nemo-t12-hardval` v2, 2026-06-15)
+Greedy decode (official `max_tokens=7680, temp=0`), `\boxed{}`/last-number extractor, exact-or-1e-2 match.
+Hard-val = min-logprob hardest-N-per-category (16 each bit/equation/cipher, 8 each numeral/gravity/unit).
+The final-sprint submissions themselves are listed in the campaign table below.
+
+| adapter | hard-val acc | bit | equation | cipher | numeral/gravity/unit |
+|---|---:|---|---|---|---|
+| **soup** | **0.764** | 13/16 | 2/16 | 16/16 | 8/8 each |
+| **v14** | **0.764** | 14/16 | 2/16 | 15/16 | 8/8 each |
+| base (no adapter) | 0.389 | 0/16 | 0/16 | 8/16 | 8 / 7 / 5 |
+| c1 | 0.389 | 1/16 | 0/16 | 3/16 | 8/8 each |
+| v15 | 0.333 | 0/16 | 0/16 | 0/16 | 8/8 each |
+| c2 | 0.278 | 1/16 | 0/16 | 2/16 | 7 / 3 / 7 |
+
+**Findings:**
+- **The 0.86 soup is robust, not diluted** — tied with v14 (0.764) and best overall; both ace hard cipher/bit.
+- **Augmented adapters (c1/c2/v15) sit at/below the base model on the hardest cipher/bit** (c1 cipher 3/16 < base 8/16) despite being trained on cipher/bit CoT. The base anchor rules out a load artifact: they change behaviour (easy cats → 24/24) but *degrade* the hardest categories. Confirms "augmentation dilutes the clean replay recipe", amplified on the hard slice.
+- **`equation` is unsolved by everyone (≤2/16)** — the only real frontier; cipher-heavy data does not touch it.
+- **Decision (2026-06-15):** hold the 0.86 soup; stand down the cipher-heavy v11 stage-2 SFTs (a2 corpus was 94% cipher → same regression risk). Remaining daily slots left unused.
+
+### Final-sprint extra submissions (2026-06-15, all scored)
+| submission | account | public LB | note |
+|---|---|---:|---|
+| surgery `scale_1.15` | harrysun2006 | 0.86 | spectral surgery on the soup (×1.15 LoRA); **tied/duplicate** of soup → no hedge value |
+| andy279 frontier | firefly2006 | **0.81** | v14 recipe + 1700 external-teacher solver-CoT (eq/bit) → **regressed** (dilution) |
+| v11 self-distill | firefly2006 | **0.80** | v14 recipe + 261 rejection-sampled CoT → **regressed** |
+
+None beat the 0.86 soup; the augmentation-dilutes / single-cat≠total lesson held even against external-teacher CoT.
+
+### Final private-LB selection (lock before 23:59 UTC)
+Select the **two** submissions that count for private scoring:
+1. **soup — 0.86** (`2026-06-15 03:22`): best public + robust on hard-val.
+2. **v14 — 0.85** (`2026-06-12 23:36`): equal public LB to c1 but **much stronger on hard-val (0.764 vs c1 0.389)** → safer second pick. **Pick v14, NOT the surgery 0.86** (a near-duplicate of soup = no hedge) and NOT andy279/v11 (regressed). Manually select to avoid the auto "2-highest-public" = soup+surgery no-hedge trap.
 
 ## Real-training campaign (own work — 2026-06-09 → 2026-06-15)
 
@@ -42,6 +77,10 @@
   0.85 ceiling (+0.01).
 - Earlier own-work best was 0.85 (`nemo-replay-v14`). The final-sprint individual runs tied or trailed it
   (b1 0.85, c1 0.85, b2 0.84, c2 0.83); only the **soup** exceeded it.
+- **T12 hard-val (2026-06-15) confirms the soup is robust**, not a public-LB fluke: 0.764 on the hardest 72,
+  tied with v14 and best of all candidates; the augmented adapters (c1/c2/v15) regress to at/below base
+  there. → Final private-LB selection: **soup (0.86) + v14 (0.85)** (v14 is the strongest single adapter
+  and far ahead of c1 on hard-val).
 - Note: a 2026-05-15 **public-fork** submission also showed 0.86, but that was a repack (not own training);
   the soup now gives a **compliant own-work 0.86**.
 - Current leaderboard top: **~0.90** (refreshed 2026-06-15).
