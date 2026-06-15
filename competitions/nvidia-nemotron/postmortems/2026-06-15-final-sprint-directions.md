@@ -30,7 +30,9 @@
 
 Deliberately NOT pursued: another v11 stage-2 SFT (T5 — cipher-heavy + self-distillation saturation), generic merge-search (capped, dilutive per T12).
 
-## Status
-- **A pushed** (`harrysun2006/nemo-surgery-a` v1) — running; gated to only emit `submission.zip` if a variant beats the soup on hard-val (never regress the banked 0.86).
-- **B held** pending the human compliance call on external-teacher (andy279) training data.
+## Status (updated 2026-06-15 ~13:00 UTC)
+- **A — `harrysun2006/nemo-surgery-a` (running, healthy).** Past env + surgery→save→vLLM-load preflight (~18 min RUNNING). Emits a hard-val ranking + the best-beating-soup `submission.zip` only (never regresses 0.86).
+- **B split across may's slots (human-authorized both):**
+  - **`firefly2006/nemo-v11-sft-d` (running).** Compliant own-work SFT on may's v11-sample-b verified corpus (261 CoTs). Low-EV (T12 + self-distillation saturation) but uses a slot.
+  - **`firefly2006/nemo-andy279-prep` + `nemo-andy279-train` (BLOCKED).** The andy279 HF dataset is **gated** — `DatasetNotFoundError: gated dataset … must be authenticated`. Unblock = request access on the HF dataset page + supply an HF read token (Kaggle Secret on firefly2006) → re-run prep → train. No harry↔may *adapter* sharing is needed for any of these (both may directions train fresh on the public v14 recipe).
 - Submissions to the leaderboard remain gated on explicit human approval (CLAUDE.md).
