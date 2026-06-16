@@ -228,36 +228,36 @@ Per the human "go deep" decision, extended the attack to the families §8.2 hadn
   across both accounts, all training on the RTX Pro 6000), measured on the late-submission window (100/day).
   If even the best grid point can't lift `equation` on the official metric, it is a confirmed structural hard tail.
 
-### 8.4 EQ-3 empirical result (2026-06-16) — specialist SFT COLLAPSES → frontier closed
+### 8.4 EQ-3 empirical result (2026-06-16) — eq-spec is competent but does NOT lift equation
 Ran `nemo-eq-spec` (the grid's **lowest** dose: 1,555 real equation prompts woven ~16% into the v14 replay
-backbone, 303 steps, loss→0.001) and measured it per-category with `nemo-eqspec-eval` (the T12 min-logprob
-hard-val, 72 hardest, official greedy metric), against `soup` / `v14` / `base` anchors on the identical set:
+backbone, 303 steps, loss→0.001). **Two measurements, and they disagree — the LB is authoritative:**
 
-| adapter | overall | bit | **equation** | cipher | numeral | gravity | unit |
-|---|---:|---|---|---|---|---|---|
-| v14 | 0.778 | 14/16 | **2/16** | 16/16 | 8/8 | 8/8 | 8/8 |
-| soup | 0.764 | 13/16 | **2/16** | 16/16 | 8/8 | 8/8 | 8/8 |
-| base (no adapter) | 0.347 | 0/16 | 0/16 | 4/16 | 8/8 | 7/8 | 6/8 |
-| **eq-spec** | **0.167** | 0/16 | **0/16** | **0/16** | 8/8 | **0/8** | 4/8 |
+| measurement | eq-spec | v14 | soup | base |
+|---|---:|---:|---:|---:|
+| **Official LB — public / private** | **0.85 / 0.85** | 0.85 / 0.84 | 0.86 / 0.85 | ~0.47 (identity) |
+| T12 hard-val (hardest-72, min-logprob) | 0.167 | 0.778 | 0.764 | 0.347 |
 
-- **Equation did NOT lift** (0/16 — *worse* than soup/v14's 2/16, equal to base). Confirms EQ-0/EQ-2′: the cipher
-  is uninferable; SFT on 1,555 query answers memorises specific contexts, generalises to **nothing** on held-out
-  inputs (61.6% unseen-query symbols).
-- **It catastrophically collapsed the reasoning categories** — cipher 0/16 (*below* base's 4/16), gravity 0/8
-  (*below* base's 7/8), bit 0/16. Overall 0.167 ≪ base 0.347.
-- **Mechanism = answer-shortcutting** (preflight proof: on a bit problem eq-spec emitted `\boxed{00010110}` with
-  **zero chain-of-thought**). The equation training target was a **bare** `\boxed{ans}` with no reasoning; driven
-  to loss→0.001 it taught the model to skip CoT entirely → catastrophic forgetting of the v14 backbone's CoT.
-  This is the v5/v6 bare-answer-SFT lesson, sharpened: equation answers are short and have **no derivable CoT**
-  (the cipher is unknown), so SFT on them is *pure* shortcut-induction.
-- **Dose-response is monotonic-worse:** the other 3 grid members (`eq-aug` 7,814 targets; `eq-hidose` ×3;
-  `eq-aug-hidose` ×2) share the identical bare-answer recipe at *higher* volume/dose ⇒ predicted same-or-worse
-  collapse. They were folded into a single confirmatory batch eval rather than blind LB submissions.
-- **eq-spec is strictly worse than base → NOT soup'd with v14** (would only dilute the robust recipe).
+T12 hard-val per-category for eq-spec: bit 0/16, equation **0/16**, cipher 0/16, gravity 0/8, numeral 8/8, unit 4/8.
 
-**Frontier closed.** `equation` is now exhausted from both directions: **cryptanalysis** (§8.2–8.3: strong
-cipher, algebraic space eliminated) and **empirical SFT** (§8.4: specialist collapses; no CoT to teach because
-the rule is unknown). A CoT-based fix is *also* blocked (can't author correct equation reasoning without the
-cipher), and EQ-4 (RLVR) is dead (no verifiable reward: neither a cracked rule nor a working model exists).
-**Verdict: under the static-LoRA / no-tools / greedy-decode constraints, `equation` is unsolvable.** The 0.86
-soup (0.85 private) is the robust ceiling; no SFT lever moves this category.
+- **On the real metric eq-spec is 0.85 / 0.85** — a *competent* adapter that ties the campaign's top private
+  tier (priv 0.85 = soup, > v14 0.84). It is **not** broken. But it does **not** beat the 0.86 soup public and
+  has **no aggregate gain over v14 (0.85)** ⇒ `equation` was **not lifted** (a real lift would show as LB > 0.86,
+  since equation ≈ 1/9 of cats: 0%→~30% ≈ +0.033). Consistent with EQ-0/EQ-2′: the cipher is uninferable; SFT on
+  1,555 query answers memorises contexts, generalises to ~nothing on held-out inputs (61.6% unseen-query symbols).
+- **⚠️ Methodological correction — the T12 hard-val badly mispredicted eq-spec (0.167 vs real 0.85).** The
+  min-logprob hard-val over-samples the *hardest* problems; eq-spec specifically tanks those (preflight: on the
+  single hardest bit problem it emitted `\boxed{00010110}` with **zero CoT** — it answer-shortcuts *under
+  uncertainty*) while reasoning normally on the easy/typical bulk. So its hard-val→LB gap is **0.68**, vs ~0.07–0.10
+  for the hard-tail-robust soup/v14 family. **The hard-val is a valid proxy only for hard-tail-robust adapters;
+  it understates adapters whose weakness is concentrated in the tail. → Trust the LB aggregate; treat hard-val as
+  a directional hard-tail hint, not a verdict.** (My initial "collapse / frontier-closed" read off the 0.167 was
+  premature — corrected once the 0.85 LB landed.)
+- **eq-spec is a viable soup member** (comparable 0.85, complementary equation-emphasis) — building soup(v14 +
+  eq-spec [+ b1/c1]) and testing on the LB is back on the table (the hard-tail weakness is the open question for
+  a merge). The other 3 grid members (`eq-aug` coverage, `eq-hidose`/`eq-aug-hidose` dose) are **measured on the
+  LB** as they complete (reverting to the approved plan — they are *not* assumed collapsed).
+
+**Status: equation still appears unsolved empirically (eq-spec: no lift), consistent with the EQ-2′ strong-cipher
+verdict — but NOT yet closed from the SFT side.** The higher-coverage/dose grid points are pending their LB
+scores; only a member exceeding ~0.86 would indicate a genuine equation gain. The 0.86 soup (0.85 private)
+remains the ceiling until then.

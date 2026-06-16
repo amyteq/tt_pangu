@@ -56,12 +56,19 @@ bit/cipher (T12 gate). The LB is the verdict. Full design: [`equation-frontier.m
 
 | Date (UTC) | Account | Kernel | Public LB | Private LB | Status | Recipe |
 |---|---|---|---:|---:|---|---|
-| 2026-06-16 06:00 | harrysun2006 | nemo-eq-spec | TBD | TBD | PENDING | v14 replay (8153) + **1555 equation answers** woven (~16%), 303 steps, loss→0.001 |
+| 2026-06-16 06:00 | harrysun2006 | nemo-eq-spec | **0.85** | **0.85** | COMPLETE | v14 replay (8153) + **1555 equation answers** woven (~16%), 303 steps, loss→0.001 |
 | pending | harrysun2006 | nemo-eq-aug | — | — | training | v14 replay + **7814 rotated/augmented** equation targets (coverage bet) |
 | pending | firefly2006 | nemo-eq-hidose | — | — | training | v14 replay + 1555 equation answers **×3 dose** |
 | pending | firefly2006 | nemo-eq-aug-hidose | — | — | training | v14 replay + 7814 augmented **×2 dose** |
 
-> Soup-with-v14 candidates to follow from any grid member that lifts `equation` without dropping bit/cipher.
+**eq-spec result (2026-06-16):** LB **0.85 / 0.85** — competent (ties the top private tier; private 0.85 =
+soup, > v14 0.84) but does **NOT** beat the 0.86 soup public and shows **no aggregate gain over v14 (0.85)**
+⇒ `equation` not lifted. **⚠️ Metric caveat:** the T12 min-logprob hard-val ranked eq-spec at **0.167**
+(it specifically tanks the *hardest* problems — answer-shortcutting under uncertainty), which **badly
+mispredicted** the real 0.85. The hard-val is a valid proxy for hard-tail-robust adapters (soup/v14 family,
+gap ~0.07–0.10) but understates adapters weak only on the hard tail (eq-spec gap 0.68). **→ Trust the LB
+aggregate; use hard-val only as a directional hard-tail hint.** A real equation lift would show as **LB >
+0.86** (equation ≈ 1/9 of cats; 0%→~30% ≈ +0.033). Grid members measured on the LB accordingly.
 
 ## Real-training campaign (own work — 2026-06-09 → 2026-06-15)
 
