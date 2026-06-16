@@ -94,6 +94,22 @@
   planets rotate — does holding an inner (rotating) planet differ in defensibility/value (a captured inner
   planet's garrison drifts toward different fronts as it orbits)? Measure in episodes before any build.
 
+## Research follow-ups (OW-P0-RESEARCH-001, 2026-06-16)
+- **T23 — complete the player-identity map** (📋 quick). `firefly2006` (may) profile/display name is still open;
+  decode a may-account episode's `info.TeamNames` (or `ListEpisodes(<may sub id>)`) and fill
+  `live/player_identity_map.md`. Re-tag `tracking.md:9` / `EPISODES.md` #3 "flyingfox = external" → "= our kuni05".
+- **T24 — matchmaking-aware ladder policy** (📋). Empirically the ladder matches similar-skill from the FIRST game
+  (no weak-first warmup; INS-005). Update `ops/track_submission.py` / `live_loop.py` decision notes so early-μ
+  reads are treated as informative-but-noisy (not weak-inflated); the first-10–20 window is a fair early signal.
+- **T25 — (probe-gated) kuni05 `safe_drain` max-shed sizing** (📋 measure-first, LOW prior). The one kuni05
+  mechanism we don't do: launch the MAX safely-sheddable size (closed-form min projected garrison over held turns)
+  instead of minimal-capture (`discussions/2026-06-16-kuni05-system-study.md` §3). CAUTION: T20 EM tested heavier
+  opening sizing → monotonic-negative (over-commit). So gate behind a super-additivity-style probe + +7pt bar;
+  do NOT bolt on naively. Likely the 14th refuted lever — measure first.
+- **Kuni05 study + matchmaking + identity docs delivered:** `discussions/2026-06-16-kuni05-system-study.md`,
+  `live/player_identity_map.md`, `sources/README.md`, `references.md` (Research findings), `insights.md` (INS-005/006),
+  `EPISODES.md` (#4).
+
 ## 4p ladder finding (KCT-OW-LIVE-002, 2026-06-15)
 - 🔴 **The μ-ladder is ~half 4-player FFA and 4p updates μ** (verified from flyingfox's 205-episode history; ~83% net μ
   from 2p, ~17% from 4p). Prior "1v1 only" assumption was wrong; our line is 2p-tuned. Full analysis: `EPISODES.md` #3.
