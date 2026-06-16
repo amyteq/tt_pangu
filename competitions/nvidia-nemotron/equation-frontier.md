@@ -205,3 +205,25 @@ Re-derived the 7,695 clean global pairs first-hand (scripts now committed under 
   pragmatic empirical test of whether SFT on the 7,748 pairs interpolates the function at all. Do **not**
   spend more GPU on extra specialist variants — they share the same 7,748-pair information ceiling until the
   rule cracks (then full-coverage verified CoT becomes the real win).
+
+### 8.3 Crack round 3 (2026-06-16, `nemo5`) — multiplicative families eliminated → strong-cipher verdict
+Per the human "go deep" decision, extended the attack to the families §8.2 hadn't reached:
+
+- **Multiplicative-hash `out = K·in mod M` (cokernel K-sweep, `analysis/equation/crack_mult.py`).** For each
+  multiplier K∈1..60, built the K-weighted glyph-difference matrix `K·cin[g]−cout[g]` and took the gcd of its
+  36×36 minors. *Every* flagged K's non-{2,3} part is **exactly a power of K's own prime factors** (K=35→35⁵,
+  K=37→37⁶, K=49→7¹⁴, K=44→11⁹, …) — a determinant artifact of the `K·a−b` entries, **not** a hidden modulus.
+  No K reveals an M independent of K ⇒ the multiplicative-hash family is **refuted for all K∈1..60**.
+- **Multiplication / polynomial of operands (`crack_mult2.py`).** Seed-rate scan over `A·B` (all splits),
+  `(A·B) mod 36⁴`, the 5-digit product, and sum-of-squares, across 5 σ seeds: best **6/7695** (pure chance).
+- **Verdict.** The full simple-algebraic space over base-36 is now eliminated: homomorphism, positional
+  permutation, residue `in mod M`, `floor(in/D)`, `A±B`, `A÷B`, `A mod B`, `A·B`, products, `K·in mod M`
+  (K≤60). The transform is a **deliberately strong cipher / PRF** — order-dependent, carries ~3 base-36
+  digits deep, log-uniform output magnitude — **not recoverable from 7,748 samples by closed-form algebra**
+  (consistent with it defeating GPT-5.4 per-prompt and the andy279 399-unsolvable tail). Remaining theoretical
+  paths (bit-level SAT against an unknown cipher structure, or recovering the generator's RNG seed) need more
+  information about the construction than the samples provide; **EV of further hand-cracking is now low**.
+- **Decision:** crack workstream parked at "strong cipher, algebraic space exhausted". The live bet is the
+  **EQ-3 specialist grid** — `eq-spec` / `eq-aug` / `eq-hidose` / `eq-aug-hidose` (a 2×2 coverage×dose grid
+  across both accounts, all training on the RTX Pro 6000), measured on the late-submission window (100/day).
+  If even the best grid point can't lift `equation` on the official metric, it is a confirmed structural hard tail.
