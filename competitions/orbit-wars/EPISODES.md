@@ -120,3 +120,8 @@ P0 的 81 次进攻挤在 t110-140 = 崩盘后小股挣扎,平均 19 船,逐一�
 - ✅ **T17:4p 评测门** `arena/eval_4p.py`(avg_rank / 1st-rate / 被灭率 / t50 星数)—— 落实 Harry "2p+4p 都用 avg_rank 门控"指示;今后所有候选必过 4p 门。
 - 📋 **T18:情境化 4p 策略**(仅在被压制/多强敌时收敛,占优时照常press)—— 需多样强 4p 对手场验证;`OW_4P_MODE` 框架已就位。
 - 数据/工具:`ListEpisodes` API 可枚举任一 submission 的全 episode 史(W/L/μ 直接可得);批量分析管线复用 `ops/episode_analyze.py`。
+
+## 分析 #4 — 匹配机制 + 身份映射(OW-P0-RESEARCH-001, 2026-06-16)
+- 🔴 **身份更正:`flyingfox` = harrysun2006 的 profile/显示名 = 我们自己**(非外部对手)。故此前"flyingfox 205-episode 史"= 我们 kuni05 submission(53582503)自己的对局史;4p 格式结论不变,仅标签更正。完整映射见 `live/player_identity_map.md`。
+- **匹配机制(实证,`ListEpisodes`,我方 sub 53582503 n=239 / 53730511 n=32):** Kaggle **从第一局起就按相近 μ 匹配**——μ0=600 的首局对手 μ≈601;逐局 |对手−我方| 中位数仅 ~43–66 且基本恒定;对手 μ 随我方爬升而上移(53582503 对手 μ 中位 1083≈我方 1080)。**约半数对局为 4p,且 4p 同样更新 μ。** 结论:`official=similar_skill / empirical=similar_first / confidence=medium-high`。
+- **运营含义:** 新 submission 的前 10–20 局即为"相近水平"对局(无弱鸡热身期),故早期 μ 趋势是**公平但样本少**的判据——track_submission/live_loop 的早停判定可据此解读(不要假设有弱对手保护期)。详见 `insights.md` INS-005。
