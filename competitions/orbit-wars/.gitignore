@@ -14,3 +14,6 @@ agent/versions/suite/
 
 # T16 measurement: generated instrumented twin (regenerate with arena/_make_measure.py)
 agent/versions/forecast_measure.py
+
+# Live-loop transient state (no secrets; per-task-run counters)
+live/budget_state.json
