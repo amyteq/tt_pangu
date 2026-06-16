@@ -10,7 +10,11 @@ no-regress check (>= 85%):
                  target re-rank + neutral-hammer gate-slack when enemy committed)
   v4f  OW_V4F=1  FM3 opponent-response value (nearest enemy reinforcement appended
                  to the target's arrival schedule when valuing any strike)
-  both OW_V4A=1 OW_V4F=1
+  v4c  OW_V4C=1  cluster-targeted hammer (re-rank toward dense enemy/neutral cluster)
+  v4i  OW_V4I=1  Isaiah two-band sizing (full-drain band early/mid, half late)
+
+NOTE: v4a (null −0.3pt) and v4f (−9.0pt) already gated 2026-06-16 and REFUTED;
+re-listed here only so re-runs reproduce them. v4c / v4i are the new sub-cuts.
 
 Candidate = agent/versions/v4.py (OW_V4=1 default). Opponent = evogen1093 / starter
 (neither reads OW_* keys, so process-wide overrides give a clean A/B). Fresh seed
@@ -37,7 +41,8 @@ CONFIGS = [
     ("baseline", None),
     ("v4a", {"OW_V4A": "1"}),
     ("v4f", {"OW_V4F": "1"}),
-    ("both", {"OW_V4A": "1", "OW_V4F": "1"}),
+    ("v4c", {"OW_V4C": "1"}),  # cluster-targeted hammer
+    ("v4i", {"OW_V4I": "1"}),  # Isaiah two-band sizing
 ]
 
 

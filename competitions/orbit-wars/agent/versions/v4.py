@@ -172,6 +172,30 @@ V4F_RESP_BUF = int(
     _os.environ.get("OW_V4F_RESP_BUF", 1)
 )  # responder may land up to k+buf
 
+# === OVERKILL revival round 2 (issue #87 follow-up, 2026-06-16) ============
+# Two more scoped sub-cuts of the concentration theme, separate gates.
+#
+# v4c (OW_V4C) — CLUSTER-targeted hammer: among value-positive hammer targets,
+#   prefer the one embedded in the densest enemy/neutral cluster (most non-owned
+#   planets within V4C_RADIUS, weighted by ships), not the highest single-planet
+#   terminal value (which is often an isolated planet). Captures the episode
+#   insight that concentration should land where it opens a chain — the won
+#   planet becomes a forward beachhead and follow-up hammers grind the cluster.
+#   Ranking-only policy bonus; the value<=gate test is unchanged.
+V4C = int(_os.environ.get("OW_V4C", 0))
+V4C_RADIUS = float(_os.environ.get("OW_V4C_RADIUS", 30.0))  # cluster neighborhood
+V4C_BONUS = float(_os.environ.get("OW_V4C_BONUS", 0.4))  # density rank weight
+#
+# v4i (OW_V4I) — Isaiah two-band sizing (analysis #2): the #1 player sizes launches
+#   in two discrete bands — a near-full-drain (~0.9) band early/mid and a ~half
+#   (~0.52) band late (observed median step 115 vs 287). Replace the fixed hammer
+#   band with a phase schedule: drain HI before V4I_SWITCH, LO after (hold reserves
+#   in the endgame point-defense phase). Sizing-only; targeting/value unchanged.
+V4I = int(_os.environ.get("OW_V4I", 0))
+V4I_HI = float(_os.environ.get("OW_V4I_HI", 0.9))  # early/mid drain band
+V4I_LO = float(_os.environ.get("OW_V4I_LO", 0.52))  # late drain band
+V4I_SWITCH = int(_os.environ.get("OW_V4I_SWITCH", 200))  # phase switch step
+
 # Per-PLAYER state (red-team: a shared dict couples the two seats of a mirror
 # match through sys.modules and serially corrupts paired-seed A/Bs).
 _V4S = {}
@@ -839,8 +863,10 @@ def _agent(obs):
                 return max(0.0, min(1.0, (nearest - k) / max(1.0, float(k))))
 
             band = V4_HAMMER_BAND
+            if V4I:  # Isaiah two-band: full-drain early/mid, half late
+                band = V4I_HI if step < V4I_SWITCH else V4I_LO
             if V4A and commit >= V4A_WINDOW:
-                band = min(1.0, V4_HAMMER_BAND + V4A_BAND_BONUS)  # true overkill
+                band = min(1.0, band + V4A_BAND_BONUS)  # true overkill
             hub_avail = remaining.get(hub.id, 0)
             hammer_size = int(hub_avail * band)
             # Bank until the stack is a real hammer (diag: need x hold alone
@@ -894,6 +920,16 @@ def _agent(obs):
                         if expo > 0.0:
                             gate = -V4A_SLACK * float(need)
                             score = val + V4A_RANK_BONUS * commit * expo * hammer_size
+                    # v4c: re-rank toward targets embedded in a dense enemy/neutral
+                    # cluster (chain-opening beachhead), not isolated high-value ones.
+                    if V4C:
+                        dens = sum(
+                            1
+                            for ep in offense_targets
+                            if ep.id != tgt.id
+                            and _hypot(ep.x, ep.y, tgt.x, tgt.y) <= V4C_RADIUS
+                        )
+                        score = score + V4C_BONUS * dens * hammer_size
                     if val <= gate:
                         continue
                     if best_fire is None or score > best_fire[0]:
