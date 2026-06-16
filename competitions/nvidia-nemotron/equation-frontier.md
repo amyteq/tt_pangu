@@ -164,3 +164,35 @@ Probed the 7,748 global pairs (scripts in /tmp: `eq0_{analyze,solver,arith,crack
 - (a) **Heavy cryptanalysis** — joint σ+operation constraint solve (e.g., hypothesise two-operand `A×B`/`A+B`, solve σ by propagation; or SAT). High effort, high payoff if it cracks (→ unlimited verified CoT → ~100%).
 - (b) **Model-training pivot (recommended GPU path):** SFT the 30B equation-specialist directly on the global pairs in prompt→answer (+derivation) format; the model may learn the global function better than we can hand-crack it. Soup with v14 (T12-gated, low dose); validate on the **late-submission** quota (100/day). Risk: 7,748 pairs ≈ 0.01% of the 36⁵ input space → may learn only part of a complex function.
 - (c) **Fallback:** accept `equation` as a structural hard tail (matches andy279's 399-unsolvable); bank the lessons.
+
+### 8.2 Crack round 2 (2026-06-16, `nemo5` takeover) — class eliminations + division-of-operands lead
+Re-derived the 7,695 clean global pairs first-hand (scripts now committed under `analysis/equation/`:
+`struct.py`, `probe2.py`, `crack_mod.py`, `factor_g.py` — durable, not `/tmp`). New, sharper results:
+
+- **Carry depth measured:** the last output glyph is **62%** determined by the **last 3** input glyphs
+  (vs 22% by last 1, 27% by last 2) → carry propagates ~3 base-36 digits. Last- and first-char identity is
+  **16%** (≈5× the 1/33≈3% baseline, so enriched but *not* dominant); digit glyphs `5-9` have the lowest
+  identity (~9–12%). Output-as-suffix/prefix of input: **0.6%** (essentially never).
+- **Cokernel attack on the residue-preserving class `out ≡ in (mod M)`:** if it held under a base-36 value
+  map σ, then `Σ_g σ(g)·c_pair[g] ≡ 0 (mod M)` ⇒ M divides every 36×36 minor of the glyph-weight matrix.
+  gcd of 12 random minors = **6³⁶ = 36¹⁸** — a purely *structural* divisor (the count vectors live in a
+  6-divisible sublattice), giving only degenerate moduli. `out ≡ in (mod 36)` is *directly falsified*
+  (would force 100% last-char identity; observed 16%). ⇒ **the residue-preserving / `in mod M` / `in // D`
+  (constant M,D) classes are DEAD** (also confirmed independently by the length argument below).
+- **Length-distribution eliminations (no compute):** outputs are `{len4: 2600, len3: 2572, len2: 2134,
+  len1: 389}` from *uniformly* 5-digit inputs. A single-char output (5%) needs value <36; a 4-char output
+  (34%) needs value ~36⁴. **No constant-modulus `in mod M`, constant-divisor `floor(in/D)`, or fixed-split
+  `A±B` can produce both rates** (mod/div with one constant give a narrow length band; `A±B` of ≤3-digit
+  parts can't reach 4 digits). All eliminated.
+- **The live lead — division/ratio of two embedded operands.** A near-**log-uniform** spread across output
+  lengths 1–4 is the signature of a **ratio**: `out = floor(A / B)` or `A mod B` where A,B are positional
+  sub-fields of the 5 chars (e.g. A=`in[:4]`, B=`in[4]` as a 0–35 divisor gives the full 1–4 length range:
+  B≈35,A small → 1 digit; B=1 → 4 digits). Order-dependent and carry-heavy, both consistent. This refines
+  §8.1's "multiplicative/affine" guess to a **division-of-operands** family.
+- **Remaining crack = a nonlinear joint solve** of σ (36-symbol→value bijection) **and** the split+operation
+  (which positions form A vs B; div vs mod). Tractable as an ILP/SAT/constraint search (group pairs by the
+  candidate divisor glyph → within a group the ratio `val(A)/val(out)` is constant → propagate σ), but it is
+  the genuine **real-effort/uncertain-payoff** fork (a–c above). EQ-3 (model pivot) is already testing path
+  (b) empirically in parallel; recommend a human decision on how much further to invest in path (a) before
+  spending more GPU on info-capped specialist variants (all share the same 7,748-pair information ceiling
+  until the rule cracks and full-coverage CoT can be generated).
