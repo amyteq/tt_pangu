@@ -65,6 +65,13 @@
   (evogen) + 4p. Distinguish carefully from already-refuted `OW_MULTISRC`/`OW_COARRIVAL`/`OW_OPENING` (the prior
   opening-grabber FIRED more but won LESS — the difference must be HEAVY not just MORE). If neither v4 nor an
   early-massing knob moves the ladder, massing is ladder-null at our tier.
+  **v4 LIVE RESULT (sub 53730511, first 10 episodes, 2026-06-16 via `ops/track_submission.py`):** μ
+  600→peak 842.9→settling **~690–720** (net +90), 2p **4W-3L** + 4p 1×1st/2×2nd. **v4 is our BEST own-agent
+  ladder result to date** (> old v3.2 640 / v3 686) — and the LOCAL arena had called it mere "parity with v3.2",
+  so this re-confirms the arena under-discriminates and the ladder is the judge. But v4 plateaus well short of
+  the >1200 bar (strong-tier cliff intact). **DECISION: KEEP v4 on the ladder (replacing it gains nothing — no
+  candidate >1200) and FOCUS dev here = T20(b) early-game massing**, not more submissions. Loop stopped at 10
+  episodes; data in `live/track_53730511.csv` + `live/version_submissions.md`.
 - **T21 — Forward-planet aggregation (pure geometry, measure-first)**. Rigorous timing math: the ONLY regime
   where 2-hop beats 1-hop is launching from an ALREADY-HELD planet that is closer-in-flight-time to T — pure
   geometry, not rotation. Check whether the greedy already picks min-ETA sources; if not, add a "prefer the
