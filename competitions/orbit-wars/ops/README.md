@@ -20,6 +20,8 @@ replacement, and perform **gated autonomous** Kaggle submit/push within budget.
 | `evaluate_candidate.py` | wrap arena gates → submit-ready verdict (crash/weak-tier/2p-vs-baseline/4p) |
 | `submit_manager.py` | budget + replacement plan + **gated autonomous submit** via `submit.py` |
 | `live_loop.py` | orchestrate one bounded `--once` cycle (or bounded `--watch`) |
+| `episode_discover.py` | enumerate a submission's FULL match history via `EpisodeService/ListEpisodes` (per-episode agent ids, rewards/W-L, placement, initial/updated μ, 2p vs 4p) — **per-submission auto-discovery** (no replay download needed) |
+| `track_submission.py` | per-cycle tracker for one submission: ListEpisodes → fetch next unprocessed episode (oldest first) → analyze/tag (sun/hard-bug/winner-reason) → append `live/track_<sub>.csv` → keep/replace recommendation after N episodes (auto-detects our PROFILE name, e.g. `flyingfox`=harrysun2006, by reward-matching) |
 
 ## Commands
 
@@ -32,6 +34,11 @@ python competitions/orbit-wars/ops/live_loop.py --once --submit-if-gated
 
 # bounded watch for a human/cron (hard-capped, never indefinite)
 python competitions/orbit-wars/ops/live_loop.py --watch --interval-minutes 5 --max-cycles 3
+
+# recommended DAILY commands (read-only) — per-submission ladder tracking
+python competitions/orbit-wars/ops/episode_discover.py --submission-id <id>          # full W/L/μ + 2p/4p history
+python competitions/orbit-wars/ops/track_submission.py --once --submission-id <id> \
+    --decide-after 10 --max 20                                                       # one episode/cycle → keep/replace call
 
 # pieces
 python competitions/orbit-wars/ops/account_manager.py --status
@@ -70,6 +77,11 @@ so a human can open the unexpected/interesting replays and analyze them.
 
 ## Episode discovery
 
-Automatic ladder→episode discovery is not exposed by the Kaggle API for this
-competition, so the loop uses the **manual queue** `live/pending_episodes.txt`
-(one episode id or leaderboard URL per line). Add ids there and re-run `--once`.
+**Updated (OW-P0-DOCS-LIVE-001, 2026-06-16):** per-submission discovery IS available
+via `EpisodeService/ListEpisodes` — `ops/episode_discover.py --submission-id <id>`
+enumerates a submission's full match history (W/L, placement, initial/updated μ,
+2p vs 4p) with no replay download. This is how the "ladder is ~half 4p and 4p updates
+μ" and the similar-skill matchmaking findings were established (see `EPISODES.md`,
+`discussions/`). `ops/track_submission.py` automates per-submission tracking (one
+episode/cycle → keep/replace recommendation). `live/pending_episodes.txt` remains a
+manual queue for deep replay analysis of specific episodes via `live_loop.py --once`.
