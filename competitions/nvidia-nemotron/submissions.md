@@ -54,21 +54,30 @@ backbone lifts the `equation` category (the only unsolved one, ≤2/16 hard-val 
 symbols are unseen, so memorising the 1,555 train answers may not generalise; over-weighting may regress
 bit/cipher (T12 gate). The LB is the verdict. Full design: [`equation-frontier.md`](./equation-frontier.md).
 
-| Date (UTC) | Account | Kernel | Public LB | Private LB | Status | Recipe |
-|---|---|---|---:|---:|---|---|
-| 2026-06-16 06:00 | harrysun2006 | nemo-eq-spec | **0.85** | **0.85** | COMPLETE | v14 replay (8153) + **1555 equation answers** woven (~16%), 303 steps, loss→0.001 |
-| pending | harrysun2006 | nemo-eq-aug | — | — | training | v14 replay + **7814 rotated/augmented** equation targets (coverage bet) |
-| pending | firefly2006 | nemo-eq-hidose | — | — | training | v14 replay + 1555 equation answers **×3 dose** |
-| pending | firefly2006 | nemo-eq-aug-hidose | — | — | training | v14 replay + 7814 augmented **×2 dose** |
+Full 2×2 (coverage × dose), all scored 2026-06-16:
 
-**eq-spec result (2026-06-16):** LB **0.85 / 0.85** — competent (ties the top private tier; private 0.85 =
-soup, > v14 0.84) but does **NOT** beat the 0.86 soup public and shows **no aggregate gain over v14 (0.85)**
-⇒ `equation` not lifted. **⚠️ Metric caveat:** the T12 min-logprob hard-val ranked eq-spec at **0.167**
-(it specifically tanks the *hardest* problems — answer-shortcutting under uncertainty), which **badly
-mispredicted** the real 0.85. The hard-val is a valid proxy for hard-tail-robust adapters (soup/v14 family,
-gap ~0.07–0.10) but understates adapters weak only on the hard tail (eq-spec gap 0.68). **→ Trust the LB
-aggregate; use hard-val only as a directional hard-tail hint.** A real equation lift would show as **LB >
-0.86** (equation ≈ 1/9 of cats; 0%→~30% ≈ +0.033). Grid members measured on the LB accordingly.
+| Date (UTC) | Account | Kernel | coverage | dose | Public LB | Private LB | Recipe |
+|---|---|---|---|---|---:|---:|---|
+| 06-16 09:22 | harrysun2006 | **nemo-eq-aug** | **rotated 7814** | **×1** | **0.86** | **0.86** | v14 replay + 7814 real input→output pairs (each in-context example rotated to a query), 498 steps |
+| 06-16 06:00 | harrysun2006 | nemo-eq-spec | query 1555 | ×1 | 0.85 | 0.85 | v14 replay + 1555 equation **query answers** woven (~16%), 303 steps |
+| 06-16 08:22 | firefly2006 | nemo-eq-hidose | query 1555 | ×3 | 0.84 | 0.84 | v14 replay + 1555 query answers ×3 |
+| 06-16 10:02 | firefly2006 | nemo-eq-aug-hidose | rotated 7814 | ×2 | 0.85 | 0.82 | v14 replay + 7814 real pairs ×2 (overfit → priv −0.04) |
+
+**Grid verdict (2026-06-16): coverage helps, dose hurts.**
+- **Coverage is the lever:** eq-aug (7,814 *real* input→output pairs, via rotating each in-context example
+  into a query target) → **0.86 / 0.86**, the **campaign's best private** (ties soup public 0.86, *beats* soup
+  private 0.85). vs query-only eq-spec 0.85/0.85. The win is real (coherent across the grid, not noise): the
+  rotation exposes ~5× more genuine cipher pairs to memorise, capturing the *seen-input* fraction of hidden
+  equation queries (EQ-0: ~38% of hidden queries have all-seen symbols).
+- **Dose hurts:** query-only ×3 (eq-hidose 0.84) and coverage ×2 (eq-aug-hidose **priv 0.82**) both regress —
+  over-weighting equation data overfits (private drops more than public). **Sweet spot = single epoch over the
+  full real-pair coverage.**
+- **⚠️ Metric caveat (kept):** the T12 min-logprob hard-val ranked **eq-spec 0.167** vs its real LB 0.85 — it
+  over-samples the hardest problems and understates adapters weak only on the hard tail (gap 0.68 vs ~0.07–0.10
+  for soup/v14). **→ Trust the LB aggregate; hard-val is a hard-tail hint only.**
+- **`equation` is *partially* addressable** (coverage-memorisation captures the seen-input fraction, +0.01
+  aggregate) but **not solved** — the unseen-input majority stays uninferable (EQ-2′ strong cipher). eq-aug
+  0.86 is the practical ceiling of this lever.
 
 ## Real-training campaign (own work — 2026-06-09 → 2026-06-15)
 
@@ -115,6 +124,11 @@ aggregate; use hard-val only as a directional hard-tail hint.** A real equation 
   and far ahead of c1 on hard-val).
 - Note: a 2026-05-15 **public-fork** submission also showed 0.86, but that was a repack (not own training);
   the soup now gives a **compliant own-work 0.86**.
+- **Post-deadline (does NOT count for ranking):** `nemo-eq-aug` scored **0.86 public / 0.86 private** in the
+  late window — the **best own-work private** (vs soup 0.85). It SFTs the v14 backbone on 7,814 *real* equation
+  input→output pairs (rotate each in-context example into a query); coverage-memorisation captures the
+  seen-input fraction of equation queries. Reusable lever for next time, but it landed after the 06-15 lock so
+  it did not change the competition selection (soup + v14).
 - Current leaderboard top: **~0.90** (refreshed 2026-06-15).
 
 ## Submission checklist

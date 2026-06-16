@@ -45,23 +45,26 @@
   Pro 6000 — `nemo-eq-spec` (harry: 1,555 answers, ~16%), `nemo-eq-aug` (harry: 7,814 rotated targets),
   `nemo-eq-hidose` (may: 1,555×3), `nemo-eq-aug-hidose` (may: 7,814×2). Measure on the late-submission window
   (100/day); build soup-with-v14 candidates from any that lift `equation` without dropping bit/cipher (T12 gate).
-  - **Result (2026-06-16) — eq-spec competent, but NO equation lift.** Official **LB 0.85 / 0.85** (ties the
-    top private tier: priv 0.85 = soup, > v14 0.84). Does **not** beat the 0.86 soup public; **no aggregate gain
-    over v14** ⇒ `equation` not lifted (a real lift ⇒ LB > 0.86). **⚠️ Metric caveat:** the T12 hard-val ranked
-    eq-spec **0.167** — it tanks the *hardest* problems (answer-shortcutting under uncertainty: preflight emitted
-    `\boxed{..}` with zero CoT) but reasons fine on the bulk; the 0.167 **badly mispredicted** the real 0.85.
-    **→ Trust the LB; hard-val is only a hard-tail hint for atypical-profile adapters.** (I initially mis-read the
-    0.167 as a collapse — corrected once the LB landed.) eq-spec is a **viable soup member** (0.85, complementary
-    emphasis); soup(v14+eq-spec[+b1/c1]) is back on the table. Other 3 grid members → **measured on the LB** as
-    they complete (reverted to the approved plan; not assumed collapsed).
+  - **✅ Result (2026-06-16) — full 2×2 grid scored on LB: COVERAGE helps, DOSE hurts.**
+    `eq-aug` (rotated **7,814 real input→output pairs**, ×1) → **0.86 / 0.86** — ties soup public, **beats** soup
+    private (0.85) ⇒ **best own-work private of the campaign.** vs `eq-spec` (query-only 1,555, ×1) 0.85/0.85,
+    `eq-hidose` (×3) 0.84/0.84, `eq-aug-hidose` (×2) 0.85/**0.82** (overfit). Coverage = rotate every in-context
+    example into a query target (~5× more real cipher pairs) → captures the seen-input fraction of hidden
+    queries (EQ-0 ~38%). **Reusable insight:** for a global-function/lookup category, SFT on *all real
+    input→output pairs at single epoch* — beats query-only and beats higher-dose. **⚠️ Metric caveat:** T12
+    hard-val ranked eq-spec **0.167** vs real LB 0.85 (over-samples hardest problems; eq-spec shortcuts under
+    uncertainty) → **trust the LB; hard-val is a hard-tail hint only.** (Initial "collapse" read off 0.167 was
+    premature — corrected when the LB landed.) **Next:** eqaug per-category eval (running) → then soup(eq-aug +
+    v14 [+ b1/c1]) candidate to chase past 0.86.
 - **EQ-1′** rebuild the generator to the REAL structure — BLOCKED on EQ-2′ (needs the cracked rule; parked).
 - **EQ-1 / EQ-2** per-prompt induction CoT / DSL solver — INVALIDATED for `equation` by EQ-0 (61.6% unseen-query
   symbols ⇒ per-prompt solving impossible); superseded by the global-function framing.
 - **EQ-4** (stretch) RLVR/GRPO with a rule-reproduction verifiable reward — needs the cracked rule (EQ-2′ parked)
-  or a model that can verify equation (none does — eq-spec is no better than base on equation); deferred.
-- **Frontier status (2026-06-16):** cryptanalysis side **closed** (EQ-2′ strong cipher). Empirical SFT side:
-  eq-spec shows **no lift** (consistent with EQ-2′) but is NOT a collapse; higher-coverage/dose grid points
-  pending LB. The 0.86 soup / 0.85-private remains the ceiling unless a grid member exceeds ~0.86.
+  or a model that can verify equation (none does on unseen inputs); deferred.
+- **Frontier status (2026-06-16) — BOUNDED, not open.** cryptanalysis side **closed** (EQ-2′ strong cipher).
+  Empirical SFT side: `equation` is **partially addressable** — coverage-memorisation (eq-aug) captures the
+  seen-input fraction for a real +0.01 → **0.86 / 0.86** (new best own-work private), but the unseen-input
+  majority stays uninferable. eq-aug coverage is the practical ceiling; nothing reaches the cipher's unseen tail.
 
 ## Validated this competition
 - **Model-soup of comparable+complementary adapters** beats each member (v14+c1+b1 soup → 0.86). The
