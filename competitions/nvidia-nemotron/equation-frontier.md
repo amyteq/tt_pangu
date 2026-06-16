@@ -149,3 +149,18 @@ Ran on the **1,555 real `equation` prompts** (train.csv, downloaded locally). Sc
 - **EQ-1′: rebuild the generator to the REAL structure** (5→1–4-char global transform), once the rule (or its family) is known — so the model learns the actual function, not the old `A op B` fiction.
 - **Fallback if the rule resists cracking:** SFT directly on the 7748 input→output pairs (memorize + interpolate) — weaker (hidden test = unseen inputs) but a floor.
 - **Why it's worth GPU:** `equation` is ~1,555/9,500 ≈ 16% of train; lifting it from ~22% (soup's 5/23 hard-val) toward ~100% could move the overall score by several points — the clearest path above the 0.85 ceiling.
+
+### 8.1 Reverse-engineering log (2026-06-16) — structure cracked, exact rule resists
+Probed the 7,748 global pairs (scripts in /tmp: `eq0_{analyze,solver,arith,crack,probe2,digits,modscan}.py`). Ruled OUT, in order:
+- per-char homomorphism (0%), positional permutation (0.4%), single-input-position → output[j] (NONE consistent for any L,j).
+- order-independence: **order-DEPENDENT** (619/627 anagram groups give different outputs) → not a sum/checksum.
+- single-symbol change **cascades through the whole output incl. its length** → carry-propagation signature → **value-based modular arithmetic under a secret symbol cipher**.
+- **no anchors:** 0/7748 all-digit pairs, so the 36 glyphs carry no free numeric values (full secret permutation σ).
+- global `out = in mod M` / `in // M` under sorted OR ascii orderings: **no fit** (best ≈ noise).
+
+**Conclusion:** the transform is a *single global* function = (secret 36-symbol→value bijection σ) ∘ (value arithmetic with carries, likely multiplicative/affine, possibly two-operand × given the variable output length) ∘ (encode back via σ). Cracking it = a **joint solve of σ + the operation** (a SAT/ILP/constraint project) — tractable in principle (deterministic, 7748 constraints) but a real effort with uncertain payoff (it may be a deliberately strong cipher — it defeated GPT-5.4 per-prompt).
+
+**Fork for the next step:**
+- (a) **Heavy cryptanalysis** — joint σ+operation constraint solve (e.g., hypothesise two-operand `A×B`/`A+B`, solve σ by propagation; or SAT). High effort, high payoff if it cracks (→ unlimited verified CoT → ~100%).
+- (b) **Model-training pivot (recommended GPU path):** SFT the 30B equation-specialist directly on the global pairs in prompt→answer (+derivation) format; the model may learn the global function better than we can hand-crack it. Soup with v14 (T12-gated, low dose); validate on the **late-submission** quota (100/day). Risk: 7,748 pairs ≈ 0.01% of the 36⁵ input space → may learn only part of a complex function.
+- (c) **Fallback:** accept `equation` as a structural hard tail (matches andy279's 399-unsolvable); bank the lessons.
