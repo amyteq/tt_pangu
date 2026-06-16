@@ -1,5 +1,13 @@
 # Equation frontier — post-competition R&D plan
 
+> **⚡ EQ-0 RESULT (2026-06-16) REFRAMES THIS PLAN — read §8 first.** The real `equation` transform is a
+> **single GLOBAL deterministic function** (5-char→1–4-char over a 36-symbol alphabet; 6216 inputs, only 35
+> collisions), **not** per-prompt secret rules. Per-prompt solving covers ~0% (61.6% of prompts have an
+> unseen query symbol — why GPT-5.4 failed on the tail). But **offline we hold 7748 consistent input→output
+> pairs**, so the rule is **reverse-engineerable → ~100% ceiling if cracked**. The lever is **crack one global
+> rule** (EQ-2), then generate unlimited verified CoT — not a per-prompt solver. Sections below predate EQ-0;
+> §8 supersedes the per-prompt framing.
+
 > The `equation` category was the single **unsolved** category: ≤2/16 (T12 min-logprob hard-val) and
 > 5/23 (eval/hard_val_ids.json) for *every* adapter incl. the 0.86 soup, and `surgery` couldn't move it.
 > Even a dedicated external-teacher CoT run (andy279, 800 equation traces) regressed overall (0.81 —
@@ -120,3 +128,24 @@ literature's strongest path for rule/puzzle reasoning (Logic-RL family). Heavy (
 - **Compliance:** keep it a real rank≤32 LoRA (no repack); external-teacher CoT only if rules permit (verify) — Approaches A–C can be fully own-work (our own solver/generator), preferred.
 - **Dilution guard:** specialist + soup, low dose; LB keeps the max, so an equation soup can't lower the banked 0.86.
 - Evaluate locally first (no quota burn); only submit candidates that beat the soup on hard-val.
+
+## 8. EQ-0 results (2026-06-16) — measured on real train.csv, no GPU
+Ran on the **1,555 real `equation` prompts** (train.csv, downloaded locally). Scripts in the worktree analysis (`eq0_analyze.py`, `eq0_solver.py`, `eq0_arith.py`).
+
+**Structure (measured):**
+- Input (LHS) is **always 5 chars**; output (RHS) is **1–4 chars** (len 1: 311, 2: 1732, 3: 2115, 4: 2101); **never length-preserving** (0% same-len). Output uses the **same 36-symbol alphabet** as input (incl. symbols absent from the input → substitution, not pure positional selection).
+- **NOT operator-based:** only 28/1555 prompts share a constant middle char. The old `A op B` generator/solver modeled the wrong structure → explains the ~0.4% real coverage.
+- **It is a GLOBAL near-function:** across all prompts' examples, 6216 distinct LHS → only **35** map to >1 RHS (~0.6%, likely ambiguous/noise); 1554 distinct queries, only 1 with >1 answer. The per-prompt "examples" are just samples of one shared function; the query is another input to it.
+
+**Solver coverage (per-prompt, offline):**
+- per-char homomorphism (char→0–2-char string, concat): **0/1555**.
+- positional permutation: **6/1555 (0.4%)**.
+- **61.6%** of prompts have a query symbol **never shown in their 4 examples** → per-prompt induction is impossible for the majority (matches andy279's "399 unsolvable even by GPT-5.4"). This is a *per-prompt* wall, not a global one.
+
+**The opening:** globally we hold **7748 unique input→output pairs** of one deterministic function — massive supervision. Reverse-engineering it offline → **unlimited verified CoT → ~100% test coverage** (vs the 0.4% the wrong-structure solver got). Simple base-36 value arithmetic is **ruled out** (`in//B^k`, `in%B^k` hit <1%); surface forms mix numeric-looking (`34/44 → 1`) and symbol-cipher (`` `\!*[{ → '"[` ``) cases, so the rule is a non-trivial multi-step transform (candidates: per-position cipher + deletion with a secret digit/symbol permutation; expression-evaluation; lookup over a structured encoding).
+
+**Reframed tasks (supersede §5 for `equation`):**
+- **EQ-2′ (highest EV): reverse-engineer the global rule** from the 7748 pairs. Tractable (finite deterministic function, abundant data) but an open decryption puzzle; needs focused iteration. If cracked → generate exhaustive verified CoT for the whole input space.
+- **EQ-1′: rebuild the generator to the REAL structure** (5→1–4-char global transform), once the rule (or its family) is known — so the model learns the actual function, not the old `A op B` fiction.
+- **Fallback if the rule resists cracking:** SFT directly on the 7748 input→output pairs (memorize + interpolate) — weaker (hidden test = unseen inputs) but a floor.
+- **Why it's worth GPU:** `equation` is ~1,555/9,500 ≈ 16% of train; lifting it from ~22% (soup's 5/23 hard-val) toward ~100% could move the overall score by several points — the clearest path above the 0.85 ceiling.
