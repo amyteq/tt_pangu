@@ -28,6 +28,12 @@
   was our OWN history, label only). Episode 80118852 = our kuni05's 4p WIN, and it CONFIRMS an early 多而小 weakness:
   early (≤step80) median launch **20 ships**, behind at step40 (5 vs 7 planets), massing only mid/late (median
   238 late). Mass-earlier is the real lever (T20/T21). Monitor μ via `ops/live_loop.py --once`.
+- 🟢 **Research (OW-P0-RESEARCH-001, 2026-06-16, read-only):** (A) **kuni05 source** is public (kernel id 121702304,
+  pull OK) — rules + exact flow-diff planner, **NOT a NN** (`discussions/2026-06-16-kuni05-system-study.md`); its edge
+  is the integrated SYSTEM (safe_drain max-shed + multi-wave + role-mutex + regroup + exact oracle), not a lever.
+  (B) **Matchmaking = similar-skill from the FIRST game** (μ0=600 first opp ≈601; per-episode gap median ~43–66;
+  4p ~half & updates μ) → `similar_skill/similar_first/medium-high` (INS-005); early 10–20 episodes are informative.
+  (C) **Identity:** `flyingfox`=harrysun2006=US confirmed; full map `live/player_identity_map.md`. Follow-ups T23–T25.
 - **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
   (evogen 1093 / multifocus / kuni05 1240).
 

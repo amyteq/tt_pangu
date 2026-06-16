@@ -35,3 +35,8 @@
 - PRs (merged): **#80** (agent + arena + EPISODES + utils), **#89** (snorlax compute doc). **#92** (v4 Scheduler).
 - Cross-refs: **#83** (external GPU / snorlax), **#21** (multi-account quota), **#77/#78** (kca submit-link gaps).
 - snorlax compute: `docs/tooling/remote-compute-snorlax.md` (PR #89).
+
+## Research findings (OW-P0-RESEARCH-001, 2026-06-16)
+- **kuni05 source:** public kernel id **121702304** (author kuni05), read-only pull OK; rules + exact flow-diff planner (NOT a NN), needs torch. Study: `discussions/2026-06-16-kuni05-system-study.md`; attribution + re-pull: `sources/README.md`.
+- **Matchmaking (empirical, `ListEpisodes` over subs 53582503 n=239 + 53730511 n=32):** Kaggle pairs **similar-skill from the first game** (μ0=600 first opponent ≈601; per-episode |opp−our| median ~43–66; opponent μ tracks ours upward). Official: skill-rating, pairwise μ-toward-mean. **~half the games are 4p and 4p also updates μ.** Conclusion `similar_skill / similar_first / medium-high`; early 10–20 episodes are informative (no weak-first warmup), but noisy. See `insights.md` INS-005.
+- **Identity:** `flyingfox` = harrysun2006's profile name = US (not external). Full map + join chain: `live/player_identity_map.md`.

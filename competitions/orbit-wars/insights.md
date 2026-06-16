@@ -43,6 +43,19 @@
 
 ## Potentially reusable insights
 
+### INS-005: skill-rating ladders match SIMILAR-skill from the first game (no weak warmup)
+- type: rule
+- confidence: medium-high
+- evidence: OW-P0-RESEARCH-001 — `ListEpisodes` over our subs 53582503 (n=239) + 53730511 (n=32): first game at μ0=600 vs opponent μ≈601; per-episode |opp−our| median ~43–66 and ~constant; opponent μ tracks ours as it climbs. Official skill-rating (pairwise μ-toward-mean). ~half the games 4p; 4p updates μ.
+- transfer scope: any Kaggle simulation/skill-rating ladder
+- operational: a new submission's first 10–20 episodes are INFORMATIVE (not inflated by weak matchups), so early μ trend is a fair-but-noisy read; don't assume a weak-first warmup. Bake into the live-loop decision (T24).
+
+### INS-006: kuni05 (LB 1240.5) is rules + exact flow-diff, NOT a neural net
+- type: fact
+- confidence: high
+- evidence: OW-P0-RESEARCH-001 — torch used only as vectorized algebra (no `torch.nn`/params/grads); `planner_core.py:75-86` pure me−opp; `garrison_launch.py:311-450` exact sparse recurrence. Study: `discussions/2026-06-16-kuni05-system-study.md`.
+- transfer scope: the strong-tier edge is an integrated heuristic SYSTEM (safe_drain max-shed sizing + multi-wave + role-mutex + regroup + exact oracle), not learning — consistent with our 13-lever refutation + Phase-0 (planner=greedy under conservation value).
+
 ### INS-001: ladder-predictive offline suite (not self-play)
 - type: rule
 - confidence: high
