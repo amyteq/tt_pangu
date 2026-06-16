@@ -1,0 +1,5 @@
+# Orbit Wars manual episode queue (KCT-OW-LIVE-002)
+# One episode id or Kaggle leaderboard/episode URL per line. '#' = comment.
+# Auto ladder->episode discovery is not exposed by the Kaggle API for this comp;
+# add episode ids that involve harrysun2006 / firefly2006 here, then re-run:
+#   python competitions/orbit-wars/ops/live_loop.py --once

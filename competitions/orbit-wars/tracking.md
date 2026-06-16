@@ -5,7 +5,12 @@
 > `unknown` = not in available evidence.
 
 ## Current snapshot
-- **$50,000 Featured, 1v1 μ-ladder, deadline 2026-06-23** (final eval ~2 weeks after); id 138420; 5/day, latest-2 scored.
+- **$50,000 Featured, μ-ladder, deadline 2026-06-23** (final eval ~2 weeks after); id 138420; 5/day, latest-2 scored.
+- 🔴 **Format correction (2026-06-15, KCT-OW-LIVE-002, verified from flyingfox's 205-episode history via `ListEpisodes` API):**
+  the ladder runs **BOTH 2p AND 4p FFA** episodes and **both update μ** — ~half the games are 4p (net μ ~83% 2p / ~17% 4p).
+  The prior "1v1 only / 4p robustness-only" assumption (T7) was WRONG; our whole line was tuned 2p-only.
+  4p gate now exists (`arena/eval_4p.py`); naive 4p-aware mode (`OW_4P_MODE`) tested NEGATIVE → default OFF; situational 4p = T18.
+  See `EPISODES.md` analysis #3.
 - Direction **D1 = C** (low-cost continue). Incremental path largely exhausted (7 single-mechanism levers failed);
   strong tier wins as integrated systems.
 - **Ladder (refreshed 2026-06-14, read-only Kaggle):**
@@ -96,6 +101,13 @@
 | 648.8 | v3_2_coarr | v3.2 + co-arrival ON (may account; on-ladder +~12 vs v3.2) |
 | parity | v4 Scheduler | hub-and-hammer integrated rewrite (≈v3.2, iterating) |
 | 1151.0 / 1085.4 | adapted-kuni05 | attributed public agent; competitive entry (peak / current) |
+
+## Live loop (KCT-OW-LIVE-002, 2026-06-15)
+- Bounded live-submission loop under `ops/` (credential-safe two-account status, episode ingest/analyze with
+  sun-collision detection, slot classification, gated autonomous submit). Commands in `ops/README.md`; state
+  in `live/`. Run one cycle: `python competitions/orbit-wars/ops/live_loop.py --once`.
+- Cycle 2026-06-15 (read-only Kaggle): harry [kuni05 **1086.5**, v3.2 **655.7**]; may [v3_2_coarr **644.0**,
+  v3.2 **630.1**]. **NO_SUBMIT** (no candidate beats an active slot; v4 = parity; budget/quota preserved).
 
 ## Evidence links
 - GitHub issue #87 (body + 15 comments) — original hub. `tracking_zh.md` — original Chinese verbatim.
