@@ -16,7 +16,7 @@ replacement, and perform **gated autonomous** Kaggle submit/push within budget.
 | `slot_state.py` | agent-status model (`neutral/strong/weak/fix_required/retired/unknown`) + weak/strong classification rules |
 | `account_manager.py` | read-only Kaggle status → latest-2 active-slot model |
 | `episode_fetch.py` | download replay JSON by id / drain `live/pending_episodes.txt` |
-| `episode_analyze.py` | decode launches, **sun-collision/hard-bug detection**, winner-reason, record CSVs |
+| `episode_analyze.py` | decode launches, **sun-collision/hard-bug detection**, winner-reason, flag interesting/unexpected episodes, record CSV + render `episodes_findings.md` |
 | `evaluate_candidate.py` | wrap arena gates → submit-ready verdict (crash/weak-tier/2p-vs-baseline/4p) |
 | `submit_manager.py` | budget + replacement plan + **gated autonomous submit** via `submit.py` |
 | `live_loop.py` | orchestrate one bounded `--once` cycle (or bounded `--watch`) |
@@ -54,8 +54,19 @@ python competitions/orbit-wars/ops/submit_manager.py --account auto --submit-if-
 ## State files (`live/`)
 
 `account_status.md`, `agent_status.md`, `active_agents.yaml`, `submit_plans.md`,
-`push_submit_audit.md`, `episodes_index.csv`, `matches.csv`, `pending_episodes.txt`,
-`budget_state.json`. Raw replays go to the gitignored `replays/`.
+`push_submit_audit.md`, `episodes_index.csv`, `episodes_findings.md`, `matches.csv`,
+`pending_episodes.txt`, `budget_state.json`. Raw replays go to the gitignored `replays/`.
+
+## Episode findings for manual review
+
+Every analyzed episode is recorded with its **watch link** (Kaggle replay viewer)
+and **replay-JSON link** in `live/episodes_index.csv`, and surfaced in the
+human-reviewable `live/episodes_findings.md` (regenerated each cycle). Episodes are
+flagged **interesting / needs-manual-review** when they show a correctness anomaly
+(hard bug / sun proximity) or a result the winner-reason heuristic cannot explain
+(`unexplained-result`) or a notable strategic loss pattern — these get a `REVIEW:`
+follow-up note and a dedicated "🔎 Needs manual review" section with direct links,
+so a human can open the unexpected/interesting replays and analyze them.
 
 ## Episode discovery
 

@@ -84,8 +84,21 @@ def one_cycle(
         rows += ea.analyze(p, our_users)
     if rows:
         ea._append_csv(ea.EP_INDEX, ea.EP_COLS, rows)
+    # Always (re)generate the human-review findings page from the full index, so
+    # episode links + flagged "unexpected/interesting" episodes are reviewable
+    # even on a cycle that analyzed nothing new (PR #111 review request).
+    flagged_total = ea.render_findings_md()
     summary["episodes_analyzed"] = len(rows)
     summary["hard_bugs"] = sum(1 for r in rows if r["hard_bug"] != "none")
+    summary["interesting_new"] = sum(1 for r in rows if r.get("interesting"))
+    summary["flagged_total"] = flagged_total
+    if rows:
+        print(
+            f"    analyzed {len(rows)} seat-row(s); "
+            f"{summary['interesting_new']} newly flagged; "
+            f"findings -> {os.path.relpath(ea.FINDINGS_MD, COMP)} "
+            f"({flagged_total} total flagged)"
+        )
 
     # 4. submit replacement plan. With no designated candidate (default), this
     #    cycle -> NO_SUBMIT (no validated candidate beats a slot; v4 = parity;
@@ -163,6 +176,9 @@ def write_agent_status(slots: dict, summary: dict) -> None:
         "",
         f"- episodes analyzed this cycle: {summary['episodes_analyzed']}",
         f"- hard bugs detected: {summary['hard_bugs']}",
+        f"- newly flagged for review: {summary.get('interesting_new', 0)} "
+        f"(total flagged: {summary.get('flagged_total', 0)})",
+        "- manual-review index: [`live/episodes_findings.md`](./episodes_findings.md)",
         f"- submit decision: **{summary['submit_decision']}**",
         "",
     ]
