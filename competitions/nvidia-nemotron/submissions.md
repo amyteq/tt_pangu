@@ -62,8 +62,9 @@ Full 2×2 (coverage × dose), all scored 2026-06-16:
 | 06-16 06:00 | harrysun2006 | nemo-eq-spec | query 1555 | ×1 | 0.85 | 0.85 | v14 replay + 1555 equation **query answers** woven (~16%), 303 steps |
 | 06-16 08:22 | firefly2006 | nemo-eq-hidose | query 1555 | ×3 | 0.84 | 0.84 | v14 replay + 1555 query answers ×3 |
 | 06-16 10:02 | firefly2006 | nemo-eq-aug-hidose | rotated 7814 | ×2 | 0.85 | 0.82 | v14 replay + 7814 real pairs ×2 (overfit → priv −0.04) |
+| 06-16 11:23 | harrysun2006 | nemo-merge-eqaug | — | — | 0.85 | 0.85 | **soup_v2** = SVD(0.86-soup ×0.6 + eq-aug ×0.4) rank32 — souping eq-aug **dilutes** (< both parents) |
 
-**Grid verdict (2026-06-16): coverage helps, dose hurts.**
+**Grid verdict (2026-06-16): coverage helps, dose hurts — and eq-aug does NOT soup.**
 - **Coverage is the lever:** eq-aug (7,814 *real* input→output pairs, via rotating each in-context example
   into a query target) → **0.86 / 0.86**, the **campaign's best private** (ties soup public 0.86, *beats* soup
   private 0.85). vs query-only eq-spec 0.85/0.85. The win is real (coherent across the grid, not noise): the
@@ -75,9 +76,13 @@ Full 2×2 (coverage × dose), all scored 2026-06-16:
 - **⚠️ Metric caveat (kept):** the T12 min-logprob hard-val ranked **eq-spec 0.167** vs its real LB 0.85 — it
   over-samples the hardest problems and understates adapters weak only on the hard tail (gap 0.68 vs ~0.07–0.10
   for soup/v14). **→ Trust the LB aggregate; hard-val is a hard-tail hint only.**
+- **eq-aug does NOT soup.** `soup_v2 = SVD(0.86-soup ×0.6 + eq-aug ×0.4)` → **0.85 / 0.85**, *below both
+  parents*. The model-soup lever needs **hard-tail-robust** members (the original v14+c1+b1 were all 0.76+
+  hard-val); SVD-merging the hard-tail-*weak* eq-aug imports its shortcutting and averages out its equation
+  coverage. So the coverage lever lives only in a **standalone** adapter, not a merge.
 - **`equation` is *partially* addressable** (coverage-memorisation captures the seen-input fraction, +0.01
-  aggregate) but **not solved** — the unseen-input majority stays uninferable (EQ-2′ strong cipher). eq-aug
-  0.86 is the practical ceiling of this lever.
+  aggregate) but **not solved** — the unseen-input majority stays uninferable (EQ-2′ strong cipher). **eq-aug
+  standalone 0.86 / 0.86 is the practical ceiling** — best own-work private, not improvable by souping.
 
 ## Real-training campaign (own work — 2026-06-09 → 2026-06-15)
 

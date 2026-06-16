@@ -54,8 +54,10 @@
     input→output pairs at single epoch* — beats query-only and beats higher-dose. **⚠️ Metric caveat:** T12
     hard-val ranked eq-spec **0.167** vs real LB 0.85 (over-samples hardest problems; eq-spec shortcuts under
     uncertainty) → **trust the LB; hard-val is a hard-tail hint only.** (Initial "collapse" read off 0.167 was
-    premature — corrected when the LB landed.) **Next:** eqaug per-category eval (running) → then soup(eq-aug +
-    v14 [+ b1/c1]) candidate to chase past 0.86.
+    premature — corrected when the LB landed.) **Soup tested & FAILED:** `soup_v2 = SVD(0.86-soup ×0.6 +
+    eq-aug ×0.4)` → **0.85/0.85**, below both parents — eq-aug is hard-tail-weak (0.194 hard-val) so the merge
+    imports its shortcutting + averages out the equation coverage. **eq-aug 0.86/0.86 standalone is the ceiling;
+    EQ-3 COMPLETE.**
 - **EQ-1′** rebuild the generator to the REAL structure — BLOCKED on EQ-2′ (needs the cracked rule; parked).
 - **EQ-1 / EQ-2** per-prompt induction CoT / DSL solver — INVALIDATED for `equation` by EQ-0 (61.6% unseen-query
   symbols ⇒ per-prompt solving impossible); superseded by the global-function framing.
