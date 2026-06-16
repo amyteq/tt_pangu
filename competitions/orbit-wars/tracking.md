@@ -6,7 +6,7 @@
 
 ## Current snapshot
 - **$50,000 Featured, μ-ladder, deadline 2026-06-23** (final eval ~2 weeks after); id 138420; 5/day, latest-2 scored.
-- 🔴 **Format correction (2026-06-15, KCT-OW-LIVE-002, verified from flyingfox's 205-episode history via `ListEpisodes` API):**
+- 🔴 **Format correction (2026-06-15, KCT-OW-LIVE-002, verified from our own kuni05 submission's 205-episode history — `flyingfox` = harrysun2006's profile name = US, sub 53582503, not an external competitor — via `ListEpisodes` API):**
   the ladder runs **BOTH 2p AND 4p FFA** episodes and **both update μ** — ~half the games are 4p (net μ ~83% 2p / ~17% 4p).
   The prior "1v1 only / 4p robustness-only" assumption (T7) was WRONG; our whole line was tuned 2p-only.
   4p gate now exists (`arena/eval_4p.py`); naive 4p-aware mode (`OW_4P_MODE`) tested NEGATIVE → default OFF; situational 4p = T18.
@@ -20,7 +20,8 @@
 - 🟢 **orbit5 cycle 2026-06-16:** stopped gating on local arena (Harry: it under-discriminates our cluster →
   test shelved candidates on the REAL ladder; only >1200-in-reasonable-time keeps a slot). **Submitted 2**:
   harry ← `v4_scheduler.tar.gz` (keeps kuni05 1079.7 anchor), may ← `v3_forecast.py` (keeps coarr 640.7). Active
-  slots: harry [v4 _pend_, kuni05 1079.7], may [v3 _pend_, coarr 640.7]. **Arena reliability (calibrated):** local
+  slots (refreshed 2026-06-16, COMPLETE): harry [**v4 703.9**, kuni05 **1069.9**], may [**v3 678.1**, coarr **644.4**]
+  — v4/v3 settled ≈ predicted (~700/~686), both < the >1200 bar; kuni05 our best (drifting 1085→1070). **Arena reliability (calibrated):** local
   win% vs evogen separates GROSS tiers (kuni05 90% ≫ ours ≤20% ↔ ladder 1083 ≫ 640–686) but is BLIND within our
   cluster (v3 μ686 & v3.2 μ640 both 16.7%; v4 best 20.0%). Fleet-massing discussion → T19–T22 + rotation-relay
   PARK (`tasks.md`); relay rigorously refuted (riding ≤2.35 < flying 2.39 u/step). **DOC FIX: `flyingfox` =

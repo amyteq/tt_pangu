@@ -19,6 +19,30 @@
   concentration lever — next real lever must be integrated, not another bolt-on/knob. See
   `postmortems/2026-06-16-overkill-revival.md`.
 
+## Strong-tier breakthrough phase backlog (task pack `docs/tasks/competition-tracking/orbit-strong-tier/`)
+> Target: public ladder **μ ≥ 1200** (secondary: upward early trajectory over first 10/20 episodes; offline:
+> no hard execution bugs + positive 2p AND 4p gates). Architecture: hybrid, model-centric, deterministic-execution
+> (`obs → BattlefieldState → Arrival/ThreatLedger → CandidateGenerator → Features → Model scorer/value → RuleEngine
+> guardrails → FlightOracle + ActionSanitizer → actions`). The model ranks/scores; it does NOT own continuous-angle
+> execution — flight/landing/path validity stays deterministic and tested.
+- **P0 OW-P0-RESEARCH-001** (prompt `00`): kuni05 source study + matchmaking + identity map — ✅ done (PR #116): rules+flow-diff (not NN); similar-skill matching from game 1; flyingfox=harrysun2006.
+- **P0 OW-P0-DOCS-LIVE-001** (prompt `01`): doc/live-loop consistency baseline — this task.
+- **P0 OW-P0-FLIGHT-ORACLE-001** (prompt `02`): centralized `core/{geometry,oracle,action_sanitizer}.py` FlightOracle; every final action gated `candidate → FlightOracle → ActionSanitizer → emit/block`; distinguish strict-sun / near-sun / OOB / wrong-first-hit; `tests_orbit/` smokes. **Gates all model integration.**
+- **P0/P1 OW-…-STATE-001** (prompt `03`): typed `core/{state,ledger,rule_engine,features}.py` (PlanetState/FleetState/BattlefieldState, per-planet strategic value 1–100, ArrivalLedger/ThreatLedger, lightweight rule-engine guardrails) + `test_state_ledger.py`.
+- **P1 OW-…-DATASET-001** (prompt `04`): replay episode index + candidate/action-label tables over the 20G corpus; FlightOracle for safety/first-hit labels; data-quality report; no large raw replays committed.
+- **P1/P2 prompt `05` (loop)**: snorlax candidate-scorer / value-model training (NOT run this session).
+- **P2 prompt `06`**: hybrid policy integration (model score + rule filters + FlightOracle gate + rules-only fallback) (NOT run this session).
+- **online loop prompt `07`**: ladder iterate — submit → track first 10/20 episodes → analyze → classify → fix/train → resubmit (NOT run this session).
+
+## Early-stop / promotion policy (toward μ ≥ 1200)
+> Matchmaking is similar-skill from the first game (INS-005), so early μ is informative (fair, but noisy on few games).
+- **Immediate weak / fix_required:** any hard execution bug — strict sun collision, invalid action, OOB loss, or
+  repeated wrong-first-hit-target (detected by `episode_analyze.py` / the FlightOracle counters).
+- **After ~10 episodes:** weak if 2p win-rate / μ trend is flat-or-down and not climbing (track via `ops/track_submission.py --once --submission-id <id> --decide-after 10`).
+- **After ~20 episodes:** weak if not climbing toward μ ≥ 1200 and below the incumbent/anchor (kuni05 ~1080) — release the active slot.
+- **Strong (keep slot):** μ ≥ 1200 or a robust upward trajectory with strong-tier wins.
+- Config home (if/when formalized): `configs/early_stop_policy.yaml` (referenced by the task pack; not yet present — `unknown`). `track_submission.py` currently emits a keep/replace recommendation; thresholds above are the documented intent.
+
 ## Next
 - D2 last-3-days freeze: pick the best 2 versions per account and re-submit (latest-2 scored).
 - T1 replay mining of the public episode dataset (top-bot behavior → heuristic params).
