@@ -6,6 +6,35 @@
 > **Bottom line: build the 3 measurement probes FIRST, not the planner.** The probes
 > are the cheapest way to get the first hard evidence in 12 levers about whether the
 > opening is a real, non-greedy, win-predictive lever. Strong base rate of failure.
+>
+> ## ⛔ PHASE 0 RESULTS (2026-06-16) → DO NOT BUILD the set+order planner
+> Ran the three probes (`arena/opening_probes.py`, 40 games vs evogen + 20 vs starter,
+> 80 opening states, reusing v4's `_solve_intercept`/`_path_blocked` + `forecast_sim`):
+> | probe | result | verdict |
+> |---|---|---|
+> | **P1 super-additivity** | median Δ(CP-search vs CP-greedy) = **+0.0%**, frac>5% = 0%; **P1b** Δ(CP-search vs v4 conservation-greedy) = **+0.0%** | **KILL** |
+> | P2 objective-divergence | first-3 agreement (CP vs `_term`) = **73%** (<80%) | PASS (marginal) |
+> | P3 conversion | control@80 → win: r=**+0.57** (all 60) / +0.36 (evogen, 3/40 wins) | PASS |
+>
+> **The decisive probe P1 KILLs it.** A set+order search captures **zero** extra
+> controlled-production over greedy — *and zero over v4's actual conservation-greedy* —
+> in every opening state: our greedy already grabs the affordable opening optimum, so
+> **order/selection is moot** (you control the planets you can afford regardless of
+> sequence). This empirically confirms the red-team prior (a planner re-derives greedy).
+> P2/P3 "pass" but are hollow given P1: the 27% different picks (P2) yield no extra
+> control (P1), and although the opening predicts the win (P3), we are **not leaving
+> opening control on the table** for a planner to seize — we *lose the control race*
+> because we reach worse board states (the integrated cliff), not because we plan the
+> opening badly. Per this scope's gate ("build only if all three pass") → **STOP**.
+>
+> **Only remaining crack (untested by these probes):** evogen's *timed wait-to-mass*
+> (accumulate at one source to take a target unaffordable NOW). The probes required
+> affordability-now, so they did not test timing. But it is a narrow, single-mechanism
+> lever adjacent to the refuted EM/OVERKILL sizing family — NOT the multi-week
+> integrated planner — and carries the same over-commit risk. Not recommended without
+> its own measure-first probe. Net: the integrated opening-planner build is **shelved**;
+> Phase 0 did its job — prevented the 13th refuted lever (a multi-week build) for ~1h of
+> measurement. v4 (~700) stays on the ladder; kuni05 (1079.7) + coarr remain the anchors.
 
 ## 1. Problem & the ONE genuine escape axis
 - The cliff: ~100% vs weak, **0–20% vs strong** (evogen 1093 / multifocus / kuni05 1240); v4 ladders ~700.
@@ -62,4 +91,10 @@ Per the project's measure-first discipline (correctly PARKed T16). All offline, 
 - **Total ~1–1.5 weeks IF the probes pass** (does NOT fit before 2026-06-23); ~1–2 days if they kill it (the likely outcome). Pre-deadline, **only Phase 0 is feasible** — the full planner is a post-deadline / final-eval-window effort.
 
 ## 9. Recommendation
+> **UPDATE 2026-06-16: Phase 0 executed → DO NOT BUILD (see the Phase 0 Results box up top).**
+> P1 KILLed it (set+order search = greedy, +0.0% controlled-production). The integrated
+> opening planner is shelved; the only residual crack is evogen's timed wait-to-mass,
+> which would need its own measure-first probe and is not recommended (narrow, over-commit
+> risk, adjacent to refuted EM/OVERKILL). Original recommendation retained below for record.
+
 **`build_minimal_first`** — build the 3 probes (Phase 0), not the planner. They empirically test the red-team prior (super-additivity, objective-divergence, conversion) instead of re-asserting or re-defying it, at ~1–2 days and zero ladder cost. If any fails (the strong base rate), we avoid the 13th refuted lever for the cost of measurement. If all pass, that is the first hard evidence in 12 levers that the opening is a real exploitable non-greedy lever — and the thin frozen planner is then justified at the +7pt bar. Keep v4 (~700) on the ladder and kuni05 (1079.7) + coarr as anchors throughout.
