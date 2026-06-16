@@ -30,8 +30,13 @@
 > [`equation-frontier.md`](./equation-frontier.md). It is few-shot **transformation-rule induction**
 > (≈ ARC-AGI), inducible only in greedy CoT at eval (no tools). Winners used **brute-force solver → teacher
 > CoT** (our Option C, richer solver); TTT is forbidden by our static-LoRA constraint; expect a coverage ceiling.
-- **EQ-0** (no GPU, do first) quantify the DSL gap: 256-map positional solver over the public andy279 set → coverage number; fix `nemo_solver.py` (`len(lhs)!=5` hard-code, 256-map enum, add numeric solver). Gates the GPU spend.
-- **EQ-1** rich *compositional* rule-DSL generator + induce→verify→apply CoT (teach the meta-skill, not 8 fixed rules) + SOAR relabeling; validate on a held-out rule distribution.
+- **EQ-0 ✅ DONE (2026-06-16) — REFRAMED the plan** (see `equation-frontier.md` §8): the real transform is a
+  single **GLOBAL deterministic function** (5-char→1–4-char, 36-sym alphabet; 6216 inputs, 35 collisions), NOT
+  per-prompt rules. Per-prompt solvers cover ~0% (homomorphism 0%, positional 0.4%; 61.6% have unseen query
+  symbols). But offline we hold **7748 input→output pairs** → reverse-engineerable, **~100% ceiling if cracked**.
+- **EQ-2′ (now highest EV): reverse-engineer the global rule** from the 7748 pairs (simple base-36 arithmetic
+  ruled out; non-trivial multi-step transform). Crack → generate exhaustive verified CoT for the whole input space.
+- **EQ-1′** rebuild the generator to the REAL structure (5→1–4-char global function) once the rule/family is known.
 - **EQ-2** offline DSL-search solver over REAL train.csv equation prompts → verified real-prompt CoT (audit "option G", richer DSL) + symbolic regression (PySR/gplearn) for the numeric sub-type.
 - **EQ-3** train an equation-specialist LoRA on EQ-1/EQ-2 → **soup with v14**, T12-gated (lift `equation`, hold bit/cipher; low dose — avoid the B8 dilution).
 - **EQ-4** (stretch) RLVR/GRPO with a rule-reproduction verifiable reward (ties into the GRPO task above), after EQ-1..3.
