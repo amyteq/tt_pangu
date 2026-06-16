@@ -257,8 +257,11 @@ anchors: v14 0.85/0.84 · soup 0.86/0.85 · identity ~0.47.
   frontier-closed" read off the 0.167 was premature and was corrected once the LB landed.)
 - **Reusable insight:** for a **global-function / lookup-style** hidden category, train on *all available real
   input→output pairs* (rotate every shown example into a supervised target), at **low dose / single epoch**.
-  This beats query-only SFT and beats higher-dose. eq-aug is now a candidate soup member (best private; the
-  open question for a merge is whether its gain survives SVD blending — see the eqaug per-category eval).
+  This beats query-only SFT and beats higher-dose.
+- **eq-aug does NOT soup (tested).** `soup_v2 = SVD(0.86-soup ×0.6 + eq-aug ×0.4)` → **0.85 / 0.85**, below both
+  parents. The model-soup lever requires **hard-tail-robust** members (original v14+c1+b1 all ≥0.76 hard-val);
+  blending the hard-tail-*weak* eq-aug (0.194) imports its shortcutting and averages out its equation coverage.
+  **The coverage gain survives only standalone, not in a merge** → eq-aug 0.86/0.86 is the ceiling.
 
 **Status: `equation` is *partially* addressable, not solved.** Coverage-memorisation (eq-aug) captures the
 seen-input fraction for a real **+0.01 → 0.86 / 0.86** (new best own-work private), but the unseen-input
