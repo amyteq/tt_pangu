@@ -70,8 +70,15 @@
   ladder result to date** (> old v3.2 640 / v3 686) — and the LOCAL arena had called it mere "parity with v3.2",
   so this re-confirms the arena under-discriminates and the ladder is the judge. But v4 plateaus well short of
   the >1200 bar (strong-tier cliff intact). **DECISION: KEEP v4 on the ladder (replacing it gains nothing — no
-  candidate >1200) and FOCUS dev here = T20(b) early-game massing**, not more submissions. Loop stopped at 10
-  episodes; data in `live/track_53730511.csv` + `live/version_submissions.md`.
+  candidate >1200).** Loop stopped at 10 episodes; data in `live/track_53730511.csv` + `live/version_submissions.md`.
+  - **T20(b) early-massing knob `OW_EM` — ❌ REFUTED (2026-06-16).** Implemented opening-only + neutral-only
+    capture-and-hold sizing (`OW_EM`/`EM_HOLD`/`EM_SLACK`/`EM_PHASE`/`EM_MIN`, default OFF, byte-identical when
+    off) — distinct from `OW_OVERKILL`/`OW_OPENING`. A/B vs fidelity-verified evogen (40 paired seeds): defaults
+    **8.8% = −11.2pt**; a 6-config sweep is **monotonic-negative with NO positive region** (HOLD0.3 −7.5, HOLD0.6
+    −13.8, MIN25 −11.2, gentlest PHASE40 −1.2≈noise). Heavier opening grabs over-commit and lose the ship race —
+    same as `OW_OVERKILL`/`v4f`. 12th refuted single-mechanism massing lever; `OW_EM` left default-OFF for repro.
+    The on-target direction is an INTEGRATED opening planner (sequence/target selection), not a sizing knob —
+    large/high-risk, deferred. Postmortem: `postmortems/2026-06-16-t20-early-massing.md`. **Do NOT iterate the knob.**
 - **T21 — Forward-planet aggregation (pure geometry, measure-first)**. Rigorous timing math: the ONLY regime
   where 2-hop beats 1-hop is launching from an ALREADY-HELD planet that is closer-in-flight-time to T — pure
   geometry, not rotation. Check whether the greedy already picks min-ETA sources; if not, add a "prefer the
