@@ -1,0 +1,13 @@
+games: evogen=40 (won 3), starter=20 (won 18)
+
+P1 super-additivity: n=80 states | median Δ(CP-search vs CP-greedy)=+0.0% | frac>5%=0%
+   P1b Δ(CP-search vs v4 conservation-greedy)=+0.0% (does a CP-planner control MORE @Ho than v4 picks?)
+   VERDICT: KILL (search ≈ greedy → set+order planner redundant)
+
+P2 objective-divergence: n=80 states | mean first-3 agreement(CP vs _term)=73%
+   VERDICT: PASS (CP ranks differently)
+
+P3 conversion: control@80 vs win | r(all 60)=+0.57 | r(evogen 40)=+0.36 | evogen wins=3/40
+   VERDICT: PASS (control@80 predicts win)
+
+=== PROBES COMPLETE ===
