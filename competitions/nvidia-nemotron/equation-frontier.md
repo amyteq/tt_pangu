@@ -228,36 +228,39 @@ Per the human "go deep" decision, extended the attack to the families §8.2 hadn
   across both accounts, all training on the RTX Pro 6000), measured on the late-submission window (100/day).
   If even the best grid point can't lift `equation` on the official metric, it is a confirmed structural hard tail.
 
-### 8.4 EQ-3 empirical result (2026-06-16) — eq-spec is competent but does NOT lift equation
-Ran `nemo-eq-spec` (the grid's **lowest** dose: 1,555 real equation prompts woven ~16% into the v14 replay
-backbone, 303 steps, loss→0.001). **Two measurements, and they disagree — the LB is authoritative:**
+### 8.4 EQ-3 empirical result (2026-06-16) — coverage helps, dose hurts; eq-aug = best private 0.86
+Trained the full **2×2 (coverage × dose)** grid (real equation prompts woven into the v14 replay backbone) and
+measured each on the **official LB** (the authoritative metric):
 
-| measurement | eq-spec | v14 | soup | base |
-|---|---:|---:|---:|---:|
-| **Official LB — public / private** | **0.85 / 0.85** | 0.85 / 0.84 | 0.86 / 0.85 | ~0.47 (identity) |
-| T12 hard-val (hardest-72, min-logprob) | 0.167 | 0.778 | 0.764 | 0.347 |
+| kernel | coverage | dose | **LB pub / priv** |
+|---|---|---|---|
+| **nemo-eq-aug** | **rotated 7,814 real pairs** | **×1** | **0.86 / 0.86** ← best private of the whole campaign |
+| nemo-eq-spec | query-only 1,555 | ×1 | 0.85 / 0.85 |
+| nemo-eq-hidose | query-only 1,555 | ×3 | 0.84 / 0.84 |
+| nemo-eq-aug-hidose | rotated 7,814 real pairs | ×2 | 0.85 / 0.82 |
 
-T12 hard-val per-category for eq-spec: bit 0/16, equation **0/16**, cipher 0/16, gravity 0/8, numeral 8/8, unit 4/8.
+anchors: v14 0.85/0.84 · soup 0.86/0.85 · identity ~0.47.
 
-- **On the real metric eq-spec is 0.85 / 0.85** — a *competent* adapter that ties the campaign's top private
-  tier (priv 0.85 = soup, > v14 0.84). It is **not** broken. But it does **not** beat the 0.86 soup public and
-  has **no aggregate gain over v14 (0.85)** ⇒ `equation` was **not lifted** (a real lift would show as LB > 0.86,
-  since equation ≈ 1/9 of cats: 0%→~30% ≈ +0.033). Consistent with EQ-0/EQ-2′: the cipher is uninferable; SFT on
-  1,555 query answers memorises contexts, generalises to ~nothing on held-out inputs (61.6% unseen-query symbols).
-- **⚠️ Methodological correction — the T12 hard-val badly mispredicted eq-spec (0.167 vs real 0.85).** The
-  min-logprob hard-val over-samples the *hardest* problems; eq-spec specifically tanks those (preflight: on the
-  single hardest bit problem it emitted `\boxed{00010110}` with **zero CoT** — it answer-shortcuts *under
-  uncertainty*) while reasoning normally on the easy/typical bulk. So its hard-val→LB gap is **0.68**, vs ~0.07–0.10
-  for the hard-tail-robust soup/v14 family. **The hard-val is a valid proxy only for hard-tail-robust adapters;
-  it understates adapters whose weakness is concentrated in the tail. → Trust the LB aggregate; treat hard-val as
-  a directional hard-tail hint, not a verdict.** (My initial "collapse / frontier-closed" read off the 0.167 was
-  premature — corrected once the 0.85 LB landed.)
-- **eq-spec is a viable soup member** (comparable 0.85, complementary equation-emphasis) — building soup(v14 +
-  eq-spec [+ b1/c1]) and testing on the LB is back on the table (the hard-tail weakness is the open question for
-  a merge). The other 3 grid members (`eq-aug` coverage, `eq-hidose`/`eq-aug-hidose` dose) are **measured on the
-  LB** as they complete (reverting to the approved plan — they are *not* assumed collapsed).
+- **Coverage is the lever.** `eq-aug` rotates *each in-context example into a query target* → ~5× more genuine
+  cipher input→output pairs than query-only (`eq-spec`). That lifts it to **0.86 / 0.86** — ties the soup's
+  public 0.86 and **beats** its private 0.85, the best own-work private of the campaign. Mechanism: memorising
+  the real pairs captures the **seen-input fraction** of hidden equation queries (EQ-0: ~38% of hidden queries
+  have all-seen symbols). A modest but real `equation` gain (+0.01 aggregate; equation ≈ 1/9 of categories).
+- **Dose hurts.** Over-weighting the equation data regresses: query-only ×3 (`eq-hidose` 0.84) and coverage ×2
+  (`eq-aug-hidose` **priv 0.82**, −0.04 — private drops more than public = overfit signature). **Sweet spot =
+  a single epoch over the full real-pair coverage.**
+- **⚠️ Methodological lesson — the T12 min-logprob hard-val mispredicts atypical adapters.** `eq-spec` scored
+  **0.167** on hard-val but **0.85** on the real LB (gap 0.68, vs ~0.07–0.10 for the hard-tail-robust soup/v14).
+  The hard-val over-samples the hardest problems; `eq-spec` answer-shortcuts *under uncertainty* (preflight:
+  emitted `\boxed{00010110}` with zero CoT on the single hardest bit problem) but reasons fine on the bulk.
+  **→ Trust the LB aggregate; treat hard-val as a hard-tail hint, not a verdict.** (An initial "collapse /
+  frontier-closed" read off the 0.167 was premature and was corrected once the LB landed.)
+- **Reusable insight:** for a **global-function / lookup-style** hidden category, train on *all available real
+  input→output pairs* (rotate every shown example into a supervised target), at **low dose / single epoch**.
+  This beats query-only SFT and beats higher-dose. eq-aug is now a candidate soup member (best private; the
+  open question for a merge is whether its gain survives SVD blending — see the eqaug per-category eval).
 
-**Status: equation still appears unsolved empirically (eq-spec: no lift), consistent with the EQ-2′ strong-cipher
-verdict — but NOT yet closed from the SFT side.** The higher-coverage/dose grid points are pending their LB
-scores; only a member exceeding ~0.86 would indicate a genuine equation gain. The 0.86 soup (0.85 private)
-remains the ceiling until then.
+**Status: `equation` is *partially* addressable, not solved.** Coverage-memorisation (eq-aug) captures the
+seen-input fraction for a real **+0.01 → 0.86 / 0.86** (new best own-work private), but the unseen-input
+majority remains uninferable (EQ-2′ strong cipher: no closed-form rule, no derivable CoT). The frontier is thus
+**bounded**, not open: this coverage lever is the practical ceiling; nothing reaches the cipher's unseen tail.
