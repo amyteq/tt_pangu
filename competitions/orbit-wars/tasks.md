@@ -3,6 +3,14 @@
 > Derived from issue #87 TODO/Plan table (T1–T16). Full English tracking in `tracking.md`.
 
 ## Now
+- **orbit5 ladder cycle (2026-06-16):** under Harry's directive to stop gating on the local arena (it
+  under-discriminates our cluster) and test shelved candidates on the REAL ladder, **submitted 2** (only
+  >1200-in-reasonable-time keeps a slot; both prior agents replaceable): harry ← `v4_scheduler.tar.gz`
+  (keeps kuni05 1079.7 anchor), may ← `v3_forecast.py` (keeps coarr 640.7). v4 = best of our line vs evogen
+  (20.0%); `v3_2_supply` NOT submitted (weaker 13.3% + confounded older lineage). **Arena reliability finding:**
+  local win% vs evogen separates GROSS tiers (kuni05 90% ≫ ours ≤20% ↔ ladder 1083 ≫ 640–686) but is BLIND
+  within our cluster (v3 μ686 and v3.2 μ640 both 16.7%) → fine candidate selection must use the ladder.
+  See `submissions.md` orbit5 cycle. **Next action: monitor v4/v3 μ via `ops/live_loop.py --once` (T20).**
 - **v4 "Scheduler"** (hub-and-hammer, T9/T13): at parity with v3.2 (49.3% on 150 paired seeds). OVERKILL-revival
   **closed FAILED (2026-06-16), all 4 sub-cuts**: v4a counter-attack window (`OW_V4A`) null −0.3pt; v4f FM3
   best-response (`OW_V4F`) −9pt; v4c cluster hammer (`OW_V4C`) null −0.3pt; v4i Isaiah two-band (`OW_V4I`)
@@ -27,6 +35,64 @@
   ≈ 1.4–2.7pt win-rate, below the +7pt bake bar** (only 35.5% of "recoverable" drops are value-positive;
   41% of dropped targets are captured anyway within 5 turns; same frequent-gap → ladder-null mechanism as
   co-arrival). Measure-first did its job: parked before building. Reopen via a gate-only prototype only if v4 stalls.
+
+## Follow-ups from the fleet-massing discussion (orbit5, 2026-06-16)
+> Harry's "少而重 + 内圈旋转中转站" thesis, checked against the engine source + our code + rigorous timing math.
+> Engine facts confirmed: inner planets (orbital_r+radius<50) rotate at ω∈[0.025,0.05] rad/step, same ω all;
+> outer static (`orbit_wars.py:540-546`). `prod=randint(1,5)`, `radius=1+ln(prod)` (size is log-of-prod, prod is
+> primitive), size ⟂ distance-to-sun (`:80-81,:133-138`). Fleet `speed=1+(maxSpeed-1)(ln n/ln1000)^1.5` cap ~6
+> (`:577`): 19→2.39, 76→3.48 (+46%). Garrison rides a rotating planet for free (it sits AT the planet pos).
+
+- **T19 — Episode 80118852 = OUR adapted-kuni05's WIN; confirms an early 多而小 / slow-expansion weakness**
+  (✅ resolved 2026-06-16). 🔴 **DOC CORRECTION: `flyingfox` is harrysun2006's Kaggle PROFILE name → flyingfox = US.**
+  So submission **53582503 = our `submission_kuni.tar.gz` (adapted kuni05, μ~1080)**, NOT an external competitor —
+  this also means tracking.md's "flyingfox 205-episode history" 4p-format finding and `episode_discover`'s example
+  were analyzing OUR OWN account's history (the 4p finding still stands; only the "external" label was wrong;
+  EPISODES.md #3 should be re-labeled). Episode 80118852 (`replays/80118852.json`, gitignored) is a 4p FFA we WON
+  (seat 1, rewards [-1,+1,-1,-1]); 36 planets ids 0–35 (no 163/164 — viewer artifact). **Substance CONFIRMED** —
+  our seat-1 (kuni05) launch profile BY PHASE: early ≤80 = 74 launches **median 20 ships** (多而小), and we were
+  BEHIND (5 planets vs Lucky's 7 at step 40); mid 81–160 = median 36; late >160 = median **238**, max 467. We
+  overtook only ~step 100 and ground out the win after rivals imploded. → Even our strongest agent expands with
+  many small fleets early and only masses late; vs the strong tier (which doesn't collapse) that loses. **This is
+  the empirical basis for T20/T21: mass EARLIER (few-but-heavy from the opening), don't grind.**
+- **T20 — EARLY-game massing (the empirically-pinpointed lever) + v4 live test** (🟢 in progress; submitted orbit5).
+  Episode 80118852 (T19) shows our own kuni05's gap is SPECIFICALLY the opening: early ≤step80 median launch is
+  **20 ships (多而小)** and we fall behind (5 vs 7 planets @ step40); we only mass (median 238) once rivals collapse.
+  So the lever is "mass few-but-heavy FROM THE OPENING," not late. (a) v4's hub-and-hammer (default ON,
+  `v4.py:813-949`) is the source-side-massing embodiment, now on harry's ladder — monitor μ as the live test;
+  v3.2/main.py has NO massing (`main.py:938-947`). (b) Concrete experiment: an early-phase (step<~80) massing/
+  bigger-min-launch knob that exploits speed (`+46%` at 19→76) + the strict capture threshold, gated on suite
+  (evogen) + 4p. Distinguish carefully from already-refuted `OW_MULTISRC`/`OW_COARRIVAL`/`OW_OPENING` (the prior
+  opening-grabber FIRED more but won LESS — the difference must be HEAVY not just MORE). If neither v4 nor an
+  early-massing knob moves the ladder, massing is ladder-null at our tier.
+  **v4 LIVE RESULT (sub 53730511, first 10 episodes, 2026-06-16 via `ops/track_submission.py`):** μ
+  600→peak 842.9→settling **~690–720** (net +90), 2p **4W-3L** + 4p 1×1st/2×2nd. **v4 is our BEST own-agent
+  ladder result to date** (> old v3.2 640 / v3 686) — and the LOCAL arena had called it mere "parity with v3.2",
+  so this re-confirms the arena under-discriminates and the ladder is the judge. But v4 plateaus well short of
+  the >1200 bar (strong-tier cliff intact). **DECISION: KEEP v4 on the ladder (replacing it gains nothing — no
+  candidate >1200).** Loop stopped at 10 episodes; data in `live/track_53730511.csv` + `live/version_submissions.md`.
+  - **T20(b) early-massing knob `OW_EM` — ❌ REFUTED (2026-06-16).** Implemented opening-only + neutral-only
+    capture-and-hold sizing (`OW_EM`/`EM_HOLD`/`EM_SLACK`/`EM_PHASE`/`EM_MIN`, default OFF, byte-identical when
+    off) — distinct from `OW_OVERKILL`/`OW_OPENING`. A/B vs fidelity-verified evogen (40 paired seeds): defaults
+    **8.8% = −11.2pt**; a 6-config sweep is **monotonic-negative with NO positive region** (HOLD0.3 −7.5, HOLD0.6
+    −13.8, MIN25 −11.2, gentlest PHASE40 −1.2≈noise). Heavier opening grabs over-commit and lose the ship race —
+    same as `OW_OVERKILL`/`v4f`. 12th refuted single-mechanism massing lever; `OW_EM` left default-OFF for repro.
+    The on-target direction is an INTEGRATED opening planner (sequence/target selection), not a sizing knob —
+    large/high-risk, deferred. Postmortem: `postmortems/2026-06-16-t20-early-massing.md`. **Do NOT iterate the knob.**
+- **T21 — Forward-planet aggregation (pure geometry, measure-first)**. Rigorous timing math: the ONLY regime
+  where 2-hop beats 1-hop is launching from an ALREADY-HELD planet that is closer-in-flight-time to T — pure
+  geometry, not rotation. Check whether the greedy already picks min-ETA sources; if not, add a "prefer the
+  held source with min flight-time + allow an already-held forward planet to aggregate" preference. NEVER ship
+  O→I as a deliberate detour (honest 2-hop strictly worse: 35–39 vs 27 turns direct).
+- **PARK — Rotation-conveyor / inner-planet staging relay.** Rigorously REFUTED as a distance/speed lever with
+  the exact engine swept-collision rule: max inner radial closing speed ≈2.35 u/step < a 19-ship fleet's
+  2.39 u/step → flying always beats riding; optimal relaunch delay = 0 in every tested geometry/ω; the orbital
+  minimum-distance phase is 170–210 steps out (games end ~150). The real value Harry intuits is the
+  MASSING/+speed effect, obtainable at the source (no hop). Same family as PARKed T8/T16/OVERKILL. No build;
+  recorded in `insights.md`.
+- **T22 — (optional) inner vs outer target valuation** (measure-first). Production ⟂ distance-to-sun and inner
+  planets rotate — does holding an inner (rotating) planet differ in defensibility/value (a captured inner
+  planet's garrison drifts toward different fronts as it orbits)? Measure in episodes before any build.
 
 ## 4p ladder finding (KCT-OW-LIVE-002, 2026-06-15)
 - 🔴 **The μ-ladder is ~half 4-player FFA and 4p updates μ** (verified from flyingfox's 205-episode history; ~83% net μ

@@ -17,6 +17,17 @@
   - harrysun2006 latest-2: adapted-kuni05 (attributed) **1085.4** + v3.2 **660.0**
   - firefly2006 (may) latest-2: v3_2_coarr **648.8** + v3.2 **636.7**
   - retired peaks: adapted-kuni05 **1151.0**, Forecast v3 686.1, v2.1 555.8
+- 🟢 **orbit5 cycle 2026-06-16:** stopped gating on local arena (Harry: it under-discriminates our cluster →
+  test shelved candidates on the REAL ladder; only >1200-in-reasonable-time keeps a slot). **Submitted 2**:
+  harry ← `v4_scheduler.tar.gz` (keeps kuni05 1079.7 anchor), may ← `v3_forecast.py` (keeps coarr 640.7). Active
+  slots: harry [v4 _pend_, kuni05 1079.7], may [v3 _pend_, coarr 640.7]. **Arena reliability (calibrated):** local
+  win% vs evogen separates GROSS tiers (kuni05 90% ≫ ours ≤20% ↔ ladder 1083 ≫ 640–686) but is BLIND within our
+  cluster (v3 μ686 & v3.2 μ640 both 16.7%; v4 best 20.0%). Fleet-massing discussion → T19–T22 + rotation-relay
+  PARK (`tasks.md`); relay rigorously refuted (riding ≤2.35 < flying 2.39 u/step). **DOC FIX: `flyingfox` =
+  harrysun2006's profile name = US** (so sub 53582503 = our adapted-kuni05; the "flyingfox 205-episode" 4p finding
+  was our OWN history, label only). Episode 80118852 = our kuni05's 4p WIN, and it CONFIRMS an early 多而小 weakness:
+  early (≤step80) median launch **20 ships**, behind at step40 (5 vs 7 planets), massing only mid/late (median
+  238 late). Mass-earlier is the real lever (T20/T21). Monitor μ via `ops/live_loop.py --once`.
 - **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
   (evogen 1093 / multifocus / kuni05 1240).
 

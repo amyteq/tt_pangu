@@ -9,13 +9,26 @@
 > **μ1086.5** + `main.py` v3.2 **μ655.7**; may latest-2 = `v3_2_coarr.py` **μ644.0** + `main.py` v3.2 **μ630.1**.
 > Cycle decision **NO_SUBMIT** (no candidate beats an active slot; v4 = parity; budget/quota preserved).
 > co-arrival (may) still ~+14 over its v3.2 twin on-ladder. Live state in `live/`; loop in `ops/`.
+>
+> **orbit5 cycle 2026-06-16 (Harry directive: submit shelved candidates to the REAL ladder; local arena
+> under-discriminates at our tier; only an agent that climbs >1200 in reasonable time keeps a slot — both
+> current agents replaceable).** Read-only refresh: harry [kuni05 **1079.7**, v3.2 640.4], may [coarr 640.7,
+> v3.2 648.1]. **Submitted 2** (authorized-by-task KCT-OW-LIVE-002 + Harry 2026-06-16): harry ←
+> `v4_scheduler.tar.gz` (keeps kuni05 anchor), may ← `v3_forecast.py` (keeps coarr). Rationale: arena
+> calibration this cycle shows v4 is strongest of our line vs the discriminating mid-tier (evogen **20.0%**
+> vs v3/v3.2 16.7%, supply 13.3%, v2.1 0%, kuni05 90%) but the arena CANNOT finely rank our cluster (v3 μ686
+> and v3.2 μ640 BOTH 16.7% locally) — so the ladder is the right judge. `v3_2_supply` (T14) deliberately NOT
+> submitted: weaker locally (13.3%) AND confounded (older lineage, lacks v3.2's comet/swept handling). v4
+> crash-validated: tar.gz↔in-repo identity 24-0 vs starter, 4p no-crash (avg_rank 1.0 vs starter / 1.875 vs
+> evogen, 0 elim@t50), import-smoke `agent({})→[]`, worst-case 18.55 ms/turn.
 
 ## harrysun2006
 
 | Date (UTC) | Agent / file | Ladder μ (public) | Private | Status | Notes |
 |---|---|---:|---:|---|---|
-| 2026-06-11 23:17 | `submission_kuni.tar.gz` (adapted kuni05, **attributed**) | **1085.4** | unknown | COMPLETE | **latest-2** re-submit (D2); strong-tier entry |
-| 2026-06-11 23:17 | `main.py` v3.2 (t14) | **660.0** | unknown | COMPLETE | **latest-2**; own-agent current |
+| 2026-06-16 04:11 | `v4_scheduler.tar.gz` (v4 Scheduler hub-and-hammer; main.py+forecast_sim.py) | _pending_ | unknown | PENDING | **latest-2** (orbit5); new-arch real-ladder test; best of our line vs evogen (20.0%) |
+| 2026-06-11 23:17 | `submission_kuni.tar.gz` (adapted kuni05, **attributed**) | **1079.7** | unknown | COMPLETE | **latest-2** anchor (kept; drifting 1085→1079.7); strong-tier entry |
+| 2026-06-11 23:17 | `main.py` v3.2 (t14) | **640.4** | unknown | COMPLETE | retired by orbit5 v4 submit (was latest-2) |
 | 2026-06-10 05:02 | `main.py` v3 Forecast | 686.1 | unknown | COMPLETE | retired; own-agent peak |
 | 2026-06-10 03:44 | `submission_kuni.tar.gz` (adapted kuni05) | **1151.0** | unknown | COMPLETE | retired; **attributed-entry peak** |
 | 2026-06-10 03:17 | `main.py` v2.1 | 555.8 | unknown | COMPLETE | retired baseline |
@@ -29,12 +42,14 @@
 
 | Date (UTC) | Agent / file | Ladder μ (public) | Private | Status | Notes |
 |---|---|---:|---:|---|---|
-| 2026-06-11 23:49 | `v3_2_coarr.py` (v3.2 + co-arrival ON) | **648.8** | unknown | COMPLETE | latest-2; T8 ladder experiment |
-| 2026-06-11 23:45 | `main.py` v3.2 (t14) | **636.7** | unknown | COMPLETE | latest-2 |
+| 2026-06-16 04:11 | `v3_forecast.py` (v3 Forecast single-file; our peak line) | _pending_ | unknown | PENDING | **latest-2** (orbit5); re-measure 686 peak; upgrades may best while keeping coarr |
+| 2026-06-11 23:49 | `v3_2_coarr.py` (v3.2 + co-arrival ON) | **640.7** | unknown | COMPLETE | **latest-2** kept (only +on-ladder lever); T8 experiment |
+| 2026-06-11 23:45 | `main.py` v3.2 (t14) | **648.1** | unknown | COMPLETE | retired by orbit5 v3 submit (was latest-2) |
 
 ## Reading
+- **orbit5 active slots (2026-06-16):** harry [`v4_scheduler` _pending_, `kuni05` 1079.7], may [`v3_forecast` _pending_, `v3_2_coarr` 640.7]. v4 + v3 are the live experiments; kuni05 + coarr are the kept anchors. Monitor μ via `ops/live_loop.py --once`; only >1200-in-reasonable-time keeps a slot.
 - **Best own-agent ladder:** ~686 (Forecast v3 peak) / 660 (v3.2 current). 
-- **Best attributed entry:** 1151.0 peak (adapted kuni05, attributed) / 1085.4 current re-submit.
+- **Best attributed entry:** 1151.0 peak (adapted kuni05, attributed) / 1079.7 current re-submit (slow drift).
 - co-arrival on the ladder (may): v3_2_coarr **648.8** vs v3.2 **636.7** → **+12** (mildly positive on-ladder,
   consistent with the offline +3pt evogen-layer finding).
 - Leaderboard top **~1746** (2026-06-14; Isaiah @ Tufa Labs 1745.9, Jake Will 1740.8). Private LB not released.
