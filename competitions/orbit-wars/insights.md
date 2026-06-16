@@ -12,8 +12,11 @@
   kuni05). Evidence: `postmortems/2026-06-16-overkill-revival.md`.
 - **Top-6 are rule/search engines, no NN** — behavior cloning reproduces the *form* not the *system*
   (T12: recall@k 0.387 but 0% in arena). Evidence: `EPISODES.md` #2; issue #87 (T12 v2).
-- **Strong tier wins as integrated systems** — 11 transplanted single-mechanism levers all failed on the suite
-  (incl. v4a counter-attack window, v4f best-response value, v4c cluster hammer, v4i Isaiah two-band, 2026-06-16).
+- **Strong tier wins as integrated systems** — **12** transplanted single-mechanism levers all failed on the suite
+  (incl. v4a counter-attack window, v4f best-response value, v4c cluster hammer, v4i Isaiah two-band, and **T20
+  early-massing `OW_EM`** 2026-06-16: opening capture-and-hold sizing, monotonic-negative vs evogen −7.5→−13.8pt,
+  no positive region — `postmortems/2026-06-16-t20-early-massing.md`). The 多而小 opening gap is real (ep 80118852)
+  but bigger opening fleets over-commit and lose the ship race; the fix is an INTEGRATED opening planner, not a knob.
 - **Rotation is NOT a free transport lever (relay/staging refuted, 2026-06-16).** Inner planets rotate at
   ω∈[0.025,0.05] (`orbit_wars.py:540-546`); a planet's max radial closing speed toward a target = orbital_r·ω
   ≈ 2.35 u/step at the inner-ring edge — *below* even a 19-ship fleet's 2.39 u/step. So flying always beats

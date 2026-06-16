@@ -83,6 +83,23 @@ COARR_TOL = int(_os.environ.get("OW_COARR_TOL", 1))
 # ~4x the loser's fleet size — overwhelming force is insurance, not waste. Scale
 # offensive sizing beyond the minimal capture threshold (1.0 = old behaviour).
 OVERKILL = float(_os.environ.get("OW_OVERKILL", 1.0))
+# T20 - early-game massing (orbit5, ep 80118852: our opening is 多而小 - median
+# ~20-ship launches, we fall behind in planet count and only mass late). Unlike
+# the refuted OW_OVERKILL (blanket, all-game multiply) and OW_OPENING (MORE thin
+# grabs), EM is OPENING-ONLY + NEUTRAL-ONLY: it sizes opening neutral captures for
+# capture-AND-HOLD (bigger -> fly faster via fleet_speed AND leave a surviving
+# garrison), with a small value-gate slack so the conservation-correct (frozen-
+# opponent) value fn - which under-credits the future retake threat - doesn't
+# suppress the hold margin. Default OFF -> byte-identical to the v4 baseline.
+EM = int(_os.environ.get("OW_EM", 0))  # early-mass master gate
+EM_PHASE = int(_os.environ.get("OW_EM_PHASE", 80))  # opening window (steps)
+EM_HOLD = float(
+    _os.environ.get("OW_EM_HOLD", 0.6)
+)  # extra garrison margin (x defender)
+EM_SLACK = float(_os.environ.get("OW_EM_SLACK", 0.15))  # value gate-slack (x needed)
+EM_MIN = int(
+    _os.environ.get("OW_EM_MIN", 0)
+)  # optional min opening launch size (0=off)
 # T14 - short-hop supply chain (replay analysis #1: 56% of the top player's
 # launches are short reinforce hops feeding the front; heavy strikes EMERGE from
 # concentration - the OVERKILL sizing multiplier tested monotonically negative).
@@ -720,6 +737,13 @@ def _agent(obs):
                         defender = bt["ships"][eta_k] if bt is not None else tgt.ships
                         buf = 1 if tgt.owner == -1 else 1 + ENEMY_BUFFER
                         needed = int(math.ceil((defender + buf) * OVERKILL))
+                        # T20 early-mass: opening neutral grabs sized to capture-AND-
+                        # HOLD (heavier -> faster flight + surviving garrison). Re-
+                        # converges eta with the bigger (faster) fleet next iteration.
+                        if EM and step < EM_PHASE and tgt.owner == -1:
+                            needed = int(math.ceil(needed + EM_HOLD * defender))
+                            if EM_MIN:
+                                needed = max(needed, EM_MIN)
                     if needed == ships_guess:
                         break
                     ships_guess = needed
@@ -759,7 +783,19 @@ def _agent(obs):
             value = (_term(sw_o, sw_s) + _term(tw_o, tw_s)) - (
                 base_src_adv + _base_adv(tgt.id)
             )
-            if value <= 0:
+            # T20 early-mass: let the opening capture-and-hold margin through a small
+            # value-gate slack — the frozen-opponent value fn under-credits the future
+            # retake threat that the heavier garrison defends against. OFF -> gate=0.0
+            # -> byte-identical to the baseline `value <= 0`.
+            em_active = (
+                EM
+                and not is_defense
+                and step < EM_PHASE
+                and tgt.owner == -1
+                and not (bt is not None and bt["owner"][eta_k] == player)
+            )
+            gate = -EM_SLACK * needed if em_active else 0.0
+            if value <= gate:
                 continue  # net-negative or pointless -> don't fire
             candidates.append((value, mp.id, tgt.id, angle, needed))
 
