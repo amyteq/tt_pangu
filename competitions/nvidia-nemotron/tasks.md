@@ -34,12 +34,22 @@
   single **GLOBAL deterministic function** (5-char→1–4-char, 36-sym alphabet; 6216 inputs, 35 collisions), NOT
   per-prompt rules. Per-prompt solvers cover ~0% (homomorphism 0%, positional 0.4%; 61.6% have unseen query
   symbols). But offline we hold **7748 input→output pairs** → reverse-engineerable, **~100% ceiling if cracked**.
-- **EQ-2′ (now highest EV): reverse-engineer the global rule** from the 7748 pairs (simple base-36 arithmetic
-  ruled out; non-trivial multi-step transform). Crack → generate exhaustive verified CoT for the whole input space.
-- **EQ-1′** rebuild the generator to the REAL structure (5→1–4-char global function) once the rule/family is known.
-- **EQ-2** offline DSL-search solver over REAL train.csv equation prompts → verified real-prompt CoT (audit "option G", richer DSL) + symbolic regression (PySR/gplearn) for the numeric sub-type.
-- **EQ-3** train an equation-specialist LoRA on EQ-1/EQ-2 → **soup with v14**, T12-gated (lift `equation`, hold bit/cipher; low dose — avoid the B8 dilution).
-- **EQ-4** (stretch) RLVR/GRPO with a rule-reproduction verifiable reward (ties into the GRPO task above), after EQ-1..3.
+- **EQ-2′ ⏸ PARKED (2026-06-16, `nemo5`) — strong-cipher verdict** (see `equation-frontier.md` §8.2–8.3).
+  3 crack rounds eliminated the *entire simple-algebraic space* over base-36: homomorphism, positional perm,
+  residue `in mod M` (cokernel: gcd-of-minors = 6³⁶ structural), `floor(in/D)`, `A±B`, `A÷B`, `A mod B`, `A·B`,
+  products, and `K·in mod M` for K≤60 (K-sweep cokernel). Order-dependent, carries ~3 base-36 digits deep,
+  log-uniform output magnitude — a deliberately strong cipher/PRF, **not recoverable from 7,748 samples by
+  closed-form algebra**. EV of further hand-cracking now low; durable scripts under `analysis/equation/`.
+- **EQ-3 🔄 RUNNING (2026-06-16, `nemo5`) — specialist grid, both accounts.** Pivoted to the empirical bet: a
+  2×2 coverage×dose grid SFT'd on the real equation prompts woven into the v14 replay backbone, all on the RTX
+  Pro 6000 — `nemo-eq-spec` (harry: 1,555 answers, ~16%), `nemo-eq-aug` (harry: 7,814 rotated targets),
+  `nemo-eq-hidose` (may: 1,555×3), `nemo-eq-aug-hidose` (may: 7,814×2). Measure on the late-submission window
+  (100/day); build soup-with-v14 candidates from any that lift `equation` without dropping bit/cipher (T12 gate).
+- **EQ-1′** rebuild the generator to the REAL structure — BLOCKED on EQ-2′ (needs the cracked rule; parked).
+- **EQ-1 / EQ-2** per-prompt induction CoT / DSL solver — INVALIDATED for `equation` by EQ-0 (61.6% unseen-query
+  symbols ⇒ per-prompt solving impossible); superseded by the global-function framing.
+- **EQ-4** (stretch) RLVR/GRPO with a rule-reproduction verifiable reward — needs the cracked rule or the EQ-3
+  model as the reward signal; deferred behind the EQ-3 grid result.
 
 ## Validated this competition
 - **Model-soup of comparable+complementary adapters** beats each member (v14+c1+b1 soup → 0.86). The
