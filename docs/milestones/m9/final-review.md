@@ -203,9 +203,12 @@ Root cause: `tools/kca/db.py` calls `dotenv.load_dotenv(<repo-root>/.env, overri
    applied to the local DB. LB recorded in `submissions.public_score`
    plus mirrored to `experiment_runs.analysis`. Filed as follow-up E.
 4. **Reviewer-flow event-type spelling (T003).** The literal
-   `reviewer_decision` event_type isn't emitted by the worker; the
-   closest emitted types are `reviewer_abstain` and `approval_pause`.
-   The reviewer flow itself fires correctly. Filed as follow-up D.
+   `reviewer_decision` event_type was never emitted by the worker; the
+   actual emitted types are `reviewer_abstain`, `reviewer_reject`,
+   `approval_pause`, and `approval_resume`. The reviewer flow itself
+   fired correctly. The spec has been updated (follow-up D resolved in
+   issue #16): `docs/tasks/m9/M9-T003-reviewer-approval-gate.md` now
+   references the correct literals.
 5. **No `GET /decisions` endpoint on decision_api.** The UI reads
    pending decisions via supabase-js directly; only the
    approve/reject/ask-improve writes go through the FastAPI service.
@@ -241,10 +244,11 @@ post-merge. Summary:
 3. **C. `decision_api`: no `GET /decisions` endpoint** — UI reads via
    supabase-js; CLI automation would benefit.
    Labels: `area:supabase`, `type:feature`, `priority:P2`.
-4. **D. `reviewer_decision` literal event_type not emitted** — closest
-   emitted: `reviewer_abstain` / `approval_pause`; probably just spec
-   alignment.
-   Labels: `area:worker`, `type:docs`.
+4. **D. `reviewer_decision` literal event_type not emitted** *(resolved)* —
+   spec updated in issue #16 (Option 1): `docs/tasks/m9/M9-T003` now
+   documents the correct event types (`reviewer_abstain`, `reviewer_reject`,
+   `approval_pause`, `approval_resume`). A `tests/test_worker_review_events.py`
+   smoke test drives the contract.
 5. **E. Migration 0004 optional columns not applied to local DB** —
    `submissions.public_lb_score`, `submissions.run_id`, etc.
    Labels: `area:supabase`, `type:bug`.

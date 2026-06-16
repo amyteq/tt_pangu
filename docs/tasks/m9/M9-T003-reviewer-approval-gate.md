@@ -52,7 +52,7 @@ This task assumes **M9-T002 closeout is PASS** with a staged
 
 - `agent_reviews` row exists for the M9 run.
 - `human_decisions` row exists with `status='pending'` then `approved`.
-- `agent_job_events` shows the `reviewer_decision` event.
+- `agent_job_events` shows the reviewer/approval events: one of `reviewer_abstain` / `reviewer_reject` / `approval_resume` (per reviewer verdict), plus `approval_pause` when escalating to a human decision.
 - `kca decisions list --json` shows the approved row.
 - `services/decision_api/tests/test_decision_api.py` still passes
   (regression).
@@ -73,7 +73,7 @@ This task assumes **M9-T002 closeout is PASS** with a staged
 M9-T003 closeout
   agent_reviews.id: <uuid>
   human_decisions.id: <uuid>  status: approved
-  agent_job_events: <count> events written (reviewer_decision present)
+  agent_job_events: <count> events written (reviewer_abstain|reviewer_reject|approval_resume; approval_pause if human-escalated)
   decision_api GET /decisions: pending=0 after approve
   UI render verified: YES | NO
   Real submit triggered? NO  (verified via worker stop reason: <reason>)
