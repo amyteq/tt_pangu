@@ -130,6 +130,72 @@ V4_HAMMER_HOLD = float(_os.environ.get("OW_V4_HAMMER_HOLD", 1.3))  # need x marg
 V4_HAMMER_BAND = float(_os.environ.get("OW_V4_HAMMER_BAND", 0.9))  # Isaiah band
 V4_LOG = _os.environ.get("OW_LOG", "")  # event-log path ("" = off)
 
+# === OVERKILL revival (issue #87 follow-up, 2026-06-16) ===================
+# Two scoped revivals of the refuted standalone OW_OVERKILL multiplier (it tested
+# monotonically negative because heavy strikes EMERGE from concentration+timing,
+# they are not an output sizing rule — EPISODES.md #1). Both live inside the
+# integrated v4 scheduler and credit the *counter-attack window*: the t100-125
+# decisive-exchange insight that an oversized hammer is worth far more than its
+# ship count WHEN it lands while the enemy field army is committed in transit and
+# the target's nearby enemy support is drained.
+#
+# v4a (OW_V4A) — POLICY layer on the hub hammer: when the enemy is committed and
+#   the target is exposed (no enemy source can reinforce before our hammer lands),
+#   bump the drain band (true overkill), re-rank toward the most exposed target,
+#   and optionally let a conservation-neutral hammer through (V4A_SLACK). Does NOT
+#   touch the conservation-correct terminal value — it is an explicit policy bonus,
+#   like the hub-and-hammer itself.
+V4A = int(_os.environ.get("OW_V4A", 0))
+V4A_WINDOW = float(_os.environ.get("OW_V4A_WINDOW", 0.45))  # enemy-commit frac to act
+V4A_BAND_BONUS = float(
+    _os.environ.get("OW_V4A_BAND_BONUS", 0.08)
+)  # extra drain in-window
+V4A_SLACK = float(
+    _os.environ.get("OW_V4A_SLACK", 0.15)
+)  # allow neutral hammer (x need)
+V4A_RANK_BONUS = float(
+    _os.environ.get("OW_V4A_RANK_BONUS", 0.5)
+)  # exposed-target rank weight
+#
+# v4f (OW_V4F) — VALUE-function fix (FM3): relax the frozen-opponent assumption.
+#   When valuing ANY strike, append the enemy's best single reinforcing launch
+#   (nearest source able to reach the target within H) to the target's arrival
+#   schedule. Strikes the enemy can cheaply parry lose value; strikes that land
+#   while no enemy can respond gain it — the OVERKILL insurance value made visible
+#   to the value function (derived, not knobbed). 1-ply / single-responder so it
+#   does not over-suppress (modeling every enemy planet rushing in kills attacks).
+V4F = int(_os.environ.get("OW_V4F", 0))
+V4F_RESP_FRAC = float(
+    _os.environ.get("OW_V4F_RESP_FRAC", 0.8)
+)  # frac of responder garrison
+V4F_RESP_BUF = int(
+    _os.environ.get("OW_V4F_RESP_BUF", 1)
+)  # responder may land up to k+buf
+
+# === OVERKILL revival round 2 (issue #87 follow-up, 2026-06-16) ============
+# Two more scoped sub-cuts of the concentration theme, separate gates.
+#
+# v4c (OW_V4C) — CLUSTER-targeted hammer: among value-positive hammer targets,
+#   prefer the one embedded in the densest enemy/neutral cluster (most non-owned
+#   planets within V4C_RADIUS, weighted by ships), not the highest single-planet
+#   terminal value (which is often an isolated planet). Captures the episode
+#   insight that concentration should land where it opens a chain — the won
+#   planet becomes a forward beachhead and follow-up hammers grind the cluster.
+#   Ranking-only policy bonus; the value<=gate test is unchanged.
+V4C = int(_os.environ.get("OW_V4C", 0))
+V4C_RADIUS = float(_os.environ.get("OW_V4C_RADIUS", 30.0))  # cluster neighborhood
+V4C_BONUS = float(_os.environ.get("OW_V4C_BONUS", 0.4))  # density rank weight
+#
+# v4i (OW_V4I) — Isaiah two-band sizing (analysis #2): the #1 player sizes launches
+#   in two discrete bands — a near-full-drain (~0.9) band early/mid and a ~half
+#   (~0.52) band late (observed median step 115 vs 287). Replace the fixed hammer
+#   band with a phase schedule: drain HI before V4I_SWITCH, LO after (hold reserves
+#   in the endgame point-defense phase). Sizing-only; targeting/value unchanged.
+V4I = int(_os.environ.get("OW_V4I", 0))
+V4I_HI = float(_os.environ.get("OW_V4I_HI", 0.9))  # early/mid drain band
+V4I_LO = float(_os.environ.get("OW_V4I_LO", 0.52))  # late drain band
+V4I_SWITCH = int(_os.environ.get("OW_V4I_SWITCH", 200))  # phase switch step
+
 # Per-PLAYER state (red-team: a shared dict couples the two seats of a mirror
 # match through sys.modules and serially corrupts paired-seed A/Bs).
 _V4S = {}
@@ -370,6 +436,7 @@ def _agent(obs):
     prod_by_id = {p.id: p.production for p in planets}
     owner0_by_id = {p.id: p.owner for p in planets}
     ships0_by_id = {p.id: float(p.ships) for p in planets}
+    _pos_by_id = {p.id: (p.x, p.y) for p in planets}
 
     def _safe_surplus(pid):
         """C1 ThreatLedger: max ships that can leave pid NOW with the planet
@@ -476,6 +543,33 @@ def _agent(obs):
     def _base_adv(pid):
         t = base_traj.get(pid)
         return _term(t["owner"], t["ships"]) if t else 0.0
+
+    def _enemy_response(tid):
+        """v4f (FM3): the enemy's best single reinforcing launch onto `tid`. The
+        nearest enemy source that can reach `tid` within H sends V4F_RESP_FRAC of
+        its garrison, arriving at its ETA (clamped into [1, H], allowing up to
+        +V4F_RESP_BUF turns of slack). One responder = a 1-ply best response;
+        modeling every enemy planet rushing in over-suppresses attacks. Returns a
+        list of (k, owner, ships) arrivals to append to the target's schedule."""
+        if not V4F:
+            return []
+        tx, ty = _pos_by_id[tid]
+        best = None  # (eta, owner, ships)
+        for ep in enemy_planets:
+            if ep.id == tid:
+                continue
+            send = V4F_RESP_FRAC * ep.ships
+            if send < 1.0:
+                continue
+            eta = _hypot(ep.x, ep.y, tx, ty) / _fleet_speed(int(send))
+            if eta > PROJ_H + V4F_RESP_BUF:
+                continue
+            if best is None or eta < best[0]:
+                best = (eta, ep.owner, send)
+        if best is None:
+            return []
+        k = max(1, min(PROJ_H, int(math.ceil(best[0]))))
+        return [(k, best[1], float(best[2]))]
 
     def _defense_needed(pid):
         """Reinforcement to keep an owned planet held: replay its do-nothing arrivals;
@@ -653,6 +747,8 @@ def _agent(obs):
                 PROJ_H,
             )
             tw_arr = base_arr.get(tgt.id, []) + [(eta_k, player, float(needed))]
+            if V4F:
+                tw_arr = tw_arr + _enemy_response(tgt.id)
             tw_o, tw_s = _replay(
                 owner0_by_id[tgt.id],
                 ships0_by_id[tgt.id],
@@ -740,8 +836,39 @@ def _agent(obs):
                 cur = best
             st4["hub"] = cur.id
             hub = cur
+            # v4a counter-attack window: enemy field-army commitment (the frac of
+            # enemy mass that is in transit, i.e. away from home and unable to
+            # defend) — the t100-125 decisive-exchange signal from EPISODES.md #1.
+            commit = 0.0
+            if V4A:
+                e_inflight = sum(f.ships for f in fleets if f.owner != player)
+                e_onplanet = sum(p.ships for p in enemy_planets)
+                commit = e_inflight / max(1.0, e_inflight + e_onplanet)
+
+            def _exposure(t, k):
+                """1.0 if no enemy source can reinforce target `t` before our
+                hammer lands at turn `k`; -> 0 if a source already beats our
+                arrival (well-defended). The target half of the window."""
+                nearest = None
+                for ep in enemy_planets:
+                    if ep.id == t.id:
+                        continue
+                    eta = _hypot(ep.x, ep.y, t.x, t.y) / _fleet_speed(
+                        max(1, int(ep.ships))
+                    )
+                    if nearest is None or eta < nearest:
+                        nearest = eta
+                if nearest is None:
+                    return 1.0
+                return max(0.0, min(1.0, (nearest - k) / max(1.0, float(k))))
+
+            band = V4_HAMMER_BAND
+            if V4I:  # Isaiah two-band: full-drain early/mid, half late
+                band = V4I_HI if step < V4I_SWITCH else V4I_LO
+            if V4A and commit >= V4A_WINDOW:
+                band = min(1.0, band + V4A_BAND_BONUS)  # true overkill
             hub_avail = remaining.get(hub.id, 0)
-            hammer_size = int(hub_avail * V4_HAMMER_BAND)
+            hammer_size = int(hub_avail * band)
             # Bank until the stack is a real hammer (diag: need x hold alone
             # fires 18-63-ship pebbles non-stop; the hub never accumulates).
             if hammer_size >= V4_HAMMER_MIN and hammer_size <= launch_budget:
@@ -771,6 +898,8 @@ def _agent(obs):
                         PROJ_H,
                     )
                     tw = base_arr.get(tgt.id, []) + [(k, player, float(hammer_size))]
+                    if V4F:
+                        tw = tw + _enemy_response(tgt.id)
                     tw_o, tw_s = _replay(
                         owner0_by_id[tgt.id],
                         ships0_by_id[tgt.id],
@@ -781,10 +910,30 @@ def _agent(obs):
                     val = (_term(sw_o, sw_s) + _term(tw_o, tw_s)) - (
                         _base_adv(hub.id) + _base_adv(tgt.id)
                     )
-                    if val <= 0:
+                    # v4a: in an open counter-attack window (enemy committed AND
+                    # target exposed), let a conservation-neutral hammer through
+                    # (gate slack) and re-rank toward the most exposed target —
+                    # the OVERKILL "insurance" value conservation can't see.
+                    gate, score = 0.0, val
+                    if V4A and commit >= V4A_WINDOW:
+                        expo = _exposure(tgt, k)
+                        if expo > 0.0:
+                            gate = -V4A_SLACK * float(need)
+                            score = val + V4A_RANK_BONUS * commit * expo * hammer_size
+                    # v4c: re-rank toward targets embedded in a dense enemy/neutral
+                    # cluster (chain-opening beachhead), not isolated high-value ones.
+                    if V4C:
+                        dens = sum(
+                            1
+                            for ep in offense_targets
+                            if ep.id != tgt.id
+                            and _hypot(ep.x, ep.y, tgt.x, tgt.y) <= V4C_RADIUS
+                        )
+                        score = score + V4C_BONUS * dens * hammer_size
+                    if val <= gate:
                         continue
-                    if best_fire is None or val > best_fire[0]:
-                        best_fire = (val, tgt.id, ang, hammer_size)
+                    if best_fire is None or score > best_fire[0]:
+                        best_fire = (score, tgt.id, ang, hammer_size, val)
                 if best_fire is not None:
                     _v4_log(
                         st4,
@@ -792,7 +941,7 @@ def _agent(obs):
                         "hammer",
                         tgt=best_fire[1],
                         n=best_fire[3],
-                        val=round(best_fire[0], 1),
+                        val=round(best_fire[4], 1),
                     )
                     moves.append([hub.id, best_fire[2], int(best_fire[3])])
                     remaining[hub.id] -= best_fire[3]

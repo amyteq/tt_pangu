@@ -7,9 +7,13 @@
   still in transit. This was the one big lever (556→686). Evidence: `README.md` (Forecast key bug).
 - **少而重 > 多而小** — concentrated strikes (e.g. 27×78 ships) beat many small ones (117×19); ~56% of a top
   winner's launches are short-hop reinforcement (supply chain). Evidence: `EPISODES.md` #1 (Jake Will).
+  *Does not transplant:* OVERKILL multiplier, T14 supply, and the 2026-06-16 v4a/v4f/v4c/v4i revivals all failed
+  the gate — concentration is emergent, and v4 can't reach the top-tier board states where it pays (~1–2% vs
+  kuni05). Evidence: `postmortems/2026-06-16-overkill-revival.md`.
 - **Top-6 are rule/search engines, no NN** — behavior cloning reproduces the *form* not the *system*
   (T12: recall@k 0.387 but 0% in arena). Evidence: `EPISODES.md` #2; issue #87 (T12 v2).
-- **Strong tier wins as integrated systems** — 7 transplanted single-mechanism levers all failed on the suite.
+- **Strong tier wins as integrated systems** — 11 transplanted single-mechanism levers all failed on the suite
+  (incl. v4a counter-attack window, v4f best-response value, v4c cluster hammer, v4i Isaiah two-band, 2026-06-16).
 
 ## Potentially reusable insights
 
