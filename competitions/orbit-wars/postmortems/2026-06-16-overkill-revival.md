@@ -1,7 +1,39 @@
 # Experiment spec — OVERKILL revival (concentration → heavy-strike)
 
 > Issue #87 follow-up, 2026-06-16. Branch `worktree-orbit-overkill`.
-> Status: **gate run complete (snorlax, 2026-06-16) — both arms FAILED.** See Results.
+> Status: **round 1 (v4a/v4f) + round 2 (v4c/v4i) all FAILED.** See Results.
+
+## Round 2 results (local HARRY-ARCH arena, 150 paired seeds vs evogen)
+
+Two more sub-cuts requested after round 1, run locally on the reconstructed
+gate (durable venv `~/.venvs/orbit-wars`, evogen fidelity 18.8% vs snorlax 17.3%).
+
+| arm | evogen | Δ vs baseline | verdict |
+|---|---|---|---|
+| baseline | 17.3% (52-248) | — | |
+| v4c (cluster hammer) | 17.0% (51-249) | **−0.3pt** | REFUTED (24-seed smoke +8.3pt was noise) |
+| v4i (Isaiah band) @switch=200 | 17.3% (52-248) | +0.0pt | inert (byte-identical) |
+| v4i @switch=120 | 17.0% (51-249) | −0.3pt | null |
+| v4i @switch=80 | 16.3% (49-251) | −1.0pt | negative |
+
+- **v4c — REFUTED.** Re-ranking the hammer toward the densest enemy/neutral
+  cluster gives no win-rate. The 24-seed smoke (+8.3pt) was pure sampling noise.
+- **v4i — REFUTED across all switch values.** Diagnostic (10 games): median game
+  vs evogen is **~152 steps, only 2/10 reach step 200**, so Isaiah's faithful
+  late-game half-drain band (switch 200) is inert — we don't survive to the
+  endgame phase Isaiah's band is for. Forcing it earlier (switch 120/80) so it
+  engages is null→negative: holding reserves / smaller hammers earlier hurts an
+  agent that is already losing the ship race. Isaiah's band is an endgame
+  point-defense optimization; it has nothing to optimize when you lose by step 152.
+
+These are the 10th/11th refuted single-mechanism transplants — same H2 conclusion.
+Note: the gate's "kuni05" column was a PHANTOM in round 2 (local kuni05 needs
+`torch`; without it the agent errored → did nothing → v4 "won" ~96%). torch later
+installed; evogen (17.3%, faithful) was always the real gate. All four gates
+(`OW_V4A/V4F/V4C/V4I`) left default-OFF.
+
+---
+
 
 ## Results (snorlax, 150 paired seeds vs evogen, +7pt bar)
 
