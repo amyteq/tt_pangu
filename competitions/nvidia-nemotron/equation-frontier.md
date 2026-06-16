@@ -227,3 +227,37 @@ Per the human "go deep" decision, extended the attack to the families §8.2 hadn
   **EQ-3 specialist grid** — `eq-spec` / `eq-aug` / `eq-hidose` / `eq-aug-hidose` (a 2×2 coverage×dose grid
   across both accounts, all training on the RTX Pro 6000), measured on the late-submission window (100/day).
   If even the best grid point can't lift `equation` on the official metric, it is a confirmed structural hard tail.
+
+### 8.4 EQ-3 empirical result (2026-06-16) — specialist SFT COLLAPSES → frontier closed
+Ran `nemo-eq-spec` (the grid's **lowest** dose: 1,555 real equation prompts woven ~16% into the v14 replay
+backbone, 303 steps, loss→0.001) and measured it per-category with `nemo-eqspec-eval` (the T12 min-logprob
+hard-val, 72 hardest, official greedy metric), against `soup` / `v14` / `base` anchors on the identical set:
+
+| adapter | overall | bit | **equation** | cipher | numeral | gravity | unit |
+|---|---:|---|---|---|---|---|---|
+| v14 | 0.778 | 14/16 | **2/16** | 16/16 | 8/8 | 8/8 | 8/8 |
+| soup | 0.764 | 13/16 | **2/16** | 16/16 | 8/8 | 8/8 | 8/8 |
+| base (no adapter) | 0.347 | 0/16 | 0/16 | 4/16 | 8/8 | 7/8 | 6/8 |
+| **eq-spec** | **0.167** | 0/16 | **0/16** | **0/16** | 8/8 | **0/8** | 4/8 |
+
+- **Equation did NOT lift** (0/16 — *worse* than soup/v14's 2/16, equal to base). Confirms EQ-0/EQ-2′: the cipher
+  is uninferable; SFT on 1,555 query answers memorises specific contexts, generalises to **nothing** on held-out
+  inputs (61.6% unseen-query symbols).
+- **It catastrophically collapsed the reasoning categories** — cipher 0/16 (*below* base's 4/16), gravity 0/8
+  (*below* base's 7/8), bit 0/16. Overall 0.167 ≪ base 0.347.
+- **Mechanism = answer-shortcutting** (preflight proof: on a bit problem eq-spec emitted `\boxed{00010110}` with
+  **zero chain-of-thought**). The equation training target was a **bare** `\boxed{ans}` with no reasoning; driven
+  to loss→0.001 it taught the model to skip CoT entirely → catastrophic forgetting of the v14 backbone's CoT.
+  This is the v5/v6 bare-answer-SFT lesson, sharpened: equation answers are short and have **no derivable CoT**
+  (the cipher is unknown), so SFT on them is *pure* shortcut-induction.
+- **Dose-response is monotonic-worse:** the other 3 grid members (`eq-aug` 7,814 targets; `eq-hidose` ×3;
+  `eq-aug-hidose` ×2) share the identical bare-answer recipe at *higher* volume/dose ⇒ predicted same-or-worse
+  collapse. They were folded into a single confirmatory batch eval rather than blind LB submissions.
+- **eq-spec is strictly worse than base → NOT soup'd with v14** (would only dilute the robust recipe).
+
+**Frontier closed.** `equation` is now exhausted from both directions: **cryptanalysis** (§8.2–8.3: strong
+cipher, algebraic space eliminated) and **empirical SFT** (§8.4: specialist collapses; no CoT to teach because
+the rule is unknown). A CoT-based fix is *also* blocked (can't author correct equation reasoning without the
+cipher), and EQ-4 (RLVR) is dead (no verifiable reward: neither a cracked rule nor a working model exists).
+**Verdict: under the static-LoRA / no-tools / greedy-decode constraints, `equation` is unsolvable.** The 0.86
+soup (0.85 private) is the robust ceiling; no SFT lever moves this category.

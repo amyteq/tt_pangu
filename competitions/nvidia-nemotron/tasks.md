@@ -45,14 +45,25 @@
   Pro 6000 — `nemo-eq-spec` (harry: 1,555 answers, ~16%), `nemo-eq-aug` (harry: 7,814 rotated targets),
   `nemo-eq-hidose` (may: 1,555×3), `nemo-eq-aug-hidose` (may: 7,814×2). Measure on the late-submission window
   (100/day); build soup-with-v14 candidates from any that lift `equation` without dropping bit/cipher (T12 gate).
-  - **Status (06:02Z):** `nemo-eq-spec` ✅ COMPLETE (303/303 steps, loss→0.001, valid rank-32 submission.zip) →
-    **SUBMITTED v1 06:00Z, scoring PENDING** (LB verdict awaited). `nemo-eq-aug` / `nemo-eq-hidose` /
-    `nemo-eq-aug-hidose` still training; watchers running, auto-submit on completion (user-approved campaign).
+  - **❌ NEGATIVE RESULT (2026-06-16, `nemo-eqspec-eval` per-category hard-val):** `nemo-eq-spec`
+    **collapsed** — overall **0.167** vs base 0.347 vs soup/v14 **0.76–0.78**. `equation` **0/16 (NOT lifted;
+    worse than soup/v14's 2/16)** AND it destroyed the reasoning categories: bit 0/16, cipher **0/16 (< base 4)**,
+    gravity **0/8 (< base 7)**. Mechanism (preflight proof: emitted `\boxed{00010110}` with *zero* CoT): the
+    bare-answer equation SFT (`resp = \boxed{ans}`, no reasoning, loss→0.001) taught **answer-shortcutting** →
+    catastrophic CoT forgetting. Same lesson as v5/v6 bare-answer SFT, sharpened. eq-spec submitted to LB
+    (v1 06:00Z) for the record; **NOT soup'd with v14** (strictly worse). The other 3 grid members share the
+    *identical* bare-answer recipe at higher dose ⇒ collapse is monotonic-worse; **do not blind-submit** — fold
+    into one batch eval on completion to confirm the dose-response, then close. Equation has **no derivable CoT**
+    (cipher unknown, EQ-2′) so a CoT-based fix is also blocked. **Verdict: `equation` is unsolvable by static-LoRA
+    SFT under our constraints.**
 - **EQ-1′** rebuild the generator to the REAL structure — BLOCKED on EQ-2′ (needs the cracked rule; parked).
 - **EQ-1 / EQ-2** per-prompt induction CoT / DSL solver — INVALIDATED for `equation` by EQ-0 (61.6% unseen-query
   symbols ⇒ per-prompt solving impossible); superseded by the global-function framing.
-- **EQ-4** (stretch) RLVR/GRPO with a rule-reproduction verifiable reward — needs the cracked rule or the EQ-3
-  model as the reward signal; deferred behind the EQ-3 grid result.
+- **EQ-4** (stretch) RLVR/GRPO with a rule-reproduction verifiable reward — **DEAD**: needs the cracked rule
+  (EQ-2′ parked) or a working model as the reward signal (EQ-3 is 0/16 on equation → useless as a verifier).
+- **Frontier closed (2026-06-16):** equation is exhausted from both directions — cryptanalysis (EQ-2′ strong
+  cipher) and empirical SFT (EQ-3 collapse). The 0.86 soup / 0.85-private result is the robust ceiling; no SFT
+  lever moves `equation`.
 
 ## Validated this competition
 - **Model-soup of comparable+complementary adapters** beats each member (v14+c1+b1 soup → 0.86). The
