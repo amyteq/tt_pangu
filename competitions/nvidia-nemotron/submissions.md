@@ -1,5 +1,11 @@
 # Submissions — nemo
 
+> **PRIVATE LB RELEASED 2026-06-16.** Both team accounts finished **0.85 private**. harrysun2006 (`flyingfox`)
+> public rank **150/4350** (0.86); private top 0.92. Public→private was robust (no shake-up). Key: **soup
+> 0.86→0.85** (most robust 0.86, selected); **surgery 0.86→0.84** (−0.02, worst-aging — *not* selected, vindicated);
+> **b2 0.84→0.85** (+0.01, the may hedge that paid off). Full analysis + per-submission private deltas:
+> [`postmortems/2026-06-16-final-postmortem.md`](./postmortems/2026-06-16-final-postmortem.md).
+>
 > **Refreshed 2026-06-15 via read-only Kaggle API** (`kaggle competitions submissions`, both accounts;
 > creds in `.vscode/.env.harry` / `.vscode/.env.may`, read-for-use only). All rows below are confirmed
 > `SubmissionStatus.COMPLETE`. Private LB column is empty in the API (not released) → `unknown`.
