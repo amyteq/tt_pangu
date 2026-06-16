@@ -40,11 +40,14 @@
   products, and `K·in mod M` for K≤60 (K-sweep cokernel). Order-dependent, carries ~3 base-36 digits deep,
   log-uniform output magnitude — a deliberately strong cipher/PRF, **not recoverable from 7,748 samples by
   closed-form algebra**. EV of further hand-cracking now low; durable scripts under `analysis/equation/`.
-- **EQ-3 🔄 RUNNING (2026-06-16, `nemo5`) — specialist grid, both accounts.** Pivoted to the empirical bet: a
+- **EQ-3 🔄 RUNNING (2026-06-16) — specialist grid, both accounts.** Pivoted to the empirical bet: a
   2×2 coverage×dose grid SFT'd on the real equation prompts woven into the v14 replay backbone, all on the RTX
   Pro 6000 — `nemo-eq-spec` (harry: 1,555 answers, ~16%), `nemo-eq-aug` (harry: 7,814 rotated targets),
   `nemo-eq-hidose` (may: 1,555×3), `nemo-eq-aug-hidose` (may: 7,814×2). Measure on the late-submission window
   (100/day); build soup-with-v14 candidates from any that lift `equation` without dropping bit/cipher (T12 gate).
+  - **Status (06:02Z):** `nemo-eq-spec` ✅ COMPLETE (303/303 steps, loss→0.001, valid rank-32 submission.zip) →
+    **SUBMITTED v1 06:00Z, scoring PENDING** (LB verdict awaited). `nemo-eq-aug` / `nemo-eq-hidose` /
+    `nemo-eq-aug-hidose` still training; watchers running, auto-submit on completion (user-approved campaign).
 - **EQ-1′** rebuild the generator to the REAL structure — BLOCKED on EQ-2′ (needs the cracked rule; parked).
 - **EQ-1 / EQ-2** per-prompt induction CoT / DSL solver — INVALIDATED for `equation` by EQ-0 (61.6% unseen-query
   symbols ⇒ per-prompt solving impossible); superseded by the global-function framing.
