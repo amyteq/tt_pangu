@@ -36,6 +36,13 @@ from distill_prep import _decode_target  # noqa: E402  (reuse verified decoder)
 LIVE = os.path.join(COMP, "live")
 EP_INDEX = os.path.join(LIVE, "episodes_index.csv")
 MATCHES = os.path.join(LIVE, "matches.csv")
+FINDINGS_MD = os.path.join(LIVE, "episodes_findings.md")
+
+# Per-episode links for manual review (PR #111 review request). The watch URL opens
+# the interactive replay in the Kaggle episode viewer; the replay URL is the raw
+# JSON this loop downloads (same source EPISODES.md analysis used).
+WATCH_URL = "https://www.kaggle.com/competitions/orbit-wars/leaderboard?dialog=episodes-episode-{id}"
+REPLAY_URL = "https://www.kaggleusercontent.com/episodes/{id}.json"
 
 CENTER = 50.0
 SUN_R = 10.0
@@ -60,8 +67,40 @@ EP_COLS = [
     "sun_collision",
     "hard_bug",
     "winner_reason",
+    "interesting",
     "followup_task",
+    "watch_url",
+    "replay_url",
 ]
+
+
+def _interesting(result: str, sun_flag: str, hard_flag: str, reason: str) -> str:
+    """Flag episodes that warrant a manual human review (PR #111 request):
+    any correctness anomaly (hard bug / sun collision) or a result the
+    winner-reason heuristic can't explain. Returns a short why-flagged tag, or
+    "" if the episode looks routine."""
+    if hard_flag and hard_flag != "none":
+        return "hard-bug"
+    if sun_flag == "YES":
+        return "sun-proximity"
+    if reason.startswith("unknown"):
+        return "unexplained-result"
+    if result == "loss" and ("picked apart" in reason or "attrition" in reason):
+        return "loss-pattern"
+    return ""
+
+
+def _suggest_followup(interesting: str, hard_flag: str) -> str:
+    """Default follow-up note for a flagged episode (humans/loop may overwrite)."""
+    if not interesting:
+        return ""
+    if interesting == "hard-bug":
+        return f"REVIEW: investigate hard bug — {hard_flag}"
+    if interesting == "sun-proximity":
+        return "REVIEW: check pathing/sun-avoidance near the sun"
+    if interesting == "unexplained-result":
+        return "REVIEW: watch replay — heuristic could not explain the result"
+    return "REVIEW: watch replay — strategic loss pattern"
 
 
 def _final_ships(obs: dict, seat: int) -> float:
@@ -198,6 +237,7 @@ def analyze(path: str, our_usernames: set[str]) -> list[dict]:
         reason = _winner_reason(seat, result == "win", stats, opp_stats, late_sun)
         sun_flag = "YES" if n_sun > 0 else "no"
         hard_flag = "; ".join(hard) if hard else "none"
+        interesting = _interesting(result, sun_flag, hard_flag, reason)
         row = {
             "episode_id": episode_id,
             "date_analyzed": "",
@@ -221,13 +261,17 @@ def analyze(path: str, our_usernames: set[str]) -> list[dict]:
             "sun_collision": sun_flag,
             "hard_bug": hard_flag,
             "winner_reason": reason,
-            "followup_task": "",
+            "interesting": interesting,
+            "followup_task": _suggest_followup(interesting, hard_flag),
+            "watch_url": WATCH_URL.format(id=episode_id),
+            "replay_url": REPLAY_URL.format(id=episode_id),
         }
         rows.append(row)
+        flag = f" INTERESTING[{interesting}]" if interesting else ""
         print(
             f"{episode_id} seat{seat} {agents[seat]} vs {opp}: {result.upper()} "
             f"steps={len(steps)} launches={launches} (atk {attacks}/rein {reinforces}) "
-            f"sun={sun_flag} hard=[{hard_flag}] reason='{reason}'"
+            f"sun={sun_flag} hard=[{hard_flag}] reason='{reason}'{flag}"
         )
     return rows
 
@@ -236,6 +280,19 @@ def _append_csv(path: str, cols: list[str], rows: list[dict]) -> None:
     if not rows:
         return
     os.makedirs(os.path.dirname(path), exist_ok=True)
+    # If an older CSV with a different header exists, migrate it to the current
+    # columns (preserve old rows; new columns blank) so appends never misalign.
+    if os.path.isfile(path):
+        with open(path, newline="") as f:
+            reader = csv.DictReader(f)
+            old = list(reader)
+            old_cols = reader.fieldnames or []
+        if old_cols != cols:
+            with open(path, "w", newline="") as f:
+                w = csv.DictWriter(f, fieldnames=cols)
+                w.writeheader()
+                for r in old:
+                    w.writerow({c: r.get(c, "") for c in cols})
     exists = os.path.isfile(path)
     with open(path, "a", newline="") as f:
         w = csv.DictWriter(f, fieldnames=cols)
@@ -243,6 +300,69 @@ def _append_csv(path: str, cols: list[str], rows: list[dict]) -> None:
             w.writeheader()
         for r in rows:
             w.writerow({c: r.get(c, "") for c in cols})
+
+
+def render_findings_md(index_path: str = EP_INDEX, out_path: str = FINDINGS_MD) -> int:
+    """(Re)generate the human-reviewable episode findings page from the full
+    episodes index CSV: a status table of every analyzed episode (with watch /
+    replay links) plus a "Needs manual review" section listing the flagged
+    interesting/unexpected episodes. Returns the number of flagged episodes.
+
+    Addresses the PR #111 review request: surface episode links + interesting
+    episodes for manual review, not just the machine-readable CSV."""
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    rows: list[dict] = []
+    if os.path.isfile(index_path):
+        with open(index_path, newline="") as f:
+            rows = list(csv.DictReader(f))
+    flagged = [r for r in rows if r.get("interesting")]
+    lines = [
+        "# Orbit Wars — episode findings (manual-review index)",
+        "",
+        "> Auto-generated by `ops/episode_analyze.py` from `live/episodes_index.csv`.",
+        "> One row per analyzed seat of OUR agents. **Watch** opens the Kaggle replay",
+        "> viewer; **JSON** is the raw replay. Flagged rows need a human look.",
+        "",
+        f"- episodes (rows): **{len(rows)}** | flagged for review: **{len(flagged)}**",
+        "",
+    ]
+    if flagged:
+        lines += [
+            "## 🔎 Needs manual review (unexpected / interesting)",
+            "",
+            "| episode | result | flag | why / winner-reason | follow-up | links |",
+            "|---|---|---|---|---|---|",
+        ]
+        for r in flagged:
+            eid = r.get("episode_id", "?")
+            links = (
+                f"[watch]({r.get('watch_url', '')}) · [JSON]({r.get('replay_url', '')})"
+            )
+            lines.append(
+                f"| `{eid}` | {r.get('result', '?')} | **{r.get('interesting', '')}** | "
+                f"{r.get('hard_bug', '') if r.get('hard_bug') not in ('', 'none') else r.get('winner_reason', '')} | "
+                f"{r.get('followup_task', '')} | {links} |"
+            )
+        lines.append("")
+    lines += [
+        "## All analyzed episodes",
+        "",
+        "| episode | seat | opp | result | steps | atk/rein | sun | hard-bug | winner-reason | links |",
+        "|---|---|---|---|---:|---|---|---|---|---|",
+    ]
+    for r in sorted(rows, key=lambda r: r.get("episode_id", "")):
+        eid = r.get("episode_id", "?")
+        links = f"[watch]({r.get('watch_url', '')}) · [JSON]({r.get('replay_url', '')})"
+        lines.append(
+            f"| `{eid}` | {r.get('our_seat', '')} | {r.get('opp_name', '')} | "
+            f"{r.get('result', '')} | {r.get('steps', '')} | "
+            f"{r.get('attacks', '')}/{r.get('reinforces', '')} | {r.get('sun_collision', '')} | "
+            f"{r.get('hard_bug', '')} | {r.get('winner_reason', '')} | {links} |"
+        )
+    lines.append("")
+    with open(out_path, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    return len(flagged)
 
 
 def main() -> None:
@@ -255,7 +375,11 @@ def main() -> None:
     rows = analyze(args.episode_json, users)
     if args.record and rows:
         _append_csv(EP_INDEX, EP_COLS, rows)
-        print(f"recorded {len(rows)} row(s) -> {os.path.relpath(EP_INDEX, COMP)}")
+        n_flagged = render_findings_md()
+        print(
+            f"recorded {len(rows)} row(s) -> {os.path.relpath(EP_INDEX, COMP)}; "
+            f"findings -> {os.path.relpath(FINDINGS_MD, COMP)} ({n_flagged} flagged)"
+        )
 
 
 if __name__ == "__main__":
