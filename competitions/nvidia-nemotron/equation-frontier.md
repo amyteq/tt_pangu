@@ -189,10 +189,19 @@ Re-derived the 7,695 clean global pairs first-hand (scripts now committed under 
   sub-fields of the 5 chars (e.g. A=`in[:4]`, B=`in[4]` as a 0–35 divisor gives the full 1–4 length range:
   B≈35,A small → 1 digit; B=1 → 4 digits). Order-dependent and carry-heavy, both consistent. This refines
   §8.1's "multiplicative/affine" guess to a **division-of-operands** family.
-- **Remaining crack = a nonlinear joint solve** of σ (36-symbol→value bijection) **and** the split+operation
-  (which positions form A vs B; div vs mod). Tractable as an ILP/SAT/constraint search (group pairs by the
-  candidate divisor glyph → within a group the ratio `val(A)/val(out)` is constant → propagate σ), but it is
-  the genuine **real-effort/uncertain-payoff** fork (a–c above). EQ-3 (model pivot) is already testing path
-  (b) empirically in parallel; recommend a human decision on how much further to invest in path (a) before
-  spending more GPU on info-capped specialist variants (all share the same 7,748-pair information ceiling
-  until the rule cracks and full-coverage CoT can be generated).
+- **Division-of-operands family TESTED → also DEAD** (`analysis/equation/crack_div.py`). For every split
+  `A=in[:k]` and op ∈ {`floor(A/B)`, `A mod B`, `floor(B/A)`, `B mod A`}, across 5 σ seeds (incl. the
+  untried *digits→0–9* seed) the exact-match rate is ≤ **58/7695 (0.75%, at chance)**; the soft
+  interval-penalty hill-climb (4000 swaps) stays flat (final exact 0–9). So the transform is **not** a
+  simple two-operand divide/mod with a positional split either.
+- **Net after round 2:** eliminated — homomorphism, positional permutation, residue `in mod M`, `floor(in/D)`,
+  fixed-split `A±B`, and now `A÷B`/`A mod B`. The transform is a *single global* 5→1-4-glyph function that is
+  order-dependent, carries ~3 base-36 digits deep, and has log-uniform output magnitude, but defeats every
+  simple closed-form arithmetic tried. **Working conclusion: a deliberately strong cipher** (consistent with
+  it defeating GPT-5.4 per-prompt and andy279's 399-unsolvable tail). Remaining crack paths are heavy:
+  joint σ+op **SAT/ILP**, multiplicative/modular-exponentiation forms, or an iterated/CA-style cipher — all
+  high-effort, low-probability-per-unit-effort. **Recommendation:** treat path (a) hand-crack as a
+  diminishing-returns research bet to greenlight explicitly; rely on **EQ-3 (model pivot, running)** as the
+  pragmatic empirical test of whether SFT on the 7,748 pairs interpolates the function at all. Do **not**
+  spend more GPU on extra specialist variants — they share the same 7,748-pair information ceiling until the
+  rule cracks (then full-coverage verified CoT becomes the real win).
