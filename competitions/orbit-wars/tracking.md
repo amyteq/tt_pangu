@@ -29,6 +29,12 @@
   was our OWN history, label only). Episode 80118852 = our kuni05's 4p WIN, and it CONFIRMS an early 多而小 weakness:
   early (≤step80) median launch **20 ships**, behind at step40 (5 vs 7 planets), massing only mid/late (median
   238 late). Mass-earlier is the real lever (T20/T21). Monitor μ via `ops/live_loop.py --once`.
+- 🟢 **Strong-tier foundation (2026-06-16, prompts 01/03):** built the deterministic execution +
+  battlefield-awareness substrate `core/` (geometry + FlightOracle + ArrivalLedger + typed
+  BattlefieldState + ECA RuleEngine) the hybrid/model plan sits on — `tests_orbit` 11/11 pass,
+  `arena/validate.py` clean (no agent regression). Schema: `discussions/2026-06-16-battlefield-state-schema.md`.
+  Next: wire the FlightOracle gate into `agent/main.py` emission (prompt 02 integration), then
+  replay dataset (04) → model training (05) → hybrid (06) → ladder loop (07) toward μ≥1200.
 - **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
   (evogen 1093 / multifocus / kuni05 1240).
 

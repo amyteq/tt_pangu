@@ -70,3 +70,15 @@
 - evidence: `arena/pool.py` (~30–40× across cores; deterministic)
 - transfer scope: pure-Python simulation competitions
 - status: validated
+
+### INS-007: deterministic execution core + typed BattlefieldState as the hybrid substrate
+- type: rule
+- confidence: high
+- evidence: OW-P0-STATE-LEDGER-001 — `core/{geometry,oracle,ledger,state,features,rule_engine}.py`
+  built on the engine-verified primitives; FlightOracle gives a single deterministic first-hit/
+  target-validation gate (tests 6/6), BattlefieldState/ledger give typed awareness (tests 5/5),
+  RuleEngine hard-blocks unsafe launches + tactically re-weights. `arena/validate.py` clean.
+- transfer scope: any agent/hybrid task — keep continuous-control execution deterministic + tested,
+  let the model only rank/score candidates (never own raw angle/landing). This is the foundation the
+  strong-tier cliff attack needs; bolt-on single levers failed (13×, INS-005/strategy.md H2) precisely
+  because there was no integrated state+execution layer for an integrated policy to sit on.
