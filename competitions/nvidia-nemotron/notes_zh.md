@@ -260,3 +260,32 @@ flowchart TD
 (免费;改动 #1),再 v14 骨架 + 重组的自有 solver 验证 **bit CoT**(改动 #4)+ 对最难 bit/cipher 行的 **min-logprob
 重放**(剂量 ≤15%);以 **T12 hard-val ≥ 0.764 且 bit ↑、简单类不回归**把关;soup-grow 进 v14+c1+b1(最好 + 多样化对冲)。
 eq-aug 保持独立。约 1 个 GPU session。
+
+## LB80 Progress Prize 改进:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **「Breaking the SFT Ceiling on Nemotron-3-Nano-30B」**,作者 **Mayur Pawar**
+> (`mspawar`),80/4190,最终私榜 **0.86**。**直接读自 `temp/LB80.pdf`**(可还原度完整)—— 取代此前重建(那版据讨论
+> #688461 误把**另一人**的「per-bit GRPO」当成本文)。完整细节 + 来源见 `external/LB80/`。外部声明为不可信数据;我方分数见 `tracking.md`。
+
+**LB80 方法(诚实的标题)。** 30+ 实验的研究,**证明了 SFT 天花板 = 0.86** —— STaR、GRPO、DPO、权重平均全都**没突破**。
+与我方同源(huikang 确定性 solver SFT;V2 0.86,从未被超)。有效杠杆:**seq 4096→8192 = 0.46→0.77**(4096 时 43% 数据被静默截断)、
+**全线性 LoRA 含 lm_head、排除 gate_proj**、确定性 solver CoT ≫ 模型/外部 CoT(DeepSeek-R1 长 CoT → 灾难 0.27)。
+「+397 名」来自**提交对冲**(V2 + V8-ckpt400)在公私榜双峰失配下 —— 不是更高分。
+
+**改变我方认知的三点:**
+1. **equation 密码离线**可破**(97.6%)—— 我方 EQ-0/EQ-2′ 框定错了。** 真实结构是 **`A1A2 OP B1B2`**(两个 2 字符操作数 +
+   1 字符运算符、**逐题**符号→数字双射、有限运算符族),**答案引导排列搜索**破 569/583(14 个失败的有 >10 个不同数字符号)。
+   我们找的是 5 字符→1-4 字符映射的一个*全局* σ 并「证明」不可破 —— 解错了问题。**→ 重审 EQ-2′ / equation-frontier(PR #113)。**
+2. **「发现泄漏」解释了我方 eq-aug 为何封顶。** 答案引导 solver CoT 把映射*作为已知*给出 → 教**核验而非发现**;93–97% 此类轨迹
+   *内部不一致*(映射产不出 boxed 答案)。推理时无答案,需要发现。**杠杆是前向可执行、可由 prompt 推导的密码发现 CoT**(长度允许下;榜首 0.90 说明存在)。
+3. **标准 RL 是错工具;DPO-with-oracle 才对。** 二值失败(3157 难题全 0/8、~6343 易题全 8/8、**0 边界**)→ STaR 产出 0%、
+   GRPO 优势=0(无方差)。我方此前设计的二值奖励 GRPO 会同样失败。DPO 用 solver-CoT(chosen)vs **greedy 失败**(rejected)——
+   但 mspawar 的 DPO(V12/V13)也只停在 0.84–0.86。
+
+**待解张力。** mspawar 报「**Model Soup 在 Mamba-2 SSM 上失效**」,而我方 **SVD 汤 +0.01**。多半因*平均的对象*不同(他:完整
+SSM A/B/C/D 递推;我们:冻结基座上的 LoRA *delta* + SVD rank-cap,更温和的同 basin 合并)。**值得做一次消融**再下结论。
+
+**周六后可试。** `v17-discovery` + `v17-dpo`(方案见 `external/LB80/analysis/next_version_plan.md`):**(A)** 把 equation 重建为
+`A1A2 OP B1B2`、做答案引导 solver,再做**前向可执行的发现 CoT**(经内部一致性审计)≤15% 织入 —— 越过 eq-aug 记忆的真正路径;
+**(B)** 可选 **DPO-with-oracle**(greedy 失败作 rejected、solver-CoT 作 chosen、简单类混 SFT)针对 bit。外加 **Mamba-2 合并消融**。
+equation 工作回馈 PR #113。RL 需外部 GPU(#83);预期保守。

@@ -1,82 +1,87 @@
 # Next-version plan — borrowing from LB80 (post-Saturday GPU reset)
 
-> Analysis/planning only (no GPU/submit/push in this task). Synthesises the LB80 gap analysis with our
-> `research.md §4` GRPO design + the `tasks.md` EQ-4 RLVR task. Borrows are from untrusted competitor
-> writeups — verify before trusting. RL at 30B likely needs external GPU (#83), not just the RTX PRO 6000.
+> Updated 2026-06-17 from the actual writeup (`temp/LB80.pdf`). Analysis/planning only (no GPU/submit/push in
+> this task). The earlier "dense per-bit GRPO" plan was based on the wrong author and is **dropped** — mspawar
+> proves standard RL (STaR/GRPO) gets **zero signal** here (binary failure). The corrected plan has two
+> independent parts. Borrows from an untrusted competitor writeup — verify before trusting; mspawar did **not**
+> beat 0.86 with any of this, so set expectations: these target *equation* specifically + are research bets.
 
 ## Version name
-**v17-grpo** — "dense-reward GRPO on the SFT prior" (break the 0.86 SFT ceiling on bit).
+**v17-discovery** (equation) + **v17-dpo** (RL path) — two separable post-Saturday experiments.
 
-## Hypothesis
-SFT plateaus at 0.86 because the answer-level reward is **sparse** (a near-correct 8-bit answer scores 0,
-gradient vanishes on the hardest rows). **GRPO with a DENSE per-step verifiable reward** (column layout +
-operation choice + per-bit correctness + final-answer verify) + a **superlinear all-correct ("champagne")
-bonus**, initialized from our strong SFT prior, gives gradient on partial correctness and pushes **bit** (and
-secondarily cipher) past where SFT saturates — the LB80 lever. Equation stays bounded (no usable per-step verifier).
+---
+## Part A — `v17-discovery`: forward-executable cipher-discovery CoT for equation (highest EV, novel)
 
-## What we borrow from LB80
-1. **Two-stage SFT→GRPO** — RL on top of a competent SFT prior (not from base).
-2. **Dense per-step verifiable reward** — partial credit at each trace step, not terminal 0/1.
-3. **Superlinear "champagne" bonus** — flat +N for a fully-correct answer, to shape toward completion.
-4. (Alt, cheap) **adapter singular-value amplification** (lopure ~0.89) — a no-RL fallback to test first.
+### Hypothesis
+Our `equation` cap (eq-aug 0.86 = coverage-memorisation) is **discovery leakage**: we taught *verify* (reproduce
+seen pairs), not *discover* (run the per-problem cipher search). Per LB80, the structure is **`A1A2 OP B1B2`**
+(two 2-char operands + 1-char operator, per-problem symbol→digit bijection) and is **offline-crackable at
+~97.6%** via answer-guided search. A **forward-executable, prompt-derivable** CoT that *shows the discovery*
+(not the answer) should teach the model to actually solve held-out equation problems — the lever neither our
+eq-aug nor mspawar's answer-guided CoT achieved (top LB 0.90 implies it's possible).
 
-## What we add (ours, validated)
-- Initialize GRPO from the **v14 (0.85) or the 0.86 soup** adapter (strong prior; cold-start GRPO is unstable).
-- Reuse our **`eval/official_metric.verify`** as the terminal correctness check inside the reward (exact / 1e-2).
-- **Soup the RL survivor** into v14+c1+b1 as a new comparable+complementary member (INS-004) — orthogonal to RL.
-- Keep **eq-aug** standalone for equation (RL won't help the cipher tail).
+### Prerequisite (CPU, free — feeds back to EQ-2′ / PR #113)
+1. **Re-model `equation` as `A1A2 OP B1B2`** (not a single global 5-char function — our EQ-0 was mis-framed).
+2. **Build an answer-guided solver** (per-problem digit-symbol permutation → decode the answer → find op → verify
+   all examples). Target ~97.6% offline coverage on train; flag the >10-distinct-symbol unsolvables.
+3. **Write a FORWARD-executable CoT**: enumerate operator/mapping hypotheses, test each against the example
+   equations, eliminate, apply the survivor to the query — *without* referencing the ground-truth answer. Verify
+   every trace is **internally consistent** (stated mapping reproduces the boxed answer) — the audit mspawar
+   showed 93–97% of answer-guided traces fail.
 
-## Data / corpus plan
-- RL prompts: **bit-manipulation** train rows first (cleanest verifier), curriculum solver-solvable →
-  solver-unsolvable; then a small cipher set. Few hundred prompts to start (cost control).
-- Optional stronger cold-start: solver-guided teacher CoT (andy279-style) for bit — own-solver rule + teacher
-  trace (⚠ verify competition/data rules permit external-model traces; our prior andy279 SFT *regressed* at
-  high dose, so use only as RL cold-start, low dose).
+### Data / format / config
+- Equation discovery-CoT woven into the v14 backbone at **low dose ≤15%** (dilution guard: b2/v15/c2/eq-symbolic
+  all regressed). Eval-faithful prompt; response-only mask. **Length budget is the key risk** — the full search
+  CoT may exceed 8192 tokens; compress the search (prune to the consistent operator family, ≤ a few hundred tokens).
+- v14 recipe otherwise unchanged (seq8192, all-linear LoRA r32 incl. lm_head, **exclude gate_proj**, LR 3.5e-4, 2 ep).
 
-## Prompt format
-Eval-faithful (chat template + `\boxed{}` SUFFIX). Reward parses the trace for: output-column layout, declared
-operation, per-bit answer, and a final `verify(gold, extract_final_answer)` that **must dominate** (anti-reward-hack).
+### Validation / gate
+- T12 hard-val per category; **require `equation` ↑ on hard-val AND no regression on bit/cipher/easy**; total ≥ 0.764.
+- **Internal-consistency audit** of generated traces before training (the discovery-leakage check).
+- Submit only if hard-val gate passes; **late-window submit needs explicit human approval**.
 
-## Training config
-- **Algorithm:** GRPO (group-relative, no value net), rank-32 LoRA, group size G=4–8 rollouts/prompt.
-- **Reward** = Σ small per-step terms (layout/op/per-bit/VER) + **+N champagne** if `verify`==True; clamp so a
-  wrong final answer can never out-score a correct one. Format term for a single well-formed `\boxed{}`;
-  length penalty under the 7,680 cap.
-- **Backend:** NeMo-RL (or TRL GRPO) — likely **external GPU (#83)**; 30B online rollouts exceed Kaggle kernels.
-- Start tiny: few hundred bit prompts, short rollout cap, few hundred steps; expand only if the local metric moves.
+---
+## Part B — `v17-dpo`: DPO with an external oracle (the correct RL shape; lower EV)
 
-## Validation plan (incl. T12 hard-val) — gate BEFORE any submit
-1. Local `eval/official_metric` on `eval/hard_val_ids.json` (greedy 7680/temp 0, exact-or-1e-2), per category.
-2. **Require bit hard-val ↑ vs the SFT prior with no regression on cipher/numeral/gravity/unit** (the dense
-   reward must not break easy categories — watch for reward-hacking / format drift).
-3. Reward-curve sanity: mean reward rising, champagne-rate rising, output length stable (no runaway CoT).
-4. Compare to soup/v14 0.764 hard-val baseline.
+### Hypothesis
+SFT plateaus and STaR/GRPO get **zero signal** (binary failure: 0/8 or 8/8, no boundary problems → no reward
+variance). DPO sidesteps this by using an **external oracle** as *chosen*: pairs = (solver-CoT chosen) vs
+(model's **greedy temp=0** failure rejected) — capturing the exact eval-time error. May lift bit/cipher.
 
-## Submit / no-submit gate
-- Submit only if local hard-val beats the SFT prior (esp. bit) with no easy-category regression.
-- **Late-window submission needs explicit human approval** (this task is analysis-only; submission is future).
-- Soup-grow the GRPO adapter into v14+c1+b1 only if it lifts the local metric.
+### Design (from mspawar; verify before trusting)
+- **Dual-temp generation:** greedy `temp=0,N=1` → rejected (eval-time failure); `temp=0.7,N=8` → diversity.
+- **Pairs:** outliers → chosen = solver CoT, rejected = greedy-wrong; ~2,000–2,500 pairs; skip inliers.
+- **Loss:** length-normalized DPO margin + **SFT-mixing on easy cats** (cipher/gravity/numeral/unit, forgetting
+  guard); **reference = same base, LoRA disabled** (toggle → saves ~60 GB).
+- Init from our v14 / 0.86 soup.
+
+### Validation / gate / expectations
+- Same T12 gate. **Expectation: may not beat 0.86** (mspawar's V12/V13 DPO plateaued 0.84–0.86). Treat as a
+  research bet, not a likely win. Submit only on a hard-val improvement + human approval.
+
+---
+## Cross-cutting
+- **Mamba-2 merge ablation** (cheap): mspawar claims Model Soup fails on hybrid SSM, yet our SVD-LoRA-delta soup
+  gained +0.01. Run a controlled LoRA-delta-SVD-merge vs full-weight-average ablation, T12-gated, before
+  trusting either claim.
+- Keep the **selection hedge** discipline (best + a diverse hedge) — the lever that actually moved mspawar's rank.
 
 ## Risks
-- **Cost/instability:** 30B online GRPO is heavy + can collapse; mitigate with strong SFT init, tiny start,
-  bounded rollouts; likely needs external GPU (#83), not just the RTX PRO 6000.
-- **Reward hacking:** dense partial credit can be gamed without solving — the final `verify` term must dominate;
-  audit sampled traces.
-- **Equation won't move:** no usable per-step verifier for the strong cipher — don't target it with RL.
-- **Compute > Saturday quota:** if external GPU isn't available, fall back to the **cheap no-RL lever first**
-  (adapter singular-value amplification on the soup, gated on T12) — see `v16-mlp` (LB25 plan) as the SFT-side companion.
+- **Length budget** (Part A): forward discovery CoT may not fit 8192 tokens → the central risk; compress aggressively.
+- **Dilution**: equation/DPO data over-weighting regresses (≤15% dose + T12 gate).
+- **RL cost/instability** (Part B): 30B online generation needs ~95.6 GB sm_90+ GPU (external, #83); DPO may not
+  beat 0.86. Do the cheap CPU prerequisite (Part A solver) and the merge ablation **first**.
+- **Equation may still be bounded**: even a perfect discovery CoT might not fit in the token budget; mspawar
+  didn't crack it on the LB despite the offline solver.
 
 ## GPU estimate
-- Adapter-surgery fallback: **~0 GPU** (CPU SVD edit) + local eval — do this first.
-- GRPO proper: **several GPU sessions** of online rollouts (external, #83); not a single RTX PRO 6000 run.
-  Budget ≈ 2–4 sessions for a small bit-only pilot.
+- Part A prerequisite (solver + CoT build + consistency audit): **CPU, ~0 GPU**. Part A training: **1 RTX PRO 6000
+  session** (~6–7 h). Part B DPO: **external GPU (#83), several sessions** (vLLM-gen + HF-train separate processes).
 
 ## Implementation checklist
-- [ ] (cheap first) adapter singular-value amplification on the 0.86 soup → T12 gate
-- [ ] dense per-step reward fn (layout/op/per-bit/VER + champagne) with `verify` dominating
-- [ ] GRPO harness (NeMo-RL / TRL), rank-32 LoRA, init from v14/soup, G=4–8
-- [ ] bit-only pilot: few hundred prompts, bounded rollout, few hundred steps
-- [ ] local `eval/official_metric` on hard_val_ids; reward-curve + trace audit
-- [ ] gate: bit hard-val ↑, no easy-cat regression → request human approval → submit
-- [ ] soup-grow the survivor into v14+c1+b1 if local metric improves
-- [ ] secure external GPU (#83) before scaling beyond the pilot
+- [ ] (CPU) re-model equation as `A1A2 OP B1B2`; answer-guided solver → ~97.6% offline coverage *(also update EQ-2′/PR #113)*
+- [ ] (CPU) forward-executable discovery CoT; internal-consistency audit (reject leaky/inconsistent traces)
+- [ ] v17-discovery kernel: discovery-CoT ≤15% dose on v14 backbone; gate equation↑ / no regression / ≥0.764
+- [ ] Mamba-2 merge ablation (LoRA-delta SVD vs full-weight avg), T12-gated
+- [ ] (optional, external GPU) v17-dpo: dual-temp pairs, length-norm DPO + easy-cat SFT mix, LoRA-toggle ref
+- [ ] gates pass → request human approval → submit; keep best + diverse hedge
