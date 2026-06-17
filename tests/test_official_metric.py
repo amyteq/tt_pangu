@@ -5,12 +5,7 @@ from pathlib import Path
 
 sys.path.insert(
     0,
-    str(
-        Path(__file__).resolve().parents[1]
-        / "competitions"
-        / "nvidia-nemotron"
-        / "eval"
-    ),
+    str(Path(__file__).resolve().parents[1] / "competitions" / "nvidia-nemotron" / "eval"),
 )
 
 import official_metric as om  # noqa: E402

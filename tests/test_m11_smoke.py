@@ -100,10 +100,7 @@ def test_migration_0008_tables_present(db_conn):
     with db_conn.cursor() as cur:
         missing = [t for t in expected if not _table_exists(cur, t)]
     if missing:
-        pytest.skip(
-            f"M11 migration 0008 not applied (missing tables: {missing}); "
-            "live-db job is green pre-migration"
-        )
+        pytest.skip(f"M11 migration 0008 not applied (missing tables: {missing}); live-db job is green pre-migration")
     # All four present — explicit PASS.
     assert missing == []
 
@@ -159,12 +156,8 @@ def test_ctf_challenges_contains_web_and_crypto_for_fixture_event(db_conn):
             f"event {EVENT_SLUG!r}, found {len(rows)}; T004 seed missing"
         )
     slugs = {r[0] for r in rows}
-    assert WEB_CHALLENGE_SLUG in slugs, (
-        f"missing web challenge {WEB_CHALLENGE_SLUG!r}; have {slugs!r}"
-    )
-    assert CRYPTO_CHALLENGE_SLUG in slugs, (
-        f"missing crypto challenge {CRYPTO_CHALLENGE_SLUG!r}; have {slugs!r}"
-    )
+    assert WEB_CHALLENGE_SLUG in slugs, f"missing web challenge {WEB_CHALLENGE_SLUG!r}; have {slugs!r}"
+    assert CRYPTO_CHALLENGE_SLUG in slugs, f"missing crypto challenge {CRYPTO_CHALLENGE_SLUG!r}; have {slugs!r}"
     # Category sanity — protects against a copy-paste regression in T004.
     categories = {r[0]: r[1] for r in rows}
     if WEB_CHALLENGE_SLUG in categories:
@@ -197,10 +190,7 @@ def test_ctf_scopes_contains_fixture_scopes(db_conn):
             "not present; T004 / T003 ctf scope set must run first"
         )
     if len(names) < EXPECTED_SCOPES:
-        pytest.skip(
-            f"only {len(names)}/{EXPECTED_SCOPES} fixture scopes present "
-            f"({names!r}); partial T004 seed"
-        )
+        pytest.skip(f"only {len(names)}/{EXPECTED_SCOPES} fixture scopes present ({names!r}); partial T004 seed")
     assert WEB_SCOPE_NAME in names
     assert CRYPTO_SCOPE_NAME in names
 
@@ -235,12 +225,8 @@ def test_agent_reviews_records_t006_challenge_run_and_flag_submit(db_conn):
             f"target_op ∈ (challenge_run, flag_submit); found {total} "
             f"({by_op!r}). T006 reviewer-gate round-trip must run first"
         )
-    assert by_op.get("challenge_run", 0) >= 1, (
-        f"no challenge_run review rows recorded; T006 partial. by_op={by_op!r}"
-    )
-    assert by_op.get("flag_submit", 0) >= 1, (
-        f"no flag_submit review rows recorded; T006 partial. by_op={by_op!r}"
-    )
+    assert by_op.get("challenge_run", 0) >= 1, f"no challenge_run review rows recorded; T006 partial. by_op={by_op!r}"
+    assert by_op.get("flag_submit", 0) >= 1, f"no flag_submit review rows recorded; T006 partial. by_op={by_op!r}"
 
 
 # ---------------------------------------------------------------------------

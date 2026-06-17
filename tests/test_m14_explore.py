@@ -37,13 +37,7 @@ import explore  # noqa: E402
 
 MIGRATION = REPO_ROOT / "supabase" / "migrations" / "0011_m14_goal_loop.sql"
 FIXTURE = REPO_ROOT / "tests" / "fixtures" / "tpu-getting-started" / "search-space.yaml"
-FIXTURE_SAMPLE = (
-    REPO_ROOT
-    / "tests"
-    / "fixtures"
-    / "tpu-getting-started"
-    / "search-space-sample.yaml"
-)
+FIXTURE_SAMPLE = REPO_ROOT / "tests" / "fixtures" / "tpu-getting-started" / "search-space-sample.yaml"
 KCA = REPO_ROOT / "tools" / "kca" / "kca.py"
 
 _PG_BINS_PRESENT = all(shutil.which(b) for b in ("initdb", "pg_ctl", "postgres"))
@@ -157,13 +151,9 @@ def test_fake_screen_is_pure_and_in_range():
 
 
 def test_baseline_template_overrides_axes():
-    seed = (
-        REPO_ROOT
-        / "experiments"
-        / "tpu-getting-started"
-        / "baseline-tl"
-        / "baseline.py"
-    ).read_text(encoding="utf-8")
+    seed = (REPO_ROOT / "experiments" / "tpu-getting-started" / "baseline-tl" / "baseline.py").read_text(
+        encoding="utf-8"
+    )
     cell = {"backbone": "resnet50", "image_size": 224, "epochs": 6}
     out = explore._render_cell_baseline(seed, cell, "run-z")
     assert "_KCA_IMAGE_SIZE = (224, 224)" in out
@@ -263,14 +253,12 @@ def comp_env(pg_url):
     with psycopg.connect(pg_url, autocommit=True) as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO competitions (slug, title) VALUES (%s, %s) "
-                "RETURNING id::text",
+                "INSERT INTO competitions (slug, title) VALUES (%s, %s) RETURNING id::text",
                 (slug, "explore test"),
             )
             comp_id = cur.fetchone()[0]
             cur.execute(
-                "INSERT INTO goals (competition_id, target_lb_score, exit_strategy) "
-                "VALUES (%s::uuid, %s, %s)",
+                "INSERT INTO goals (competition_id, target_lb_score, exit_strategy) VALUES (%s::uuid, %s, %s)",
                 (comp_id, 0.85, "score_only"),
             )
     env = dict(os.environ)

@@ -198,9 +198,7 @@ def _drive_gate(
                 )
                 for k, v in tool_input.items()
             },
-            "side_effect": "SUBMISSION"
-            if target_op == "flag_submit"
-            else "REMOTE_WRITE",
+            "side_effect": "SUBMISSION" if target_op == "flag_submit" else "REMOTE_WRITE",
             "decision_id": decision_id,
             "review_id": review_id,
             "verdict": verdict.verdict,
@@ -212,10 +210,7 @@ def _drive_gate(
 def _kca_decisions_approve(decision_id: str, notes: str) -> None:
     res = _kca("decisions", "approve", "--id", decision_id, "--notes", notes)
     if res.returncode != 0:
-        raise RuntimeError(
-            f"kca decisions approve failed (rc={res.returncode}): "
-            f"{res.stderr or res.stdout}"
-        )
+        raise RuntimeError(f"kca decisions approve failed (rc={res.returncode}): {res.stderr or res.stdout}")
     out = json.loads(res.stdout.strip().splitlines()[-1])
     if not out.get("ok"):
         raise RuntimeError(f"kca decisions approve returned ok=false: {out}")
@@ -240,9 +235,7 @@ def stage_challenge_run() -> dict:
       6. Append `tool_result` event linking the gate to the new attempt id.
     """
     _log("=== challenge_run round-trip ===")
-    job_id = _create_review_job(
-        prompt="[m11-t006 driver] challenge_run on web-1-cookie-monster (gate ON)"
-    )
+    job_id = _create_review_job(prompt="[m11-t006 driver] challenge_run on web-1-cookie-monster (gate ON)")
     _log(f"agent_jobs id={job_id}")
 
     chal_row = ctf_db.get_challenge(EVENT_SLUG, WEB_SLUG)
@@ -286,10 +279,7 @@ def stage_challenge_run() -> dict:
         cwd=str(REPO_ROOT),
     )
     if t005.returncode != 0:
-        raise RuntimeError(
-            f"T005 harness failed (rc={t005.returncode}). "
-            f"stderr_tail={t005.stderr[-400:]!r}"
-        )
+        raise RuntimeError(f"T005 harness failed (rc={t005.returncode}). stderr_tail={t005.stderr[-400:]!r}")
     # Parse the harness summary JSON. The harness ends its stdout with a
     # `json.dumps(summary, indent=2)` block; find the first balanced `{...}`
     # that contains the "challenges" key.
@@ -323,9 +313,7 @@ def stage_challenge_run() -> dict:
             break
         cursor = end
     if summary is None:
-        raise RuntimeError(
-            f"could not parse T005 harness summary; stdout_tail={stdout[-400:]!r}"
-        )
+        raise RuntimeError(f"could not parse T005 harness summary; stdout_tail={stdout[-400:]!r}")
 
     web_summary = summary["challenges"][WEB_SLUG]
     flag_length = int(web_summary["flag_length"])
@@ -428,10 +416,7 @@ def stage_flag_submit() -> dict:
     challenge_id = chal_row["id"]
     remote_endpoint = chal_row.get("remote_endpoint")
     if remote_endpoint:
-        raise RuntimeError(
-            f"web-1 should have remote_endpoint=null in T006 fixtures; "
-            f"got {remote_endpoint!r}"
-        )
+        raise RuntimeError(f"web-1 should have remote_endpoint=null in T006 fixtures; got {remote_endpoint!r}")
 
     # Recover flag in-memory and write to a 0600 tempfile.
     flag = _recover_flag_in_memory()
@@ -498,13 +483,8 @@ def stage_flag_submit() -> dict:
         )
         cli_payload = json.loads(cli_res.stdout.strip().splitlines()[-1])
         if cli_payload.get("ok"):
-            raise RuntimeError(
-                f"`kca ctf flag submit` unexpectedly succeeded without --dry-run: {cli_payload}"
-            )
-        _log(
-            "kca ctf flag submit (non-dry-run) refused as expected: "
-            f"error={cli_payload.get('error')!r}"
-        )
+            raise RuntimeError(f"`kca ctf flag submit` unexpectedly succeeded without --dry-run: {cli_payload}")
+        _log(f"kca ctf flag submit (non-dry-run) refused as expected: error={cli_payload.get('error')!r}")
 
         _db.append_job_event(
             job_id,
@@ -577,21 +557,13 @@ def stage_refusal_smoke() -> dict:
     )
     scope_payload = json.loads(res.stdout.strip().splitlines()[-1])
     if scope_payload.get("covered"):
-        raise RuntimeError(
-            f"SECURITY REGRESSION: scope verify incorrectly covered kaggle.com: {scope_payload}"
-        )
+        raise RuntimeError(f"SECURITY REGRESSION: scope verify incorrectly covered kaggle.com: {scope_payload}")
     if res.returncode == 0:
-        raise RuntimeError(
-            f"SECURITY REGRESSION: scope verify exited 0 for kaggle.com: rc={res.returncode}"
-        )
-    _log(
-        f"scope verify (out-of-scope) exit={res.returncode} covered={scope_payload.get('covered')}"
-    )
+        raise RuntimeError(f"SECURITY REGRESSION: scope verify exited 0 for kaggle.com: rc={res.returncode}")
+    _log(f"scope verify (out-of-scope) exit={res.returncode} covered={scope_payload.get('covered')}")
 
     # 2. Reviewer-gate that records verdict=reject for the would-be call.
-    job_id = _create_review_job(
-        prompt="[m11-t006 driver] refusal smoke: challenge_run on out-of-scope kaggle.com"
-    )
+    job_id = _create_review_job(prompt="[m11-t006 driver] refusal smoke: challenge_run on out-of-scope kaggle.com")
     _log(f"agent_jobs id={job_id}")
 
     review_id, decision_id = _drive_gate(
@@ -609,9 +581,7 @@ def stage_refusal_smoke() -> dict:
         dry_verdict="reject",
     )
     _log(f"agent_reviews id={review_id} verdict=reject target_op=challenge_run")
-    _log(
-        f"human_decisions id={decision_id} status=pending (no approval, deny by design)"
-    )
+    _log(f"human_decisions id={decision_id} status=pending (no approval, deny by design)")
 
     # Resolve the decision as REJECTED — mirrors the human's "do not approve" path.
     _db.resolve_decision(decision_id, "rejected", notes="m11-t006: out-of-scope target")
@@ -731,9 +701,7 @@ def audit_grep(
     finally:
         conn.close()
 
-    _log(
-        f"audit-grep scanned {rows_scanned} rows across {len(job_ids)} jobs; hits={len(hits)}"
-    )
+    _log(f"audit-grep scanned {rows_scanned} rows across {len(job_ids)} jobs; hits={len(hits)}")
     return {"rows_scanned": rows_scanned, "hits": hits}
 
 

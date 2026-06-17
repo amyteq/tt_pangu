@@ -42,9 +42,7 @@ def main():
     tc = (
         sys.argv[1]
         if len(sys.argv) > 1
-        else os.path.expanduser(
-            "~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/data/train.csv"
-        )
+        else os.path.expanduser("~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/data/train.csv")
     )
     rows = list(csv.DictReader(open(tc, encoding="utf-8")))
     rng = random.Random(13)
@@ -77,15 +75,11 @@ def main():
     for c in sorted(cov):
         h = rng.sample(hard.get(c, []), min(N_HARD, len(hard.get(c, []))))
         a = rng.sample(anchors.get(c, []), min(N_ANCHOR, len(anchors.get(c, []))))
-        out["hard"][c] = [
-            {"id": r["id"], "answer_type": answer_type(r["answer"])} for r in h
-        ]
+        out["hard"][c] = [{"id": r["id"], "answer_type": answer_type(r["answer"])} for r in h]
         out["anchors"][c] = [{"id": r["id"]} for r in a]
     # format-edge: leading-zero binary answers
     lz = [r for r in rows if re.fullmatch(r"0[01]{7}", str(r["answer"]).strip())]
-    out["format_edges"] = {
-        "leading_zero_binary": [r["id"] for r in rng.sample(lz, min(8, len(lz)))]
-    }
+    out["format_edges"] = {"leading_zero_binary": [r["id"] for r in rng.sample(lz, min(8, len(lz)))]}
     n = sum(len(v) for v in out["hard"].values())
     with open(os.path.join(HERE, "hard_val_ids.json"), "w") as f:
         json.dump(out, f, indent=2)

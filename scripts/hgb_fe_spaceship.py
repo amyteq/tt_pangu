@@ -65,11 +65,7 @@ def _split_cabin(df: pd.DataFrame) -> pd.DataFrame:
     parts = cabin.str.split("/", expand=True)
     deck = parts[0].fillna("Missing")
     num = pd.to_numeric(parts[1], errors="coerce") if parts.shape[1] >= 2 else np.nan
-    side = (
-        parts[2].fillna("Missing")
-        if parts.shape[1] >= 3
-        else pd.Series("Missing", index=df.index)
-    )
+    side = parts[2].fillna("Missing") if parts.shape[1] >= 3 else pd.Series("Missing", index=df.index)
     out = df.copy()
     out["Deck"] = deck.astype("string")
     out["CabinNum"] = num
@@ -149,9 +145,7 @@ def main() -> int:
 
     # Align dtypes between train + test (categorical categories union).
     for c in CATEGORICAL_COLS:
-        cats = pd.api.types.union_categoricals(
-            [train_feat[c], test_feat[c]], sort_categories=True
-        ).categories
+        cats = pd.api.types.union_categoricals([train_feat[c], test_feat[c]], sort_categories=True).categories
         train_feat[c] = pd.Categorical(train_feat[c], categories=cats)
         test_feat[c] = pd.Categorical(test_feat[c], categories=cats)
 
@@ -177,9 +171,7 @@ def main() -> int:
         }
     )
     sub_path = run_dir / "submission.csv"
-    submission = (
-        submission.set_index("PassengerId").loc[sample["PassengerId"]].reset_index()
-    )
+    submission = submission.set_index("PassengerId").loc[sample["PassengerId"]].reset_index()
     submission.to_csv(sub_path, index=False)
 
     summary = {

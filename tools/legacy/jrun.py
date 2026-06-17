@@ -144,9 +144,7 @@ def _ensure_dir(path: Path) -> None:
 
 def _write_json(path: Path, data: dict[str, Any]) -> None:
     _ensure_dir(path.parent)
-    path.write_text(
-        json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
-    )
+    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -162,18 +160,12 @@ def _normalize_by_fields(
     return out
 
 
-def _normalize_state(
-    data: dict[str, Any], *, remote_run_dir: str | None = None
-) -> dict[str, Any]:
+def _normalize_state(data: dict[str, Any], *, remote_run_dir: str | None = None) -> dict[str, Any]:
     return _normalize_by_fields(data, STATE_FIELDS, {"remote_run_dir": remote_run_dir})
 
 
-def _normalize_summary(
-    data: dict[str, Any], *, remote_run_dir: str | None = None
-) -> dict[str, Any]:
-    return _normalize_by_fields(
-        data, SUMMARY_FIELDS, {"remote_run_dir": remote_run_dir}
-    )
+def _normalize_summary(data: dict[str, Any], *, remote_run_dir: str | None = None) -> dict[str, Any]:
+    return _normalize_by_fields(data, SUMMARY_FIELDS, {"remote_run_dir": remote_run_dir})
 
 
 def _ensure_dependency(exe: str) -> None:
@@ -219,17 +211,13 @@ def _scp_base_args(args: argparse.Namespace) -> list[str]:
     return cmd
 
 
-def _run_cmd(
-    cmd: list[str], *, capture_output: bool = False, check: bool = True
-) -> subprocess.CompletedProcess[str]:
+def _run_cmd(cmd: list[str], *, capture_output: bool = False, check: bool = True) -> subprocess.CompletedProcess[str]:
     if _LOG_VERBOSE:
         _log(" ".join(shlex.quote(str(part)) for part in cmd), "DEBUG")
     proc = subprocess.run(cmd, text=True, capture_output=capture_output)
     if check and proc.returncode != 0:
         detail = (
-            (proc.stderr or "").strip()
-            or (proc.stdout or "").strip()
-            or f"command failed: {' '.join(map(str, cmd))}"
+            (proc.stderr or "").strip() or (proc.stdout or "").strip() or f"command failed: {' '.join(map(str, cmd))}"
         )
         _die(detail, EXIT_RUNTIME)
     return proc
@@ -289,9 +277,7 @@ def _remote_mkdirs(args: argparse.Namespace, *paths: str) -> None:
     wanted = [path for path in paths if path]
     if not wanted:
         _die("no remote paths specified for mkdir", EXIT_INPUT)
-    script = "set -e; " + " && ".join(
-        f"mkdir -p -- {shlex.quote(path)}" for path in wanted
-    )
+    script = "set -e; " + " && ".join(f"mkdir -p -- {shlex.quote(path)}" for path in wanted)
     _ssh_bash(args, script)
 
 
@@ -310,9 +296,7 @@ def _load_registry(run_id: str) -> dict[str, Any]:
     return _read_json(path)
 
 
-def _context_from_registry_or_args(
-    args: argparse.Namespace, run_id: str
-) -> dict[str, Any]:
+def _context_from_registry_or_args(args: argparse.Namespace, run_id: str) -> dict[str, Any]:
     if getattr(args, "target", None):
         remote_root = args.remote_root or DEFAULT_REMOTE_ROOT
         return {
@@ -330,9 +314,7 @@ def _context_from_registry_or_args(
     return data
 
 
-def _ssh_args_from_ctx(
-    args: argparse.Namespace, ctx: dict[str, Any]
-) -> argparse.Namespace:
+def _ssh_args_from_ctx(args: argparse.Namespace, ctx: dict[str, Any]) -> argparse.Namespace:
     return argparse.Namespace(
         target=ctx.get("target"),
         user=ctx.get("user"),
@@ -357,9 +339,7 @@ def _read_remote_text(ssh_args: argparse.Namespace, remote_path: str) -> str:
     return proc.stdout
 
 
-def _read_remote_json(
-    ssh_args: argparse.Namespace, remote_path: str
-) -> dict[str, Any] | None:
+def _read_remote_json(ssh_args: argparse.Namespace, remote_path: str) -> dict[str, Any] | None:
     text = _read_remote_text(ssh_args, remote_path).strip()
     if not text:
         return None
@@ -391,9 +371,7 @@ def _remote_pid_alive(ssh_args: argparse.Namespace, pid: int | str | None) -> bo
     return proc.returncode == 0
 
 
-def _build_manifest(
-    args: argparse.Namespace, notebook: Path, ctx: dict[str, Any]
-) -> dict[str, Any]:
+def _build_manifest(args: argparse.Namespace, notebook: Path, ctx: dict[str, Any]) -> dict[str, Any]:
     return {
         "run_id": ctx["run_id"],
         "target": ctx["target"],
@@ -440,9 +418,7 @@ def _local_run_dir(run_id: str) -> Path:
     return DEFAULT_LOCAL_ROOT / run_id
 
 
-def _stage_submit_bundle(
-    notebook: Path, manifest: dict[str, Any], state: dict[str, Any]
-) -> Path:
+def _stage_submit_bundle(notebook: Path, manifest: dict[str, Any], state: dict[str, Any]) -> Path:
     run_root = _local_run_dir(manifest["run_id"])
     input_dir = run_root / "input"
     work_dir = run_root / "work"
@@ -460,9 +436,7 @@ def _stage_submit_bundle(
     return run_root
 
 
-def _status_payload(
-    ssh_args: argparse.Namespace, ctx: dict[str, Any]
-) -> dict[str, Any]:
+def _status_payload(ssh_args: argparse.Namespace, ctx: dict[str, Any]) -> dict[str, Any]:
     remote_run_dir = ctx["remote_run_dir"]
     summary = _read_remote_json(ssh_args, f"{remote_run_dir}/summary.json")
     if summary:
@@ -568,9 +542,7 @@ def _submit(args: argparse.Namespace) -> int:
     launched = _ssh_bash(ssh_args, launch_script, capture_output=True)
     launcher_pid = (launched.stdout or "").strip()
     _save_registry(ctx)
-    _log(
-        f"submitted run_id={run_id} target={ctx['target']} launcher_pid={launcher_pid or 'unknown'}"
-    )
+    _log(f"submitted run_id={run_id} target={ctx['target']} launcher_pid={launcher_pid or 'unknown'}")
 
     if not args.wait:
         return _emit_ok(
@@ -593,9 +565,7 @@ def _status(args: argparse.Namespace) -> int:
     ssh_args = _ssh_args_from_ctx(args, ctx)
     payload = _status_payload(ssh_args, ctx)
     launch_hint = (
-        _read_remote_launch_hint(ssh_args, ctx["remote_run_dir"])
-        if payload.get("status") == "submitted"
-        else None
+        _read_remote_launch_hint(ssh_args, ctx["remote_run_dir"]) if payload.get("status") == "submitted" else None
     )
     if args.json:
         return _emit_ok(
@@ -616,9 +586,7 @@ def _status(args: argparse.Namespace) -> int:
     )
 
 
-def _watch(
-    args: argparse.Namespace, *, run_id: str | None = None, from_submit: bool = False
-) -> int:
+def _watch(args: argparse.Namespace, *, run_id: str | None = None, from_submit: bool = False) -> int:
     actual_run_id = run_id or args.run_id
     ctx = _context_from_registry_or_args(args, actual_run_id)
     ssh_args = _ssh_args_from_ctx(args, ctx)
@@ -632,11 +600,7 @@ def _watch(
             dry_run=True,
         )
 
-    deadline = (
-        None
-        if args.timeout is None or args.timeout <= 0
-        else time.time() + args.timeout
-    )
+    deadline = None if args.timeout is None or args.timeout <= 0 else time.time() + args.timeout
     submitted_since = None
     running_since = None
     last_status = None
@@ -733,11 +697,7 @@ def _watch(
 
         if deadline is not None and now >= deadline:
             hint = _read_remote_launch_hint(ssh_args, ctx["remote_run_dir"])
-            message = (
-                f"watch timed out; launch.log tail:\n{hint}"
-                if hint
-                else "watch timed out"
-            )
+            message = f"watch timed out; launch.log tail:\n{hint}" if hint else "watch timed out"
             return _emit_fail(
                 args,
                 message,
@@ -748,17 +708,11 @@ def _watch(
         time.sleep(max(1, int(args.interval)))
 
 
-def _fetch(
-    args: argparse.Namespace, *, run_id: str | None = None, from_submit: bool = False
-) -> int:
+def _fetch(args: argparse.Namespace, *, run_id: str | None = None, from_submit: bool = False) -> int:
     actual_run_id = run_id or args.run_id
     ctx = _context_from_registry_or_args(args, actual_run_id)
     ssh_args = _ssh_args_from_ctx(args, ctx)
-    base = (
-        Path(args.output_dir).expanduser().resolve()
-        if args.output_dir
-        else DEFAULT_LOCAL_ROOT.resolve()
-    )
+    base = Path(args.output_dir).expanduser().resolve() if args.output_dir else DEFAULT_LOCAL_ROOT.resolve()
     local_parent = base if base.name != ctx["run_id"] else base.parent
     fetched_to = local_parent / ctx["run_id"]
     if args.dry_run and not from_submit:
@@ -782,18 +736,14 @@ def _fetch(
 
 
 def _add_common_args(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--json", action="store_true", help="Print minimal JSON to stdout"
-    )
+    parser.add_argument("--json", action="store_true", help="Print minimal JSON to stdout")
     parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Show planned side effects without executing them",
     )
     group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "--quiet", action="store_true", help="Suppress non-error stderr logs"
-    )
+    group.add_argument("--quiet", action="store_true", help="Suppress non-error stderr logs")
     group.add_argument(
         "--verbose",
         action="count",
@@ -807,9 +757,7 @@ def _add_ssh_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--user", help="Remote SSH user")
     parser.add_argument("--port", type=int, help="Remote SSH port")
     parser.add_argument("--identity", help="SSH private key path")
-    parser.add_argument(
-        "--remote-root", default=None, help="Remote root directory for run folders"
-    )
+    parser.add_argument("--remote-root", default=None, help="Remote root directory for run folders")
     parser.add_argument(
         "--remote-python",
         default=None,
@@ -824,9 +772,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
-    submit = sub.add_parser(
-        "submit", prog="jrun.py submit", help="Upload a notebook and start a remote run"
-    )
+    submit = sub.add_parser("submit", prog="jrun.py submit", help="Upload a notebook and start a remote run")
     _add_common_args(submit)
     submit.add_argument("notebook", help="Local .ipynb file")
     _add_ssh_args(submit)
@@ -866,9 +812,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=-1,
         help="Remote ExecutePreprocessor timeout; -1 disables per-cell timeout",
     )
-    submit.add_argument(
-        "--output-dir", help="Local destination root used when --wait fetches artifacts"
-    )
+    submit.add_argument("--output-dir", help="Local destination root used when --wait fetches artifacts")
     submit.add_argument(
         "--artifact-glob",
         action="append",
@@ -911,9 +855,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_HEARTBEAT_TIMEOUT,
         help="Max seconds without heartbeat while running",
     )
-    watch.add_argument(
-        "--timeout", type=int, default=0, help="Overall max seconds to wait; 0 disables"
-    )
+    watch.add_argument("--timeout", type=int, default=0, help="Overall max seconds to wait; 0 disables")
 
     fetch = sub.add_parser(
         "fetch",
@@ -959,20 +901,12 @@ def main(argv: list[str]) -> int:
             exit_code=EXIT_INPUT,
         )
     except SystemExit as exc:
-        if (
-            len(exc.args) == 2
-            and isinstance(exc.args[0], str)
-            and isinstance(exc.args[1], int)
-        ):
+        if len(exc.args) == 2 and isinstance(exc.args[0], str) and isinstance(exc.args[1], int):
             message, exit_code = exc.args
-            return _emit_fail(
-                args, message, error=_error_name(exit_code), exit_code=exit_code
-            )
+            return _emit_fail(args, message, error=_error_name(exit_code), exit_code=exit_code)
         raise
     except KeyboardInterrupt:
-        return _emit_fail(
-            args, "interrupted", error="interrupted", exit_code=EXIT_RUNTIME
-        )
+        return _emit_fail(args, "interrupted", error="interrupted", exit_code=EXIT_RUNTIME)
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ or mirror field should give the hero ~25% win and ~2.5 rank.
 Usage:
     python competitions/orbit-wars/arena/arena4.py --games 30 --procs 23
 """
+
 import argparse
 import os
 import time

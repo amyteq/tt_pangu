@@ -37,9 +37,7 @@ def _first_existing(*paths):
     return paths[-1]
 
 
-REPO_ROOT = os.path.normpath(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
-)
+REPO_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
 
 
 def _cred(basename):
@@ -95,16 +93,11 @@ def main():
 
     # Refuse unknown accounts (task: helper "refuses unknown accounts").
     if args.account not in ACCOUNTS and not os.path.exists(args.account):
-        sys.exit(
-            f"REFUSED: unknown account {args.account!r}; allowed: {sorted(ACCOUNTS)}"
-        )
+        sys.exit(f"REFUSED: unknown account {args.account!r}; allowed: {sorted(ACCOUNTS)}")
 
     # A real (non-dry-run) submit must carry the task authorization token.
     if not args.dry_run and not args.authorized_by_task:
-        sys.exit(
-            "REFUSED: real submit requires --authorized-by-task "
-            f"{TASK_ID} (audit). Use --dry-run for a no-op."
-        )
+        sys.exit(f"REFUSED: real submit requires --authorized-by-task {TASK_ID} (audit). Use --dry-run for a no-op.")
 
     env_path = ACCOUNTS.get(args.account, args.account)
     if not env_path or not os.path.exists(env_path):
@@ -129,11 +122,7 @@ def main():
         "-m",
         args.msg,
     ]
-    auth = (
-        f" [authorized-by-task {args.authorized_by_task}]"
-        if args.authorized_by_task
-        else ""
-    )
+    auth = f" [authorized-by-task {args.authorized_by_task}]" if args.authorized_by_task else ""
     print(f"submitting as {user} (account={args.account}){auth}: {' '.join(cmd)}")
     if args.dry_run:
         print("DRY RUN — nothing sent")

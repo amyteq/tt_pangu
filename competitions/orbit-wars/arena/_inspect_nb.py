@@ -1,4 +1,5 @@
 import json, glob, sys
+
 root = sys.argv[1]
 for nb_path in sorted(glob.glob(root + "/*/*.ipynb")):
     nb = json.load(open(nb_path))

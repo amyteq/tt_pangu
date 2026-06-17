@@ -53,9 +53,7 @@ class PermissionPolicy:
 
 def _records_from_yaml(profile: str, data) -> dict[str, PolicyRecord]:
     if not isinstance(data, list):
-        raise ValueError(
-            f"permission policy {profile!r} must be a YAML list of records"
-        )
+        raise ValueError(f"permission policy {profile!r} must be a YAML list of records")
     out: dict[str, PolicyRecord] = {}
     for item in data:
         if not isinstance(item, dict):
@@ -76,9 +74,7 @@ def _records_from_yaml(profile: str, data) -> dict[str, PolicyRecord]:
     return out
 
 
-def load_policy(
-    profile: str, *, permissions_root: Path | None = None
-) -> PermissionPolicy:
+def load_policy(profile: str, *, permissions_root: Path | None = None) -> PermissionPolicy:
     root = permissions_root or _default_permissions_root()
     path = root / f"{profile}.yaml"
     if not path.is_file():
@@ -149,9 +145,7 @@ def resolve_for_skill(
     Backwards compatibility: callers that omit `competition_type` get the
     pre-M12 behaviour byte-for-byte (skill profile only).
     """
-    type_profile = _resolve_profile_for_competition_type(
-        competition_type, permissions_root=permissions_root
-    )
+    type_profile = _resolve_profile_for_competition_type(competition_type, permissions_root=permissions_root)
     if type_profile is not None:
         policy = load_policy(type_profile, permissions_root=permissions_root)
         if policy.get_record(operation) is not None:

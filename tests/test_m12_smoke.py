@@ -337,8 +337,7 @@ def test_human_decision_row_for_devpost_submit(m12_rows) -> None:
     """T007 left a pending human_decisions row tied to the reviewer gate."""
     did = m12_rows["human_decision_id"]
     assert did is not None, (
-        "no human_decisions row found for devpost_submit; "
-        f"expected T007 to record id={T007_HUMAN_DECISION_ID!r}"
+        f"no human_decisions row found for devpost_submit; expected T007 to record id={T007_HUMAN_DECISION_ID!r}"
     )
 
 
@@ -360,10 +359,7 @@ def test_human_decision_row_for_devpost_submit(m12_rows) -> None:
 )
 def test_devpost_submission_row_recorded(m12_rows) -> None:
     sub = m12_rows["devpost_submission"]
-    assert sub is not None, (
-        "no submissions row with platform='devpost' and a non-empty "
-        "external_submission_id found"
-    )
+    assert sub is not None, "no submissions row with platform='devpost' and a non-empty external_submission_id found"
     _, platform, ext_id = sub
     assert platform == "devpost", platform
     assert ext_id, (
@@ -389,9 +385,6 @@ def test_kaggle_competitions_still_resolve_kaggle_type(m12_rows) -> None:
     # When the DB has Kaggle rows at all, they MUST be typed correctly.
     if count == 0:
         pytest.skip(
-            "no Kaggle competitions seeded in this DB; cross-milestone "
-            "backfill check requires M9 / M10 seed data"
+            "no Kaggle competitions seeded in this DB; cross-milestone backfill check requires M9 / M10 seed data"
         )
-    assert count > 0, (
-        f"expected count > 0 Kaggle competitions with competition_type='kaggle', got {count}"
-    )
+    assert count > 0, f"expected count > 0 Kaggle competitions with competition_type='kaggle', got {count}"

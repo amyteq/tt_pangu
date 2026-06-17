@@ -152,8 +152,7 @@ def _render_prompt(req: ReviewRequest) -> str:
             sresult = _triage.summarise_text(trail_json)
             if sresult.get("ok") and sresult.get("summary"):
                 summary_block = (
-                    f"(event_trail triaged to {sresult.get('endpoint')}:"
-                    f"{sresult.get('model')})\n{sresult['summary']}"
+                    f"(event_trail triaged to {sresult.get('endpoint')}:{sresult.get('model')})\n{sresult['summary']}"
                 )
         except Exception:
             summary_block = None
@@ -220,9 +219,7 @@ class Reviewer:
         dry_verdict: str = "approve",
         dry_rationale: str = "dry-run reviewer auto-approve",
     ) -> None:
-        self.model = (
-            model or os.environ.get("KCA_REVIEWER_MODEL") or DEFAULT_REVIEWER_MODEL
-        )
+        self.model = model or os.environ.get("KCA_REVIEWER_MODEL") or DEFAULT_REVIEWER_MODEL
         try:
             self.max_tokens = int(os.environ.get("KCA_REVIEWER_MAX_TOKENS", max_tokens))
         except ValueError:

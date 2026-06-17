@@ -30,9 +30,7 @@ def fetch_submissions(account: str) -> tuple[list[dict], str, str | None]:
     Returns (rows, username, error). rows newest-first as Kaggle lists them."""
     user = ka.username(account)
     try:
-        proc = ka.run_kaggle(
-            ["competitions", "submissions", "-c", "orbit-wars"], account, timeout=90
-        )
+        proc = ka.run_kaggle(["competitions", "submissions", "-c", "orbit-wars"], account, timeout=90)
     except Exception as e:  # noqa: BLE001
         return [], user, f"{type(e).__name__}: {e}"
     if proc.returncode != 0:
@@ -46,9 +44,7 @@ def _parse_submissions(text: str) -> list[dict]:
     status publicScore privateScore. We split on 2+ spaces after the header."""
     rows = []
     lines = [ln for ln in text.splitlines() if ln.strip()]
-    hdr_i = next(
-        (i for i, ln in enumerate(lines) if ln.lower().startswith("filename")), None
-    )
+    hdr_i = next((i for i, ln in enumerate(lines) if ln.lower().startswith("filename")), None)
     if hdr_i is None:
         return rows
     for ln in lines[hdr_i + 1 :]:
@@ -112,9 +108,7 @@ def write_status_md(results: list[dict]) -> None:
             lines.append("|---|---|---:|---|")
             for s in r["latest2"]:
                 mu = "?" if s["public_lb_mu"] is None else f"{s['public_lb_mu']:.1f}"
-                lines.append(
-                    f"| {s['slot_order']} | `{s['file']}` | {mu} | {s['status']} |"
-                )
+                lines.append(f"| {s['slot_order']} | `{s['file']}` | {mu} | {s['status']} |")
         lines.append("")
     with open(STATUS_MD, "w") as f:
         f.write("\n".join(lines) + "\n")

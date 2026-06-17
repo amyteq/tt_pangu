@@ -188,13 +188,10 @@ def competition_id(db):
     slug = f"m14-test-{uuid.uuid4().hex[:8]}"
     with psycopg.connect(os.environ["SUPABASE_DB_URL"], autocommit=True) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO projects (name) VALUES ('m14-test') RETURNING id::text"
-            )
+            cur.execute("INSERT INTO projects (name) VALUES ('m14-test') RETURNING id::text")
             project_id = cur.fetchone()[0]
             cur.execute(
-                "INSERT INTO competitions (slug, project_id) VALUES (%s, %s::uuid) "
-                "RETURNING id::text",
+                "INSERT INTO competitions (slug, project_id) VALUES (%s, %s::uuid) RETURNING id::text",
                 (slug, project_id),
             )
             return cur.fetchone()[0]
@@ -239,9 +236,7 @@ def test_close_goal_frees_the_slot(db, competition_id):
 
 
 def test_update_goal_partial(db, competition_id):
-    gid = db.create_goal(
-        competition_id, target_lb_score=0.5, exit_strategy="score_only"
-    )
+    gid = db.create_goal(competition_id, target_lb_score=0.5, exit_strategy="score_only")
     db.update_goal(gid, target_lb_score=0.7, stuck_threshold=5)
     active = db.get_active_goal(competition_id)
     assert float(active["target_lb_score"]) == pytest.approx(0.7)
@@ -334,9 +329,7 @@ def test_create_submission_populates_project_id(db, competition_id):
     on cloud; create_submission must derive it from the competition's project."""
     import psycopg
 
-    sub_id = db.create_submission(
-        competition_id, "kca/derived.csv", cv_score=0.5, note="t009"
-    )
+    sub_id = db.create_submission(competition_id, "kca/derived.csv", cv_score=0.5, note="t009")
     with psycopg.connect(os.environ["SUPABASE_DB_URL"], autocommit=True) as conn:
         with conn.cursor() as cur:
             cur.execute(
@@ -373,13 +366,9 @@ def test_create_job_no_competition_id_column(db, competition_id):
 
     with psycopg.connect(os.environ["SUPABASE_DB_URL"], autocommit=True) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT slug FROM competitions WHERE id = %s::uuid", (competition_id,)
-            )
+            cur.execute("SELECT slug FROM competitions WHERE id = %s::uuid", (competition_id,))
             slug = cur.fetchone()[0]
-            cur.execute(
-                "INSERT INTO projects (name) VALUES ('jobproj') RETURNING id::text"
-            )
+            cur.execute("INSERT INTO projects (name) VALUES ('jobproj') RETURNING id::text")
             project_id = cur.fetchone()[0]
 
     job_id = db.create_job(
@@ -405,10 +394,7 @@ def test_analysis_jsonb_roundtrip(db, competition_id):
 
     with psycopg.connect(os.environ["SUPABASE_DB_URL"], autocommit=True) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO experiment_runs (analysis) VALUES "
-                "('M10 free-text survives') RETURNING id::text"
-            )
+            cur.execute("INSERT INTO experiment_runs (analysis) VALUES ('M10 free-text survives') RETURNING id::text")
             run_id = cur.fetchone()[0]
     batch = str(uuid.uuid4())
     db.set_run_analysis_jsonb(run_id, exploration_batch_id=batch, queue_time_seconds=42)
@@ -421,9 +407,7 @@ def test_analysis_jsonb_roundtrip(db, competition_id):
     # analysis text column left untouched (ADR-0020 §3)
     with psycopg.connect(os.environ["SUPABASE_DB_URL"], autocommit=True) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT analysis FROM experiment_runs WHERE id = %s::uuid", (run_id,)
-            )
+            cur.execute("SELECT analysis FROM experiment_runs WHERE id = %s::uuid", (run_id,))
             assert cur.fetchone()[0] == "M10 free-text survives"
 
 
@@ -441,9 +425,7 @@ def test_refresh_competition_rules_writes_columns(db, competition_id, monkeypatc
 
     with psycopg.connect(os.environ["SUPABASE_DB_URL"], autocommit=True) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "SELECT slug FROM competitions WHERE id = %s::uuid", (competition_id,)
-            )
+            cur.execute("SELECT slug FROM competitions WHERE id = %s::uuid", (competition_id,))
             comp_slug = cur.fetchone()[0]
 
     # stub the Kaggle call (READ_ONLY); never touches the real API
@@ -571,9 +553,7 @@ def test_cmd_refresh_rules_degrades_cleanly_on_unsupported_api(monkeypatch, caps
             return {"slug": slug}
 
         def refresh_competition_rules(self, slug):
-            raise _db.KaggleApiUnsupported(
-                "kaggle.api has no 'competition_view' (installed version: 2.0.1)"
-            )
+            raise _db.KaggleApiUnsupported("kaggle.api has no 'competition_view' (installed version: 2.0.1)")
 
     monkeypatch.setattr(_comp, "_load_db", lambda: _FakeDb())
 
@@ -581,9 +561,7 @@ def test_cmd_refresh_rules_degrades_cleanly_on_unsupported_api(monkeypatch, caps
     rc = _comp.cmd_refresh_rules(args)
     assert rc != 0  # EXIT_RUNTIME — a refusal, not a success
     out = capsys.readouterr().out
-    payload = _json.loads(
-        [ln for ln in out.splitlines() if ln.strip().startswith("{")][-1]
-    )
+    payload = _json.loads([ln for ln in out.splitlines() if ln.strip().startswith("{")][-1])
     assert payload["ok"] is False
     assert payload["error_code"] == "KAGGLE_API_UNSUPPORTED"
     assert payload["degraded"] is True

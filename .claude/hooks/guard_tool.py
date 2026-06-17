@@ -93,9 +93,7 @@ def path_is_protected(path: str) -> bool:
         "ctf-credentials.json",
     }
     name = Path(p).name
-    return name in protected_names or any(
-        fragment in p for fragment in protected_fragments
-    )
+    return name in protected_names or any(fragment in p for fragment in protected_fragments)
 
 
 def compact(command: str) -> str:

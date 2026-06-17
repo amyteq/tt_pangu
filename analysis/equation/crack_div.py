@@ -135,9 +135,7 @@ def main():
             for sname, sig in seeds.items():
                 h = exact_rate(sa, op, sig)
                 if h > 30:
-                    print(
-                        f"  split A=in[:{sa}] {op:13s} seed={sname:14s} exact={h}/{len(items)}"
-                    )
+                    print(f"  split A=in[:{sa}] {op:13s} seed={sname:14s} exact={h}/{len(items)}")
                 if best is None or h > best[0]:
                     best = (h, sa, op, sname)
     print("best seed:", best, f"(chance≈{len(items) / 36:.0f} for len-1 only)")
@@ -159,9 +157,7 @@ def main():
             else:
                 sig[a], sig[b] = sig[b], sig[a]
             if it % 1000 == 999:
-                print(
-                    f"  A=in[:{sa}] iter {it + 1}: penalty {cur:.3e} exact {exact_rate(sa, op, sig)}"
-                )
+                print(f"  A=in[:{sa}] iter {it + 1}: penalty {cur:.3e} exact {exact_rate(sa, op, sig)}")
         print(f"  -> A=in[:{sa}] final exact {exact_rate(sa, op, sig)}/{len(items)}")
 
 

@@ -141,9 +141,7 @@ def _collect_block_ranges(indexes: list[int]) -> list[tuple[int, int]]:
     return ranges
 
 
-def _add_issue(
-    issues: list[dict[str, Any]], severity: str, code: str, message: str, **extra: Any
-) -> None:
+def _add_issue(issues: list[dict[str, Any]], severity: str, code: str, message: str, **extra: Any) -> None:
     issues.append({"severity": severity, "code": code, "message": message, **extra})
 
 
@@ -182,11 +180,7 @@ def merge_notebook(
             continue
         copied_cells.append(_clean_copied_cell(cell, tag))
 
-    head_cells = [
-        cell
-        for cell in dst_nb.cells
-        if _has_head_tag(cell) and (keep_markdown or cell.cell_type == "code")
-    ]
+    head_cells = [cell for cell in dst_nb.cells if _has_head_tag(cell) and (keep_markdown or cell.cell_type == "code")]
     remaining_cells = [
         cell
         for cell in dst_nb.cells
@@ -370,9 +364,7 @@ def validate_notebooks(
         if src_tag_indexes:
             first_src = min(src_tag_indexes)
             last_src = max(src_tag_indexes)
-            manual_inside_src_gap = [
-                idx for idx in manual_indexes if first_src < idx < last_src
-            ]
+            manual_inside_src_gap = [idx for idx in manual_indexes if first_src < idx < last_src]
             if manual_inside_src_gap:
                 _add_issue(
                     dst_issues,
@@ -392,9 +384,7 @@ def validate_notebooks(
 
         merge_preview = merge_notebook(src, dst, tag, keep_markdown=keep_markdown)
         merged_nb = merge_preview["notebook"]
-        would_change = nbformat.writes(dst_nb, version=4) != nbformat.writes(
-            merged_nb, version=4
-        )
+        would_change = nbformat.writes(dst_nb, version=4) != nbformat.writes(merged_nb, version=4)
 
         reports["dst"] = {
             "path": str(dst),
@@ -463,16 +453,12 @@ def _build_parser() -> argparse.ArgumentParser:
         description="Build, refresh, or validate a *_test.ipynb notebook from a source notebook.",
     )
     parser.add_argument("src", help="Source .ipynb file")
-    parser.add_argument(
-        "dst", nargs="?", help="Destination .ipynb file; default: <src_stem>_test.ipynb"
-    )
+    parser.add_argument("dst", nargs="?", help="Destination .ipynb file; default: <src_stem>_test.ipynb")
     parser.add_argument(
         "--src-tag",
         help="Override the tag added to copied cells; default: source notebook stem",
     )
-    parser.add_argument(
-        "--json", action="store_true", help="Print machine-readable JSON to stdout"
-    )
+    parser.add_argument("--json", action="store_true", help="Print machine-readable JSON to stdout")
     parser.add_argument(
         "--keep-markdown",
         type=_parse_bool_arg,
@@ -498,9 +484,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Alias of --check",
     )
     group = parser.add_mutually_exclusive_group()
-    group.add_argument(
-        "--quiet", action="store_true", help="Suppress non-error stderr logs"
-    )
+    group.add_argument("--quiet", action="store_true", help="Suppress non-error stderr logs")
     group.add_argument(
         "--verbose",
         action="count",
@@ -516,9 +500,7 @@ def main(argv: list[str]) -> int:
 
     try:
         if args.check:
-            result = validate_notebooks(
-                args.src, args.dst, args.src_tag, bool(args.keep_markdown)
-            )
+            result = validate_notebooks(args.src, args.dst, args.src_tag, bool(args.keep_markdown))
             _log(
                 "validation complete: "
                 f"src={result['src']} dst={result['dst']} "
@@ -536,9 +518,7 @@ def main(argv: list[str]) -> int:
                 )
             return EXIT_VALIDATE_FAILED
 
-        result = merge_notebook(
-            args.src, args.dst, args.src_tag, bool(args.keep_markdown)
-        )
+        result = merge_notebook(args.src, args.dst, args.src_tag, bool(args.keep_markdown))
         notebook = result.pop("notebook")
         _log(
             "merge planned: "
@@ -553,13 +533,9 @@ def main(argv: list[str]) -> int:
     except FileNotFoundError as exc:
         return _emit_fail(args, str(exc), error="invalid_input", exit_code=EXIT_INPUT)
     except ImportError as exc:
-        return _emit_fail(
-            args, str(exc), error="missing_dependency", exit_code=EXIT_DEP
-        )
+        return _emit_fail(args, str(exc), error="missing_dependency", exit_code=EXIT_DEP)
     except KeyboardInterrupt:
-        return _emit_fail(
-            args, "interrupted", error="interrupted", exit_code=EXIT_RUNTIME
-        )
+        return _emit_fail(args, "interrupted", error="interrupted", exit_code=EXIT_RUNTIME)
     except Exception as exc:
         return _emit_fail(args, str(exc), error="runtime_error", exit_code=EXIT_RUNTIME)
 

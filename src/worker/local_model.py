@@ -76,9 +76,7 @@ def probe(endpoint: LocalEndpoint, *, timeout_s: float | None = None) -> dict:
 
         try:
             payload = _json.loads(body)
-            models = [
-                m.get("id") for m in payload.get("data", []) if isinstance(m, dict)
-            ]
+            models = [m.get("id") for m in payload.get("data", []) if isinstance(m, dict)]
         except Exception:
             models = []
         latency_ms = int((time.monotonic() - started) * 1000)

@@ -63,15 +63,9 @@ def rate(fn, sig):
 def make_funcs():
     fns = {}
     for sa in (1, 2, 3, 4):
-        fns[f"mulAB_s{sa}"] = lambda k, sig, sa=sa: (
-            val36(k[:sa], sig) * val36(k[sa:], sig)
-        )
-        fns[f"mulAB_mod_s{sa}"] = lambda k, sig, sa=sa: (
-            (val36(k[:sa], sig) * val36(k[sa:], sig)) % (36**4)
-        )
-    fns["prod_digits"] = lambda k, sig: (
-        sig[k[0]] * sig[k[1]] * sig[k[2]] * sig[k[3]] * sig[k[4]]
-    )
+        fns[f"mulAB_s{sa}"] = lambda k, sig, sa=sa: val36(k[:sa], sig) * val36(k[sa:], sig)
+        fns[f"mulAB_mod_s{sa}"] = lambda k, sig, sa=sa: (val36(k[:sa], sig) * val36(k[sa:], sig)) % (36**4)
+    fns["prod_digits"] = lambda k, sig: sig[k[0]] * sig[k[1]] * sig[k[2]] * sig[k[3]] * sig[k[4]]
     fns["sum_sq"] = lambda k, sig: sum(sig[c] * sig[c] for c in k)
     return fns
 

@@ -6,9 +6,9 @@ Usage:
     python competitions/orbit-wars/arena/suite_gate.py --all             # our agents + kuni05
     python competitions/orbit-wars/arena/suite_gate.py <agent> --games 20
 """
+
 import argparse
 import os
-import sys
 
 import pool as P
 

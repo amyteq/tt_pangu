@@ -95,13 +95,9 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     issues: list[dict] = []
     for name, spec in TOOL_REGISTRY.items():
         if spec.side_effect not in SIDE_EFFECT_LEVELS:
-            issues.append(
-                {"tool": name, "issue": f"bad side_effect {spec.side_effect!r}"}
-            )
+            issues.append({"tool": name, "issue": f"bad side_effect {spec.side_effect!r}"})
         if spec.approval_label not in APPROVAL_LABELS:
-            issues.append(
-                {"tool": name, "issue": f"bad approval_label {spec.approval_label!r}"}
-            )
+            issues.append({"tool": name, "issue": f"bad approval_label {spec.approval_label!r}"})
         if spec.sandbox not in SANDBOX_LABELS:
             issues.append({"tool": name, "issue": f"bad sandbox {spec.sandbox!r}"})
         if not isinstance(spec.timeout_s, int) or spec.timeout_s <= 0:

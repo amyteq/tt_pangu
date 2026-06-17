@@ -31,12 +31,8 @@ try:
 except Exception:  # pragma: no cover - fallback if import path changes
     from collections import namedtuple
 
-    Planet = namedtuple(
-        "Planet", ["id", "owner", "x", "y", "radius", "ships", "production"]
-    )
-    Fleet = namedtuple(
-        "Fleet", ["id", "owner", "x", "y", "angle", "from_planet_id", "ships"]
-    )
+    Planet = namedtuple("Planet", ["id", "owner", "x", "y", "radius", "ships", "production"])
+    Fleet = namedtuple("Fleet", ["id", "owner", "x", "y", "angle", "from_planet_id", "ships"])
 
 # Engine constants (mirrored from orbit_wars.py).
 BOARD_SIZE = 100.0
@@ -59,21 +55,11 @@ TIME_DISCOUNT = 0.04  # how strongly to prefer near targets in the value score
 # v2 defaults tuned via arena sweep vs the frozen v1 snapshot. The decisive lever is
 # the in-flight cap (don't over-commit the empire into transit); a small frontier
 # garrison complements it. Heavy garrison / a tight cap (<1.0) over-corrects and loses.
-REAR_FLOOR = float(
-    _os.environ.get("OW_REAR_FLOOR", 0)
-)  # garrison kept on a safe (rear) planet
-FRONTIER_FLOOR = float(
-    _os.environ.get("OW_FRONTIER_FLOOR", 10)
-)  # garrison kept on a planet near an enemy
-FRONTIER_DIST = float(
-    _os.environ.get("OW_FRONTIER_DIST", 28.0)
-)  # enemy planet within this distance => frontier
-GARRISON_PROD_MULT = float(
-    _os.environ.get("OW_PROD_MULT", 0)
-)  # extra standing garrison per unit production
-INFLIGHT_CAP_FRAC = float(
-    _os.environ.get("OW_INFLIGHT_CAP", 1.2)
-)  # cap in-flight at this frac of on-planet ships
+REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 10))  # garrison kept on a planet near an enemy
+FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 28.0))  # enemy planet within this distance => frontier
+GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
 # Phase-scaled cap: looser early (win the land-grab) -> tighter late (hold and bank).
 # Tuned via arena sweep vs the flat-1.2 v2 snapshot; mild scaling (2.0 -> 1.0) won,
 # aggressive scaling (2.5-3.0 early / 0.6-0.8 late) lost. Linearly interpolated by step.
@@ -86,12 +72,8 @@ CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.0))
 # them wastes transit, starves the in-flight cap, and funnels the empire into fewer launch
 # points. Code kept (env-gated) so the result stays reproducible via OW_CONSOLIDATE=1.
 CONSOLIDATE = int(_os.environ.get("OW_CONSOLIDATE", 0))
-CONSOLIDATE_MIN = float(
-    _os.environ.get("OW_CONSOLIDATE_MIN", 12)
-)  # min surplus to bother (tiny fleets crawl)
-CONSOLIDATE_MARGIN = float(
-    _os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0)
-)  # front-distance gain required
+CONSOLIDATE_MIN = float(_os.environ.get("OW_CONSOLIDATE_MIN", 12))  # min surplus to bother (tiny fleets crawl)
+CONSOLIDATE_MARGIN = float(_os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0))  # front-distance gain required
 
 
 def _hypot(ax, ay, bx, by):
@@ -245,13 +227,13 @@ def _safe_drain(planet, arr_list, player, h):
     """Max ships sheddable now while the do-nothing projection keeps the planet held
     (ships >= 0) over the horizon. Doomed planets (will flip) -> send everything."""
     by_k = {}
-    for (e, o, s) in arr_list:
+    for e, o, s in arr_list:
         by_k.setdefault(e, []).append((o, s))
     cur = float(planet.ships)
     held_min = cur
     for k in range(1, h + 1):
         cur += planet.production  # we hold it -> it produces for us
-        for (o, s) in by_k.get(k, []):
+        for o, s in by_k.get(k, []):
             cur += s if o == player else -s
         if cur < 0:  # would be overrun -> nothing to protect, use it all
             return float(planet.ships)
@@ -265,7 +247,7 @@ def _defender_at(tgt, arr_list, player, eta):
     defender = float(tgt.ships)
     if tgt.owner != -1:
         defender += tgt.production * eta
-    for (e, o, s) in arr_list:
+    for e, o, s in arr_list:
         if e <= eta:
             if tgt.owner != -1 and o == tgt.owner:
                 defender += s
@@ -303,10 +285,7 @@ def _agent(obs):
     # available[mp] = safe_drain (max sheddable while the planet stays held over PROJ_H).
     # Replaces v2.1's flat garrison floor: safe rear planets free up MORE ships for
     # expansion; threatened planets (inbound enemy reduces drain) hold more back.
-    available = {
-        mp.id: _safe_drain(mp, arrivals.get(mp.id, []), player, PROJ_H)
-        for mp in my_planets
-    }
+    available = {mp.id: _safe_drain(mp, arrivals.get(mp.id, []), player, PROJ_H) for mp in my_planets}
 
     # Global in-flight cap: don't pour the whole empire into simultaneous fleets.
     # Phase-scaled: interpolate from CAP_EARLY (step 0) to CAP_LATE (game end).
@@ -331,9 +310,7 @@ def _agent(obs):
             needed = ships_guess
             arr_list = arrivals.get(tgt.id, [])
             for _ in range(3):
-                sol = _solve_intercept(
-                    mp.x, mp.y, tgt.id, ships_guess, step, init_by_id, ang_vel
-                )
+                sol = _solve_intercept(mp.x, mp.y, tgt.id, ships_guess, step, init_by_id, ang_vel)
                 if sol is None:
                     break
                 _, t_ticks, _ = sol
@@ -350,9 +327,7 @@ def _agent(obs):
                 continue
             if step + t_ticks > EPISODE_STEPS - 2:  # would arrive after game ends
                 continue
-            if _path_blocked(
-                mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids
-            ):
+            if _path_blocked(mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids):
                 continue
             value = tgt.production / (needed * (1.0 + TIME_DISCOUNT * t_ticks))
             candidates.append((value, mp.id, tgt.id, angle, needed))
@@ -393,15 +368,11 @@ def _agent(obs):
                     best, best_d = q, d
             if best is None:
                 continue
-            sol = _solve_intercept(
-                src.x, src.y, best.id, surplus, step, init_by_id, ang_vel
-            )
+            sol = _solve_intercept(src.x, src.y, best.id, surplus, step, init_by_id, ang_vel)
             if sol is None:
                 continue
             angle, _t, pos = sol
-            if _path_blocked(
-                src.x, src.y, pos[0], pos[1], src.id, best.id, planets, comet_ids
-            ):
+            if _path_blocked(src.x, src.y, pos[0], pos[1], src.id, best.id, planets, comet_ids):
                 continue
             moves.append([src.id, angle, int(surplus)])
             remaining[src.id] = 0

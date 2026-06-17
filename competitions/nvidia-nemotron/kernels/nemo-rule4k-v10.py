@@ -7,10 +7,7 @@ import site
 # /kaggle/usr/lib/notebooks/ryanholbrook/<dir>, slugifying the name with
 # UNDERSCORES (nvidia_utility_script), so glob for the cutlass python_packages
 # dir rather than hardcoding the demo's (wrong) hyphenated path.
-_cutlass = glob.glob(
-    "/kaggle/usr/lib/notebooks/ryanholbrook/*nvidia*util*/"
-    "nvidia_cutlass_dsl/python_packages"
-)
+_cutlass = glob.glob("/kaggle/usr/lib/notebooks/ryanholbrook/*nvidia*util*/nvidia_cutlass_dsl/python_packages")
 for _p in _cutlass:
     site.addsitedir(_p)
 print("cutlass sitedirs:", _cutlass)
@@ -26,9 +23,7 @@ import os
 import shutil
 import stat as _stat
 
-_ptxas = glob.glob(
-    "/kaggle/usr/lib/notebooks/ryanholbrook/*/triton/backends/nvidia/bin/ptxas-blackwell"
-)
+_ptxas = glob.glob("/kaggle/usr/lib/notebooks/ryanholbrook/*/triton/backends/nvidia/bin/ptxas-blackwell")
 if _ptxas:
     _dst = "/tmp/ptxas-blackwell"
     try:
@@ -57,9 +52,7 @@ from peft import LoraConfig, TaskType, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # %%
-MODEL_PATH = kagglehub.model_download(
-    "metric/nemotron-3-nano-30b-a3b-bf16/transformers/default"
-)
+MODEL_PATH = kagglehub.model_download("metric/nemotron-3-nano-30b-a3b-bf16/transformers/default")
 OUTPUT_DIR = "/kaggle/working"
 LORA_RANK = 32  # competition max is 32
 MAX_STEPS = 800  # secondary cap; the wall-clock budget below is the real bound
@@ -137,10 +130,7 @@ try:
         val_df.height,
     )
 
-    SUFFIX = (
-        "\nPlease put your final answer inside \\boxed{}. "
-        "For example: \\boxed{your answer}"
-    )
+    SUFFIX = "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
 
     # ---- v10: deterministic rule-aware CoT traces from the competition train.csv.
     # For 6 of the 9 categories the transformation rule is recoverable from the
@@ -203,17 +193,9 @@ try:
             m = re.search(r"write the number\s+(\d+)", prompt, flags=re.I)
             if m:
                 n = int(m.group(1))
-                return (
-                    f"The examples use standard Roman numeral composition. "
-                    f"{n} becomes {_roman(n)}."
-                )
+                return f"The examples use standard Roman numeral composition. {n} becomes {_roman(n)}."
         if cat == "gravity":
-            pairs = [
-                (float(t), float(d))
-                for t, d in re.findall(
-                    r"For t = ([0-9.]+)s, distance = ([0-9.]+) m", prompt
-                )
-            ]
+            pairs = [(float(t), float(d)) for t, d in re.findall(r"For t = ([0-9.]+)s, distance = ([0-9.]+) m", prompt)]
             target = _last_float(r"falling distance for t = ([0-9.]+)s", prompt)
             if pairs and target is not None:
                 gs = [2.0 * d / (t * t) for t, d in pairs if t]
@@ -224,10 +206,7 @@ try:
                     f"{g:.4f}; for t={target:g}, d = 0.5*{g:.4f}*{target:g}^2 ≈ {pred:.2f}."
                 )
         if cat == "unit_conversion":
-            pairs = [
-                (float(x), float(y))
-                for x, y in re.findall(r"([0-9.]+) m becomes ([0-9.]+)", prompt)
-            ]
+            pairs = [(float(x), float(y)) for x, y in re.findall(r"([0-9.]+) m becomes ([0-9.]+)", prompt)]
             target = _last_float(r"following measurement:\s*([0-9.]+) m", prompt)
             if pairs and target is not None:
                 rs = [y / x for x, y in pairs if x]
@@ -238,15 +217,11 @@ try:
                 )
         if cat == "cipher":
             mp = {}
-            for enc, plain in re.findall(
-                r"^([^\n>-][^\n]*?)\s*->\s*([^\n]+)$", prompt, flags=re.M
-            ):
+            for enc, plain in re.findall(r"^([^\n>-][^\n]*?)\s*->\s*([^\n]+)$", prompt, flags=re.M):
                 ew, pw = enc.strip().split(), plain.strip().split()
                 if len(ew) == len(pw):
                     mp.update(zip(ew, pw))
-            tm = re.search(
-                r"Now, decrypt the following text:\s*([^\n\"]+)", prompt, flags=re.I
-            )
+            tm = re.search(r"Now, decrypt the following text:\s*([^\n\"]+)", prompt, flags=re.I)
             if mp and tm:
                 tw = tm.group(1).strip().split()
                 decoded = " ".join(mp.get(w, "?") for w in tw)
@@ -264,9 +239,7 @@ try:
                 "Identify which operator rule the examples demonstrate, including "
                 "character order, then apply the same rule to the target expression."
             )
-        return (
-            "Infer the hidden rule from the demonstrations and apply it to the target."
-        )
+        return "Infer the hidden rule from the demonstrations and apply it to the target."
 
     def build_pair(prompt, answer, cot):
         # Strip any boxed answer inside the trace; append the canonical one after
@@ -274,12 +247,8 @@ try:
         cot = re.sub(r"\\boxed\{[^}]*\}", "", str(cot)).rstrip()
         assistant = f"{cot}\n</think>\n\\boxed{{{answer}}}"
         user = [{"role": "user", "content": f"{prompt}{SUFFIX}"}]
-        full = tokenizer.apply_chat_template(
-            user + [{"role": "assistant", "content": assistant}], tokenize=False
-        )
-        prompt_only = tokenizer.apply_chat_template(
-            user, tokenize=False, add_generation_prompt=True
-        )
+        full = tokenizer.apply_chat_template(user + [{"role": "assistant", "content": assistant}], tokenize=False)
+        prompt_only = tokenizer.apply_chat_template(user, tokenize=False, add_generation_prompt=True)
         return full, prompt_only
 
     import datasets
@@ -290,9 +259,7 @@ try:
     def _encode(prompt, answer, cot):
         full, prompt_only = build_pair(prompt, answer, cot)
         ids = tokenizer(full, truncation=True, max_length=MAX_LEN)["input_ids"]
-        plen = len(
-            tokenizer(prompt_only, truncation=True, max_length=MAX_LEN)["input_ids"]
-        )
+        plen = len(tokenizer(prompt_only, truncation=True, max_length=MAX_LEN)["input_ids"])
         plen = min(plen, len(ids))
         return {"input_ids": ids, "labels": [-100] * plen + ids[plen:]}
 
@@ -346,9 +313,7 @@ try:
                 control.should_training_stop = True
             return control
 
-    collator = DataCollatorForSeq2Seq(
-        tokenizer, label_pad_token_id=-100, padding="longest"
-    )
+    collator = DataCollatorForSeq2Seq(tokenizer, label_pad_token_id=-100, padding="longest")
 
     model.config.use_cache = False
     model.gradient_checkpointing_enable()
@@ -422,9 +387,7 @@ try:
         callbacks=[_TimeBudget()],
     ).train()
     TRAIN_OK = True
-    print(
-        f"training stopped at step {_out.global_step}, elapsed {_time.time() - T0:.0f}s"
-    )
+    print(f"training stopped at step {_out.global_step}, elapsed {_time.time() - T0:.0f}s")
 
     # Held-out boxed accuracy (overfitting signal) — ISOLATED in its own try so a
     # failure here can never flip the trained status or waste the trained adapter.
@@ -483,8 +446,7 @@ model.save_pretrained(OUTPUT_DIR)
 print("Adapter files:", sorted(glob.glob(f"{OUTPUT_DIR}/adapter*")))
 
 subprocess.run(
-    "cd /kaggle/working && zip -r submission.zip adapter_config.json "
-    "adapter_model.safetensors",
+    "cd /kaggle/working && zip -r submission.zip adapter_config.json adapter_model.safetensors",
     shell=True,
     check=True,
 )
@@ -497,9 +459,7 @@ import json as _json
 with open(f"{OUTPUT_DIR}/train_report.json", "w") as _f:
     _json.dump(TRAIN_INFO, _f)
 print("TRAIN_REPORT:", _json.dumps(TRAIN_INFO))
-for _f in glob.glob(f"{OUTPUT_DIR}/adapter_model.safetensors") + glob.glob(
-    f"{OUTPUT_DIR}/adapter_config.json"
-):
+for _f in glob.glob(f"{OUTPUT_DIR}/adapter_model.safetensors") + glob.glob(f"{OUTPUT_DIR}/adapter_config.json"):
     try:
         os.remove(_f)
     except OSError:

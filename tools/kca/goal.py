@@ -88,29 +88,13 @@ def goal_md_fields(slug: str, row: dict) -> dict:
     """Project a goals row into the goal.md front-matter field dict."""
     return {
         "competition": slug,
-        "target_lb_score": (
-            float(row["target_lb_score"])
-            if row.get("target_lb_score") is not None
-            else None
-        ),
-        "target_lb_rank": (
-            int(row["target_lb_rank"])
-            if row.get("target_lb_rank") is not None
-            else None
-        ),
+        "target_lb_score": (float(row["target_lb_score"]) if row.get("target_lb_score") is not None else None),
+        "target_lb_rank": (int(row["target_lb_rank"]) if row.get("target_lb_rank") is not None else None),
         "target_rank_kind": row.get("target_rank_kind"),
         "deadline": _iso(row.get("deadline")),
         "exit_strategy": row.get("exit_strategy"),
-        "max_total_pushes": (
-            int(row["max_total_pushes"])
-            if row.get("max_total_pushes") is not None
-            else None
-        ),
-        "stuck_threshold": (
-            int(row["stuck_threshold"])
-            if row.get("stuck_threshold") is not None
-            else None
-        ),
+        "max_total_pushes": (int(row["max_total_pushes"]) if row.get("max_total_pushes") is not None else None),
+        "stuck_threshold": (int(row["stuck_threshold"]) if row.get("stuck_threshold") is not None else None),
         "status": row.get("status"),
     }
 
@@ -276,8 +260,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         return _emit(
             False,
             {
-                "error": f"competition '{slug}' not registered; run "
-                "`kca competition register` first",
+                "error": f"competition '{slug}' not registered; run `kca competition register` first",
                 "side_effect": SideEffect.LOCAL_WRITE.value,
             },
             EXIT_RUNTIME,
@@ -306,10 +289,7 @@ def cmd_init(args: argparse.Namespace) -> int:
             {
                 "error": "ACTIVE_GOAL_EXISTS",
                 "competition": slug,
-                "message": (
-                    "an active goal already exists for this competition; "
-                    "`kca goal update --close` it first"
-                ),
+                "message": ("an active goal already exists for this competition; `kca goal update --close` it first"),
                 "side_effect": SideEffect.LOCAL_WRITE.value,
             },
             EXIT_RUNTIME,
@@ -469,14 +449,10 @@ def _read_goal_by_id(_db, goal_id: str) -> dict | None:
 
 
 def add_parsers(sub: argparse._SubParsersAction) -> None:
-    goal = sub.add_parser(
-        "goal", help="Declare / inspect / update a per-competition goal (M14)"
-    )
+    goal = sub.add_parser("goal", help="Declare / inspect / update a per-competition goal (M14)")
     goal_sub = goal.add_subparsers(dest="goal_cmd", required=True)
 
-    p_init = goal_sub.add_parser(
-        "init", help="Create the goals row + write goal.md (LOCAL_WRITE)"
-    )
+    p_init = goal_sub.add_parser("init", help="Create the goals row + write goal.md (LOCAL_WRITE)")
     p_init.add_argument("--competition", required=True, help="competition slug")
     p_init.add_argument(
         "--target-lb-score",
@@ -505,32 +481,20 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
         choices=("first_reached", "all_required", "score_only", "rank_only"),
         default="first_reached",
     )
-    p_init.add_argument(
-        "--max-total-pushes", dest="max_total_pushes", type=int, default=20
-    )
-    p_init.add_argument(
-        "--stuck-threshold", dest="stuck_threshold", type=int, default=3
-    )
+    p_init.add_argument("--max-total-pushes", dest="max_total_pushes", type=int, default=20)
+    p_init.add_argument("--stuck-threshold", dest="stuck_threshold", type=int, default=3)
     p_init.add_argument("--json", action="store_true")
     p_init.set_defaults(func=cmd_init)
 
-    p_show = goal_sub.add_parser(
-        "show", help="Show the active goal + goal_remaining_delta (READ_ONLY)"
-    )
+    p_show = goal_sub.add_parser("show", help="Show the active goal + goal_remaining_delta (READ_ONLY)")
     p_show.add_argument("--competition", required=True)
     p_show.add_argument("--json", action="store_true")
     p_show.set_defaults(func=cmd_show)
 
-    p_update = goal_sub.add_parser(
-        "update", help="Update fields or close the active goal (LOCAL_WRITE)"
-    )
+    p_update = goal_sub.add_parser("update", help="Update fields or close the active goal (LOCAL_WRITE)")
     p_update.add_argument("--competition", required=True)
-    p_update.add_argument(
-        "--target-lb-score", dest="target_lb_score", type=float, default=None
-    )
-    p_update.add_argument(
-        "--target-lb-rank", dest="target_lb_rank", type=int, default=None
-    )
+    p_update.add_argument("--target-lb-score", dest="target_lb_score", type=float, default=None)
+    p_update.add_argument("--target-lb-rank", dest="target_lb_rank", type=int, default=None)
     p_update.add_argument(
         "--target-rank-kind",
         dest="target_rank_kind",
@@ -544,12 +508,8 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
         choices=("first_reached", "all_required", "score_only", "rank_only"),
         default=None,
     )
-    p_update.add_argument(
-        "--max-total-pushes", dest="max_total_pushes", type=int, default=None
-    )
-    p_update.add_argument(
-        "--stuck-threshold", dest="stuck_threshold", type=int, default=None
-    )
+    p_update.add_argument("--max-total-pushes", dest="max_total_pushes", type=int, default=None)
+    p_update.add_argument("--stuck-threshold", dest="stuck_threshold", type=int, default=None)
     p_update.add_argument(
         "--close",
         action="store_true",

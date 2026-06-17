@@ -135,9 +135,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
         action="store_true",
         help="Filter to pending status only (default behaviour)",
     )
-    p_list.add_argument(
-        "--job-id", dest="job_id", default=None, help="Filter to a specific job"
-    )
+    p_list.add_argument("--job-id", dest="job_id", default=None, help="Filter to a specific job")
     p_list.add_argument("--limit", type=int, default=20)
     p_list.add_argument(
         "--include-reviews",
@@ -148,9 +146,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_list.add_argument("--json", action="store_true")
     p_list.set_defaults(func=cmd_list)
 
-    p_approve = dec_sub.add_parser(
-        "approve", help="Approve a pending decision (LOCAL_WRITE)"
-    )
+    p_approve = dec_sub.add_parser("approve", help="Approve a pending decision (LOCAL_WRITE)")
     p_approve.add_argument("--id", required=True, help="decision_id to approve")
     p_approve.add_argument("--notes", default=None)
     p_approve.add_argument("--json", action="store_true")
