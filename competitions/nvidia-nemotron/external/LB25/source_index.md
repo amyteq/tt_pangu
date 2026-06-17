@@ -17,7 +17,7 @@
 | depth | type | URL | anchor / note | fetchable w/o Kaggle auth | size |
 |---|---|---|---|---|---|
 | 0 | **writeup PDF (primary)** | `temp/LB25.pdf` (local render of the writeup page) | **full body — read directly** | **YES** | 170 KB |
-| 0 | Kaggle writeup | https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/writeups/lb25-progress-prize-improvements | LB25 writeup (target; = the PDF) | NO (JS body) | n/a |
+| 0 | Kaggle writeup | https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/writeups/LB25-progress-prize-improvements | LB25 writeup (target; = the PDF) | NO (JS body) | n/a |
 | 1 | data explorer | https://nemotron.huikang.dev/evaluation.html?logpath=06-07-03-07&problem=021ed764 | author's per-problem eval dashboard (embedded link) | YES (static) | small |
 | 1 | Kaggle model | https://kaggle.com/models/huikang/nemotron-adapter-private | "Project Links" — submission adapter; **followed 2026-06-17 → NO_CONTENT (private/JS, title only)** | NO (private) | unknown |
 | 1 | Kaggle notebook | https://www.kaggle.com/code/huikang/private-adapter-validation-notebook | embedded as "adapter evaluation notebook" (change #1) + "Project Links"; **followed → NO_CONTENT (private)** | NO (private) | unknown |
@@ -46,7 +46,7 @@
 Link-budget honored: 6 depth-1 (≤10), 11 depth-2 (≤20), 3 depth-3 (≤20).
 
 ## Saved / downloaded resources
-- **`writeup/lb25-writeup-verbatim.md`** — a faithful markdown conversion of `temp/LB25.pdf` (text via
+- **`writeup/LB25-writeup-verbatim.md`** — a faithful markdown conversion of `temp/LB25.pdf` (text via
   `pdftotext -layout`; hyperlink targets from the PDF's embedded URI annotations, reproduced unchanged).
 - **`writeup/images/lb25-000.png`, `lb25-001.png`** — the only raster images embedded in the PDF (thin
   grayscale header strips, 2311×69 / 2261×21, extracted with `pdfimages`). The page's "Project Links" card
@@ -58,7 +58,7 @@ Link-budget honored: 6 depth-1 (≤10), 11 depth-2 (≤20), 3 depth-3 (≤20).
 ## Link-following (depth-1) — results of actually fetching the writeup's links (2026-06-17)
 Per `wiki/24.LB25_task.md` (follow links ≥3 levels deep), the writeup's embedded URIs were fetched:
 - **`discussion/689915`** ("my progress prize winning submission") — Kaggle, JS-gated → reconstructed
-  separately as the Progress-Prize companion (huikang); see `lb25-progress-prize-improvements.md` §5 / blog.
+  separately as the Progress-Prize companion (huikang); see `LB25-progress-prize-improvements.md` §5 / blog.
 - **`nemotron.huikang.dev/evaluation.html?...`** — static data dashboard (per-problem solve/min-logprob);
   the source repo `tonghuikang/nemotron` `evaluation/*.jsonl` backs it (summarized in the writeup).
 - **`models/huikang/nemotron-adapter-private`** — **fetched → NO_CONTENT** (private/JS; title only). Depth-2/3 N/A.
