@@ -40,7 +40,7 @@
   products, and `K·in mod M` for K≤60 (K-sweep cokernel). Order-dependent, carries ~3 base-36 digits deep,
   log-uniform output magnitude — a deliberately strong cipher/PRF, **not recoverable from 7,748 samples by
   closed-form algebra**. EV of further hand-cracking now low; durable scripts under `analysis/equation/`.
-- **EQ-3 🔄 RUNNING (2026-06-16) — specialist grid, both accounts.** Pivoted to the empirical bet: a
+- **EQ-3 ✅ DONE (2026-06-16) — specialist grid scored, both accounts.** Pivoted to the empirical bet: a
   2×2 coverage×dose grid SFT'd on the real equation prompts woven into the v14 replay backbone, all on the RTX
   Pro 6000 — `nemo-eq-spec` (harry: 1,555 answers, ~16%), `nemo-eq-aug` (harry: 7,814 rotated targets),
   `nemo-eq-hidose` (may: 1,555×3), `nemo-eq-aug-hidose` (may: 7,814×2). Measure on the late-submission window
