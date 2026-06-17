@@ -1,0 +1,29 @@
+policy_id: OW-PROMOTION-GATE-001
+competition: orbit-wars
+candidate_submit_ready_requires:
+  crash_safety:
+    - python_m_py_compile_agent_main
+    - import_smoke_agent_empty_obs_returns_empty_or_valid_action
+  execution_safety:
+    - flight_oracle_final_action_gate_enabled
+    - no_strict_sun_collision_in_smoke_replays
+    - first_hit_target_valid_on_candidate_actions
+  local_arena:
+    - validate_py_games_10_pass
+    - suite_gate_main_games_12_pass_or_documented_ladder_probe_exception
+    - two_player_vs_incumbent_non_regression
+    - four_player_avg_rank_not_materially_worse
+  model_if_used:
+    - exported_model_runtime_smoke
+    - fallback_to_rules_if_model_load_fails
+    - no_torch_dependency_online_unless_runtime_verified
+  docs:
+    - tasks_md_updated
+    - tracking_md_updated
+    - submissions_md_updated_if_submit
+    - model_card_updated_if_model
+  submit_plan:
+    - latest2_eviction_plan_written
+    - account_lane_selected
+    - quota_budget_ok
+    - early_stop_tracking_initialized
