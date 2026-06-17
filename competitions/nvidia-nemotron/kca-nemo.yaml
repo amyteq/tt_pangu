@@ -39,6 +39,26 @@ _base:
   docker_image: gcr.io/kaggle-private-byod/python@sha256:9fa0da194fad2241d3f01a80581cbecbd3a258b4d1b695e2cbbbc62a0fd205ac
   machine_shape: NvidiaRtxPro6000
 
+  # Per-competition autonomy (ADR-0021). Default ON: KCA pushes/submits without
+  # per-action approval once `screen` passes; flip `enabled: false` for strict
+  # human-in-the-loop. NOTE: an annotation key for now (like lp/note) — the
+  # metadata generator ignores it; runtime enforcement is the ADR-0021 follow-up.
+  autonomy:
+    enabled: true
+    auto_push: true
+    auto_submit: true
+    daily_submit_budget: 5         # per-team quota, shared across both accounts
+    screen:                        # ALL must pass for an autonomous SUBMIT
+      beats_best: true             # beat current best on trusted local validation
+      min_margin: 0.0
+      require_repro: true          # seed + artifact path + exact command recorded
+      rules_check: true            # rules / submission-limit / no-leakage check passed
+    human_gated:                   # still require a human even when enabled
+      - final_promotion_near_deadline
+      - irreversible_delete
+      - over_budget_spend
+      - ambiguous_rule
+
 # --- baseline / early SFT kernel (v5–v7, dgxchen CoT corpus) ------------------
 baseline:
   id: harrysun2006/nemotron-lora-baseline-kca
