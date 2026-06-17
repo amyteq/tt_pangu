@@ -50,9 +50,7 @@ def _player_score_at(replay, t, seat, horizon=20):
     return ps.score_now if ps else None
 
 
-def build(
-    replay_root, out_root, use_oracle=True, stride=10, horizon=40, max_per_step=40, shard=None
-):
+def build(replay_root, out_root, use_oracle=True, stride=10, horizon=40, max_per_step=40, shard=None):
     """shard = (i, n): process only replays whose index %% n == i, writing candidates.shard{i}.jsonl
     (lets N processes build disjoint slices in parallel; concat the shards afterwards)."""
     os.makedirs(out_root, exist_ok=True)
@@ -98,12 +96,8 @@ def build(
                             teacher[(src_id, fr.first_hit_id)] = sh
                     # future value delta for this seat
                     sc_now = st.players[seat].score_now if seat in st.players else 0.0
-                    sc20 = (
-                        _player_score_at(replay, t + 20, seat) if t + 20 < ns else None
-                    )
-                    sc50 = (
-                        _player_score_at(replay, t + 50, seat) if t + 50 < ns else None
-                    )
+                    sc20 = _player_score_at(replay, t + 20, seat) if t + 20 < ns else None
+                    sc50 = _player_score_at(replay, t + 50, seat) if t + 50 < ns else None
                     term = rewards[seat] if seat < len(rewards) else None
                     emitted = 0
                     for src in mine:
@@ -112,11 +106,7 @@ def build(
                                 break
                             ships = max(1, int(src.ships) // 2 + 1)
                             cand = {"source": src.id, "target": tgt.id, "ships": ships}
-                            feat = (
-                                candidate_features(st, cand, pb, orc)
-                                if use_oracle
-                                else {}
-                            )
+                            feat = candidate_features(st, cand, pb, orc) if use_oracle else {}
                             sel = teacher.get((src.id, tgt.id))
                             row = {
                                 "episode_id": meta["episode_id"],
@@ -125,38 +115,22 @@ def build(
                                 "source_planet_id": src.id,
                                 "target_object_id": tgt.id,
                                 "target_type": (
-                                    "comet"
-                                    if tgt.is_comet
-                                    else "enemy"
-                                    if tgt.owner not in (-1, seat)
-                                    else "neutral"
+                                    "comet" if tgt.is_comet else "enemy" if tgt.owner not in (-1, seat) else "neutral"
                                 ),
                                 "ship_bucket": _bucket(ships),
                                 "oracle_valid": feat.get("path_valid"),
                                 "oracle_eta": feat.get("path_eta"),
-                                "oracle_first_hit_type": feat.get(
-                                    "path_first_hit_type"
-                                ),
+                                "oracle_first_hit_type": feat.get("path_first_hit_type"),
                                 "oracle_first_hit_id": feat.get("path_first_hit_id"),
                                 "min_sun_distance": feat.get("path_min_sun_distance"),
                                 "candidate_features_json": feat,
                                 "seat_is_winner": int(winner_seat == seat),
                                 "teacher_selected": int(sel is not None),
                                 "teacher_ship_fraction": (
-                                    round(sel / (src.ships + 1e-9), 3)
-                                    if sel is not None
-                                    else None
+                                    round(sel / (src.ships + 1e-9), 3) if sel is not None else None
                                 ),
-                                "future_value_delta_h20": (
-                                    round(sc20 - sc_now, 1)
-                                    if sc20 is not None
-                                    else None
-                                ),
-                                "future_value_delta_h50": (
-                                    round(sc50 - sc_now, 1)
-                                    if sc50 is not None
-                                    else None
-                                ),
+                                "future_value_delta_h20": (round(sc20 - sc_now, 1) if sc20 is not None else None),
+                                "future_value_delta_h50": (round(sc50 - sc_now, 1) if sc50 is not None else None),
                                 "terminal_outcome": term,
                             }
                             fout.write(json.dumps(row) + "\n")
@@ -167,21 +141,15 @@ def build(
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Build candidate-level dataset with FlightOracle labels."
-    )
+    ap = argparse.ArgumentParser(description="Build candidate-level dataset with FlightOracle labels.")
     ap.add_argument("--replay-root", required=True)
     ap.add_argument("--out-root", required=True)
     ap.add_argument("--use-flight-oracle", action="store_true", default=True)
-    ap.add_argument(
-        "--no-flight-oracle", dest="use_flight_oracle", action="store_false"
-    )
+    ap.add_argument("--no-flight-oracle", dest="use_flight_oracle", action="store_false")
     ap.add_argument("--step-stride", type=int, default=10)
     ap.add_argument("--horizon", type=int, default=40)
     ap.add_argument("--max-per-step", type=int, default=40)
-    ap.add_argument(
-        "--shard", default=None, help="i/n: process only replays with index %% n == i (parallel build)"
-    )
+    ap.add_argument("--shard", default=None, help="i/n: process only replays with index %% n == i (parallel build)")
     args = ap.parse_args()
     shard = None
     if args.shard:

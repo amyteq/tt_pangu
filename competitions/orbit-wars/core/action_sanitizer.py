@@ -32,9 +32,7 @@ def new_counters():
 class ActionSanitizer:
     def __init__(self, oracle: FlightOracle | None = None, block_no_target=False):
         self.oracle = oracle or FlightOracle()
-        self.block_no_target = (
-            block_no_target  # default False: 'none' is allowed (counted)
-        )
+        self.block_no_target = block_no_target  # default False: 'none' is allowed (counted)
 
     def sanitize(self, obs, actions, targets=None, horizon=120, counters=None):
         """Return (clean_actions, counters). `actions` = [[src, angle, ships], ...];

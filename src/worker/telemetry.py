@@ -203,8 +203,7 @@ class Tracer:
 def _export_console(span: Span) -> None:
     attrs = json.dumps(span.attributes, default=str, ensure_ascii=False)
     print(
-        f"kind={span.kind} name={span.name} duration_ms={span.duration_ms} "
-        f"status={span.status} attrs={attrs}",
+        f"kind={span.kind} name={span.name} duration_ms={span.duration_ms} status={span.status} attrs={attrs}",
         file=sys.stderr,
     )
 
@@ -267,9 +266,7 @@ def _export_sqlite(span: Span) -> None:
 
 def _export_supabase(span: Span) -> None:
     try:
-        sys.path.insert(
-            0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
-        )
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
         import db as _db
     except Exception as exc:
         print(f"[telemetry.supabase] db import failed: {exc}", file=sys.stderr)

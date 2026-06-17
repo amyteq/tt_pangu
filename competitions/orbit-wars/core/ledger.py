@@ -92,9 +92,7 @@ def build_ledger(obs, horizon=80):
     step = int(obs.get("step", 0))
     comet_ids = set(obs.get("comet_planet_ids", []) or [])
     me = obs.get("player", 0)
-    traj, arrivals = G.project(
-        planets, fleets, ang_vel, init_by_id, step, horizon, comet_ids
-    )
+    traj, arrivals = G.project(planets, fleets, ang_vel, init_by_id, step, horizon, comet_ids)
     led = ArrivalLedger(horizon=horizon, me=me, traj=traj, arrivals=arrivals)
     led._owner0 = {p[0]: p[1] for p in planets}
     led._ships0 = {p[0]: float(p[5]) for p in planets}

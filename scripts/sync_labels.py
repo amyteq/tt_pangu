@@ -36,9 +36,7 @@ from pathlib import Path
 try:
     import yaml  # type: ignore
 except ImportError:
-    sys.stderr.write(
-        "PyYAML required: pip install -e '.[dev]' (already a project dep)\n"
-    )
+    sys.stderr.write("PyYAML required: pip install -e '.[dev]' (already a project dep)\n")
     sys.exit(1)
 
 
@@ -131,15 +129,9 @@ def apply_plan(actions: list[tuple[str, dict]]) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(
-        description="Sync repo labels from .github/labels.yml"
-    )
-    parser.add_argument(
-        "--dry-run", action="store_true", default=True, help="(default) print plan only"
-    )
-    parser.add_argument(
-        "--apply", action="store_true", help="execute the plan (requires --i-mean-it)"
-    )
+    parser = argparse.ArgumentParser(description="Sync repo labels from .github/labels.yml")
+    parser.add_argument("--dry-run", action="store_true", default=True, help="(default) print plan only")
+    parser.add_argument("--apply", action="store_true", help="execute the plan (requires --i-mean-it)")
     parser.add_argument(
         "--i-mean-it",
         action="store_true",
@@ -161,19 +153,14 @@ def main(argv: list[str] | None = None) -> int:
         n[action] += 1
         if action != "nochange":
             print(f"{action.upper():>7}  {entry['name']}  ({entry['color']})")
-    print(
-        f"\nplan: {n['create']} create, {n['update']} update, "
-        f"{n['nochange']} no-change (of {len(desired)} desired)"
-    )
+    print(f"\nplan: {n['create']} create, {n['update']} update, {n['nochange']} no-change (of {len(desired)} desired)")
 
     if not args.apply:
         print("\n(dry-run; pass --apply --i-mean-it to write to GitHub)")
         return 0
 
     if not args.__dict__["i_mean_it"]:
-        sys.stderr.write(
-            "\nrefusing to write: --apply requires --i-mean-it (remote write).\n"
-        )
+        sys.stderr.write("\nrefusing to write: --apply requires --i-mean-it (remote write).\n")
         return 2
 
     return apply_plan(actions)

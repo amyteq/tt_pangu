@@ -40,9 +40,7 @@ def forward(npz, x):
 
 def main():
     ap = argparse.ArgumentParser(description="Export Orbit Wars scorer to numpy .npz.")
-    ap.add_argument(
-        "--run-root", required=True, help="run dir with model.pt + meta.json"
-    )
+    ap.add_argument("--run-root", required=True, help="run dir with model.pt + meta.json")
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
@@ -66,10 +64,7 @@ def main():
 
     # pure-Python-loadable JSON (stdlib-only online runtime). Layers ordered input->output.
     n_layers = len([k for k in arrs if k.startswith("W")])
-    layers = [
-        {"W": arrs[f"W{i}"].tolist(), "b": arrs[f"b{i}"].tolist()}
-        for i in range(n_layers)
-    ]
+    layers = [{"W": arrs[f"W{i}"].tolist(), "b": arrs[f"b{i}"].tolist()} for i in range(n_layers)]
     jdoc = {
         "features": list(FEATURES),
         "mean": arrs["mean"].tolist(),

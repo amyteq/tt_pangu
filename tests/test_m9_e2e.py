@@ -101,9 +101,7 @@ def test_worker_dry_run_audits_baseline_tool_call(tmp_path, monkeypatch):
             )
             msg = types.SimpleNamespace(content=None, tool_calls=[tc])
             return types.SimpleNamespace(
-                choices=[
-                    types.SimpleNamespace(message=msg, finish_reason="tool_calls")
-                ],
+                choices=[types.SimpleNamespace(message=msg, finish_reason="tool_calls")],
                 usage=types.SimpleNamespace(prompt_tokens=12, completion_tokens=6),
             )
         msg = types.SimpleNamespace(content="dry-run complete", tool_calls=None)
@@ -122,9 +120,9 @@ def test_worker_dry_run_audits_baseline_tool_call(tmp_path, monkeypatch):
     audit_path = tmp_path / "audit.jsonl"
     assert audit_path.is_file(), "expected audit.jsonl to be written"
     rows = [json.loads(line) for line in audit_path.read_text().splitlines() if line]
-    assert any(
-        r.get("tool_name") == "read_file" and r.get("decision") == "allow" for r in rows
-    ), f"expected a read_file allow audit row, got {rows!r}"
+    assert any(r.get("tool_name") == "read_file" and r.get("decision") == "allow" for r in rows), (
+        f"expected a read_file allow audit row, got {rows!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -150,8 +148,7 @@ def test_baseline_pipeline_on_fixture_produces_submission_csv(tmp_path):
 
     assert len(train) >= 50, "fixture train slice too small"
     assert len(test) == len(sample), (
-        "fixture test/sample_submission row counts must match for a valid "
-        "Kaggle submission shape"
+        "fixture test/sample_submission row counts must match for a valid Kaggle submission shape"
     )
 
     def _split_cabin(df):
@@ -168,14 +165,8 @@ def test_baseline_pipeline_on_fixture_produces_submission_csv(tmp_path):
     train_feat = _prep(train.drop(columns=["Transported"]))
     test_feat = _prep(test)
 
-    numeric_cols = [
-        c
-        for c in train_feat.columns
-        if train_feat[c].dtype.kind in {"f", "i"} and c != "PassengerId"
-    ]
-    categorical_cols = [
-        c for c in train_feat.columns if c not in numeric_cols and c != "PassengerId"
-    ]
+    numeric_cols = [c for c in train_feat.columns if train_feat[c].dtype.kind in {"f", "i"} and c != "PassengerId"]
+    categorical_cols = [c for c in train_feat.columns if c not in numeric_cols and c != "PassengerId"]
 
     pre = ColumnTransformer(
         transformers=[
@@ -204,9 +195,7 @@ def test_baseline_pipeline_on_fixture_produces_submission_csv(tmp_path):
             ),
         ]
     )
-    pipe = Pipeline(
-        [("pre", pre), ("clf", LogisticRegression(max_iter=2000, random_state=42))]
-    )
+    pipe = Pipeline([("pre", pre), ("clf", LogisticRegression(max_iter=2000, random_state=42))])
 
     X_train = train_feat.drop(columns=["PassengerId"])
     X_test = test_feat.drop(columns=["PassengerId"])
@@ -223,12 +212,8 @@ def test_baseline_pipeline_on_fixture_produces_submission_csv(tmp_path):
     pipe.fit(X_train, y)
     preds = pipe.predict(X_test).astype(bool)
 
-    submission = pd.DataFrame(
-        {"PassengerId": test_feat["PassengerId"].to_numpy(), "Transported": preds}
-    )
-    submission = (
-        submission.set_index("PassengerId").loc[sample["PassengerId"]].reset_index()
-    )
+    submission = pd.DataFrame({"PassengerId": test_feat["PassengerId"].to_numpy(), "Transported": preds})
+    submission = submission.set_index("PassengerId").loc[sample["PassengerId"]].reset_index()
     sub_path = tmp_path / "submission.csv"
     submission.to_csv(sub_path, index=False)
 
@@ -237,9 +222,7 @@ def test_baseline_pipeline_on_fixture_produces_submission_csv(tmp_path):
     out = pd.read_csv(sub_path)
     assert list(out.columns) == ["PassengerId", "Transported"]
     assert len(out) == len(sample)
-    assert out["Transported"].dtype == bool or set(
-        out["Transported"].unique()
-    ).issubset({True, False, "True", "False"})
+    assert out["Transported"].dtype == bool or set(out["Transported"].unique()).issubset({True, False, "True", "False"})
 
 
 # ---------------------------------------------------------------------------
@@ -356,8 +339,7 @@ def test_kca_kaggle_submit_refuses_without_credentials(tmp_path):
     # The submit path returns ok=False with EXIT_RUNTIME when creds are
     # missing (see tools/kca/kg.py::cmd_submit lines 145–162).
     assert proc.returncode != 0, (
-        f"expected non-zero exit when KAGGLE_USERNAME absent; "
-        f"stdout={proc.stdout!r} stderr={proc.stderr!r}"
+        f"expected non-zero exit when KAGGLE_USERNAME absent; stdout={proc.stdout!r} stderr={proc.stderr!r}"
     )
     stdout = (proc.stdout or "").strip()
     assert stdout, f"empty stdout; stderr={proc.stderr!r}"

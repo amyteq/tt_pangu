@@ -40,9 +40,7 @@ def _runnable(*paths):
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Generate local Orbit Wars replays for the plumbing cycle."
-    )
+    ap = argparse.ArgumentParser(description="Generate local Orbit Wars replays for the plumbing cycle.")
     ap.add_argument("--out", default=os.path.join(COMP, "datasets", "cache", "replays"))
     ap.add_argument("--seeds", type=int, nargs="+", default=[7000, 7001, 7002])
     ap.add_argument("--two-only", action="store_true", help="skip the 4p episodes")
@@ -68,13 +66,7 @@ def main():
     # 2p pairings: prefer strong-vs-strong; fall back to whatever exists
     pool2 = _runnable(kuni, evogen, v4, v32, pub)
     if len(pool2) < 2:
-        print(
-            json.dumps(
-                {
-                    "blocker": "need >=2 local agents; none found in main checkout or worktree"
-                }
-            )
-        )
+        print(json.dumps({"blocker": "need >=2 local agents; none found in main checkout or worktree"}))
         return
     pairings = []
     for i in range(len(pool2)):
@@ -105,19 +97,11 @@ def main():
                 env.run(list(quad))
                 _dump(env, eid, path)
             written.append(eid)
-    print(
-        json.dumps(
-            {"out": args.out, "episodes": len(written), "ids": written}, indent=2
-        )
-    )
+    print(json.dumps({"out": args.out, "episodes": len(written), "ids": written}, indent=2))
 
 
 def _name(path):
-    b = (
-        os.path.basename(os.path.dirname(path))
-        if path.endswith("main.py")
-        else os.path.basename(path)
-    )
+    b = os.path.basename(os.path.dirname(path)) if path.endswith("main.py") else os.path.basename(path)
     return os.path.splitext(b)[0].replace("_", "")
 
 

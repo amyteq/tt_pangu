@@ -8,9 +8,7 @@ class JobPolicy:
     max_turns: int = 60
     max_cost_usd: float = 20.0
     max_runtime_s: int = 7200
-    allowed_tool_patterns: list[str] = field(
-        default_factory=lambda: ["kca *", "python -m pytest *", "pytest *"]
-    )
+    allowed_tool_patterns: list[str] = field(default_factory=lambda: ["kca *", "python -m pytest *", "pytest *"])
     model: str = "claude-sonnet-4-6"
     temperature: float = 0.2
     top_p: float = 0.90

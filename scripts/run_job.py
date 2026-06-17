@@ -282,12 +282,8 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="No real API calls; use MockLiteLLMClient",
     )
-    parser.add_argument(
-        "--no-cleanup", action="store_true", help="Keep workspace after job"
-    )
-    parser.add_argument(
-        "--json", action="store_true", help="Emit result as JSON to stdout"
-    )
+    parser.add_argument("--no-cleanup", action="store_true", help="Keep workspace after job")
+    parser.add_argument("--json", action="store_true", help="Emit result as JSON to stdout")
     parser.add_argument("-v", "--verbose", action="store_true")
 
     args = parser.parse_args(argv)

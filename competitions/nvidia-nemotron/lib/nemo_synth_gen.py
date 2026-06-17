@@ -162,11 +162,7 @@ def _make_bit_ops(rng: random.Random) -> list:
         BitManipOp(f"SHIFT RIGHT {shift_r_n}", lambda x, n=shift_r_n: x >> n),
         BitManipOp(
             "MAJORITY(x, ROTL1, ROTR1)",
-            lambda x: (
-                (x & rotate_left(x, 1))
-                | (x & rotate_right(x, 1))
-                | (rotate_left(x, 1) & rotate_right(x, 1))
-            ),
+            lambda x: (x & rotate_left(x, 1)) | (x & rotate_right(x, 1)) | (rotate_left(x, 1) & rotate_right(x, 1)),
         ),
         BitManipOp(
             "CHOICE(x, ROTL2, NOT)",
@@ -198,9 +194,7 @@ def make_bit_puzzle(rng: random.Random) -> tuple:
         query_val = rng.randint(0, 255)
     answer_val = transform(query_val)
 
-    ex_lines = "\n".join(
-        f"{format(i, '08b')} -> {format(o, '08b')}" for i, o in examples
-    )
+    ex_lines = "\n".join(f"{format(i, '08b')} -> {format(o, '08b')}" for i, o in examples)
     prompt = (
         f"{ALICE_HEADER}a secret bit manipulation rule transforms 8-bit binary numbers. "
         "The transformation involves operations like bit shifts, rotations, XOR, AND, OR, "
@@ -226,15 +220,10 @@ def make_bit_puzzle(rng: random.Random) -> tuple:
     for op in chosen:
         x_prev = x_check
         x_check = op.apply(x_check)
-        cot += (
-            f"  {op.name}: {format(x_prev, '08b')} ({x_prev})"
-            f" -> {format(x_check, '08b')} ({x_check})\n"
-        )
+        cot += f"  {op.name}: {format(x_prev, '08b')} ({x_prev}) -> {format(x_check, '08b')} ({x_check})\n"
     cot += f"  Final: {format(x_check, '08b')} == {format(e0_out, '08b')} ✓\n\n"
 
-    cot += (
-        f"Applying confirmed rule to query {format(query_val, '08b')} ({query_val}):\n"
-    )
+    cot += f"Applying confirmed rule to query {format(query_val, '08b')} ({query_val}):\n"
     x = query_val
     for op in chosen:
         x_prev = x
@@ -244,10 +233,7 @@ def make_bit_puzzle(rng: random.Random) -> tuple:
             f"    Input : {format(x_prev, '08b')} (decimal {x_prev})\n"
             f"    Output: {format(x, '08b')} (decimal {x})\n"
         )
-    cot += (
-        f"\nFinal answer: {format(x, '08b')}\n"
-        f"This is the definitive result. No further revision."
-    )
+    cot += f"\nFinal answer: {format(x, '08b')}\nThis is the definitive result. No further revision."
     return prompt, answer, cot
 
 
@@ -409,9 +395,7 @@ def make_unit_puzzle(rng: random.Random) -> tuple:
     example_inputs = [round(rng.uniform(1.0, 50.0), 2) for _ in range(n_examples)]
     query_input = round(rng.uniform(1.0, 50.0), 2)
 
-    ex_lines = "\n".join(
-        f"{v} m becomes {round(v * multiplier, 2)}" for v in example_inputs
-    )
+    ex_lines = "\n".join(f"{v} m becomes {round(v * multiplier, 2)}" for v in example_inputs)
     prompt = (
         f"{ALICE_HEADER}a secret unit conversion is applied to measurements. "
         f"For example:\n{ex_lines}\n"
@@ -512,9 +496,7 @@ def _apply_sym_map(s: str, char_map: dict) -> str:
     return "".join(char_map.get(c, c) for c in s)
 
 
-def _gen_sym_string(
-    rng: random.Random, length: int, charset: list = SYMBOL_CHARS
-) -> str:
+def _gen_sym_string(rng: random.Random, length: int, charset: list = SYMBOL_CHARS) -> str:
     return "".join(rng.choices(charset, k=length))
 
 
@@ -555,12 +537,7 @@ def make_symbol_puzzle(rng: random.Random) -> tuple:
         mapped = learned.get(ci, ci)
         result_chars.append(mapped)
         cot += f"  Position {pos}: '{ci}' -> '{mapped}'\n"
-    cot += (
-        "\nConcatenating in order: "
-        + " + ".join(f"'{c}'" for c in result_chars)
-        + f" = '{q_out}'\n"
-        f"Result: {q_out}"
-    )
+    cot += "\nConcatenating in order: " + " + ".join(f"'{c}'" for c in result_chars) + f" = '{q_out}'\nResult: {q_out}"
     return prompt, q_out, cot
 
 
@@ -753,12 +730,8 @@ def _build_expr_cot(puzzle: dict) -> str:
 
     # FIX: If unknown symbol present, explicitly note it doesn't affect result
     if has_unknown:
-        lines.append(
-            "  NOTE: Some characters in this query may not appear in examples."
-        )
-        lines.append(
-            "  This does NOT matter — the rule operates on positions, not lookups."
-        )
+        lines.append("  NOTE: Some characters in this query may not appear in examples.")
+        lines.append("  This does NOT matter — the rule operates on positions, not lookups.")
         lines.append(f"  We apply the rule directly to A='{q_a}' and B='{q_b}'.")
 
     lines.append("  Computing result position by position:")
@@ -783,9 +756,7 @@ def make_cryptarithm_deduce_puzzle(rng: random.Random) -> tuple:
     force_unknown = rng.random() < 0.30
     puzzle = _build_sym_expr_puzzle(rng, force_unknown=force_unknown)
 
-    ex_lines = "\n".join(
-        f"{expr} = {result}" for expr, result, _, _, _ in puzzle["examples"]
-    )
+    ex_lines = "\n".join(f"{expr} = {result}" for expr, result, _, _, _ in puzzle["examples"])
     prompt = (
         f"{ALICE_HEADER}a secret set of transformation rules is applied to equations. "
         f"Below are a few examples:\n{ex_lines}\n"
@@ -1042,19 +1013,14 @@ def make_equation_numeric_guess_puzzle(rng: random.Random) -> tuple:
             rng.randint(6, 8),
         )
         seq = [a * i * i + b * i + c for i in range(1, n + 1)]
-        cot_rule = (
-            f"Quadratic sequence: second differences are constant = {2 * a}. "
-            f"Rule: f(n) = {a}n^2 + {b}n + {c}."
-        )
+        cot_rule = f"Quadratic sequence: second differences are constant = {2 * a}. Rule: f(n) = {a}n^2 + {b}n + {c}."
 
     else:
         a0, a1, n = rng.randint(1, 5), rng.randint(1, 5), rng.randint(7, 9)
         seq = [a0, a1]
         for _ in range(n - 2):
             seq.append(seq[-1] + seq[-2])
-        cot_rule = (
-            f"Fibonacci-like: each term = sum of two preceding. Starts {a0}, {a1}."
-        )
+        cot_rule = f"Fibonacci-like: each term = sum of two preceding. Starts {a0}, {a1}."
 
     hide_idx = rng.randint(2, len(seq) - 2)
     answer_val = seq[hide_idx]

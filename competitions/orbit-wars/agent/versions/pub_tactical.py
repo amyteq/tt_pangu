@@ -20,7 +20,7 @@ def fleet_speed(ships):
         return 1.0
     ratio = math.log(ships) / math.log(1000.0)
     ratio = max(0.0, min(1.0, ratio))
-    return 1.0 + (MAX_SPEED - 1.0) * (ratio ** 1.5)
+    return 1.0 + (MAX_SPEED - 1.0) * (ratio**1.5)
 
 
 def segment_hits_sun(x1, y1, x2, y2, safety=SUN_SAFETY):
@@ -55,7 +55,9 @@ def safe_angle_and_distance(sx, sy, tx, ty):
         for mult in (1.8, 2.3, 3.0, 4.0):
             wx = CENTER_X + sign * nx * (SUN_R * mult)
             wy = CENTER_Y + sign * ny * (SUN_R * mult)
-            if segment_hits_sun(sx, sy, wx, wy, safety=SUN_SAFETY) or segment_hits_sun(wx, wy, tx, ty, safety=SUN_SAFETY):
+            if segment_hits_sun(sx, sy, wx, wy, safety=SUN_SAFETY) or segment_hits_sun(
+                wx, wy, tx, ty, safety=SUN_SAFETY
+            ):
                 continue
             d = dist(sx, sy, wx, wy) + dist(wx, wy, tx, ty)
             if best is None or d < best[0]:
@@ -76,8 +78,7 @@ def predict_planet_position(planet, initial_by_id, angular_velocity, turns):
         return planet.x, planet.y
     cur_ang = math.atan2(planet.y - CENTER_Y, planet.x - CENTER_X)
     new_ang = cur_ang + angular_velocity * turns
-    return (CENTER_X + orbital_r * math.cos(new_ang),
-            CENTER_Y + orbital_r * math.sin(new_ang))
+    return (CENTER_X + orbital_r * math.cos(new_ang), CENTER_Y + orbital_r * math.sin(new_ang))
 
 
 def predict_comet_position(planet_id, comets, turns):
@@ -471,9 +472,7 @@ def agent(obs):
             if ships_needed > src_ships:
                 continue
 
-            if segment_hits_sun(src.x, src.y,
-                                src.x + math.cos(angle) * 3,
-                                src.y + math.sin(angle) * 3, safety=0.4):
+            if segment_hits_sun(src.x, src.y, src.x + math.cos(angle) * 3, src.y + math.sin(angle) * 3, safety=0.4):
                 continue
 
             if tgt.owner == -1 and is_contested_neutral(tgt):
@@ -566,9 +565,7 @@ def agent(obs):
             if aim is None:
                 continue
             angle, turns, _, _ = aim
-            if segment_hits_sun(src.x, src.y,
-                                src.x + math.cos(angle) * 3,
-                                src.y + math.sin(angle) * 3, safety=0.4):
+            if segment_hits_sun(src.x, src.y, src.x + math.cos(angle) * 3, src.y + math.sin(angle) * 3, safety=0.4):
                 continue
             moves.append([src.id, float(angle), int(send)])
             available[src.id] -= send
@@ -608,9 +605,7 @@ def agent(obs):
         if aim is None:
             continue
         angle, turns, _, _ = aim
-        if segment_hits_sun(src.x, src.y,
-                            src.x + math.cos(angle) * 3,
-                            src.y + math.sin(angle) * 3, safety=0.4):
+        if segment_hits_sun(src.x, src.y, src.x + math.cos(angle) * 3, src.y + math.sin(angle) * 3, safety=0.4):
             continue
         send = available[sid]
         if send >= 1:
@@ -631,9 +626,11 @@ def agent(obs):
                 continue
             if available[r.id] < 15:
                 continue
-            mid_candidates = [p for p in my_planets
-                              if p.id != r.id and p.id not in doomed_planets
-                              and front_dist[p.id] < front_dist[r.id] * 0.75]
+            mid_candidates = [
+                p
+                for p in my_planets
+                if p.id != r.id and p.id not in doomed_planets and front_dist[p.id] < front_dist[r.id] * 0.75
+            ]
             forward_target = None
             if mid_candidates:
                 mid_candidates.sort(key=lambda p: dist(r.x, r.y, p.x, p.y))
@@ -652,9 +649,7 @@ def agent(obs):
             angle, turns, _, _ = aim
             if turns > 40:
                 continue
-            if segment_hits_sun(r.x, r.y,
-                                r.x + math.cos(angle) * 3,
-                                r.y + math.sin(angle) * 3, safety=0.4):
+            if segment_hits_sun(r.x, r.y, r.x + math.cos(angle) * 3, r.y + math.sin(angle) * 3, safety=0.4):
                 continue
             moves.append([r.id, float(angle), int(send)])
             available[r.id] -= send
@@ -685,9 +680,7 @@ def agent(obs):
                 if aim is None:
                     continue
                 angle, turns, _, _ = aim
-                if segment_hits_sun(src.x, src.y,
-                                    src.x + math.cos(angle) * 3,
-                                    src.y + math.sin(angle) * 3, safety=0.4):
+                if segment_hits_sun(src.x, src.y, src.x + math.cos(angle) * 3, src.y + math.sin(angle) * 3, safety=0.4):
                     continue
                 moves.append([src.id, float(angle), int(send)])
                 available[src.id] -= send

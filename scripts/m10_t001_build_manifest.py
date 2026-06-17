@@ -42,9 +42,7 @@ COMPETITION = "tpu-getting-started"
 DEFAULT_PATH = Path("data") / COMPETITION
 
 
-def _run_kaggle_files(
-    competition: str, page_token: str | None
-) -> tuple[str, str | None]:
+def _run_kaggle_files(competition: str, page_token: str | None) -> tuple[str, str | None]:
     """Run ``kaggle competitions files`` once and return (csv_body, next_token).
 
     csv_body is the CSV-only portion (Next Page Token line stripped, warnings
@@ -55,9 +53,7 @@ def _run_kaggle_files(
         cmd.extend(["--page-token", page_token])
     proc = subprocess.run(cmd, capture_output=True, text=True, check=False)
     if proc.returncode != 0:
-        raise RuntimeError(
-            f"kaggle competitions files failed (rc={proc.returncode}): {proc.stderr!r}"
-        )
+        raise RuntimeError(f"kaggle competitions files failed (rc={proc.returncode}): {proc.stderr!r}")
     out = proc.stdout or ""
     next_token: str | None = None
     body_lines: list[str] = []
@@ -81,9 +77,7 @@ def discover_files(competition: str, max_pages: int = 50) -> list[dict]:
     while True:
         pages += 1
         if pages > max_pages:
-            raise RuntimeError(
-                f"exceeded max_pages={max_pages}; pagination did not terminate"
-            )
+            raise RuntimeError(f"exceeded max_pages={max_pages}; pagination did not terminate")
         body, next_token = _run_kaggle_files(competition, token)
         reader = csv.DictReader(StringIO(body))
         for row in reader:
@@ -131,10 +125,7 @@ def build_manifest(files: list[dict], variants: list[str]) -> dict:
     return {
         "competition": COMPETITION,
         "format": "kernel-input",
-        "discovered_at": _dt.datetime.now(_dt.timezone.utc)
-        .replace(microsecond=0)
-        .isoformat()
-        .replace("+00:00", "Z"),
+        "discovered_at": _dt.datetime.now(_dt.timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "discovery_method": "kaggle competitions files -c tpu-getting-started --csv",
         "files": entries,
         "image_size_variants": variants,

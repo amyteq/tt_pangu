@@ -3,6 +3,7 @@
 Candidate = agent/main.py with OW_* overrides; opponent = v1.py (reads no env vars,
 so it is unaffected by the overrides — a clean A/B).
 """
+
 import argparse
 import os
 import time
@@ -15,10 +16,10 @@ V1 = os.path.normpath(os.path.join(HERE, "..", "agent", "versions", "v1.py"))
 
 CONFIGS = {
     "v1-equiv (floors off)": dict(OW_REAR_FLOOR=0, OW_FRONTIER_FLOOR=0, OW_PROD_MULT=0, OW_INFLIGHT_CAP=5.0),
-    "frontier=8":            dict(OW_REAR_FLOOR=0, OW_FRONTIER_FLOOR=8, OW_PROD_MULT=0, OW_INFLIGHT_CAP=5.0),
-    "frontier=14":           dict(OW_REAR_FLOOR=0, OW_FRONTIER_FLOOR=14, OW_PROD_MULT=0, OW_INFLIGHT_CAP=5.0),
-    "frontier=8+rear=3":     dict(OW_REAR_FLOOR=3, OW_FRONTIER_FLOOR=8, OW_PROD_MULT=0, OW_INFLIGHT_CAP=5.0),
-    "frontier=10+cap1.2":    dict(OW_REAR_FLOOR=0, OW_FRONTIER_FLOOR=10, OW_PROD_MULT=0, OW_INFLIGHT_CAP=1.2),
+    "frontier=8": dict(OW_REAR_FLOOR=0, OW_FRONTIER_FLOOR=8, OW_PROD_MULT=0, OW_INFLIGHT_CAP=5.0),
+    "frontier=14": dict(OW_REAR_FLOOR=0, OW_FRONTIER_FLOOR=14, OW_PROD_MULT=0, OW_INFLIGHT_CAP=5.0),
+    "frontier=8+rear=3": dict(OW_REAR_FLOOR=3, OW_FRONTIER_FLOOR=8, OW_PROD_MULT=0, OW_INFLIGHT_CAP=5.0),
+    "frontier=10+cap1.2": dict(OW_REAR_FLOOR=0, OW_FRONTIER_FLOOR=10, OW_PROD_MULT=0, OW_INFLIGHT_CAP=1.2),
 }
 
 

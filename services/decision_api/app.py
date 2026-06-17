@@ -98,9 +98,7 @@ def make_app(
 
     def _audit(*, decision: str, decision_id: str, reason: Optional[str]) -> None:
         if audit_logger is not None:
-            audit_logger(
-                decision=decision, decision_id=decision_id, reason=reason or ""
-            )
+            audit_logger(decision=decision, decision_id=decision_id, reason=reason or "")
             return
         try:
             from tools.kca.agent.audit import log_policy_decision  # type: ignore
@@ -153,9 +151,7 @@ def make_app(
                 import sys
                 from pathlib import Path
 
-                sys.path.insert(
-                    0, str(Path(__file__).resolve().parents[2] / "tools" / "kca")
-                )
+                sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "kca"))
                 import stuck as _stuck  # type: ignore
 
                 resp["resume_seed"] = _stuck.resume_seed_from_notes(body.reason)
@@ -216,13 +212,9 @@ def make_app(
     # ------------------------------------------------------------------
     @app.get("/decisions", response_model=list[DecisionRow])
     def list_decisions(
-        status: str = Query(
-            "pending", description="Filter by status (e.g. pending, approved, rejected)"
-        ),
+        status: str = Query("pending", description="Filter by status (e.g. pending, approved, rejected)"),
         limit: int = Query(50, ge=1, le=200, description="Maximum rows to return"),
-        competition_id: Optional[str] = Query(
-            None, description="Filter by competition UUID (via agent_jobs join)"
-        ),
+        competition_id: Optional[str] = Query(None, description="Filter by competition UUID (via agent_jobs join)"),
         x_decision_api_token: Optional[str] = Header(default=None),
     ) -> list[dict]:
         """READ_ONLY: list human_decisions filtered by status, with optional competition_id.
@@ -290,11 +282,7 @@ def make_app(
                 detail="run has no competition_id",
             )
         try:
-            comp = (
-                _db.get_competition(competition_id)
-                if hasattr(_db, "get_competition")
-                else None
-            )
+            comp = _db.get_competition(competition_id) if hasattr(_db, "get_competition") else None
         except Exception as exc:  # pragma: no cover
             raise HTTPException(
                 status_code=503,
@@ -306,9 +294,7 @@ def make_app(
             import sys
             from pathlib import Path
 
-            sys.path.insert(
-                0, str(Path(__file__).resolve().parents[2] / "tools" / "kca")
-            )
+            sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "kca"))
             from submission_checklist import build_checklist  # type: ignore
         except Exception as exc:  # pragma: no cover
             raise HTTPException(

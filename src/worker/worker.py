@@ -95,9 +95,7 @@ def _make_tool_calls_response(
     )
 
 
-def _make_stop_response(
-    text: str, prompt_tokens: int = 30, completion_tokens: int = 10
-):
+def _make_stop_response(text: str, prompt_tokens: int = 30, completion_tokens: int = 10):
     msg = types.SimpleNamespace(
         content=text,
         tool_calls=None,
@@ -123,14 +121,10 @@ class MockLiteLLMClient:
         self._turn += 1
         if self._scenario == "two_turns":
             if self._turn == 1:
-                return _make_tool_calls_response(
-                    "read_file", {"path": "README.md"}, 50, 20
-                )
+                return _make_tool_calls_response("read_file", {"path": "README.md"}, 50, 20)
             return _make_stop_response("dry run complete", 30, 10)
         if self._scenario == "infinite_tool":
-            return _make_tool_calls_response(
-                "read_file", {"path": "README.md"}, 100, 50
-            )
+            return _make_tool_calls_response("read_file", {"path": "README.md"}, 100, 50)
         raise ValueError(f"unknown scenario: {self._scenario}")
 
 
@@ -209,9 +203,7 @@ class AgentWorker:
         try:
             import sys as _sys
 
-            _sys.path.insert(
-                0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
-            )
+            _sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
             import db as _db
 
             _db.set_job_trace(self.job_id, trace_id, root_span_id)
@@ -253,9 +245,7 @@ class AgentWorker:
                 )
 
             # 2. LiteLLM call (OpenAI format for all providers)
-            extra: dict = (
-                {} if self.policy.min_p is None else {"min_p": self.policy.min_p}
-            )
+            extra: dict = {} if self.policy.min_p is None else {"min_p": self.policy.min_p}
             with _otel.with_turn_span(tracer, budget.turns + 1) as _turn_span:
                 if client is not None:
                     response = client.completion(
@@ -349,9 +339,7 @@ class AgentWorker:
                     )
                     try:
                         with _otel.with_tool_span(tracer, tc.function.name, tool_input):
-                            result_content = self._tool_call(
-                                executor, tc.function.name, tool_input
-                            )
+                            result_content = self._tool_call(executor, tc.function.name, tool_input)
                     except PolicyViolation as exc:
                         # M8 hard-deny path: log + fail the job, no side effects.
                         self._update_status(
@@ -381,9 +369,7 @@ class AgentWorker:
                             saved = executor.policy.max_side_effect
                             executor.policy.max_side_effect = "SUBMISSION"
                             try:
-                                result_content = executor.execute(
-                                    tc.function.name, tool_input
-                                )
+                                result_content = executor.execute(tc.function.name, tool_input)
                             finally:
                                 executor.policy.max_side_effect = saved
                         else:
@@ -421,9 +407,7 @@ class AgentWorker:
                 stop_reason="unexpected",
             )
 
-    def _tool_call(
-        self, executor: "ToolExecutor", tool_name: str, tool_input: dict
-    ) -> str:
+    def _tool_call(self, executor: "ToolExecutor", tool_name: str, tool_input: dict) -> str:
         """M8 tool dispatch with ToolSpec + JobPolicy enforcement.
 
         Resolution order:
@@ -545,9 +529,7 @@ class AgentWorker:
                 mode=self.policy.mode,
                 policy_profile=self.policy.policy_profile,
                 args=tool_input,
-                audit_required=bool(getattr(spec, "audit_required", False))
-                if spec is not None
-                else False,
+                audit_required=bool(getattr(spec, "audit_required", False)) if spec is not None else False,
                 job_id=self.job_id if self.db_url else None,
             )
         except Exception as exc:  # pragma: no cover
@@ -555,9 +537,7 @@ class AgentWorker:
 
             _sys.stderr.write(f"[audit warn] {exc}\n")
 
-    def _handle_approval_required(
-        self, exc: ApprovalRequired, budget: BudgetTracker, start: float
-    ) -> WorkerResult:
+    def _handle_approval_required(self, exc: ApprovalRequired, budget: BudgetTracker, start: float) -> WorkerResult:
         """Pause the job and record a decision request.
 
         M6: when the gating operation is one of KCA_REVIEWER_TRIGGER_OPS,
@@ -603,9 +583,7 @@ class AgentWorker:
 
                 sys.path.insert(
                     0,
-                    str(
-                        Path(__file__).resolve().parent.parent.parent / "tools" / "kca"
-                    ),
+                    str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"),
                 )
                 import db as _db
 
@@ -670,9 +648,7 @@ class AgentWorker:
         """
         import sys as _sys
 
-        _sys.path.insert(
-            0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
-        )
+        _sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
         import db as _db
 
         job = _db.get_job(job_id)
@@ -721,9 +697,7 @@ class AgentWorker:
         )
         return worker
 
-    def _maybe_consult_reviewer(
-        self, exc: ApprovalRequired, budget: BudgetTracker
-    ) -> str | None:
+    def _maybe_consult_reviewer(self, exc: ApprovalRequired, budget: BudgetTracker) -> str | None:
         """Run the sync reviewer for trigger ops; return outcome tag.
 
         Returns one of:
@@ -752,9 +726,7 @@ class AgentWorker:
         try:
             import sys as _sys
 
-            _sys.path.insert(
-                0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
-            )
+            _sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
             import db as _db
 
             # Skip if reviewer already ran for (job_id, target_op).
@@ -853,9 +825,7 @@ class AgentWorker:
         try:
             import sys
 
-            sys.path.insert(
-                0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
-            )
+            sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
             import db as _db
 
             _db.append_job_event(
@@ -883,9 +853,7 @@ class AgentWorker:
             import datetime
             import sys
 
-            sys.path.insert(
-                0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
-            )
+            sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
             import db as _db
 
             _db.update_job(

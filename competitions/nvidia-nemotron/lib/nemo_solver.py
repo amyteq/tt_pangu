@@ -104,10 +104,7 @@ def solve_numeral(p):
 # gravity:  d = 0.5 * g * t^2  ->  g = 2d/t^2 from examples, apply to query t
 # --------------------------------------------------------------------------- #
 def solve_gravity(p):
-    pairs = [
-        (float(t), float(d))
-        for t, d in re.findall(r"t\s*=\s*([0-9.]+)s,\s*distance\s*=\s*([0-9.]+)", p)
-    ]
+    pairs = [(float(t), float(d)) for t, d in re.findall(r"t\s*=\s*([0-9.]+)s,\s*distance\s*=\s*([0-9.]+)", p)]
     m = re.search(r"falling distance for t\s*=\s*([0-9.]+)s", p)
     if not pairs or not m:
         return None
@@ -132,10 +129,7 @@ def solve_gravity(p):
 # unit conversion:  out = ratio * in  ->  fit ratio, apply to query
 # --------------------------------------------------------------------------- #
 def solve_unit(p):
-    pairs = [
-        (float(a), float(b))
-        for a, b in re.findall(r"([0-9.]+)\s*m becomes\s*([0-9.]+)", p)
-    ]
+    pairs = [(float(a), float(b)) for a, b in re.findall(r"([0-9.]+)\s*m becomes\s*([0-9.]+)", p)]
     m = re.search(r"convert the following measurement:\s*([0-9.]+)\s*m", p)
     if not pairs or not m:
         return None
@@ -277,9 +271,7 @@ def solve_bit(p):
             candidates.append(
                 (
                     f"{kind} 0x{c:02X}",
-                    lambda x, k=kind, cc=c: (
-                        {"XOR": x ^ cc, "AND": x & cc, "OR": x | cc}[k] & 0xFF
-                    ),
+                    lambda x, k=kind, cc=c: {"XOR": x ^ cc, "AND": x & cc, "OR": x | cc}[k] & 0xFF,
                 )
             )
     # 2-op: structural then solved mask
@@ -293,8 +285,7 @@ def solve_bit(p):
                     (
                         f"{sname} -> {kind} 0x{c:02X}",
                         lambda x, sf=sfn, k=kind, cc=c: (
-                            {"XOR": sf(x) ^ cc, "AND": sf(x) & cc, "OR": sf(x) | cc}[k]
-                            & 0xFF
+                            {"XOR": sf(x) ^ cc, "AND": sf(x) & cc, "OR": sf(x) | cc}[k] & 0xFF
                         ),
                     )
                 )
@@ -321,12 +312,8 @@ _REWRITES = {
     "concat_ba": lambda a, b: b + a,
     "rev_a_b": lambda a, b: a[::-1] + b,
     "a_rev_b": lambda a, b: a + b[::-1],
-    "interleave": lambda a, b: "".join(
-        x + y for x, y in zip(a.ljust(len(b)), b.ljust(len(a)))
-    ),
-    "swap_inner": lambda a, b: (
-        (a[0] + b[0] + b[1] + a[1]) if len(a) == 2 and len(b) == 2 else None
-    ),
+    "interleave": lambda a, b: "".join(x + y for x, y in zip(a.ljust(len(b)), b.ljust(len(a)))),
+    "swap_inner": lambda a, b: (a[0] + b[0] + b[1] + a[1]) if len(a) == 2 and len(b) == 2 else None,
     "left_dup": lambda a, b: a + a,
     "right_dup": lambda a, b: b + b,
     "rev_concat": lambda a, b: (a + b)[::-1],
@@ -390,9 +377,7 @@ SOLVERS = {
     "equation": solve_equation,
 }
 
-SUFFIX = (
-    "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
-)
+SUFFIX = "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
 
 
 def solve_dataset(rows, categories=None):
@@ -435,9 +420,7 @@ if __name__ == "__main__":
     import csv
     import os
 
-    tc = os.path.expanduser(
-        "~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/data/train.csv"
-    )
+    tc = os.path.expanduser("~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/data/train.csv")
     rows = list(csv.DictReader(open(tc, encoding="utf-8")))
     recs, cov = solve_dataset(rows)
     print(f"train rows: {len(rows)}; verified solver records: {len(recs)}")

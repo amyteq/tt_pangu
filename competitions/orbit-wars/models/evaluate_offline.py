@@ -33,9 +33,7 @@ def _auc(scores, labels):
     order = np.argsort(np.concatenate([pos, neg]))
     ranks = np.empty(len(order), float)
     ranks[order] = np.arange(1, len(order) + 1)
-    return (ranks[: len(pos)].sum() - len(pos) * (len(pos) + 1) / 2.0) / (
-        len(pos) * len(neg)
-    )
+    return (ranks[: len(pos)].sum() - len(pos) * (len(pos) + 1) / 2.0) / (len(pos) * len(neg))
 
 
 def _recall_at_k(rows, scores, ks=(1, 3, 5)):
@@ -50,25 +48,17 @@ def _recall_at_k(rows, scores, ks=(1, 3, 5)):
         ordered = sorted(idxs, key=lambda i: -scores[i])
         for k in ks:
             out[k].append(len(set(ordered[:k]) & set(sel)) / len(sel))
-    return {
-        str(k): (round(float(np.mean(v)), 4) if v else None) for k, v in out.items()
-    }
+    return {str(k): (round(float(np.mean(v)), 4) if v else None) for k, v in out.items()}
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Offline eval of an Orbit Wars scorer.npz."
-    )
+    ap = argparse.ArgumentParser(description="Offline eval of an Orbit Wars scorer.npz.")
     ap.add_argument("--npz", required=True)
     ap.add_argument("--data-root", required=True)
     args = ap.parse_args()
 
     npz = np.load(args.npz, allow_pickle=True)
-    rows = [
-        json.loads(line)
-        for line in open(os.path.join(args.data_root, "candidates.jsonl"))
-        if line.strip()
-    ]
+    rows = [json.loads(line) for line in open(os.path.join(args.data_root, "candidates.jsonl")) if line.strip()]
     X = np.array([featurize(r) for r in rows], dtype=np.float64)
     y = np.array([1.0 if r.get("teacher_selected") else 0.0 for r in rows])
     scores = forward(npz, X)

@@ -99,9 +99,7 @@ def merge_script(
         copied_cells.append(_clean_copied_cell(cell, tag))
 
     head_cells = [
-        copy.deepcopy(cell)
-        for cell in dst_cells
-        if _has_head_tag(cell) and (keep_markdown or cell.kind == "code")
+        copy.deepcopy(cell) for cell in dst_cells if _has_head_tag(cell) and (keep_markdown or cell.kind == "code")
     ]
     remaining_cells = [
         copy.deepcopy(cell)
@@ -269,9 +267,7 @@ def validate_scripts(
                 "exists": True,
                 "total_cells": len(src_cells),
                 "code_cells": sum(1 for cell in src_cells if cell.kind == "code"),
-                "markdown_cells": sum(
-                    1 for cell in src_cells if cell.kind == "markdown"
-                ),
+                "markdown_cells": sum(1 for cell in src_cells if cell.kind == "markdown"),
                 "syncable_code_cells": src_syncable,
                 "excluded_exact_tag_cells": src_dropped_exact,
                 "excluded_debug_prefix_cells": src_dropped_debug,
@@ -325,16 +321,12 @@ def main(argv: list[str] | None = None) -> int:
         description="Build, refresh, or validate a *_test.py script from a source percent-v1 Python script.",
     )
     parser.add_argument("src", help="Source .py file")
-    parser.add_argument(
-        "dst", nargs="?", help="Destination .py file; default: <src_stem>_test.py"
-    )
+    parser.add_argument("dst", nargs="?", help="Destination .py file; default: <src_stem>_test.py")
     parser.add_argument(
         "--src-tag",
         help="Override the tag added to copied cells; default: source script stem",
     )
-    parser.add_argument(
-        "--json", action="store_true", help="Print machine-readable JSON to stdout"
-    )
+    parser.add_argument("--json", action="store_true", help="Print machine-readable JSON to stdout")
     parser.add_argument(
         "--keep-markdown",
         type=_parse_bool_arg,
@@ -353,16 +345,12 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Validate source/destination script structure without writing files",
     )
-    parser.add_argument(
-        "--validate", dest="check", action="store_true", help="Alias of --check"
-    )
+    parser.add_argument("--validate", dest="check", action="store_true", help="Alias of --check")
     args = parser.parse_args(argv)
 
     try:
         if args.check:
-            result = validate_scripts(
-                args.src, args.dst, args.src_tag, bool(args.keep_markdown)
-            )
+            result = validate_scripts(args.src, args.dst, args.src_tag, bool(args.keep_markdown))
             if result["summary"]["valid"]:
                 return _emit_ok(args, action="validate", **result)
             if args.json:
@@ -374,9 +362,7 @@ def main(argv: list[str] | None = None) -> int:
                 )
             return EXIT_VALIDATE_FAILED
 
-        result = merge_script(
-            args.src, args.dst, args.src_tag, bool(args.keep_markdown)
-        )
+        result = merge_script(args.src, args.dst, args.src_tag, bool(args.keep_markdown))
         cells = result.pop("cells")
         payload = percent_cells_to_text(cells)
         changed = True

@@ -177,9 +177,7 @@ def current_side_effect() -> SideEffect:
 def _check_remote_gate() -> None:
     target = os.environ.get(_ENV_TARGET, "local").strip().lower()
     if target == "remote" and os.environ.get(_ENV_ALLOW_REMOTE) != "1":
-        raise RemoteOperationBlocked(
-            f"{_ENV_TARGET}=remote requires {_ENV_ALLOW_REMOTE}=1 and human approval"
-        )
+        raise RemoteOperationBlocked(f"{_ENV_TARGET}=remote requires {_ENV_ALLOW_REMOTE}=1 and human approval")
 
 
 def _conninfo() -> str:
@@ -188,9 +186,7 @@ def _conninfo() -> str:
         return url
     host = os.environ.get("SUPABASE_DB_HOST")
     if not host:
-        raise DBNotConfigured(
-            f"Set {_ENV_URL} (preferred) or SUPABASE_DB_HOST + related vars."
-        )
+        raise DBNotConfigured(f"Set {_ENV_URL} (preferred) or SUPABASE_DB_HOST + related vars.")
     port = os.environ.get("SUPABASE_DB_PORT", "54322")
     user = os.environ.get("SUPABASE_DB_USER", "postgres")
     password = os.environ.get("SUPABASE_DB_PASSWORD", "postgres")
@@ -283,9 +279,7 @@ def create_experiment_m2(
     project_id = project_id or DEFAULT_PROJECT_ID
     tags_list = list(tags or [])
     config = config or {}
-    return _with_conn(
-        conn, _create_experiment_m2, name, hypothesis, tags_list, config, project_id
-    )
+    return _with_conn(conn, _create_experiment_m2, name, hypothesis, tags_list, config, project_id)
 
 
 def _create_experiment_m2(
@@ -320,9 +314,7 @@ def create_experiment_run(
     conn: "psycopg.Connection | None" = None,
 ) -> str:
     """Create an experiment_runs row. Return its id (uuid str)."""
-    return _with_conn(
-        conn, _create_experiment_run, experiment_id, external_run_id, run_dir, command
-    )
+    return _with_conn(conn, _create_experiment_run, experiment_id, external_run_id, run_dir, command)
 
 
 def _create_experiment_run(
@@ -360,9 +352,7 @@ def record_metric_m2(
 ) -> dict:
     """M2: insert into experiment_run_metrics event table + jsonb snapshot."""
     metadata = metadata or {}
-    return _with_conn(
-        conn, _record_metric_m2, experiment_run_id, key, float(value), metadata
-    )
+    return _with_conn(conn, _record_metric_m2, experiment_run_id, key, float(value), metadata)
 
 
 def _record_metric_m2(
@@ -844,10 +834,7 @@ def _list_jobs(
     limit: int,
 ) -> list[dict]:
     if status is not None:
-        query = (
-            "SELECT * FROM agent_jobs WHERE status = %s::job_status "
-            "ORDER BY created_at DESC LIMIT %s"
-        )
+        query = "SELECT * FROM agent_jobs WHERE status = %s::job_status ORDER BY created_at DESC LIMIT %s"
         params: list[Any] = [status, limit]
     else:
         query = "SELECT * FROM agent_jobs ORDER BY created_at DESC LIMIT %s"
@@ -871,16 +858,10 @@ def _list_pending_decisions(
     job_id: str | None,
 ) -> list[dict]:
     if job_id is not None:
-        query = (
-            "SELECT * FROM human_decisions WHERE status = 'pending' "
-            "AND job_id = %s::uuid ORDER BY created_at DESC"
-        )
+        query = "SELECT * FROM human_decisions WHERE status = 'pending' AND job_id = %s::uuid ORDER BY created_at DESC"
         params: list[Any] = [job_id]
     else:
-        query = (
-            "SELECT * FROM human_decisions WHERE status = 'pending' "
-            "ORDER BY created_at DESC"
-        )
+        query = "SELECT * FROM human_decisions WHERE status = 'pending' ORDER BY created_at DESC"
         params = []
     with conn.cursor() as cur:
         cur.execute(query, params)
@@ -915,12 +896,7 @@ def _list_decisions(
         )
         params: list[Any] = [status, competition_id, limit]
     else:
-        query = (
-            "SELECT * FROM human_decisions"
-            " WHERE status = %s::decision_status"
-            " ORDER BY created_at ASC"
-            " LIMIT %s"
-        )
+        query = "SELECT * FROM human_decisions WHERE status = %s::decision_status ORDER BY created_at ASC LIMIT %s"
         params = [status, limit]
     with conn.cursor() as cur:
         cur.execute(query, params)
@@ -1138,16 +1114,10 @@ def _list_experiments(
     status: str | None,
 ) -> list[dict]:
     if status is not None:
-        query = (
-            "SELECT * FROM experiments WHERE competition_id = %s::uuid "
-            "AND status = %s ORDER BY created_at DESC"
-        )
+        query = "SELECT * FROM experiments WHERE competition_id = %s::uuid AND status = %s ORDER BY created_at DESC"
         params: list[Any] = [competition_id, status]
     else:
-        query = (
-            "SELECT * FROM experiments WHERE competition_id = %s::uuid "
-            "ORDER BY created_at DESC"
-        )
+        query = "SELECT * FROM experiments WHERE competition_id = %s::uuid ORDER BY created_at DESC"
         params = [competition_id]
     with conn.cursor() as cur:
         cur.execute(query, params)
@@ -1293,10 +1263,7 @@ def _list_runs_m4(
     limit: int,
 ) -> list[dict]:
     if experiment_id is not None:
-        query = (
-            "SELECT * FROM experiment_runs WHERE experiment_id = %s::uuid "
-            "ORDER BY created_at DESC LIMIT %s"
-        )
+        query = "SELECT * FROM experiment_runs WHERE experiment_id = %s::uuid ORDER BY created_at DESC LIMIT %s"
         params: list[Any] = [experiment_id, limit]
     elif competition_id is not None:
         query = (
@@ -1357,8 +1324,7 @@ def _create_submission_m4(
         crow = cur.fetchone()
         if crow is None or crow.get("project_id") is None:
             raise ValueError(
-                f"competition {competition_id} has no project_id; "
-                "cannot satisfy submissions.project_id NOT NULL"
+                f"competition {competition_id} has no project_id; cannot satisfy submissions.project_id NOT NULL"
             )
         project_id = crow["project_id"]
     with conn.cursor() as cur:
@@ -1603,10 +1569,7 @@ def _list_research_items(
     limit: int,
 ) -> list[dict]:
     if competition_id is not None:
-        query = (
-            "SELECT * FROM research_items WHERE competition_id = %s::uuid "
-            "ORDER BY created_at DESC LIMIT %s"
-        )
+        query = "SELECT * FROM research_items WHERE competition_id = %s::uuid ORDER BY created_at DESC LIMIT %s"
         params: list[Any] = [competition_id, limit]
     else:
         query = "SELECT * FROM research_items ORDER BY created_at DESC LIMIT %s"
@@ -1704,16 +1667,10 @@ def _list_citations(
     experiment_id: str | None,
 ) -> list[dict]:
     if run_id is not None:
-        query = (
-            "SELECT * FROM research_citations WHERE run_id = %s::uuid "
-            "ORDER BY created_at DESC"
-        )
+        query = "SELECT * FROM research_citations WHERE run_id = %s::uuid ORDER BY created_at DESC"
         params: list[Any] = [run_id]
     elif experiment_id is not None:
-        query = (
-            "SELECT * FROM research_citations WHERE experiment_id = %s::uuid "
-            "ORDER BY created_at DESC"
-        )
+        query = "SELECT * FROM research_citations WHERE experiment_id = %s::uuid ORDER BY created_at DESC"
         params = [experiment_id]
     else:
         query = "SELECT * FROM research_citations ORDER BY created_at DESC LIMIT 100"
@@ -1748,9 +1705,7 @@ def create_review(
 ) -> str:
     """Insert a row into agent_reviews. Returns the new review id."""
     if verdict not in _VALID_VERDICTS:
-        raise ValueError(
-            f"verdict must be one of {sorted(_VALID_VERDICTS)}, got {verdict!r}"
-        )
+        raise ValueError(f"verdict must be one of {sorted(_VALID_VERDICTS)}, got {verdict!r}")
     return _with_conn(
         conn,
         _create_review,
@@ -2015,8 +1970,7 @@ def _list_spans(
     params.append(limit)
     with conn.cursor() as cur:
         cur.execute(
-            f"SELECT * FROM agent_telemetry_spans {where} "
-            f"ORDER BY started_at DESC LIMIT %s",
+            f"SELECT * FROM agent_telemetry_spans {where} ORDER BY started_at DESC LIMIT %s",
             params,
         )
         rows = cur.fetchall()
@@ -2156,10 +2110,7 @@ def register_eval_suite(
     ``tools/kca/eval/__init__.register_all()``.
     """
     if category not in _EVAL_VALID_CATEGORIES:
-        raise ValueError(
-            f"category must be one of {sorted(_EVAL_VALID_CATEGORIES)}, "
-            f"got {category!r}"
-        )
+        raise ValueError(f"category must be one of {sorted(_EVAL_VALID_CATEGORIES)}, got {category!r}")
     return _with_conn(
         conn,
         _register_eval_suite,
@@ -2302,9 +2253,7 @@ def record_eval_result(
 ) -> str:
     """Insert one eval_results row. Returns the new result id (uuid str)."""
     if status not in _EVAL_VALID_STATUSES:
-        raise ValueError(
-            f"status must be one of {sorted(_EVAL_VALID_STATUSES)}, got {status!r}"
-        )
+        raise ValueError(f"status must be one of {sorted(_EVAL_VALID_STATUSES)}, got {status!r}")
     return _with_conn(
         conn,
         _record_eval_result,
@@ -2493,15 +2442,9 @@ def create_goal(
     callers get a clear ValueError before hitting the DB.
     """
     if exit_strategy not in _GOAL_EXIT_STRATEGIES:
-        raise ValueError(
-            f"exit_strategy must be one of {sorted(_GOAL_EXIT_STRATEGIES)}, "
-            f"got {exit_strategy!r}"
-        )
+        raise ValueError(f"exit_strategy must be one of {sorted(_GOAL_EXIT_STRATEGIES)}, got {exit_strategy!r}")
     if target_rank_kind is not None and target_rank_kind not in _GOAL_RANK_KINDS:
-        raise ValueError(
-            f"target_rank_kind must be one of {sorted(_GOAL_RANK_KINDS)}, "
-            f"got {target_rank_kind!r}"
-        )
+        raise ValueError(f"target_rank_kind must be one of {sorted(_GOAL_RANK_KINDS)}, got {target_rank_kind!r}")
     return _with_conn(
         conn,
         _create_goal,
@@ -2586,15 +2529,9 @@ def update_goal(
     helper intentionally does not touch the lifecycle columns.
     """
     if exit_strategy is not None and exit_strategy not in _GOAL_EXIT_STRATEGIES:
-        raise ValueError(
-            f"exit_strategy must be one of {sorted(_GOAL_EXIT_STRATEGIES)}, "
-            f"got {exit_strategy!r}"
-        )
+        raise ValueError(f"exit_strategy must be one of {sorted(_GOAL_EXIT_STRATEGIES)}, got {exit_strategy!r}")
     if target_rank_kind is not None and target_rank_kind not in _GOAL_RANK_KINDS:
-        raise ValueError(
-            f"target_rank_kind must be one of {sorted(_GOAL_RANK_KINDS)}, "
-            f"got {target_rank_kind!r}"
-        )
+        raise ValueError(f"target_rank_kind must be one of {sorted(_GOAL_RANK_KINDS)}, got {target_rank_kind!r}")
     fields: list[str] = []
     params: list[Any] = []
     if target_lb_score is not None:
@@ -2651,9 +2588,7 @@ def close_goal(
     'active' — that would defeat the purpose). Sets ``closed_at = now()``.
     """
     if status not in _GOAL_STATUSES or status == "active":
-        raise ValueError(
-            f"status must be one of 'reached', 'closed', 'abandoned'; got {status!r}"
-        )
+        raise ValueError(f"status must be one of 'reached', 'closed', 'abandoned'; got {status!r}")
     _with_conn(conn, _close_goal, goal_id, status, reason)
 
 
@@ -2909,9 +2844,7 @@ def _map_competition_view(view: Any, slug: str) -> dict:
         # submission_format / accelerators / internet are not reliably exposed
         # by competition_view; recorded best-effort and left NULL otherwise.
         "submission_format": (
-            {"kind": "csv", "evaluation_metric": str(evaluation)}
-            if evaluation is not None
-            else None
+            {"kind": "csv", "evaluation_metric": str(evaluation)} if evaluation is not None else None
         ),
         "accelerators_allowed": None,
         "internet_allowed": None,

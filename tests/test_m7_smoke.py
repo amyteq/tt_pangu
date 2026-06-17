@@ -40,9 +40,7 @@ def _env_clean(**overrides) -> dict:
     return env
 
 
-def _write_skill(
-    tmp_path: Path, name: str, body: str, *, frontmatter: str | None = None
-) -> Path:
+def _write_skill(tmp_path: Path, name: str, body: str, *, frontmatter: str | None = None) -> Path:
     root = tmp_path / "skills"
     skill_dir = root / name
     skill_dir.mkdir(parents=True, exist_ok=True)

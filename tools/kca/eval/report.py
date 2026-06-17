@@ -91,9 +91,7 @@ class GroupRow:
             "route": self.route,
             "case_count": self.case_count,
             "pass_count": self.pass_count,
-            "metrics_aggregate": {
-                k: v.as_dict() for k, v in self.metrics_aggregate.items()
-            },
+            "metrics_aggregate": {k: v.as_dict() for k, v in self.metrics_aggregate.items()},
             "cases": [c.as_dict() for c in self.cases],
         }
 
@@ -475,19 +473,13 @@ def render_markdown(payload: ReportPayload) -> str:
     # By suite × route -------------------------------------------------
     lines.append("## By suite × route")
     lines.append("")
-    lines.append(
-        "| suite | route | cases | pass | metric_keys | latency_ms_p50 | cost_usd |"
-    )
+    lines.append("| suite | route | cases | pass | metric_keys | latency_ms_p50 | cost_usd |")
     lines.append("|---|---|---|---|---|---|---|")
     for g in payload.groups:
         metric_keys = sorted(g.metrics_aggregate.keys())
         metric_keys_str = ",".join(metric_keys) if metric_keys else "—"
         latency_values = sorted(c.latency_ms for c in g.cases)
-        latency_p50 = (
-            int(round(_percentile_50([float(v) for v in latency_values])))
-            if latency_values
-            else 0
-        )
+        latency_p50 = int(round(_percentile_50([float(v) for v in latency_values]))) if latency_values else 0
         cost_sum = sum(c.cost_usd for c in g.cases)
         lines.append(
             f"| {g.suite} | {g.route} | {g.case_count} | {g.pass_count} | "
@@ -515,10 +507,7 @@ def render_markdown(payload: ReportPayload) -> str:
             )
             # Escape pipe chars inside metrics JSON for table safety.
             metrics_cell = metrics_json.replace("|", "\\|")
-            lines.append(
-                f"| {c.name} | {c.status} | {c.latency_ms} | "
-                f"{_fmt_cost(c.cost_usd)} | `{metrics_cell}` |"
-            )
+            lines.append(f"| {c.name} | {c.status} | {c.latency_ms} | {_fmt_cost(c.cost_usd)} | `{metrics_cell}` |")
         # Aggregated metrics footer (means / min / max / p50).
         if g.metrics_aggregate:
             lines.append("")

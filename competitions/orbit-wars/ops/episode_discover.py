@@ -33,9 +33,7 @@ PENDING = os.path.join(COMP, "live", "pending_episodes.txt")
 API = "https://www.kaggle.com/api/i/competitions.EpisodeService/ListEpisodes"
 
 
-def list_episodes(
-    submission_id: int, timeout: int = 60, retries: int = 5
-) -> list[dict]:
+def list_episodes(submission_id: int, timeout: int = 60, retries: int = 5) -> list[dict]:
     """Read-only ListEpisodes with exponential backoff on HTTP 429 (public rate limit).
 
     The endpoint rate-limits bursts; the ladder loop / BFS discovery hit it, so back off
@@ -82,9 +80,7 @@ def summarize(submission_id: int) -> dict:
                 "reward": me.get("reward"),
                 "our_mu": me.get("initialScore"),
                 "d_mu": (me.get("updatedScore") or 0) - (me.get("initialScore") or 0),
-                "res": "win"
-                if place == 1
-                else ("loss" if (size == 2) else f"p{place}"),
+                "res": "win" if place == 1 else ("loss" if (size == 2) else f"p{place}"),
             }
         )
     return {"submission_id": submission_id, "rows": rows}
@@ -98,25 +94,19 @@ def main() -> None:
         action="store_true",
         help="append episode ids to pending_episodes.txt",
     )
-    ap.add_argument(
-        "--losses-only", action="store_true", help="queue only losses / non-1st"
-    )
+    ap.add_argument("--losses-only", action="store_true", help="queue only losses / non-1st")
     args = ap.parse_args()
     s = summarize(args.submission_id)
     rows = s["rows"]
     twop = [r for r in rows if r["size"] == 2]
     fourp = [r for r in rows if r["size"] == 4]
-    print(
-        f"submission {args.submission_id}: {len(rows)} episodes ({len(twop)} 2p, {len(fourp)} 4p)"
-    )
+    print(f"submission {args.submission_id}: {len(rows)} episodes ({len(twop)} 2p, {len(fourp)} 4p)")
     if rows:
         mus = [r["our_mu"] for r in rows if r["our_mu"]]
         print(f"  our μ {min(mus):.0f}–{max(mus):.0f} (median {st.median(mus):.0f})")
     if twop:
         w = sum(r["place"] == 1 for r in twop)
-        print(
-            f"  2p: {w}W/{len(twop) - w}L ({100 * w / len(twop):.0f}%), net Δμ {sum(r['d_mu'] for r in twop):+.0f}"
-        )
+        print(f"  2p: {w}W/{len(twop) - w}L ({100 * w / len(twop):.0f}%), net Δμ {sum(r['d_mu'] for r in twop):+.0f}")
     if fourp:
         from collections import Counter
 

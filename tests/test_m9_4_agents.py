@@ -67,9 +67,7 @@ def test_agent_frontmatter_parses(path: Path) -> None:
     meta, _ = _split_frontmatter(path.read_text())
     missing = REQUIRED_FRONTMATTER_KEYS - set(meta)
     assert not missing, f"{path.name} missing front-matter keys: {missing}"
-    assert meta["permissionMode"] == "plan", (
-        f"{path.name} must declare permissionMode: plan (read-only role)"
-    )
+    assert meta["permissionMode"] == "plan", f"{path.name} must declare permissionMode: plan (read-only role)"
 
 
 def _normalise_blockquote(text: str) -> str:
@@ -95,9 +93,7 @@ def test_discovery_debate_gate_doc_present() -> None:
     text = _normalise_blockquote(doc.read_text())
     for key, line in ACCEPTANCE_LINES.items():
         assert line in text, f"discovery-debate-gate.md missing {key}'s acceptance line"
-    assert "arch:" in text and "legacy-migration:" in text, (
-        "discovery-debate-gate.md must document both task tags"
-    )
+    assert "arch:" in text and "legacy-migration:" in text, "discovery-debate-gate.md must document both task tags"
     assert "docs/evidence/<milestone>/<task>/discovery/" in text, (
         "discovery-debate-gate.md must document the evidence path"
     )
@@ -106,9 +102,7 @@ def test_discovery_debate_gate_doc_present() -> None:
 def test_protocol_section_7_present() -> None:
     proto = REPO_ROOT / "docs" / "milestone-loop-protocol.md"
     text = proto.read_text()
-    assert "\n## 7. Discovery / Debate Gate\n" in text, (
-        "milestone-loop-protocol.md must have an additive §7 heading"
-    )
+    assert "\n## 7. Discovery / Debate Gate\n" in text, "milestone-loop-protocol.md must have an additive §7 heading"
 
 
 def test_kkr_replay_evidence_present() -> None:
@@ -132,8 +126,7 @@ def test_legacy_archaeologist_evidence_names_multi_account() -> None:
     evidence = (EVIDENCE_DIR / "legacy-archaeologist.md").read_text()
     for needle in ("harrysun2006", "firefly2006", ".env.{owner}", "owner"):
         assert needle in evidence, (
-            f"legacy-archaeologist evidence must name '{needle}' "
-            "(multi-account / owner / env mapping)"
+            f"legacy-archaeologist evidence must name '{needle}' (multi-account / owner / env mapping)"
         )
 
 

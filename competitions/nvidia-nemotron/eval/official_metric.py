@@ -52,9 +52,7 @@ def extract_final_answer(text: str | None) -> str:
     return lines[-1] if lines else "NOT_FOUND"
 
 
-_LEADING_ZERO_INT = re.compile(
-    r"0\d+"
-)  # e.g. binary "01000011" — leading zero is significant
+_LEADING_ZERO_INT = re.compile(r"0\d+")  # e.g. binary "01000011" — leading zero is significant
 
 
 def verify(gold: str, predicted: str) -> bool:
@@ -66,13 +64,9 @@ def verify(gold: str, predicted: str) -> bool:
     """
     gold = str(gold).strip()
     predicted = str(predicted).strip()
-    if not _LEADING_ZERO_INT.fullmatch(gold) and not _LEADING_ZERO_INT.fullmatch(
-        predicted
-    ):
+    if not _LEADING_ZERO_INT.fullmatch(gold) and not _LEADING_ZERO_INT.fullmatch(predicted):
         try:
-            return math.isclose(
-                float(predicted), float(gold), rel_tol=1e-2, abs_tol=1e-5
-            )
+            return math.isclose(float(predicted), float(gold), rel_tol=1e-2, abs_tol=1e-5)
         except (ValueError, TypeError):
             pass
     return predicted.lower() == gold.lower()
@@ -84,7 +78,5 @@ def accuracy(golds, raw_outputs) -> float:
     raw_outputs = list(raw_outputs)
     if not golds:
         return 0.0
-    correct = sum(
-        verify(g, extract_final_answer(o)) for g, o in zip(golds, raw_outputs)
-    )
+    correct = sum(verify(g, extract_final_answer(o)) for g, o in zip(golds, raw_outputs))
     return correct / len(golds)

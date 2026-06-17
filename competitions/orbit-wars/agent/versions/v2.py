@@ -38,27 +38,28 @@ BOARD_SIZE = 100.0
 CENTER = BOARD_SIZE / 2.0
 SUN_RADIUS = 10.0
 ROTATION_RADIUS_LIMIT = 50.0
-MAX_SPEED = 6.0          # configuration.shipSpeed default
+MAX_SPEED = 6.0  # configuration.shipSpeed default
 EPISODE_STEPS = 500
 
 # Tunables.
-ENEMY_BUFFER = 2         # extra ships over the exact capture threshold for enemy planets
-PATH_CLEARANCE = 1.0     # extra margin when testing whether a path clips a planet
-DEFENSE_HORIZON = 18     # ticks ahead we consider an inbound enemy fleet a threat
-TIME_DISCOUNT = 0.04     # how strongly to prefer near targets in the value score
+ENEMY_BUFFER = 2  # extra ships over the exact capture threshold for enemy planets
+PATH_CLEARANCE = 1.0  # extra margin when testing whether a path clips a planet
+DEFENSE_HORIZON = 18  # ticks ahead we consider an inbound enemy fleet a threat
+TIME_DISCOUNT = 0.04  # how strongly to prefer near targets in the value score
 
 # --- v2: hold what you take (fixes v1's capture-churn / leaky-expansion loss) ---
 # v1 left captured planets at ~0 garrison and poured the empire into transit, so
 # starter retook them and out-produced. v2 keeps a STANDING garrison on every planet
 # and caps how much of the empire may be in flight at once.
 import os as _os
+
 # v2 defaults tuned via arena sweep vs the frozen v1 snapshot. The decisive lever is
 # the in-flight cap (don't over-commit the empire into transit); a small frontier
 # garrison complements it. Heavy garrison / a tight cap (<1.0) over-corrects and loses.
-REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))           # garrison kept on a safe (rear) planet
+REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
 FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 10))  # garrison kept on a planet near an enemy
 FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 28.0))  # enemy planet within this distance => frontier
-GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))    # extra standing garrison per unit production
+GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
 INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
 
 
@@ -195,9 +196,7 @@ def _agent(obs):
     if not my_planets:
         return []
 
-    enemy_planets = [
-        p for p in planets if p.owner not in (-1, player) and p.id not in comet_ids
-    ]
+    enemy_planets = [p for p in planets if p.owner not in (-1, player) and p.id not in comet_ids]
 
     # Reserve = standing garrison floor + any extra for currently-inbound enemy fleets.
     # The floor is the v2 fix: it lets freshly captured planets accumulate production
@@ -233,7 +232,7 @@ def _agent(obs):
                 _, t_ticks, _ = sol
                 if tgt.owner == -1:  # neutral: static garrison
                     needed = tgt.ships + 1
-                else:                # enemy: grows by production while in flight
+                else:  # enemy: grows by production while in flight
                     needed = tgt.ships + tgt.production * t_ticks + 1 + ENEMY_BUFFER
                 if needed == ships_guess:
                     break

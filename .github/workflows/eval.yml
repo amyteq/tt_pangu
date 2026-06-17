@@ -14,8 +14,8 @@ name: eval
 #   - No KAGGLE_* / *_API_KEY in the workflow env.
 #   - --route mocked always; paid LLM / Kaggle calls are operator-only,
 #     local, and never trigger from this workflow.
-#   - Audit-grep regression sentinel inspects the snapshot + the
-#     in-repo .agent/audit.jsonl for forbidden Kaggle CLI patterns
+#   - Audit-grep regression sentinel inspects the snapshot + the KCA audit
+#     log .agent/kca/audit.jsonl (ADR-0021) for forbidden Kaggle CLI patterns
 #     (kaggle competitions submit / kernels push / datasets create /
 #     datasets version). Any hit fails the job.
 
@@ -125,14 +125,14 @@ jobs:
 
       - name: audit-grep sentinel
         run: |
-          # The eval framework writes audit lines to .agent/audit.jsonl.
-          # Re-check both the JSON snapshot AND the audit log for any of
-          # the M10-T007 forbidden Kaggle CLI patterns. Any hit FAILs
+          # The eval framework writes audit lines to .agent/kca/audit.jsonl
+          # (ADR-0021). Re-check both the JSON snapshot AND the audit log for
+          # any of the M10-T007 forbidden Kaggle CLI patterns. Any hit FAILs
           # the nightly.
           set +e
           FOUND=0
           for needle in "kaggle competitions submit" "kaggle kernels push" "kaggle datasets create" "kaggle datasets version"; do
-            for target in /tmp/eval-snapshot.json .agent/audit.jsonl; do
+            for target in /tmp/eval-snapshot.json .agent/kca/audit.jsonl; do
               if [ -f "$target" ] && grep -F "$needle" "$target"; then
                 echo "::error::forbidden Kaggle CLI pattern found in $target: $needle"
                 FOUND=1
@@ -269,18 +269,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          # The tracking issue is searched by title; we never open a new
-          # one per nightly. If it does not exist, the workflow fails
-          # loudly so the operator can create it (M13-T008 sets it up
-          # as part of the milestone closeout).
+          # The tracking issue is searched by title. It is OPTIONAL: if it
+          # does not exist (e.g. it was closed), we still surface the flip in
+          # the job summary and warn — we never fail the run or lose the
+          # signal, and we never open a new issue per nightly. This means the
+          # tracking issue can be safely closed (see issue #47).
           ISSUE_NUMBER=$(gh issue list \
             --search 'M13 nightly eval — rolling diff in:title' \
             --state open \
             --json number,title \
             -q '.[0].number')
+          # Always record the flip in the run summary so it is never lost.
+          cat /tmp/eval-diff.md >> "$GITHUB_STEP_SUMMARY"
           if [ -z "$ISSUE_NUMBER" ]; then
-            echo "::error::tracking issue 'M13 nightly eval — rolling diff' not found; create it once and re-run."
-            exit 1
+            echo "::warning::rolling-diff flip detected but no open 'M13 nightly eval — rolling diff' tracking issue; recorded in the job summary instead."
+            exit 0
           fi
           gh issue comment "$ISSUE_NUMBER" \
             --body-file /tmp/eval-diff.md

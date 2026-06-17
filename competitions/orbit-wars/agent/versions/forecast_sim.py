@@ -95,7 +95,7 @@ def replay_planet(owner0, ships0, prod, arrivals, H):
     Used to score a candidate by recomputing only the planets a launch touches.
     """
     by_k = {}
-    for (k, o, s) in arrivals:
+    for k, o, s in arrivals:
         by_k.setdefault(k, []).append((o, s))
     owner, ships = owner0, float(ships0)
     o_out, s_out = [owner], [ships]
@@ -120,11 +120,13 @@ def project(planets, fleets, ang_vel, init_by_id, step0, H, comet_ids=()):
     Comets are dropped (their path-based motion isn't modeled here).
     """
     comet_ids = set(comet_ids)
-    pl = {p[0]: {"owner": p[1], "x": p[2], "y": p[3], "r": p[4], "ships": float(p[5]), "prod": p[6]}
-          for p in planets if p[0] not in comet_ids}
+    pl = {
+        p[0]: {"owner": p[1], "x": p[2], "y": p[3], "r": p[4], "ships": float(p[5]), "prod": p[6]}
+        for p in planets
+        if p[0] not in comet_ids
+    }
     init = {pid: (init_by_id[pid][2], init_by_id[pid][3]) for pid in pl if pid in init_by_id}
-    fl = [{"owner": f[1], "x": f[2], "y": f[3], "ang": f[4], "ships": float(f[6])}
-          for f in fleets if f[6] > 0]
+    fl = [{"owner": f[1], "x": f[2], "y": f[3], "ang": f[4], "ships": float(f[6])} for f in fleets if f[6] > 0]
     traj = {pid: {"owner": [pl[pid]["owner"]], "ships": [pl[pid]["ships"]]} for pid in pl}
     arrivals = {pid: [] for pid in pl}
 
@@ -168,10 +170,8 @@ def project(planets, fleets, ang_vel, init_by_id, step0, H, comet_ids=()):
         # 4. combat
         for pid, arr in combat.items():
             if arr:
-                pl[pid]["owner"], pl[pid]["ships"] = _resolve_combat(
-                    pl[pid]["owner"], pl[pid]["ships"], arr
-                )
-                for (o, s) in arr:
+                pl[pid]["owner"], pl[pid]["ships"] = _resolve_combat(pl[pid]["owner"], pl[pid]["ships"], arr)
+                for o, s in arr:
                     arrivals[pid].append((k, o, s))
         # record
         for pid, p in pl.items():
@@ -224,6 +224,7 @@ if __name__ == "__main__":
     init2 = {p[0]: p for p in planets2}
     # a fleet from planet 0 aimed straight at planet 1
     import math as _m
+
     ang = _m.atan2(20.0 - 50.0, 50.0 - 70.0)
     fleets2 = [(0, 0, 70.0 + _m.cos(ang) * 1.1, 50.0 + _m.sin(ang) * 1.1, ang, 0, 30)]
     tr2, arr2 = project(planets2, fleets2, 0.0, init2, 0, 12)

@@ -118,9 +118,7 @@ def _fetch_holdout_accuracy(cur, run_id: str) -> float | None:
     if row is None:
         return None
     acc = row[0]
-    assert acc is not None, (
-        f"experiment_runs[{run_id!r}].metrics->'holdout_accuracy'->>'value' is NULL"
-    )
+    assert acc is not None, f"experiment_runs[{run_id!r}].metrics->'holdout_accuracy'->>'value' is NULL"
     return float(acc)
 
 

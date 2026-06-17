@@ -55,9 +55,7 @@ def _write_cache_files(run_dir: Path, meta: dict, metrics_snapshot: dict) -> str
         (run_dir / "artifacts").mkdir(parents=True, exist_ok=True)
         (run_dir / "meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
         (run_dir / "config.json").write_text("{}", encoding="utf-8")
-        (run_dir / "metrics.json").write_text(
-            json.dumps(metrics_snapshot or {}, indent=2), encoding="utf-8"
-        )
+        (run_dir / "metrics.json").write_text(json.dumps(metrics_snapshot or {}, indent=2), encoding="utf-8")
         return None
     except OSError as e:
         return f"cache write failed: {e}"
@@ -254,9 +252,7 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 
 def add_parsers(sub: argparse._SubParsersAction) -> None:
-    run = sub.add_parser(
-        "run", help="Manage runs/<competition>/<run_id>/ — DB-first (M2)"
-    )
+    run = sub.add_parser("run", help="Manage runs/<competition>/<run_id>/ — DB-first (M2)")
     run_sub = run.add_subparsers(dest="run_cmd", required=True)
 
     p_init = run_sub.add_parser(

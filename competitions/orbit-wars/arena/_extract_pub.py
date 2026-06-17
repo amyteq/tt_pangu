@@ -1,4 +1,5 @@
 import json, sys
+
 nb_path = sys.argv[1]
 out = sys.argv[2]
 nb = json.load(open(nb_path))

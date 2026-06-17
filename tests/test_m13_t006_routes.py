@@ -75,17 +75,13 @@ def test_resolve_claude_haiku_refuses_without_allow_remote():
 
 
 def test_resolve_claude_haiku_refuses_when_key_missing():
-    spec = _routes.resolve(
-        "claude_haiku_4_5", allow_remote=True, env={"KCA_ALLOW_REMOTE": "1"}
-    )
+    spec = _routes.resolve("claude_haiku_4_5", allow_remote=True, env={"KCA_ALLOW_REMOTE": "1"})
     assert spec.ok is False
     assert spec.error == "MISSING_API_KEY:ANTHROPIC_API_KEY"
 
 
 def test_resolve_claude_sonnet_refuses_when_key_missing():
-    spec = _routes.resolve(
-        "claude_sonnet_4_6", allow_remote=True, env={"KCA_ALLOW_REMOTE": "1"}
-    )
+    spec = _routes.resolve("claude_sonnet_4_6", allow_remote=True, env={"KCA_ALLOW_REMOTE": "1"})
     assert spec.ok is False
     assert spec.error == "MISSING_API_KEY:ANTHROPIC_API_KEY"
 
@@ -329,7 +325,5 @@ def test_route_compare_budget_cap_aborts_remaining(monkeypatch, capsys):
     assert payload["ok"] is True
     assert payload["aborted_on_budget"] is True
     # Find the rows that hit BUDGET_EXCEEDED.
-    budget_skips = [
-        r for r in payload["rows"] if r.get("error_text") == "BUDGET_EXCEEDED"
-    ]
+    budget_skips = [r for r in payload["rows"] if r.get("error_text") == "BUDGET_EXCEEDED"]
     assert len(budget_skips) >= 1

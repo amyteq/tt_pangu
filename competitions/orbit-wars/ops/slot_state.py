@@ -77,14 +77,10 @@ def save_active(agents: dict, meta: dict | None = None) -> None:
     os.makedirs(LIVE, exist_ok=True)
     out = {"meta": meta or {}, "agents": agents}
     with open(ACTIVE_AGENTS, "w") as f:
-        yaml.safe_dump(
-            out, f, sort_keys=False, allow_unicode=True, default_flow_style=False
-        )
+        yaml.safe_dump(out, f, sort_keys=False, allow_unicode=True, default_flow_style=False)
 
 
-def classify(
-    status_now: str, matches: list[dict], hard_bug: bool = False
-) -> tuple[str, str]:
+def classify(status_now: str, matches: list[dict], hard_bug: bool = False) -> tuple[str, str]:
     """Apply the task's classification rules to an agent's recent match history.
 
     matches: chronological list of {result: win|loss|tie, opp_class: weaker|
@@ -146,9 +142,7 @@ def classify(
     return "neutral", "no decisive streak; remains neutral"
 
 
-def opp_strength_class(
-    our_mu: float | None, opp_mu: float | None, margin: float = 50.0
-) -> str:
+def opp_strength_class(our_mu: float | None, opp_mu: float | None, margin: float = 50.0) -> str:
     """weaker | similar | stronger | unknown by ladder-mu gap (strength_margin_mu)."""
     if our_mu is None or opp_mu is None:
         return "unknown"
@@ -173,10 +167,7 @@ if __name__ == "__main__":
         ),
         (
             "neutral",
-            [
-                {"result": x, "opp_class": "similar"}
-                for x in ("loss", "win", "loss", "win", "loss")
-            ],
+            [{"result": x, "opp_class": "similar"} for x in ("loss", "win", "loss", "win", "loss")],
             False,
             "weak",
         ),

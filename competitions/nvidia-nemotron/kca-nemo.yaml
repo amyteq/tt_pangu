@@ -39,6 +39,26 @@ _base:
   docker_image: gcr.io/kaggle-private-byod/python@sha256:9fa0da194fad2241d3f01a80581cbecbd3a258b4d1b695e2cbbbc62a0fd205ac
   machine_shape: NvidiaRtxPro6000
 
+  # Per-competition autonomy (ADR-0021). Default ON: KCA pushes/submits without
+  # per-action approval once `screen` passes; flip `enabled: false` for strict
+  # human-in-the-loop. NOTE: an annotation key for now (like lp/note) — the
+  # metadata generator ignores it; runtime enforcement is the ADR-0021 follow-up.
+  autonomy:
+    enabled: true
+    auto_push: true
+    auto_submit: true
+    daily_submit_budget: 5         # per-team quota, shared across both accounts
+    screen:                        # ALL must pass for an autonomous SUBMIT
+      beats_best: true             # beat current best on trusted local validation
+      min_margin: 0.0
+      require_repro: true          # seed + artifact path + exact command recorded
+      rules_check: true            # rules / submission-limit / no-leakage check passed
+    human_gated:                   # still require a human even when enabled
+      - final_promotion_near_deadline
+      - irreversible_delete
+      - over_budget_spend
+      - ambiguous_rule
+
 # --- baseline / early SFT kernel (v5–v7, dgxchen CoT corpus) ------------------
 baseline:
   id: harrysun2006/nemotron-lora-baseline-kca
@@ -145,3 +165,34 @@ v11_sample_b:
   dataset_sources: [mayukh18/nemotron-packages, llkh0a/rtx-wheels]
   schedule: overnight
   note: "classic RFT: sample from BASE (no soup; firefly lacks the private soup dataset); shard 1"
+
+# --- EQ-3 / nemo5: equation-specialist (model-training pivot) — post-comp -----
+# Teach the GLOBAL equation cipher (EQ-0/EQ-2': 5-char->1-4-char, hand-crack resisted)
+# by SFT on the real train.csv equation prompts, woven into the v14 replay backbone.
+# Three points: eq_spec (1,555-answer baseline, harry), eq_aug (full 7,775-target
+# coverage, harry), eq_hidose (1,555 x3 dose-only ablation, may). Measured on the
+# late-submission window (100/day); soup-with-v14 candidates to follow.
+eq_spec:
+  id: harrysun2006/nemo-eq-spec
+  title: Nemo EQ Spec
+  code_file: nemo-eq-spec.ipynb
+  note: "equation-specialist: 1,555 real eq prompts -> \\boxed{answer} (answer-only, ~16% dose) on v14 backbone; EQ-3 model pivot"
+  schedule: overnight
+eq_aug:
+  id: harrysun2006/nemo-eq-aug
+  title: Nemo EQ Aug
+  code_file: nemo-eq-aug.ipynb
+  note: "eq-spec + full-coverage rotation: ~7,775 supervised targets (each of a prompt's 5 pairs as query in turn); coverage variant"
+  schedule: overnight
+eq_hidose:
+  id: firefly2006/nemo-eq-hidose
+  title: Nemo EQ Hidose
+  code_file: nemo-eq-hidose.ipynb
+  note: "eq-spec dose-only ablation: same 1,555 targets repeated x3 (~40% dose)"
+  schedule: overnight
+eq_aug_hidose:
+  id: firefly2006/nemo-eq-aug-hidose
+  title: Nemo EQ Aug Hidose
+  code_file: nemo-eq-aug-hidose.ipynb
+  note: "coverage x dose corner: full-rotation ~7,814 targets repeated x2"
+  schedule: overnight

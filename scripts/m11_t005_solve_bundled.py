@@ -116,9 +116,7 @@ def _wait_for_http(url: str, timeout: float = 30.0) -> None:
     raise RuntimeError(f"service at {url} did not come up: {last_err!r}")
 
 
-def _docker_compose(
-    *args: str, env_extra: dict[str, str] | None = None
-) -> subprocess.CompletedProcess:
+def _docker_compose(*args: str, env_extra: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     compose_file = EVENT_DIR / WEB_SLUG / "docker-compose.yml"
     env = dict(os.environ)
     if env_extra:
@@ -136,9 +134,7 @@ def _docker_compose(
     )
 
 
-def _kca(
-    *args: str, env_extra: dict[str, str] | None = None
-) -> subprocess.CompletedProcess:
+def _kca(*args: str, env_extra: dict[str, str] | None = None) -> subprocess.CompletedProcess:
     env = dict(os.environ)
     if env_extra:
         env.update(env_extra)
@@ -229,9 +225,7 @@ def _record_run_and_attempt(
         "--dry-run",
     )
     if res.returncode != 0:
-        raise RuntimeError(
-            f"kca ctf solver run --dry-run failed: {res.stderr or res.stdout}"
-        )
+        raise RuntimeError(f"kca ctf solver run --dry-run failed: {res.stderr or res.stdout}")
 
     return experiment_run_id, attempt_id
 
@@ -239,17 +233,13 @@ def _record_run_and_attempt(
 def solve_crypto() -> dict:
     challenge_dir = EVENT_DIR / CRYPTO_SLUG
     _log(f"=== {CRYPTO_SLUG} ===")
-    _log(
-        "strategy: crypto / 143-bit RSA -- sympy.factorint(n), d=e^-1 mod phi, m=c^d, decode"
-    )
+    _log("strategy: crypto / 143-bit RSA -- sympy.factorint(n), d=e^-1 mod phi, m=c^d, decode")
 
     mod = _load_solver_module(challenge_dir)
     flag = mod.solve()
     verified = mod._verify(flag)
     if not verified:
-        raise RuntimeError(
-            f"{CRYPTO_SLUG}: sha256 verify FAILED (flag_length={len(flag)})"
-        )
+        raise RuntimeError(f"{CRYPTO_SLUG}: sha256 verify FAILED (flag_length={len(flag)})")
     _log(f"{CRYPTO_SLUG}: sha256 verify PASS, flag_length={len(flag)}")
     return {"flag": flag, "flag_length": len(flag), "flag_sha256": _sha256(flag)}
 
@@ -295,9 +285,7 @@ def solve_web() -> dict:
         recovered = mod.solve()
         verified = mod._verify(recovered)
         if not verified:
-            raise RuntimeError(
-                f"{WEB_SLUG}: sha256 verify FAILED (flag_length={len(recovered)})"
-            )
+            raise RuntimeError(f"{WEB_SLUG}: sha256 verify FAILED (flag_length={len(recovered)})")
         _log(f"{WEB_SLUG}: sha256 verify PASS, flag_length={len(recovered)}")
         return {
             "flag": recovered,
@@ -330,10 +318,7 @@ def main() -> int:
     comp_slug = _ensure_competition()
 
     # 3. RECORD. Scrubbed excerpts — NO flag string, NO format-regex match.
-    crypto_excerpt = (
-        "solver: sympy.factorint(n)->{p,q}; d=pow(e,-1,phi(n)); "
-        "m=pow(c,d,n); bytes->utf8; sha256 ok"
-    )
+    crypto_excerpt = "solver: sympy.factorint(n)->{p,q}; d=pow(e,-1,phi(n)); m=pow(c,d,n); bytes->utf8; sha256 ok"
     web_excerpt = (
         "solver: POST /login guest -> base64-JSON cookie -> flip role:user->admin "
         "-> GET /admin 200 -> regex FLAG marker -> sha256 ok"
@@ -346,9 +331,7 @@ def main() -> int:
         crypto_excerpt,
         comp_slug,
     )
-    web_run, web_att = _record_run_and_attempt(
-        WEB_SLUG, web_row["id"], web_res["flag_length"], web_excerpt, comp_slug
-    )
+    web_run, web_att = _record_run_and_attempt(WEB_SLUG, web_row["id"], web_res["flag_length"], web_excerpt, comp_slug)
 
     # 4. Emit summary with NO flag, only sha256 (for audit-grep against logs).
     summary = {

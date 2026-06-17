@@ -28,11 +28,7 @@ def _jsonable(v):
         return {k: _jsonable(vv) for k, vv in v.items()}
     if hasattr(v, "isoformat"):
         return v.isoformat()
-    return (
-        v
-        if (v is None or isinstance(v, (str, int, float, bool, list, dict)))
-        else str(v)
-    )
+    return v if (v is None or isinstance(v, (str, int, float, bool, list, dict))) else str(v)
 
 
 def _default_clone_path(slug: str) -> str:
@@ -232,14 +228,10 @@ def cmd_info(args: argparse.Namespace) -> int:
 
 
 def add_parsers(sub: argparse._SubParsersAction) -> None:
-    comp = sub.add_parser(
-        "competition", help="Register and inspect competition repos (M4)"
-    )
+    comp = sub.add_parser("competition", help="Register and inspect competition repos (M4)")
     comp_sub = comp.add_subparsers(dest="competition_cmd", required=True)
 
-    p_reg = comp_sub.add_parser(
-        "register", help="Register a competition repo (LOCAL_WRITE)"
-    )
+    p_reg = comp_sub.add_parser("register", help="Register a competition repo (LOCAL_WRITE)")
     p_reg.add_argument("--slug", required=True)
     p_reg.add_argument("--repo-url", dest="repo_url", required=True)
     p_reg.add_argument("--branch", default="main")
@@ -261,17 +253,13 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_refresh.add_argument("--json", action="store_true")
     p_refresh.set_defaults(func=cmd_refresh_rules)
 
-    p_clone = comp_sub.add_parser(
-        "clone", help="Clone competition repo locally (LOCAL_WRITE)"
-    )
+    p_clone = comp_sub.add_parser("clone", help="Clone competition repo locally (LOCAL_WRITE)")
     p_clone.add_argument("--slug", required=True)
     p_clone.add_argument("--path", default=None, help="Override local clone path")
     p_clone.add_argument("--json", action="store_true")
     p_clone.set_defaults(func=cmd_clone)
 
-    p_list = comp_sub.add_parser(
-        "list", help="List registered competitions (READ_ONLY)"
-    )
+    p_list = comp_sub.add_parser("list", help="List registered competitions (READ_ONLY)")
     p_list.add_argument("--json", action="store_true")
     p_list.set_defaults(func=cmd_list)
 

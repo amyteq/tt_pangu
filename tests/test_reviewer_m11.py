@@ -175,9 +175,7 @@ def test_policy_audit_required_flag():
         for op in ("challenge_run", "flag_submit", "network_egress"):
             row = _find_op(policy, op)
             assert row is not None
-            assert row.get("audit_required") is True, (
-                f"{profile}.yaml::{op} must have audit_required: true"
-            )
+            assert row.get("audit_required") is True, f"{profile}.yaml::{op} must have audit_required: true"
 
 
 def test_competition_runner_challenge_run_conditional_allow():
@@ -199,10 +197,7 @@ def test_flag_submit_never_has_conditional_allow_to_allow():
         assert row is not None
         conditional = row.get("conditional_allow") or {}
         for key, val in conditional.items():
-            assert val != "allow", (
-                f"{profile}.yaml::flag_submit must not allow via "
-                f"conditional_allow.{key}"
-            )
+            assert val != "allow", f"{profile}.yaml::flag_submit must not allow via conditional_allow.{key}"
 
 
 def test_network_egress_conditional_allow_is_ask_or_deny():
@@ -215,8 +210,7 @@ def test_network_egress_conditional_allow_is_ask_or_deny():
         conditional = row.get("conditional_allow") or {}
         for key, val in conditional.items():
             assert val in {"ask", "deny"}, (
-                f"{profile}.yaml::network_egress conditional_allow.{key} "
-                f"must be ask or deny, got {val}"
+                f"{profile}.yaml::network_egress conditional_allow.{key} must be ask or deny, got {val}"
             )
 
 
