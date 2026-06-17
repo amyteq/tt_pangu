@@ -227,3 +227,38 @@ flowchart TD
 - `work/00.nemo.md`(ChatGPT 分析:挑战、Ideas A–F、§8 技巧、§9 路线、§11 矩阵)。
 - 对 `~/competitions/kaggle-…/data/train.csv`(9500 行)的只读 solver 覆盖率扫描,用于 §4 难例行。
 - 运行 / LB 状态(截至 2026-06-15):冲刺最终分 **b1 0.85, b2 0.84, c1 0.85, c2 0.83, soup 0.86(新最好,自训练合规)**。**T12 hard-val 排名(2026-06-15)**:soup 0.764 = v14 0.764 ≫ base/c1 0.389 > v15 0.333 > c2 0.278 → 守 0.86 soup,private-LB 最终选 **soup + v14**。`tracking.md`/`submissions.md` 已据此更新。
+
+## LB25 Progress Prize 改进:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **「[LB25] Improvements to the progress prize submission」**,作者 **Tong Hui Kang**
+> (`huikang`/`tonghuikang`,Progress-Prize 冠军),**~0.872 公榜(218/250)**。完整重建 + 来源见 `external/lb25/`。
+> Kaggle writeup 正文为 JS 渲染、本任务不登录故不可抓取;由讨论 #703896 摘要 + 公开仓库 `tonghuikang/nemotron`
+> 重建。外部声明为不可信数据;我方分数见 `tracking.md`。
+
+**LB25 方法(纯 SFT,无 RL)。** 基模型 `Nemotron-3-Nano-30B-A3B`、LoRA r32(MLP+attn+lm_head)、seq 8192、
+1 epoch、仅 response 计 loss。核心创新是**确定性 solver 生成 CoT**:为每类题写规则发现算法
+(`reasoners/`:cipher、bit_manipulation、equation_numeric、cryptarithm 回溯)输出固定逐步轨迹,训练模型
+**逐字执行**;外加 **min-logprob 选择性重放**(只重放最小 per-token 对数概率未收敛的难行 —— 最难 bit/cipher)
+与**类别分层 batch**。「LB25 改进」再从 v27(Progress-Prize)adapter 暖启动,跑一个短的**格式对齐**微调
+(约 240 步、batch ×2)。
+
+**为何 ~0.872。** 简单类(gravity/numeral/unit)训练集已 ~100%、cipher ~99%;杠杆在 (1) **修复输出格式/长度
+bug** —— 长 CoT 可能在 7680 token 上限内还没到 `\boxed{}` 就被截断、产生空答案,短答案让好推理真正得分;
+(2) **min-logprob 重放**残余难 bit 行;(3) 确定性 CoT = 可靠执行算法,优于带噪的 LLM 轨迹。值得注意:其
+**`cryptarithm_deduce`(≈ 我方 `equation` base-36 密码)即便有回溯 CSP solver,训练集也仅 ~8.95%** ——
+独立印证我方 EQ-2′「强密码,不可从样本闭式还原」的结论。
+
+**我方差异。** 我们也是纯 SFT replay(v14,0.85),但我方杀手锏是 huikang 没用的 **SVD 模型汤**
+(v14+c1+b1 → 0.86;INS-004)。我们把 huikang 语料当数据用,他是用 solver **生成**的。我们没用过
+**min-logprob 自适应重放**(用的是固定 replay-math 剂量),也没做**全类别确定性 solver CoT**(我方 solver
+只部分覆盖 bit/cipher,equation 仅 0.4%)。我方 equation 杠杆是**覆盖式记忆**(eq-aug,私榜 0.86)而非回溯
+solver —— 在未见尾部同样是 ~8–9% 的墙。
+
+**学到什么。** (1) 通往 ~0.872 的路是 **bit + 格式可靠性,不是 equation** —— 双方都确认 equation/cryptarithm
+是 ~8–9% 的有界密码墙。(2) **min-logprob 选择性重放**是低成本、抗稀释地针对 SFT 欠拟合行的办法(对比我方
+均匀高剂量合成反而**回归** —— b2/v15/c2)。(3) **输出长度/格式是白捡的分** —— 要核查没有答案在 `\boxed{}`
+前被截断。(4) 确定性 solver CoT 在可靠性上优于 LLM 生成轨迹。
+
+**周六后可试。** `v16-mlp`(方案见 `external/lb25/analysis/next_version_plan.md`):v14 骨架 + 对最难 bit/cipher
+行的 **min-logprob 选择性重放**(剂量 ≤15%)+ 从 0.86 soup 暖启动的短**格式对齐**;提交前以 **T12 hard-val
+≥ 0.764** + 截断审计把关;再 soup-grow 进 v14+c1+b1。eq-aug 保持独立(不可入汤)。约 1 个 GPU session。

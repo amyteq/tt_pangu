@@ -238,3 +238,45 @@ flowchart TD
 - `work/00.nemo.md` (ChatGPT analysis: challenges, Ideas A–F, §8 techniques, §9 route, §11 matrix).
 - Read-only solver-coverage pass on `~/competitions/kaggle-…/data/train.csv` (9500 rows) for §4 hard rows.
 - Run/LB status as of 2026-06-15: final-sprint scores **b1 0.85, b2 0.84, c1 0.85, c2 0.83, soup 0.86 (new best, own real-training)**. `tracking.md`/`submissions.md` updated with these.
+
+## LB25 Progress Prize Improvements: What We Learned
+
+> Post-competition study of the Kaggle writeup **"[LB25] Improvements to the progress prize submission"** by
+> **Tong Hui Kang** (`huikang`/`tonghuikang`, the Progress-Prize winner), **~0.872 public (218/250)**.
+> Full reconstruction + sources: `external/lb25/`. The Kaggle writeup body is JS-rendered (not fetchable
+> without auth, which we don't use here); reconstructed from discussion #703896 snippets + the public
+> `tonghuikang/nemotron` GitHub repo. External claims = untrusted data; our scores from `tracking.md`.
+
+**LB25 method (pure SFT — no RL).** Base `Nemotron-3-Nano-30B-A3B`, LoRA r32 (MLP+attn+lm_head), seq 8192,
+1 epoch, response-only mask. The distinguishing idea is **deterministic-solver chain-of-thought**: per-category
+rule-discovery algorithms (`reasoners/`: cipher, bit_manipulation, equation_numeric, cryptarithm backtracking)
+emit a fixed step-by-step trace and the model is trained to **execute it verbatim**, plus **min-logprob
+selective replay** (replay only the rows whose minimum per-token log-prob hasn't converged — the hardest
+bit/cipher) and **category-stratified batching**. The "LB25 improvements" then warmstart the v27 Progress-Prize
+adapter and run a short **format-alignment** fine-tune (≈240 steps, batch ×2).
+
+**Why ~0.872.** Easy categories are already ~100% (gravity/numeral/unit) and cipher ~99% on train; the lever
+is (1) **fixing the output-format/length bug** — long CoT could exhaust the 7,680-token cap *before* the
+`\boxed{}`, yielding blank answers; short responses make good reasoning actually score; (2) **min-logprob
+replay** of the residual hard bit rows; (3) deterministic CoT = reliable algorithm execution vs noisy
+LLM traces. Notably his **`cryptarithm_deduce` (≈ our `equation` base-36 cipher) ceilings at ~8.95% on train
+even with a backtracking CSP solver** — independent confirmation of our EQ-2′ "strong cipher, not
+closed-form-recoverable" verdict.
+
+**How our approach differed.** We also did pure-SFT replay (v14, 0.85) but our edge was the **SVD model-soup**
+(v14+c1+b1 → 0.86; INS-004) which huikang does not use. We used the *huikang corpus* as data; he *generated*
+it from solvers. We never used **min-logprob adaptive replay** (we used a fixed replay-math dose) nor a
+**deterministic-solver CoT across all categories** (our solver covered bit/cipher only partially; equation 0.4%).
+Our equation lever was **coverage-memorisation** (eq-aug, 0.86 private) rather than a backtracking solver —
+same ~8–9% wall on the unseen tail.
+
+**What we learned.** (1) The path to ~0.872 is **bit + format reliability, not equation** — both sides confirm
+equation/cryptarithm is a bounded ~8–9% cipher wall. (2) **Min-logprob selective replay** is a cheap,
+dilution-safe way to target exactly the rows SFT under-fits (vs our uniform high-dose synth that *regressed* —
+b2/v15/c2). (3) **Output-length/format is free accuracy** — verify no answer truncates before `\boxed{}`.
+(4) Deterministic-solver CoT > LLM-generated traces for reliability.
+
+**What to try after Saturday.** `v16-mlp` (plan: `external/lb25/analysis/next_version_plan.md`): v14 backbone +
+**min-logprob selective replay** of the hardest bit/cipher rows (≤15% dose) + a short **format-alignment** pass
+warmstarted from the 0.86 soup; gate on **T12 hard-val ≥ 0.764** + a length-truncation audit before any submit;
+then soup-grow into v14+c1+b1. Keep eq-aug standalone (it doesn't soup). ~1 GPU session.
