@@ -245,7 +245,7 @@ flowchart TD
 > **Tong Hui Kang** (`huikang`/`tonghuikang`, the Progress-Prize winner). **Updated 2026-06-17 from the actual
 > writeup (`temp/LB25.pdf`)** — recoverability now FULL; this **supersedes** the earlier JS-blocked
 > reconstruction, which wrongly attributed `kuangyicheng`'s "warmstart/short-response/240-step" recipe to this
-> writeup (NOT in it). Full detail + sources: `external/lb25/`. External claims = untrusted; our scores from `tracking.md`.
+> writeup (NOT in it). Full detail + sources: `external/LB25/`. External claims = untrusted; our scores from `tracking.md`.
 
 **LB25 = four targeted changes to the Progress-Prize submission (pure SFT).** Verbatim from the writeup:
 (1) **Fix the adapter *evaluation*** — the local validation prompt was wrong, so answers looked un-boxed in
@@ -274,7 +274,7 @@ cheapest high-EV action is an **eval/submission parity audit**. (2) **Selection 
 top** (0.872 = 4/15). (3) **Equation/cryptarithm is bounded for everyone** — don't over-invest. (4) Lock the
 easy cats (don't regress them).
 
-**What to try after Saturday.** `v16-evalfix` (plan: `external/lb25/analysis/next_version_plan.md`): **eval/
+**What to try after Saturday.** `v16-evalfix` (plan: `external/LB25/analysis/next_version_plan.md`): **eval/
 submission parity audit FIRST** (free; change #1), then v14 backbone + reorganized own-solver-verified **bit
 CoT** (change #4) + **min-logprob replay** of the hardest bit/cipher rows (≤15% dose); gate on **T12 hard-val
 ≥ 0.764 with bit ↑ and no easy-cat regression**; soup-grow into v14+c1+b1 (best + diverse hedge). Keep eq-aug

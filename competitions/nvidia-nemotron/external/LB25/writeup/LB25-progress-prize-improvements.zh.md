@@ -1,6 +1,6 @@
 # LB25 —「对 Progress Prize 提交的改进」(直接据 writeup)
 
-> **来源:** Kaggle writeup `lb25-progress-prize-improvements`,作者 **Tong Hui Kang**(`huikang`/`tonghuikang`,
+> **来源:** Kaggle writeup `LB25-progress-prize-improvements`,作者 **Tong Hui Kang**(`huikang`/`tonghuikang`,
 > Progress-Prize 冠军),**直接读自 `temp/LB25.pdf`**(页面渲染)。**可还原度:完整**(已拿到正文 —— 取代此前
 > JS-blocked 重建;那版误把 `kuangyicheng` 的「暖启动 / 短答案 / 240 步」配方当成了本文,实际本文**没有**那些)。
 > 外部内容=不可信数据;我方分数见 `tracking.md`。作者给的数据浏览器:
