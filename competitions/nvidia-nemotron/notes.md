@@ -321,3 +321,47 @@ dense per-step reward (+champagne) on **bit**, warmstarted from v14/soup, `verif
 hard-val ↑ with no easy-category regression**; soup-grow the survivor into v14+c1+b1. Try the **adapter
 singular-value amplification** fallback first (≈0 GPU). RL proper likely needs external compute (#83), not just
 the RTX PRO 6000.
+
+## LB92 Progress Prize Improvements: What We Learned
+
+> Post-competition study of the Kaggle writeup **"92th PLACE SOLUTION — NVIDIA Nemotron Model Reasoning
+> Challenge"**. Full reconstruction + sources: `external/LB92/`. **Recoverability NO (direct) / PARTIAL
+> (ecosystem)** — the Kaggle writeup body is JS-rendered + posted <48 h after close (unindexed); the
+> **author, exact score, and specific method are `unknown`** (template "~0.872" is a placeholder). This is a
+> reconstruction of the public mid-tier (~0.86–0.89) recipe band from GitHub/HF/NVIDIA sources. Untrusted data.
+
+**LB92 method (band reconstruction).** A 92nd-of-4,354 result almost certainly used the **standard public
+replay-SFT recipe**: rank-32 LoRA on `Nemotron-3-Nano-30B-A3B`, seq 8192, response-only-masked CoT SFT, score
+driven by recipe fidelity + good bit CoT + synthetic/teacher data for hard categories + possibly a model merge.
+The publicly-released **andy279 corpus** (49,290 multi-teacher traces: DeepSeek V3.2 + Nemotron Super 120B +
+GPT-5.4 + deterministic solvers) is the kind of data any team in this band could have used.
+
+**Why ~0.86–0.89 (and not higher).** Easy categories (gravity/numeral/unit) ~100% and cipher ~99% on train;
+the band is separated by **bit-manipulation** coverage + format reliability. The hard cap is
+**cryptarithm/equation ~8–9% even with a backtracking solver** — the same strong-cipher wall we hit. Going
+above the band needs RL (LB80) or adapter surgery (lopure), not more standard SFT.
+
+**How our approach differed.** We're **already in this band** (0.86 soup), so 92nd place is not above us by
+paradigm. Our differences are **corpus quality** (we used the huikang corpus + own synth/solver-CoT, not the
+broad multi-teacher andy279 set) and **hard-row targeting** (we used a fixed replay dose, not min-logprob
+rebalancing). We are **ahead** on the 3-way model-soup (the band often ships a single adapter) and on the
+equation EQ-0/EQ-2′ cryptanalysis + eq-aug coverage.
+
+**What we learned.** (1) Our 0.86 sits squarely in the mid-tier band — the recoverable edge is **corpus
+quality for bit** (solver-prepend bit CoT) + **min-logprob rebalancing**, not a new paradigm. (2) **Bit is the
+separator category** and our biggest train-set headroom. (3) **External-teacher data must stay low-dose** —
+our prior high-dose external-teacher run regressed to 0.81; prefer **own-solver-verified CoT**. (4) Equation is
+a shared bounded wall — don't chase it.
+
+**What to try after Saturday.** `v18-corpus` (plan: `external/LB92/analysis/next_version_plan.md`): expand
+`lib/nemo_solver.py` bit coverage → **verified solver-prepend bit CoT** (answer == gold) + a **min-logprob
+rebalancing** pass, woven at **≤15% dose** into the v14 backbone; gate on **T12 hard-val ≥ 0.764 with bit ↑
+and no easy-category regression**; soup-grow into v14+c1+b1. ~1 GPU session (data-side; cheaper than RL).
+
+> **Cross-writeup convergence.** All three studies point the same way: the path above our 0.86 is **(a)
+> dense-reward GRPO** (LB80, the biggest but most expensive lever), **(b) min-logprob selective replay /
+> rebalancing** (LB25 + LB92, cheap and dilution-safe), **(c) better bit data + output-format reliability**
+> (LB25 + LB92), and **(d) adapter singular-value amplification** (LB80 alt, ≈0 GPU). **Equation is a bounded
+> ~8–9% strong-cipher wall for everyone** — confirmed independently by huikang's `cryptarithm_deduce` ceiling
+> and our EQ-2′. Recommended order after the Saturday reset: cheap no-GPU/data levers (surgery, min-logprob,
+> bit CoT) first → then a bit-only GRPO pilot on external GPU.
