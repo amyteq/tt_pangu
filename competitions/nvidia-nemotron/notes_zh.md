@@ -227,3 +227,91 @@ flowchart TD
 - `work/00.nemo.md`(ChatGPT 分析:挑战、Ideas A–F、§8 技巧、§9 路线、§11 矩阵)。
 - 对 `~/competitions/kaggle-…/data/train.csv`(9500 行)的只读 solver 覆盖率扫描,用于 §4 难例行。
 - 运行 / LB 状态(截至 2026-06-15):冲刺最终分 **b1 0.85, b2 0.84, c1 0.85, c2 0.83, soup 0.86(新最好,自训练合规)**。**T12 hard-val 排名(2026-06-15)**:soup 0.764 = v14 0.764 ≫ base/c1 0.389 > v15 0.333 > c2 0.278 → 守 0.86 soup,private-LB 最终选 **soup + v14**。`tracking.md`/`submissions.md` 已据此更新。
+
+## LB25 Progress Prize 改进:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **「[LB25] Improvements to the progress prize submission」**,作者 **Tong Hui Kang**
+> (`huikang`/`tonghuikang`,Progress-Prize 冠军)。**2026-06-17 据实际 writeup(`temp/LB25.pdf`)更新** —— 可还原度
+> 现为完整;**取代**此前 JS-blocked 重建(那版误把 `kuangyicheng` 的「暖启动/短答案/240 步」配方当成本文,实际**没有**)。
+> 完整细节 + 来源见 `external/LB25/`。外部声明为不可信数据;我方分数见 `tracking.md`。
+
+**LB25 = 对 Progress-Prize 提交的四项针对性改动(纯 SFT)。** 据 writeup 原文:(1) **修复 adapter 评测** ——
+本地验证 prompt 错了,答案在验证里看着没 box,但提交时其实是 box 的(**本地评测 bug**,非模型改动);
+(2) **把 `equation_numeric` 减半** —— 联合反转对称性(「输入**和**输出要么都反转、要么都不」);
+(3) **对 `cipher`/`unit`/`gravity`/`numeral` 用合成数据**把简单类锁在 ~100%;(4) **重组 bit-manipulation 的 CoT**。
+基础流水线(不变)= 确定性 solver CoT + min-logprob 信号 + 类别分层 batch。
+
+**结果 + 选择教训。** 私榜:**15 次提交里 0.872 ×4、0.868 ×8、0.864 ×3** —— 0.872 只占 4/15;「若选中对的那次本可单人金牌」。
+**选择方差**教训(呼应我方 INS-005/INS-007:最好 + 多样化对冲;surgery ×1.15 私榜 −0.02)。
+
+**Cryptarithm:他明确**没**取得进展**(≈ 我方 `equation` base-36 密码)。线索:「很多题有**一个乘法、一个减法、
+一个加法(每个可能再 ±1)**」;CoT「退化成重复猜测」。→ 独立印证 equation/cryptarithm 是**有界的墙**(同 EQ-2′),
+**且给出 EQ-2′ 新线索**:在秘密 σ 下的三项复合 `≈ A·B − C + D`(±1)—— 我方 EQ-2′ 从未测过的类(只测过单操作)。
+低概率的未来破解实验(huikang 也没破)。
+
+**我方差异。** 我方杀手锏是 huikang 没用的 **SVD 模型汤**(v14+c1+b1 → 0.86;INS-004);他是单 adapter。我方 equation
+杠杆是**覆盖式记忆**(eq-aug 私榜 0.86),非 solver。
+
+**学到什么。** (1) **huikang 的头号杠杆是本地评测 bug、非模型改动** —— 而*我方同类 bug 出现过两次*(B4 `EVAL_MAX_NEW`
+截断;T12 hard-val 误判 eq-spec 0.167 vs LB 0.85)。最便宜高 EV 的动作是**评测↔提交一致性审计**。(2) **顶部选择方差
+是真杠杆**(0.872 = 4/15)。(3) **equation/cryptarithm 对所有人有界** —— 不过度投入。(4) 锁住简单类(别让它们回归)。
+
+**周六后可试。** `v16-evalfix`(方案见 `external/LB25/analysis/next_version_plan.md`):**先做评测↔提交一致性审计**
+(免费;改动 #1),再 v14 骨架 + 重组的自有 solver 验证 **bit CoT**(改动 #4)+ 对最难 bit/cipher 行的 **min-logprob
+重放**(剂量 ≤15%);以 **T12 hard-val ≥ 0.764 且 bit ↑、简单类不回归**把关;soup-grow 进 v14+c1+b1(最好 + 多样化对冲)。
+eq-aug 保持独立。约 1 个 GPU session。
+
+## LB80 Progress Prize 改进:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **「Breaking the SFT Ceiling on Nemotron-3-Nano-30B」**,作者 **Mayur Pawar**
+> (`mspawar`),80/4190,最终私榜 **0.86**。**直接读自 `temp/LB80.pdf`**(可还原度完整)—— 取代此前重建(那版据讨论
+> #688461 误把**另一人**的「per-bit GRPO」当成本文)。完整细节 + 来源见 `external/LB80/`。外部声明为不可信数据;我方分数见 `tracking.md`。
+
+**LB80 方法(诚实的标题)。** 30+ 实验的研究,**证明了 SFT 天花板 = 0.86** —— STaR、GRPO、DPO、权重平均全都**没突破**。
+与我方同源(huikang 确定性 solver SFT;V2 0.86,从未被超)。有效杠杆:**seq 4096→8192 = 0.46→0.77**(4096 时 43% 数据被静默截断)、
+**全线性 LoRA 含 lm_head、排除 gate_proj**、确定性 solver CoT ≫ 模型/外部 CoT(DeepSeek-R1 长 CoT → 灾难 0.27)。
+「+397 名」来自**提交对冲**(V2 + V8-ckpt400)在公私榜双峰失配下 —— 不是更高分。
+
+**改变我方认知的三点:**
+1. **equation 密码离线**可破**(97.6%)—— 我方 EQ-0/EQ-2′ 框定错了。** 真实结构是 **`A1A2 OP B1B2`**(两个 2 字符操作数 +
+   1 字符运算符、**逐题**符号→数字双射、有限运算符族),**答案引导排列搜索**破 569/583(14 个失败的有 >10 个不同数字符号)。
+   我们找的是 5 字符→1-4 字符映射的一个*全局* σ 并「证明」不可破 —— 解错了问题。**→ 重审 EQ-2′ / equation-frontier(PR #113)。**
+2. **「发现泄漏」解释了我方 eq-aug 为何封顶。** 答案引导 solver CoT 把映射*作为已知*给出 → 教**核验而非发现**;93–97% 此类轨迹
+   *内部不一致*(映射产不出 boxed 答案)。推理时无答案,需要发现。**杠杆是前向可执行、可由 prompt 推导的密码发现 CoT**(长度允许下;榜首 0.90 说明存在)。
+3. **标准 RL 是错工具;DPO-with-oracle 才对。** 二值失败(3157 难题全 0/8、~6343 易题全 8/8、**0 边界**)→ STaR 产出 0%、
+   GRPO 优势=0(无方差)。我方此前设计的二值奖励 GRPO 会同样失败。DPO 用 solver-CoT(chosen)vs **greedy 失败**(rejected)——
+   但 mspawar 的 DPO(V12/V13)也只停在 0.84–0.86。
+
+**待解张力。** mspawar 报「**Model Soup 在 Mamba-2 SSM 上失效**」,而我方 **SVD 汤 +0.01**。多半因*平均的对象*不同(他:完整
+SSM A/B/C/D 递推;我们:冻结基座上的 LoRA *delta* + SVD rank-cap,更温和的同 basin 合并)。**值得做一次消融**再下结论。
+
+**周六后可试。** `v17-discovery` + `v17-dpo`(方案见 `external/LB80/analysis/next_version_plan.md`):**(A)** 把 equation 重建为
+`A1A2 OP B1B2`、做答案引导 solver,再做**前向可执行的发现 CoT**(经内部一致性审计)≤15% 织入 —— 越过 eq-aug 记忆的真正路径;
+**(B)** 可选 **DPO-with-oracle**(greedy 失败作 rejected、solver-CoT 作 chosen、简单类混 SFT)针对 bit。外加 **Mamba-2 合并消融**。
+equation 工作回馈 PR #113。RL 需外部 GPU(#83);预期保守。
+
+## LB92 Progress Prize 改进:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **「92th PLACE SOLUTION」**,作者为**团队**(Yoshinari Kawashima + MedudentYamatai;
+> DOI 10.34740/kaggle/w/88245)。**直接读自 `temp/LB92.pdf`**(可还原度完整)—— 取代此前仅生态重建(当时作者/分数/方法未知)。
+> 完整细节 + 来源见 `external/LB92/`。外部声明为不可信数据;我方分数见 `tracking.md`。
+
+**LB92 方法(数据工程优先)。** 与我方同源(huikang reasoner 几乎没改,87.8% train;建立在公开 0.85 notebook)。明确目标:
+**别丢已可解的题**,而非解难题。三支柱:(1) 忠实复现 reasoner;(2) **统计匹配的合成生成器**(从 train.csv 提取字符频率/数值范围/
+变换方法分布)+ **合成-vs-原始 eval 差距 QC 环**(训合成 / 评两者 / 闭差距),最终 **2.5:1 合成:原始**;(3) 两个稳定性技巧 ——
+**逐字符 tokenization**(合成 token 强制 1 符号=1 token,修 cryptarithm 里 `}!` 之类 BPE 合并)与 **梯度裁剪 1.5**
+(公开的 1e9 关闭导致不稳定 + 提交间方差;grad-norm 在 step 107 飙到 25,089)。RL(SimPO/ORPO)**失败**(chosen/rejected 太相似)。
+
+**对我方改变/新增(4 个便宜、可测的杠杆):**
+1. **逐字符 tokenization** 用于符号类(equation/cipher/cryptarithm)—— 直击我方弱点的**新、未试**杠杆;BPE 合并伤害处更稳。
+2. **梯度裁剪 = 1.5**(我们用 1e9 关闭,正是他们修掉的设置)—— 治本地降提交间方差。*(张力:LB80/我方配方用 grad-clip 关却没报此问题 —— 当作便宜 A/B。)*
+3. **统计匹配合成 + 差距闭合 QC** 精化我方「合成稀释」:我方 b1/b2/v15 回归,而他们的*有帮助*,因匹配了 train.csv 统计 + 2.5:1 比例 +
+   合成-vs-原始差距验证。朴素 synth 稀释;**统计匹配、差距验证过的 synth 能迁移。**
+4. **保护简单类**纪律(别让 100% 的类回归)—— = 我方 T12 抗稀释发现。
+
+**与其它 writeup 的一致。** RL 在此打不过 SFT(LB92 SimPO/ORPO、LB80 GRPO/DPO);本地验证与 LB 背离(→ 信 LB;= LB25 eval-bug、我方 T12);
+cryptarithm/equation 是**有界的墙**(他们明确不去攻)。他们的覆盖/稳定杠杆与 LB80「发现而非核验 CoT」的线索**正交** —— 从不同角度改善同一份 SFT 数据。
+
+**周六后可试。** `v18-stable`(方案见 `external/LB92/analysis/next_version_plan.md`):符号类**逐字符 tokenization** + **grad-clip 1.5**
+(对 1e9-off 做 A/B + 方差检查)+ **统计匹配、差距验证的合成**(≤15% → QC 与 T12 都过才到 2.5:1);以 T12 ≥ 0.764 + 简单类不回归把关。
+CPU 为主的准备;约 1–2 个 GPU session。

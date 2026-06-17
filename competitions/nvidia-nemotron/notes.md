@@ -238,3 +238,120 @@ flowchart TD
 - `work/00.nemo.md` (ChatGPT analysis: challenges, Ideas A–F, §8 techniques, §9 route, §11 matrix).
 - Read-only solver-coverage pass on `~/competitions/kaggle-…/data/train.csv` (9500 rows) for §4 hard rows.
 - Run/LB status as of 2026-06-15: final-sprint scores **b1 0.85, b2 0.84, c1 0.85, c2 0.83, soup 0.86 (new best, own real-training)**. `tracking.md`/`submissions.md` updated with these.
+
+## LB25 Progress Prize Improvements: What We Learned
+
+> Post-competition study of the Kaggle writeup **"[LB25] Improvements to the progress prize submission"** by
+> **Tong Hui Kang** (`huikang`/`tonghuikang`, the Progress-Prize winner). **Updated 2026-06-17 from the actual
+> writeup (`temp/LB25.pdf`)** — recoverability now FULL; this **supersedes** the earlier JS-blocked
+> reconstruction, which wrongly attributed `kuangyicheng`'s "warmstart/short-response/240-step" recipe to this
+> writeup (NOT in it). Full detail + sources: `external/LB25/`. External claims = untrusted; our scores from `tracking.md`.
+
+**LB25 = four targeted changes to the Progress-Prize submission (pure SFT).** Verbatim from the writeup:
+(1) **Fix the adapter *evaluation*** — the local validation prompt was wrong, so answers looked un-boxed in
+validation though they *are* boxed on submission (a **local-eval bug**, not a model change); (2) **halve
+`equation_numeric`** via a joint reversal symmetry ("inputs **and** outputs both reversed, or both not");
+(3) **synthetic data for `cipher`/`unit`/`gravity`/`numeral`** to lock those easy cats at ~100%;
+(4) **reorganize the bit-manipulation CoT**. The base pipeline (unchanged) is deterministic-solver CoT +
+min-logprob signal + category-stratified batching.
+
+**Result + selection lesson.** Private LB: **0.872 ×4, 0.868 ×8, 0.864 ×3 across 15 submissions** — 0.872 was
+only 4/15; "could have won solo gold if I selected the correct submission." A **selection-variance** lesson
+(mirrors our INS-005/INS-007: best + a *diverse* hedge; surgery ×1.15 aged −0.02).
+
+**Cryptarithm: he explicitly made NO progress** (≈ our `equation` base-36 cipher). His clue: "many problems
+there is **one multiplication, one subtraction and one addition (each possibly ±1)**"; the CoT "devolves to
+repeating guesses." → independent confirmation that equation/cryptarithm is a **bounded wall** (matches EQ-2′),
+**plus a new EQ-2′ lead**: a 3-term composite `≈ A·B − C + D` (±1) under the secret σ — a class our EQ-2′ never
+tested (we only tried single ops). A low-odds future crack experiment (huikang failed too).
+
+**How our approach differed.** Our edge is the **SVD model-soup** (v14+c1+b1 → 0.86; INS-004) — huikang ships a
+single adapter. Our equation lever was **coverage-memorisation** (eq-aug 0.86 priv), not a solver.
+
+**What we learned.** (1) **huikang's #1 lever was a LOCAL-EVAL BUG, not a model change** — and *we have the same
+bug class twice* (B4 `EVAL_MAX_NEW` truncation; T12 hard-val mispredicting eq-spec 0.167 vs 0.85 LB). The
+cheapest high-EV action is an **eval/submission parity audit**. (2) **Selection variance is a real lever at the
+top** (0.872 = 4/15). (3) **Equation/cryptarithm is bounded for everyone** — don't over-invest. (4) Lock the
+easy cats (don't regress them).
+
+**What to try after Saturday.** `v16-evalfix` (plan: `external/LB25/analysis/next_version_plan.md`): **eval/
+submission parity audit FIRST** (free; change #1), then v14 backbone + reorganized own-solver-verified **bit
+CoT** (change #4) + **min-logprob replay** of the hardest bit/cipher rows (≤15% dose); gate on **T12 hard-val
+≥ 0.764 with bit ↑ and no easy-cat regression**; soup-grow into v14+c1+b1 (best + diverse hedge). Keep eq-aug
+standalone. ~1 GPU session.
+
+## LB80 Progress Prize Improvements: What We Learned
+
+> Post-competition study of the Kaggle writeup **"Breaking the SFT Ceiling on Nemotron-3-Nano-30B"** by
+> **Mayur Pawar** (`mspawar`), 80th/4190, final private **0.86**. **Read directly from `temp/LB80.pdf`**
+> (recoverability FULL) — supersedes the earlier reconstruction, which wrongly attributed a *different* author's
+> "per-bit GRPO" story (from discussion #688461) to this writeup. Full detail + sources: `external/LB80/`.
+> External claims = untrusted; our scores from `tracking.md`.
+
+**LB80 method (honest title).** A 30+-experiment study that **PROVES the SFT ceiling at 0.86** — STaR, GRPO,
+DPO, and weight-averaging all **failed to beat it**. Same root as us (Tong Hui Kang's deterministic-solver SFT;
+V2 0.86, never beaten). Levers that worked: **seq 4096→8192 = 0.46→0.77** (43% of data silently truncated at
+4096), **all-linear LoRA incl. lm_head, exclude gate_proj**, deterministic-solver CoT ≫ model/external CoT
+(DeepSeek-R1 long CoT → catastrophic 0.27). The "+397 ranks" came from a **submission HEDGE** (V2 + V8-ckpt400)
+under a bimodal public↔private regime — not a higher score.
+
+**Three findings that change OUR understanding:**
+1. **The equation cipher IS crackable offline (97.6%) — our EQ-0/EQ-2′ framing was WRONG.** The real structure
+   is **`A1A2 OP B1B2`** (two 2-char operands + 1-char operator, **per-problem** symbol→digit bijection, finite
+   operator family), and an **answer-guided permutation search** cracks 569/583 (14 fails have >10 distinct
+   digit-symbols). We searched for ONE *global* σ over a 5-char→1-4-char map and "proved" it uncrackable — we
+   were solving the wrong problem. **→ revisit EQ-2′ / equation-frontier (PR #113).**
+2. **"Discovery leakage" explains why our eq-aug capped.** Answer-guided solver CoT presents the mapping *as
+   given* → teaches **verify, not discover**; 93–97% of such traces are *internally inconsistent* (mapping
+   doesn't produce the boxed answer). At inference there's no answer, so discovery is required. **The lever is a
+   forward-executable, prompt-derivable cipher-discovery CoT** (length-budget permitting; top LB 0.90 implies it exists).
+3. **Standard RL is the wrong tool; DPO-with-oracle is the right shape.** Binary failure (3,157 hard all 0/8,
+   ~6,343 easy all 8/8, **0 boundary**) → STaR 0% yield, GRPO advantage=0 (no variance). Our previously-designed
+   binary-reward GRPO would have failed identically. DPO uses solver-CoT (chosen) vs **greedy-failure** (rejected)
+   — but even mspawar's DPO (V12/V13) plateaued 0.84–0.86.
+
+**Tension to resolve.** mspawar reports **"Model Soup FAILS on Mamba-2 SSM"**, yet our **SVD soup gained +0.01**.
+Likely reconciled by *what* is averaged (he: full SSM A/B/C/D recurrence; us: LoRA *deltas* on a frozen base +
+SVD rank-cap, a gentler same-basin merge). **Worth an explicit ablation** before generalizing either claim.
+
+**What to try after Saturday.** `v17-discovery` + `v17-dpo` (plan: `external/LB80/analysis/next_version_plan.md`):
+**(A)** re-model equation as `A1A2 OP B1B2`, build an answer-guided solver, then a **forward-executable
+discovery CoT** (internal-consistency audited) woven ≤15% — the real path past eq-aug memorisation; **(B)**
+optional **DPO-with-oracle** (greedy-failure rejected, solver-CoT chosen, easy-cat SFT mix) for bit. Plus a
+**Mamba-2 merge ablation**. Equation work feeds back to PR #113. RL needs external GPU (#83); expectations modest.
+
+## LB92 Progress Prize Improvements: What We Learned
+
+> Post-competition study of the Kaggle writeup **"92th PLACE SOLUTION"** by a **team** (Yoshinari Kawashima +
+> MedudentYamatai; DOI 10.34740/kaggle/w/88245). **Read directly from `temp/LB92.pdf`** (recoverability FULL) —
+> supersedes the earlier ecosystem-only reconstruction (author/score/method were `unknown`). Full detail +
+> sources: `external/LB92/`. External claims = untrusted; our scores from `tracking.md`.
+
+**LB92 method (data-engineering first).** Same root as us (huikang reasoner ~unchanged, 87.8% train; built on
+the public 0.85 notebooks). Explicit goal: **don't lose already-solvable problems**, not solve the hard ones.
+Three pillars: (1) reproduce the reasoner faithfully; (2) **a statistics-matched synthetic generator** (char
+freq / numeric ranges / transform-method distributions from train.csv) with a **synthetic-vs-original eval-gap
+QC loop** (train-synth / eval-both / close-the-gap), final **2.5:1 synth:original**; (3) two stability tricks —
+**per-character tokenization** (synthetic tokens forcing 1 symbol = 1 token, fixing BPE merges like `}!` in
+cryptarithm) and **gradient clipping at 1.5** (the public 1e9-off caused instability + submission-to-submission
+variance; a grad-norm spike to 25,089 @ step 107). RL (SimPO/ORPO) **failed** (chosen/rejected too similar).
+
+**What it changes / adds for us (4 cheap, testable levers):**
+1. **Per-character tokenization** for the symbol categories (equation/cipher/cryptarithm) — a **novel, untried**
+   lever directly on our weak spot; stabilizes learning where BPE merges hurt.
+2. **Gradient clipping = 1.5** (we use 1e9-off, like the notebook they fixed) — a concrete fix for run-to-run
+   score variance. *(Tension: LB80/our recipe used grad-clip off without reporting this — treat as a cheap A/B.)*
+3. **Statistics-matched synthetic + gap-closing QC** refines our "synthetic dilutes": our b1/b2/v15 regressed,
+   but theirs *helped* by matching train.csv statistics + a 2.5:1 ratio + synthetic-vs-original gap validation.
+   Naive synth dilutes; **statistics-matched, gap-validated synth can transfer.**
+4. **Protect-the-easy-cats** discipline (don't regress the 100% categories) — = our T12 anti-dilution finding.
+
+**Agreements with the other writeups.** RL doesn't beat SFT here (LB92 SimPO/ORPO, LB80 GRPO/DPO); local
+validation drifts from the LB (→ trust the LB; = LB25 eval-bug, our T12); cryptarithm/equation is a **bounded
+wall** (they explicitly chose not to attack it). Their coverage/stability levers are **orthogonal** to LB80's
+"discovery-not-verify CoT" lead — both improve the same SFT data from different angles.
+
+**What to try after Saturday.** `v18-stable` (plan: `external/LB92/analysis/next_version_plan.md`): **per-char
+tokenization** for symbol cats + **grad-clip 1.5** (A/B vs 1e9-off, variance check) + **statistics-matched,
+gap-validated synthetic** (≤15% → up to 2.5:1 only if QC + T12 hold); gate on T12 ≥ 0.764 + no easy-cat
+regression. CPU-heavy prep; ~1–2 GPU sessions.
