@@ -1,0 +1,30 @@
+package: orbit-strong-tier-task-pack
+version: 2026-06-16-v1
+root: docs/tasks/competition-tracking/orbit-strong-tier
+files:
+  phase_plan: phase_plan.md
+  runbook: runbook.md
+  research_seed: research_seed.md
+  configs:
+    - configs/early_stop_policy.yaml
+    - configs/account_lane_policy.yaml
+    - configs/dataset_schema.yaml
+    - configs/promotion_gate.yaml
+  prompts:
+    - prompts/00-goal-research-kuni05-matchmaking-identity.md
+    - prompts/01-goal-doc-consistency-and-live-loop-baseline.md
+    - prompts/02-goal-flight-oracle-and-execution-zero-bug.md
+    - prompts/03-goal-battlefield-state-ledger-rule-engine.md
+    - prompts/04-goal-replay-dataset-and-feature-pipeline.md
+    - prompts/05-loop-snorlax-model-training.md
+    - prompts/06-goal-hybrid-policy-integration.md
+    - prompts/07-loop-ladder-iterate-to-strong-tier.md
+  templates:
+    - templates/task_entry_template.md
+    - templates/episode_analysis_template.md
+    - templates/submit_plan_template.md
+    - templates/model_card_template.md
+notes:
+  - Unzip at repo root.
+  - Run one prompt at a time unless the runbook marks the workstream parallelizable.
+  - Long-running ladder loop is bounded per cycle and may autonomously Kaggle submit/push only under its gates.
