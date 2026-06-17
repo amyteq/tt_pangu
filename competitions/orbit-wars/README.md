@@ -4,6 +4,8 @@ Kaggle **Orbit Wars** ($50,000 Featured, deadline **2026-06-23**, ~4137 teams).
 Agent-vs-agent RTS on `kaggle_environments`; **1v1 (2-player)** skill-rating ladder, μ0=600
 (LB top ≈ 1732, top-10 ≈ 1500–1600 as of 2026-06-10).
 
+**Architecture:** see [ARCHITECTURE.md](./ARCHITECTURE.md) — the layered hybrid design (deterministic v3.2 core + optional model candidate-scorer; deterministic last word).
+
 ## Current status (2026-06-14, KCT-003 consolidation)
 
 > Live tracking now lives in [`tracking.md`](./tracking.md) (issue #87 tables, English) and the docs below;
