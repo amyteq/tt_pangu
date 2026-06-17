@@ -12,7 +12,8 @@
 | 3 | **强档有提高(功效协议)** | `python arena/t8_ab.py` 同款 A/B:候选 vs 基线,各 ≥150 配对种子(300 局)/对手,**全新种子块** | vs evogen(或目标强档)差值 ≥ +7pt(300 局的 95% CI ≈ ±3.5pt/边);<7pt 视为不可判定,**加倍样本或放弃** |
 | 4 | **4p 鲁棒性** | `python -c "import pool; print(pool.fmt4('cand', pool.ffa(<agent>, [starter, pub_tactical, adilshamim], range(7000,7030))))"` | avg_rank 不差于基线 +0.2;不固定垫底(设计原则:2p/4p 同一套算法) |
 | 5 | **运行时预算** | 任一局带计时(对局 500 步) | 单回合 p99 < 50ms 本地(Kaggle 限 1000ms/回合,留 20× 余量);无超时步 |
-| 6 | **单文件可部署** | `python -c "import ast; ast.parse(open('agent/main.py').read())"` + 确认无第三方 import(stdlib only) | 通过;提交文件 = 烘焙后的 `agent/main.py`(env 旋钮全部取默认值) |
+| 6 | **单文件可部署** | `python -c "import ast; ast.parse(open('agent/main.py').read())"` + 确认无第三方 import(stdlib only) | 通过;提交文件 = 烘焙后的 `agent/main.py`(env 旋钮全部取默认值)。**注:** main.py 仍是单文件可解析 + stdlib-only(`core/` import 受 guard 保护,缺失则 no-op) |
+| 7 | **FlightOracle 执行门(OW-P0-FLIGHT-ORACLE-001)** | `python tests_orbit/test_action_sanitizer.py` + `OW_SANITIZE_LOG=<f>` 跑一局 | final 动作经 `core.action_sanitizer` 门控:零 strict-sun / oob 发射;v3.2 上 blocked=0(纯安全网,无回退)。**要在天梯激活**:`main.py + core/` 打成 tar.gz 提交(单文件提交时门为 no-op) |
 
 ## 方法论红线(从 T2 负结果固化,违者结论无效)
 

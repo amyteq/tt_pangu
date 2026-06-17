@@ -478,11 +478,50 @@ def _incoming_threat(planet, fleets, player):
     return threat
 
 
+# --- FlightOracle execution gate (OW-P0-FLIGHT-ORACLE-001) -------------------
+# Final emission passes through core.action_sanitizer, which drops provably-fatal launches
+# (strict sun collision / out-of-bounds) via the deterministic FlightOracle. Import-guarded:
+# active when core/ is importable (locally, in the arena, or in a tar.gz that bundles core/
+# beside main.py); a transparent no-op otherwise, and ANY failure falls back to the raw moves
+# so the gate can never break or starve the agent. Disable with OW_NO_SANITIZE=1; set
+# OW_SANITIZE_LOG=<path> to append per-turn counters (off by default online).
+_SANITIZE = int(_os.environ.get("OW_NO_SANITIZE", 0)) == 0
+
+
+def _emit_gate(obs, moves):
+    if not _SANITIZE or not moves:
+        return moves
+    try:
+        import sys as _sys
+
+        try:
+            _here = _os.path.dirname(_os.path.abspath(__file__))
+        except NameError:
+            _here = _os.getcwd()
+        for _p in (_here, _os.path.dirname(_here)):  # comp dir (local) / archive root (tar.gz)
+            if _p and _p not in _sys.path:
+                _sys.path.insert(0, _p)
+        from core.action_sanitizer import ActionSanitizer, new_counters
+
+        ctr = new_counters()
+        clean, ctr = ActionSanitizer().sanitize(obs, moves, horizon=60, counters=ctr)
+        _log = _os.environ.get("OW_SANITIZE_LOG", "")
+        if _log:
+            import json as _json
+
+            with open(_log, "a") as _f:
+                _f.write(_json.dumps({"step": obs.get("step"), **ctr}) + "\n")
+        return clean
+    except Exception:
+        return moves  # core/ unavailable (single-file submission) or any error -> raw moves
+
+
 def agent(obs):
     try:
-        return _agent(obs)
+        moves = _agent(obs)
     except Exception:
         return []
+    return _emit_gate(obs, moves)
 
 
 def _agent(obs):

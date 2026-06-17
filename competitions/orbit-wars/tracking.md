@@ -35,8 +35,9 @@
   `arena/validate.py` clean (no agent regression). Schema: `discussions/2026-06-16-battlefield-state-schema.md`.
   Plus the replay **dataset pipeline** `datasets/` (prompt 04): episode index + step + candidate
   tables with FlightOracle safety/first-hit labels (fixture smoke OK; 20G corpus → snorlax).
-  Next: wire the FlightOracle gate into `agent/main.py` emission (prompt 02 integration), then
-  model training (05) → hybrid (06) → ladder loop (07) toward μ≥1200.
+  ✅ FlightOracle gate now WIRED into `agent/main.py` emission (prompt 02 — `core/action_sanitizer.py`
+  + `_emit_gate`, import-guarded; verified active, 0 false-positives on v3.2, no regression; activate on
+  ladder via `main.py+core/` tar.gz). Next: model training (05) → hybrid (06) → ladder loop (07) toward μ≥1200.
 - **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
   (evogen 1093 / multifocus / kuni05 1240).
 
