@@ -10,7 +10,7 @@ checked-in case list (``cases.yaml``). Every case:
   ``output_keys`` (sorted JSON top-level keys; ``[]`` for plain text).
 
 The suite never invokes the kaggle CLI nor any remote API. A post-run
-audit-grep guard verifies that ``.agent/audit.jsonl`` and the suite's
+audit-grep guard verifies that ``.agent/kca/audit.jsonl`` and the suite's
 own captured command log contain zero hits for the M10-T007 forbidden
 patterns (``kaggle competitions submit``, ``kaggle kernels push``,
 ``kaggle datasets create``, ``kaggle datasets version``).
@@ -331,7 +331,8 @@ def run(
             outcome.total_error += 1
 
     if audit_path is None:
-        audit_path = _REPO_ROOT / ".agent" / "audit.jsonl"
+        # KCA audit log (ADR-0021): .agent/kca/audit.jsonl.
+        audit_path = _REPO_ROOT / ".agent" / "kca" / "audit.jsonl"
     v_count, v_lines = _audit_grep(audit_path, started_ns)
     outcome.audit_grep_violations = v_count
     outcome.audit_grep_lines = v_lines
