@@ -231,34 +231,32 @@ flowchart TD
 ## LB25 Progress Prize 改进:我们的学习与启发
 
 > 赛后研究 Kaggle writeup **「[LB25] Improvements to the progress prize submission」**,作者 **Tong Hui Kang**
-> (`huikang`/`tonghuikang`,Progress-Prize 冠军),**~0.872 公榜(218/250)**。完整重建 + 来源见 `external/lb25/`。
-> Kaggle writeup 正文为 JS 渲染、本任务不登录故不可抓取;由讨论 #703896 摘要 + 公开仓库 `tonghuikang/nemotron`
-> 重建。外部声明为不可信数据;我方分数见 `tracking.md`。
+> (`huikang`/`tonghuikang`,Progress-Prize 冠军)。**2026-06-17 据实际 writeup(`temp/LB25.pdf`)更新** —— 可还原度
+> 现为完整;**取代**此前 JS-blocked 重建(那版误把 `kuangyicheng` 的「暖启动/短答案/240 步」配方当成本文,实际**没有**)。
+> 完整细节 + 来源见 `external/lb25/`。外部声明为不可信数据;我方分数见 `tracking.md`。
 
-**LB25 方法(纯 SFT,无 RL)。** 基模型 `Nemotron-3-Nano-30B-A3B`、LoRA r32(MLP+attn+lm_head)、seq 8192、
-1 epoch、仅 response 计 loss。核心创新是**确定性 solver 生成 CoT**:为每类题写规则发现算法
-(`reasoners/`:cipher、bit_manipulation、equation_numeric、cryptarithm 回溯)输出固定逐步轨迹,训练模型
-**逐字执行**;外加 **min-logprob 选择性重放**(只重放最小 per-token 对数概率未收敛的难行 —— 最难 bit/cipher)
-与**类别分层 batch**。「LB25 改进」再从 v27(Progress-Prize)adapter 暖启动,跑一个短的**格式对齐**微调
-(约 240 步、batch ×2)。
+**LB25 = 对 Progress-Prize 提交的四项针对性改动(纯 SFT)。** 据 writeup 原文:(1) **修复 adapter 评测** ——
+本地验证 prompt 错了,答案在验证里看着没 box,但提交时其实是 box 的(**本地评测 bug**,非模型改动);
+(2) **把 `equation_numeric` 减半** —— 联合反转对称性(「输入**和**输出要么都反转、要么都不」);
+(3) **对 `cipher`/`unit`/`gravity`/`numeral` 用合成数据**把简单类锁在 ~100%;(4) **重组 bit-manipulation 的 CoT**。
+基础流水线(不变)= 确定性 solver CoT + min-logprob 信号 + 类别分层 batch。
 
-**为何 ~0.872。** 简单类(gravity/numeral/unit)训练集已 ~100%、cipher ~99%;杠杆在 (1) **修复输出格式/长度
-bug** —— 长 CoT 可能在 7680 token 上限内还没到 `\boxed{}` 就被截断、产生空答案,短答案让好推理真正得分;
-(2) **min-logprob 重放**残余难 bit 行;(3) 确定性 CoT = 可靠执行算法,优于带噪的 LLM 轨迹。值得注意:其
-**`cryptarithm_deduce`(≈ 我方 `equation` base-36 密码)即便有回溯 CSP solver,训练集也仅 ~8.95%** ——
-独立印证我方 EQ-2′「强密码,不可从样本闭式还原」的结论。
+**结果 + 选择教训。** 私榜:**15 次提交里 0.872 ×4、0.868 ×8、0.864 ×3** —— 0.872 只占 4/15;「若选中对的那次本可单人金牌」。
+**选择方差**教训(呼应我方 INS-005/INS-007:最好 + 多样化对冲;surgery ×1.15 私榜 −0.02)。
 
-**我方差异。** 我们也是纯 SFT replay(v14,0.85),但我方杀手锏是 huikang 没用的 **SVD 模型汤**
-(v14+c1+b1 → 0.86;INS-004)。我们把 huikang 语料当数据用,他是用 solver **生成**的。我们没用过
-**min-logprob 自适应重放**(用的是固定 replay-math 剂量),也没做**全类别确定性 solver CoT**(我方 solver
-只部分覆盖 bit/cipher,equation 仅 0.4%)。我方 equation 杠杆是**覆盖式记忆**(eq-aug,私榜 0.86)而非回溯
-solver —— 在未见尾部同样是 ~8–9% 的墙。
+**Cryptarithm:他明确**没**取得进展**(≈ 我方 `equation` base-36 密码)。线索:「很多题有**一个乘法、一个减法、
+一个加法(每个可能再 ±1)**」;CoT「退化成重复猜测」。→ 独立印证 equation/cryptarithm 是**有界的墙**(同 EQ-2′),
+**且给出 EQ-2′ 新线索**:在秘密 σ 下的三项复合 `≈ A·B − C + D`(±1)—— 我方 EQ-2′ 从未测过的类(只测过单操作)。
+低概率的未来破解实验(huikang 也没破)。
 
-**学到什么。** (1) 通往 ~0.872 的路是 **bit + 格式可靠性,不是 equation** —— 双方都确认 equation/cryptarithm
-是 ~8–9% 的有界密码墙。(2) **min-logprob 选择性重放**是低成本、抗稀释地针对 SFT 欠拟合行的办法(对比我方
-均匀高剂量合成反而**回归** —— b2/v15/c2)。(3) **输出长度/格式是白捡的分** —— 要核查没有答案在 `\boxed{}`
-前被截断。(4) 确定性 solver CoT 在可靠性上优于 LLM 生成轨迹。
+**我方差异。** 我方杀手锏是 huikang 没用的 **SVD 模型汤**(v14+c1+b1 → 0.86;INS-004);他是单 adapter。我方 equation
+杠杆是**覆盖式记忆**(eq-aug 私榜 0.86),非 solver。
 
-**周六后可试。** `v16-mlp`(方案见 `external/lb25/analysis/next_version_plan.md`):v14 骨架 + 对最难 bit/cipher
-行的 **min-logprob 选择性重放**(剂量 ≤15%)+ 从 0.86 soup 暖启动的短**格式对齐**;提交前以 **T12 hard-val
-≥ 0.764** + 截断审计把关;再 soup-grow 进 v14+c1+b1。eq-aug 保持独立(不可入汤)。约 1 个 GPU session。
+**学到什么。** (1) **huikang 的头号杠杆是本地评测 bug、非模型改动** —— 而*我方同类 bug 出现过两次*(B4 `EVAL_MAX_NEW`
+截断;T12 hard-val 误判 eq-spec 0.167 vs LB 0.85)。最便宜高 EV 的动作是**评测↔提交一致性审计**。(2) **顶部选择方差
+是真杠杆**(0.872 = 4/15)。(3) **equation/cryptarithm 对所有人有界** —— 不过度投入。(4) 锁住简单类(别让它们回归)。
+
+**周六后可试。** `v16-evalfix`(方案见 `external/lb25/analysis/next_version_plan.md`):**先做评测↔提交一致性审计**
+(免费;改动 #1),再 v14 骨架 + 重组的自有 solver 验证 **bit CoT**(改动 #4)+ 对最难 bit/cipher 行的 **min-logprob
+重放**(剂量 ≤15%);以 **T12 hard-val ≥ 0.764 且 bit ↑、简单类不回归**把关;soup-grow 进 v14+c1+b1(最好 + 多样化对冲)。
+eq-aug 保持独立。约 1 个 GPU session。
