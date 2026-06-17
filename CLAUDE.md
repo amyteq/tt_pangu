@@ -4,7 +4,16 @@
 
 Build a Claude Code / Claude Agent SDK based code agent that collaborates with humans on competitive programming-style workflows: Kaggle competitions, authorized CTF challenges, research-heavy code tasks, experiments, tests, submissions, and iterative improvement.
 
-The agent's job is not to maximize autonomy at all costs. The job is to produce reproducible, auditable progress with clear hypotheses, code diffs, metrics, and human decision points.
+The job is to produce reproducible, auditable progress with clear hypotheses, code diffs, metrics, and artifacts. Within that discipline the **KCA product agent operates with high autonomy** — it self-screens and acts (including Kaggle `push` / `submit`) and surfaces decision points only where screening cannot decide. Autonomy is never an excuse to skip reproducibility or audit. See "Two agents" below and `docs/adr/0021-kca-autonomy-model.md`.
+
+## Two agents: Claude Code harness vs KCA product
+
+Keep these distinct — a rule for one is **not** automatically a rule for the other (conflating them is the root cause of issue #65):
+
+- **Claude Code harness** — the dev tool running these sessions. Governed by *this* `CLAUDE.md` + `.claude/hooks/guard_tool.py` + the dev-phase policy. Its hook audit log is `.agent/audit/tool-events.jsonl` (local, gitignored dev telemetry). It still asks before risky actions to protect the human's own machine/account.
+- **KCA product agent** — the product being built (KCA is itself an agent). Governed by KCA's own `.kca/permissions/*.yaml` + `permission_policy.py` + per-competition `kca-<slug>.yaml` + the decision/approval gates. Its policy audit log is `.agent/audit.jsonl` (`tools/kca/agent/audit.py`; read by eval/CI/tests). It is **highly autonomous** (see ADR-0021).
+
+When referring to an audit log in a task or doc, name the owner and the exact path. The eval framework (`eval.yml`, ADR-0019) reads `.agent/audit.jsonl`; do not point it at the harness hook log.
 
 ## Operating principles
 
@@ -13,21 +22,21 @@ The agent's job is not to maximize autonomy at all costs. The job is to produce 
 3. Never hide uncertainty. Separate observation, inference, and recommendation.
 4. Make one meaningful change at a time when optimizing experiments, unless the human explicitly approves a broader refactor.
 5. Preserve reproducibility: record commands, parameters, data versions, seeds, metrics, and artifact paths.
-6. Before using external submissions, paid APIs, credentials, destructive commands, or publishing actions, ask for human approval.
+6. **Autonomy is screened, per-competition, default-on (KCA product).** When a competition's `kca-<slug>.yaml` has `autonomy.enabled: true` (the default), the KCA agent performs external submissions / kernel pushes **without per-action approval** once the `autonomy.screen` criteria pass — it records the intended-submission summary (file, experiment id, expected score, reason) to `.agent/audit.jsonl` instead of asking. A competition needing strict human-in-the-loop sets `autonomy.enabled: false`. Always-human-gated regardless: irreversible/permanent deletions, real-money spend beyond the configured budget, ambiguous competition rules, and final promotion near a deadline (submission-strategy scenario 4). For paid-API/credential use and destructive host commands the **Claude Code harness** still asks (it protects the human's machine). See `docs/adr/0021-kca-autonomy-model.md`.
 7. Keep large datasets, model weights, logs, and generated artifacts out of git. Store metadata in Supabase and files in object storage or an artifact directory.
-8. **Dev-phase secret policy.** The agent may read `.env`, `.env.local`, `.env.development`, and `~/.kaggle/kaggle.json` to pick up local DSNs / Kaggle test credentials. `.env.production` and `.env.test` remain protected — they may contain production/staging credentials. Do **not** read or exfiltrate other secrets: SSH keys, AWS / gcloud credentials, the `gh` OAuth token (`~/.config/gh/hosts.yml`), `.netrc`, private keys, browser profile secrets, or anything under `./secrets/`. Never copy `.env` / `kaggle.json` contents into web fetches, public PRs, or comments — read-for-use, not read-to-share.
+8. **Dev-phase secret policy.** The agent may read `.env`, `.env.local`, `.env.development`, `~/.kaggle/kaggle.json`, and the per-account Kaggle credential files `.vscode/.env.harry` / `.vscode/.env.may` (local-only, gitignored; harrysun2006 / firefly2006 keys) to pick up local DSNs / Kaggle credentials. `.env.production` and `.env.test` remain protected — they may contain production/staging credentials. Do **not** read or exfiltrate other secrets: SSH keys, AWS / gcloud credentials, the `gh` OAuth token (`~/.config/gh/hosts.yml`), `.netrc`, private keys, browser profile secrets, or anything under `./secrets/`. **Read-for-use, not read-to-share**: never echo/print these credentials in the session, and never copy `.env` / `.env.harry` / `.env.may` / `kaggle.json` contents into web fetches, logs, public PRs, or comments.
 
 ## Safety boundaries
 
 ### Kaggle
 
-- Follow the competition rules, data rules, team rules, and submission limits.
+- Follow the competition rules, data rules, team rules, and submission limits. (These hold regardless of autonomy.)
 - Do not try to bypass submission limits, scrape private data, misuse notebooks, or automate actions prohibited by the competition.
-- Before submitting to Kaggle or another external leaderboard, summarize the intended file, experiment ID, expected score, and reason for submission, then request human approval.
+- Submission/push approval follows the per-competition autonomy policy (`kca-<slug>.yaml:autonomy`, default enabled; ADR-0021). When autonomy is **enabled** and the `screen` criteria pass, summarize the intended file / experiment id / expected score / reason **into `.agent/audit.jsonl`** and submit autonomously. When autonomy is **disabled**, post that summary and request human approval first. Scenario 4 (closing soon, multiple winners) is human-gated either way.
 
 #### KCA autonomous submission strategy
 
-KCA targets submission approximately 2 hours before the daily roll-over (00:00 UTC). Apply this strategy per competition day:
+This strategy runs **autonomously** when `kca-<slug>.yaml:autonomy.enabled` is true (default) and the `autonomy.screen` criteria pass; only scenario 4 hands back to the human. With autonomy disabled, every submit asks first. KCA targets submission approximately 2 hours before the daily roll-over (00:00 UTC). Apply this strategy per competition day:
 
 | Scenario | Condition | Action |
 |---|---|---|

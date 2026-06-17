@@ -8,10 +8,7 @@ import site
 # /kaggle/usr/lib/notebooks/ryanholbrook/<dir>, slugifying the name with
 # UNDERSCORES (nvidia_utility_script), so glob for the cutlass python_packages
 # dir rather than hardcoding the demo's (wrong) hyphenated path.
-_cutlass = glob.glob(
-    "/kaggle/usr/lib/notebooks/ryanholbrook/*nvidia*util*/"
-    "nvidia_cutlass_dsl/python_packages"
-)
+_cutlass = glob.glob("/kaggle/usr/lib/notebooks/ryanholbrook/*nvidia*util*/nvidia_cutlass_dsl/python_packages")
 for _p in _cutlass:
     site.addsitedir(_p)
 print("cutlass sitedirs:", _cutlass)
@@ -27,9 +24,7 @@ import os
 import shutil
 import stat as _stat
 
-_ptxas = glob.glob(
-    "/kaggle/usr/lib/notebooks/ryanholbrook/*/triton/backends/nvidia/bin/ptxas-blackwell"
-)
+_ptxas = glob.glob("/kaggle/usr/lib/notebooks/ryanholbrook/*/triton/backends/nvidia/bin/ptxas-blackwell")
 if _ptxas:
     _dst = "/tmp/ptxas-blackwell"
     try:
@@ -58,9 +53,7 @@ from peft import LoraConfig, TaskType, get_peft_model
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 # %%
-MODEL_PATH = kagglehub.model_download(
-    "metric/nemotron-3-nano-30b-a3b-bf16/transformers/default"
-)
+MODEL_PATH = kagglehub.model_download("metric/nemotron-3-nano-30b-a3b-bf16/transformers/default")
 OUTPUT_DIR = "/kaggle/working"
 LORA_RANK = 32  # competition max is 32
 MAX_STEPS = 400  # v7: ~3.3x v6 (~4h training) for better CoT convergence
@@ -122,10 +115,7 @@ try:
         val_df.height,
     )
 
-    SUFFIX = (
-        "\nPlease put your final answer inside \\boxed{}. "
-        "For example: \\boxed{your answer}"
-    )
+    SUFFIX = "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
 
     def build_pair(prompt, answer, cot):
         # Strip any boxed answer inside the trace; append the canonical one after
@@ -133,12 +123,8 @@ try:
         cot = re.sub(r"\\boxed\{[^}]*\}", "", str(cot)).rstrip()
         assistant = f"{cot}\n</think>\n\\boxed{{{answer}}}"
         user = [{"role": "user", "content": f"{prompt}{SUFFIX}"}]
-        full = tokenizer.apply_chat_template(
-            user + [{"role": "assistant", "content": assistant}], tokenize=False
-        )
-        prompt_only = tokenizer.apply_chat_template(
-            user, tokenize=False, add_generation_prompt=True
-        )
+        full = tokenizer.apply_chat_template(user + [{"role": "assistant", "content": assistant}], tokenize=False)
+        prompt_only = tokenizer.apply_chat_template(user, tokenize=False, add_generation_prompt=True)
         return full, prompt_only
 
     import datasets
@@ -153,9 +139,7 @@ try:
             continue
         full, prompt_only = build_pair(r["prompt"], str(r["answer"]), cot)
         ids = tokenizer(full, truncation=True, max_length=MAX_LEN)["input_ids"]
-        plen = len(
-            tokenizer(prompt_only, truncation=True, max_length=MAX_LEN)["input_ids"]
-        )
+        plen = len(tokenizer(prompt_only, truncation=True, max_length=MAX_LEN)["input_ids"])
         plen = min(plen, len(ids))
         labels = [-100] * plen + ids[plen:]
         examples.append({"input_ids": ids, "labels": labels})
@@ -167,9 +151,7 @@ try:
 
     from transformers import DataCollatorForSeq2Seq, Trainer, TrainingArguments
 
-    collator = DataCollatorForSeq2Seq(
-        tokenizer, label_pad_token_id=-100, padding="longest"
-    )
+    collator = DataCollatorForSeq2Seq(tokenizer, label_pad_token_id=-100, padding="longest")
 
     model.config.use_cache = False
     model.gradient_checkpointing_enable()
@@ -235,9 +217,7 @@ try:
         save_strategy="no",
         report_to=[],
     )
-    _out = Trainer(
-        model=model, args=args, train_dataset=ds, data_collator=collator
-    ).train()
+    _out = Trainer(model=model, args=args, train_dataset=ds, data_collator=collator).train()
     TRAIN_OK = True
 
     # Held-out boxed accuracy (overfitting signal) — ISOLATED in its own try so a
@@ -288,8 +268,7 @@ model.save_pretrained(OUTPUT_DIR)
 print("Adapter files:", sorted(glob.glob(f"{OUTPUT_DIR}/adapter*")))
 
 subprocess.run(
-    "cd /kaggle/working && zip -r submission.zip adapter_config.json "
-    "adapter_model.safetensors",
+    "cd /kaggle/working && zip -r submission.zip adapter_config.json adapter_model.safetensors",
     shell=True,
     check=True,
 )
@@ -302,9 +281,7 @@ import json as _json
 with open(f"{OUTPUT_DIR}/train_report.json", "w") as _f:
     _json.dump(TRAIN_INFO, _f)
 print("TRAIN_REPORT:", _json.dumps(TRAIN_INFO))
-for _f in glob.glob(f"{OUTPUT_DIR}/adapter_model.safetensors") + glob.glob(
-    f"{OUTPUT_DIR}/adapter_config.json"
-):
+for _f in glob.glob(f"{OUTPUT_DIR}/adapter_model.safetensors") + glob.glob(f"{OUTPUT_DIR}/adapter_config.json"):
     try:
         os.remove(_f)
     except OSError:

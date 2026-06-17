@@ -111,9 +111,7 @@ def eprint(msg: str) -> None:
     print(msg, file=sys.stderr)
 
 
-def run(
-    cmd: list[str], *, cwd: Path | None = None, timeout: int = 30
-) -> subprocess.CompletedProcess[str]:
+def run(cmd: list[str], *, cwd: Path | None = None, timeout: int = 30) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         cmd,
         cwd=str(cwd) if cwd else None,
@@ -213,9 +211,7 @@ def candidate_from_raw(
     )
     name = first_value(raw, {"name", "displayName", "display_name", "title"})
     status = first_value(raw, {"status", "state", "lifecycleState", "lifecycle_state"})
-    cwd = first_value(
-        raw, {"cwd", "workingDirectory", "working_dir", "projectDir", "project_dir"}
-    )
+    cwd = first_value(raw, {"cwd", "workingDirectory", "working_dir", "projectDir", "project_dir"})
 
     if not job_id and state_path is not None:
         try:
@@ -366,9 +362,7 @@ def describe_candidate(c: Candidate) -> str:
     )
 
 
-def select_candidate(
-    target: str, candidates: list[Candidate], *, field: str | None = None
-) -> Candidate:
+def select_candidate(target: str, candidates: list[Candidate], *, field: str | None = None) -> Candidate:
     scored = [(score_candidate(target, c, field=field), c) for c in candidates]
     scored = [(score, c) for score, c in scored if score > 0]
 
@@ -387,9 +381,7 @@ def select_candidate(
     unique_keys = {(c.job_id, c.session_id, c.name) for c in best}
     if len(unique_keys) > 1 and best_score < 90:
         choices = "\n".join(f"  - {describe_candidate(c)}" for c in best)
-        raise RuntimeError(
-            f"Ambiguous session selector {target!r}. Use an id instead.\n{choices}"
-        )
+        raise RuntimeError(f"Ambiguous session selector {target!r}. Use an id instead.\n{choices}")
 
     return best[0]
 
@@ -419,9 +411,7 @@ def safe_glob(base: Path, pattern: str) -> list[Path]:
 def find_transcript_from_state(candidate: Candidate, config_dir: Path) -> Path | None:
     for path in collect_jsonl_paths(candidate.raw):
         if not path.is_absolute():
-            path = (
-                candidate.state_path.parent if candidate.state_path else config_dir
-            ) / path
+            path = (candidate.state_path.parent if candidate.state_path else config_dir) / path
         if path.exists():
             return path.resolve()
 
@@ -446,9 +436,7 @@ def safe_filename(name: str) -> str:
 
 
 def base_output_name(candidate: Candidate) -> str:
-    return safe_filename(
-        candidate.name or candidate.job_id or candidate.session_id or "claude-session"
-    )
+    return safe_filename(candidate.name or candidate.job_id or candidate.session_id or "claude-session")
 
 
 def short_disambiguator(candidate: Candidate) -> str:
@@ -489,9 +477,7 @@ def assign_output_names(candidates: list[Candidate]) -> list[str]:
 def run_claude_code_log(transcript: Path, tmp_md: Path, detail: str) -> None:
     uvx = shutil.which("uvx")
     if not uvx:
-        raise RuntimeError(
-            "uvx not found. Install uv first, then run: uvx claude-code-log@latest --help"
-        )
+        raise RuntimeError("uvx not found. Install uv first, then run: uvx claude-code-log@latest --help")
 
     attempts: list[list[str]] = []
     for fmt in ("md", "markdown"):
@@ -535,13 +521,7 @@ def run_claude_code_log(transcript: Path, tmp_md: Path, detail: str) -> None:
                 tmp_md.write_text(proc.stdout, encoding="utf-8")
                 return
 
-        errors.append(
-            "$ "
-            + " ".join(cmd)
-            + "\n"
-            + f"returncode={proc.returncode}\n"
-            + f"stderr={proc.stderr[-2000:]}"
-        )
+        errors.append("$ " + " ".join(cmd) + "\n" + f"returncode={proc.returncode}\n" + f"stderr={proc.stderr[-2000:]}")
 
     raise RuntimeError("claude-code-log failed.\n\n" + "\n\n---\n\n".join(errors[-3:]))
 
@@ -602,9 +582,7 @@ def mask_secret_like_text(text: str) -> str:
     value group for `KEY=value` assignments) so the surrounding markdown and
     variable names stay readable. Idempotent: re-masking masked text is a
     no-op because the patterns no longer match the '*'-filled bodies."""
-    text = PRIVATE_KEY_BLOCK_RE.sub(
-        "-----BEGIN PRIVATE KEY----- [REDACTED] -----END PRIVATE KEY-----", text
-    )
+    text = PRIVATE_KEY_BLOCK_RE.sub("-----BEGIN PRIVATE KEY----- [REDACTED] -----END PRIVATE KEY-----", text)
 
     for pattern, _label, value_group in SECRET_PATTERNS:
 
@@ -628,9 +606,7 @@ def build_header(candidate: Candidate, transcript: Path) -> str:
     # "Output" path — the output path varies per run (the routine renders into a
     # fresh temp worktree), which otherwise churned every file on every run.
     # The git commit time already records when a dump happened.
-    title = (
-        candidate.name or candidate.job_id or candidate.session_id or "Claude session"
-    )
+    title = candidate.name or candidate.job_id or candidate.session_id or "Claude session"
     return (
         f"# Claude session log: {title}\n\n"
         f"- Session name: `{candidate.name or ''}`\n"
@@ -794,8 +770,7 @@ def build_parser() -> argparse.ArgumentParser:
         dest="all",
         action=argparse.BooleanOptionalAction,
         default=True,
-        help="Export all discoverable sessions (default: on). Disabled "
-        "automatically when --name or --id is given.",
+        help="Export all discoverable sessions (default: on). Disabled automatically when --name or --id is given.",
     )
     parser.add_argument(
         "--allow-any-state",
@@ -830,9 +805,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def emit_human(result: dict[str, Any]) -> None:
     matched = result.get("matched", {})
-    label = (
-        matched.get("name") or matched.get("job_id") or matched.get("session_id") or "?"
-    )
+    label = matched.get("name") or matched.get("job_id") or matched.get("session_id") or "?"
     locations: list[dict[str, Any]] = result.get("secret_locations") or []
 
     if result.get("ok"):
@@ -843,25 +816,13 @@ def emit_human(result: dict[str, Any]) -> None:
                 f"{len(locations)} secret-like line(s) masked and written:"
             )
             for loc in locations:
-                eprint(
-                    f"            - line {loc['line']:>6}: "
-                    f"{loc['label']} [{loc['match_preview']}]"
-                )
+                eprint(f"            - line {loc['line']:>6}: {loc['label']} [{loc['match_preview']}]")
     elif result.get("skipped"):
-        eprint(
-            f"[skip:{result.get('reason')}] {label} "
-            f"(status={matched.get('status')}): {result.get('error')}"
-        )
+        eprint(f"[skip:{result.get('reason')}] {label} (status={matched.get('status')}): {result.get('error')}")
         if result.get("reason") == "secret-like-detected" and locations:
-            eprint(
-                f"          {len(locations)} secret-like line(s) "
-                "(rerun with --allow-secret-like to write anyway):"
-            )
+            eprint(f"          {len(locations)} secret-like line(s) (rerun with --allow-secret-like to write anyway):")
             for loc in locations:
-                eprint(
-                    f"            - line {loc['line']:>6}: "
-                    f"{loc['label']} [{loc['match_preview']}]"
-                )
+                eprint(f"            - line {loc['line']:>6}: {loc['label']} [{loc['match_preview']}]")
     else:
         eprint(f"[fail:{result.get('reason')}] {label}: {result.get('error')}")
 
@@ -873,9 +834,7 @@ def main() -> int:
     root = project_root()
     config_dir = claude_config_dir()
 
-    candidates = dedupe(
-        load_agents_from_cli(root) + load_agents_from_state_files(config_dir, root)
-    )
+    candidates = dedupe(load_agents_from_cli(root) + load_agents_from_state_files(config_dir, root))
 
     if not candidates:
         payload = {
@@ -946,16 +905,11 @@ def main() -> int:
                 "ok": exported > 0,
                 "results": results,
                 "summary": summary,
-                "output_dir": str(output_dir.relative_to(root))
-                if output_dir.is_relative_to(root)
-                else str(output_dir),
+                "output_dir": str(output_dir.relative_to(root)) if output_dir.is_relative_to(root) else str(output_dir),
             }
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     else:
-        eprint(
-            f"\nSummary: {exported} exported, {skipped} skipped, "
-            f"{failed} failed (of {len(results)} candidate(s))."
-        )
+        eprint(f"\nSummary: {exported} exported, {skipped} skipped, {failed} failed (of {len(results)} candidate(s)).")
 
     if exported == 0:
         return 1

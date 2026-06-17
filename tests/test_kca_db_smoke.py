@@ -141,14 +141,10 @@ def test_run_init_writes_db_and_fs(db_url: str, cleanup_run_dir: str) -> None:
 
 
 @requires_db
-def test_record_metric_writes_event_and_jsonb(
-    db_url: str, cleanup_run_dir: str
-) -> None:
+def test_record_metric_writes_event_and_jsonb(db_url: str, cleanup_run_dir: str) -> None:
     slug = cleanup_run_dir
     try:
-        init = _parse(
-            _run("run", "init", "--competition", slug, "--hypothesis", "h", "--json")
-        )
+        init = _parse(_run("run", "init", "--competition", slug, "--hypothesis", "h", "--json"))
         run_dir = init["run_dir"]
         run_id_uuid = init["experiment_run_id"]
 
@@ -200,9 +196,7 @@ def test_record_metric_writes_event_and_jsonb(
 def test_run_list_sources_from_db(db_url: str, cleanup_run_dir: str) -> None:
     slug = cleanup_run_dir
     try:
-        _parse(
-            _run("run", "init", "--competition", slug, "--hypothesis", "h", "--json")
-        )
+        _parse(_run("run", "init", "--competition", slug, "--hypothesis", "h", "--json"))
         list_proc = _run("run", "list", "--competition", slug, "--json")
         assert list_proc.returncode == 0, list_proc.stderr
         payload = _parse(list_proc)

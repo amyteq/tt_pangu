@@ -227,9 +227,7 @@ def test_network_egress_denied_to_kaggle_from_ctf_job():
         "https://www.kaggle.com/api/v1/competitions/data/list",
         "http://kaggle.com/c/spaceship-titanic",
     ):
-        assert ctf_mod._scope_covers_url(scope, kaggle_url) is False, (
-            f"CTF job scope must NOT cover {kaggle_url!r}"
-        )
+        assert ctf_mod._scope_covers_url(scope, kaggle_url) is False, f"CTF job scope must NOT cover {kaggle_url!r}"
 
     # Also confirm reviewer policy default: network_egress is `deny`
     # in EVERY profile when the URL is not in scope.
@@ -239,17 +237,12 @@ def test_network_egress_denied_to_kaggle_from_ctf_job():
         with (REPO_ROOT / ".kca" / "permissions" / f"{profile}.yaml").open() as f:
             policy = list(yaml.safe_load_all(f))[0]
         row = next(
-            (
-                r
-                for r in policy
-                if isinstance(r, dict) and r.get("operation") == "network_egress"
-            ),
+            (r for r in policy if isinstance(r, dict) and r.get("operation") == "network_egress"),
             None,
         )
         assert row is not None, f"{profile}.yaml missing network_egress"
         assert row["default_decision"] == "deny", (
-            f"{profile}.yaml::network_egress default must be deny, got "
-            f"{row['default_decision']!r}"
+            f"{profile}.yaml::network_egress default must be deny, got {row['default_decision']!r}"
         )
 
 
@@ -322,9 +315,7 @@ def _build_web_mock_app(flag_value: str) -> httpx.MockTransport:
                 headers={"location": "/me"},
                 text="",
             )
-            resp.headers["set-cookie"] = (
-                f"session={token}; HttpOnly=False; SameSite=Lax; Path=/"
-            )
+            resp.headers["set-cookie"] = f"session={token}; HttpOnly=False; SameSite=Lax; Path=/"
             return resp
         if path == "/admin" and request.method == "GET":
             cookies = request.headers.get_list("cookie")
@@ -452,17 +443,12 @@ def test_no_secret_leak_in_test_stdout(capsys):
     captured = capsys.readouterr()
     blob = "\n".join(_CAPTURED + [captured.out, captured.err])
     hits = _audit_grep.scan_text(blob)
-    assert hits == [], (
-        f"audit-grep found {len(hits)} secret/flag leak(s) in captured "
-        f"test output: {hits!r}"
-    )
+    assert hits == [], f"audit-grep found {len(hits)} secret/flag leak(s) in captured test output: {hits!r}"
 
     # Defensive self-check: the audit-grep harness DOES catch a known-bad
     # synthetic injection. Without this assertion, a regression that
     # silently broke the catalog would never fail any test.
-    synthetic_hits = _audit_grep.scan_text(
-        "KCA_TOKEN=tok_should_be_caught_xyz\nFLAG{synthetic_audit_grep_canary}\n"
-    )
+    synthetic_hits = _audit_grep.scan_text("KCA_TOKEN=tok_should_be_caught_xyz\nFLAG{synthetic_audit_grep_canary}\n")
     assert any(name == "secret_kv" for name, _ in synthetic_hits)
     assert any(name == "flag" for name, _ in synthetic_hits)
 
@@ -508,6 +494,5 @@ def test_no_real_network_calls_attempted():
     # variables set by the earlier monkeypatch.delenv calls (they
     # delete + restore on teardown — they do NOT set).
     assert os.environ.get("KCA_ALLOW_REMOTE") in (None, "0"), (
-        "KCA_ALLOW_REMOTE is set — a previous test should not have "
-        "exported it; the refusal paths rely on its absence"
+        "KCA_ALLOW_REMOTE is set — a previous test should not have exported it; the refusal paths rely on its absence"
     )

@@ -585,14 +585,12 @@ def _new_comp_with_run(pg_url, *, slug):
             )
             comp_id = cur.fetchone()[0]
             cur.execute(
-                "INSERT INTO experiments (competition_id) VALUES (%s::uuid) "
-                "RETURNING id::text",
+                "INSERT INTO experiments (competition_id) VALUES (%s::uuid) RETURNING id::text",
                 (comp_id,),
             )
             exp_id = cur.fetchone()[0]
             cur.execute(
-                "INSERT INTO experiment_runs (experiment_id) VALUES (%s::uuid) "
-                "RETURNING id::text",
+                "INSERT INTO experiment_runs (experiment_id) VALUES (%s::uuid) RETURNING id::text",
                 (exp_id,),
             )
             run_id = cur.fetchone()[0]

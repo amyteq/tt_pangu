@@ -68,8 +68,7 @@ def resolve(yaml_path: str, section: str) -> dict:
     base = dict(cfg.get("_base", {}))
     if section not in cfg:
         raise KeyError(
-            f"section '{section}' not in {yaml_path}; "
-            f"available: {sorted(k for k in cfg if not k.startswith('_'))}"
+            f"section '{section}' not in {yaml_path}; available: {sorted(k for k in cfg if not k.startswith('_'))}"
         )
     merged = {**base, **cfg[section]}
     meta = {}
@@ -93,11 +92,7 @@ def _write_metadata(meta: dict, out_dir: str) -> str:
 def cmd_write(args: argparse.Namespace) -> int:
     meta = resolve(args.yaml, args.section)
     path = _write_metadata(meta, args.out)
-    print(
-        json.dumps(
-            {"ok": True, "section": args.section, "metadata": path, "id": meta["id"]}
-        )
-    )
+    print(json.dumps({"ok": True, "section": args.section, "metadata": path, "id": meta["id"]}))
     return 0
 
 
@@ -108,9 +103,7 @@ def cmd_build(args: argparse.Namespace) -> int:
     converted to `<out>/<code_file>` via `kca nb to-ipynb`.
     """
     meta = resolve(args.yaml, args.section)
-    out = args.out or os.path.join(
-        os.environ.get("TMPDIR", "/tmp"), "kca-build", args.section
-    )
+    out = args.out or os.path.join(os.environ.get("TMPDIR", "/tmp"), "kca-build", args.section)
     os.makedirs(out, exist_ok=True)
     stem = os.path.splitext(meta["code_file"])[0]
     src_py = os.path.join(args.src_dir, f"{stem}.py")
@@ -139,11 +132,7 @@ def cmd_build(args: argparse.Namespace) -> int:
         )
         return 1
     _write_metadata(meta, out)
-    print(
-        json.dumps(
-            {"ok": True, "section": args.section, "build_dir": out, "id": meta["id"]}
-        )
-    )
+    print(json.dumps({"ok": True, "section": args.section, "build_dir": out, "id": meta["id"]}))
     return 0
 
 
@@ -158,12 +147,8 @@ def main() -> int:
     pb = sub.add_parser("build", help="assemble a push dir (metadata + .ipynb)")
     pb.add_argument("yaml")
     pb.add_argument("section")
-    pb.add_argument(
-        "--src-dir", required=True, help="dir holding the flat <stem>.py sources"
-    )
-    pb.add_argument(
-        "--out", default=None, help="build dir (default $TMPDIR/kca-build/<section>)"
-    )
+    pb.add_argument("--src-dir", required=True, help="dir holding the flat <stem>.py sources")
+    pb.add_argument("--out", default=None, help="build dir (default $TMPDIR/kca-build/<section>)")
     pb.set_defaults(func=cmd_build)
     args = ap.parse_args()
     return args.func(args)

@@ -156,9 +156,7 @@ def main() -> int:
 
     # Surface the agent_reviews + human_decisions rows for closeout.
     review = _db.find_review_for_op(job_id, "kaggle_submit")
-    print(
-        f"agent_reviews.id={review['id'] if review else None} verdict={review['verdict'] if review else None}"
-    )
+    print(f"agent_reviews.id={review['id'] if review else None} verdict={review['verdict'] if review else None}")
 
     pending = _db.list_pending_decisions(job_id=job_id)
     print(f"human_decisions pending count={len(pending)}")
@@ -170,9 +168,7 @@ def main() -> int:
     types_only = [
         (
             e.get("event_type"),
-            (e.get("event_data") or {}).get("operation")
-            or (e.get("event_data") or {}).get("target_op")
-            or "",
+            (e.get("event_data") or {}).get("operation") or (e.get("event_data") or {}).get("target_op") or "",
         )
         for e in events
     ]

@@ -1,9 +1,12 @@
 """Audit logger: records policy decisions for tool executions to JSONL/DB.
 
-M7 shipped the JSONL backend at ``.agent/audit.jsonl``. M8 adds an optional
-dual-write into the ``agent_tool_audit`` table (migration 0007) when
-``SUPABASE_DB_URL`` is set. The writer never raises on DB failure — the
-JSONL line is always the source of truth for offline ops.
+M7 shipped the JSONL backend; since ADR-0021 the KCA product log lives at
+``.agent/kca/audit.jsonl`` (namespaced away from the Claude Code harness hook
+log ``.agent/audit/tool-events.jsonl`` — see ADR-0021 "Two agents"). M8 adds an
+optional dual-write into the ``agent_tool_audit`` table (migration 0007) when
+``SUPABASE_DB_URL`` is set. The writer never raises on DB failure — the JSONL
+line is always the source of truth for offline ops. Override with
+``KCA_AUDIT_PATH``.
 """
 
 from __future__ import annotations
@@ -26,7 +29,7 @@ def _default_audit_path() -> Path:
     override = os.environ.get("KCA_AUDIT_PATH")
     if override:
         return Path(override)
-    return _repo_root() / ".agent" / "audit.jsonl"
+    return _repo_root() / ".agent" / "kca" / "audit.jsonl"
 
 
 @dataclass

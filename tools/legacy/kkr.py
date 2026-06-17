@@ -422,11 +422,7 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
         out: list[Any] = []
         seen: set[str] = set()
         for item in left + right:
-            key = (
-                json.dumps(item, sort_keys=True, ensure_ascii=False)
-                if isinstance(item, (dict, list))
-                else repr(item)
-            )
+            key = json.dumps(item, sort_keys=True, ensure_ascii=False) if isinstance(item, (dict, list)) else repr(item)
             if key in seen:
                 continue
             seen.add(key)
@@ -495,11 +491,7 @@ def _merged_config(path: Path, name: str) -> tuple[dict[str, Any], dict[str, str
     env_map_raw = data.get("_envs") or {}
     if not isinstance(env_map_raw, dict):
         raise ValueError("_envs must be a mapping")
-    env_map = {
-        str(k): str(v)
-        for k, v in env_map_raw.items()
-        if not _is_blank(k) and not _is_blank(v)
-    }
+    env_map = {str(k): str(v) for k, v in env_map_raw.items() if not _is_blank(k) and not _is_blank(v)}
     cfg = _deep_merge(dict(data.get("_base") or {}), dict(data.get(name) or {}))
     for key in REQUIRED_CFG_KEYS:
         if _is_blank(cfg.get(key)):
@@ -560,9 +552,7 @@ def _format_submit_message(template: Any) -> str:
     return text
 
 
-def _apply_runtime_overrides(
-    cfg: dict[str, Any], args: argparse.Namespace, *, action: str
-) -> dict[str, Any]:
+def _apply_runtime_overrides(cfg: dict[str, Any], args: argparse.Namespace, *, action: str) -> dict[str, Any]:
     out = dict(cfg)
 
     stub_override = getattr(args, "stub", None)
@@ -624,9 +614,7 @@ def _normalize_tags(cell: Any) -> list[str]:
     return [str(tag) for tag in cell.metadata.get("tags", []) if str(tag).strip()]
 
 
-def _should_drop_for_action(
-    cell: Any, action: str, cfg: dict[str, Any]
-) -> tuple[bool, str | None]:
+def _should_drop_for_action(cell: Any, action: str, cfg: dict[str, Any]) -> tuple[bool, str | None]:
     tags = [tag.lower() for tag in _normalize_tags(cell)]
     drop_tags = {str(tag).lower() for tag in _normalize_list(cfg.get("_drop_tags"))}
     if cell.cell_type == "markdown":
@@ -662,9 +650,7 @@ def build_notebook(
         if getattr(new_cell, "cell_type", None) == "code":
             new_cell.outputs = []
             new_cell.execution_count = None
-            if stub_code is not None and any(
-                tag.lower() == "stub" for tag in _normalize_tags(new_cell)
-            ):
+            if stub_code is not None and any(tag.lower() == "stub" for tag in _normalize_tags(new_cell)):
                 new_cell.source = bytes(stub_code, "utf-8").decode("unicode_escape")
                 stubbed += 1
         new_cells.append(new_cell)
@@ -683,9 +669,7 @@ def build_notebook(
     }
 
 
-def build_kernel_metadata(
-    cfg: dict[str, Any], run_dir: Path, staged_name: str
-) -> tuple[Path, KernelMetadata]:
+def build_kernel_metadata(cfg: dict[str, Any], run_dir: Path, staged_name: str) -> tuple[Path, KernelMetadata]:
     meta = KernelMetadata(
         id=cfg["id"],
         title=cfg["title"],
@@ -721,11 +705,7 @@ def _coerce_push_result(resp: Any) -> PushResult:
     elif isinstance(resp, dict):
         raw = dict(resp)
     else:
-        raw = {
-            f: _attr(resp, f, default=None)
-            for f in PUSH_RESULT_FIELDS
-            if _attr(resp, f, default=None) is not None
-        }
+        raw = {f: _attr(resp, f, default=None) for f in PUSH_RESULT_FIELDS if _attr(resp, f, default=None) is not None}
         if not raw:
             raw = {"result": str(resp)}
     kernel_id = _attr(raw, "kernel_id", "kernelId", default=None)
@@ -735,9 +715,7 @@ def _coerce_push_result(resp: Any) -> PushResult:
     except Exception:
         kernel_id = None
     try:
-        version_number = (
-            int(version_number) if version_number not in (None, "") else None
-        )
+        version_number = int(version_number) if version_number not in (None, "") else None
     except Exception:
         version_number = None
     return PushResult(
@@ -747,18 +725,10 @@ def _coerce_push_result(resp: Any) -> PushResult:
         kernel_id=kernel_id,
         version_number=version_number,
         invalid_tags=_normalize_list(_attr(raw, "invalidTags", default=[])),
-        invalid_dataset_sources=_normalize_list(
-            _attr(raw, "invalidDatasetSources", default=[])
-        ),
-        invalid_competition_sources=_normalize_list(
-            _attr(raw, "invalidCompetitionSources", default=[])
-        ),
-        invalid_kernel_sources=_normalize_list(
-            _attr(raw, "invalidKernelSources", default=[])
-        ),
-        invalid_model_sources=_normalize_list(
-            _attr(raw, "invalidModelSources", default=[])
-        ),
+        invalid_dataset_sources=_normalize_list(_attr(raw, "invalidDatasetSources", default=[])),
+        invalid_competition_sources=_normalize_list(_attr(raw, "invalidCompetitionSources", default=[])),
+        invalid_kernel_sources=_normalize_list(_attr(raw, "invalidKernelSources", default=[])),
+        invalid_model_sources=_normalize_list(_attr(raw, "invalidModelSources", default=[])),
         raw=raw,
     )
 
@@ -826,9 +796,7 @@ def _save_manifest(run_dir: Path, manifest: RunManifest) -> None:
 
 
 def _load_manifest(run_dir: Path) -> RunManifest:
-    return _dataclass_from_dict(
-        RunManifest, _read_json(run_dir / DEFAULT_MANIFEST_FILENAME)
-    )
+    return _dataclass_from_dict(RunManifest, _read_json(run_dir / DEFAULT_MANIFEST_FILENAME))
 
 
 def _save_state(run_dir: Path, state: RunState) -> None:
@@ -840,9 +808,7 @@ def _save_registry(run_root: Path, entry: RegistryEntry) -> None:
 
 
 def _load_registry(run_root: Path, run_id: str) -> RegistryEntry:
-    return _dataclass_from_dict(
-        RegistryEntry, _read_json(_registry_path(run_root, run_id))
-    )
+    return _dataclass_from_dict(RegistryEntry, _read_json(_registry_path(run_root, run_id)))
 
 
 def _list_registry_entries(run_root: Path) -> list[RegistryEntry]:
@@ -883,9 +849,7 @@ def _scan_highest_version(run_root: Path, base_kernel_ref: str) -> int:
     return highest
 
 
-def _preview_or_allocate_version(
-    run_root: Path, base_kernel_ref: str, *, width: int, allocate: bool
-) -> str:
+def _preview_or_allocate_version(run_root: Path, base_kernel_ref: str, *, width: int, allocate: bool) -> str:
     index = _load_version_index(run_root)
     current = max(
         int(index.get(base_kernel_ref, 0) or 0),
@@ -958,16 +922,8 @@ def _best_effort_score_info(api: Any, competition: str | None) -> ScoreInfo:
                 continue
         except Exception:
             continue
-        items = (
-            raw
-            if isinstance(raw, list)
-            else _normalize_list(_attr(raw, "submissions", default=[]))
-        )
-        scores = [
-            s
-            for s in (_extract_score_from_item(item) for item in items)
-            if s is not None
-        ]
+        items = raw if isinstance(raw, list) else _normalize_list(_attr(raw, "submissions", default=[]))
+        scores = [s for s in (_extract_score_from_item(item) for item in items) if s is not None]
         numeric = [s for s in scores if isinstance(s, float)]
         latest = scores[0] if scores else None
         best_public = max(numeric) if numeric else None
@@ -1042,9 +998,7 @@ def _unpack_zip_files(run_dir: Path) -> list[str]:
 def _write_pending_submit_marker(run_dir: Path, state: str, message: str) -> None:
     _write_json(
         run_dir / DEFAULT_SUBMIT_FILENAME,
-        CompetitionSubmitResult(
-            ok=False, state=state, message=message, raw={"pending": True}
-        ),
+        CompetitionSubmitResult(ok=False, state=state, message=message, raw={"pending": True}),
     )
 
 
@@ -1066,9 +1020,7 @@ def _prepare_submit_artifacts(
     if entry.base_title and entry.version_label:
         submit_cfg["title"] = f"{entry.base_title}-{entry.version_label}"
     submit_cfg["owner"], submit_cfg["slug"] = _slug_parts(submit_cfg["id"])
-    _, notebook_info, meta = _stage_run_notebook(
-        run_dir, submit_cfg, entry.name, ACTION_SUBMIT
-    )
+    _, notebook_info, meta = _stage_run_notebook(run_dir, submit_cfg, entry.name, ACTION_SUBMIT)
     manifest.cfg = submit_cfg
     manifest.notebook = notebook_info
     manifest.kernel_metadata = _to_data(meta)
@@ -1092,9 +1044,7 @@ def _post_process(
     return result
 
 
-def _determine_submit_state(
-    entry: RegistryEntry, manifest: RunManifest, current_status: str | None = None
-) -> str:
+def _determine_submit_state(entry: RegistryEntry, manifest: RunManifest, current_status: str | None = None) -> str:
     sr = dict(manifest.submit_result or {})
     if sr:
         state = str(sr.get("state") or "").strip()
@@ -1127,9 +1077,7 @@ def _row_from_entry(entry: RegistryEntry) -> dict[str, Any]:
     }
 
 
-def _resolve_selector(
-    run_root: Path, args: argparse.Namespace, *, allow_missing_name: bool = False
-) -> RegistryEntry:
+def _resolve_selector(run_root: Path, args: argparse.Namespace, *, allow_missing_name: bool = False) -> RegistryEntry:
     if getattr(args, "run", None):
         return _load_registry(run_root, args.run)
     entries = _list_registry_entries(run_root)
@@ -1155,9 +1103,7 @@ def _resolved_run(run_root: Path, args: argparse.Namespace) -> ResolvedRun:
     entry = _resolve_selector(run_root, args, allow_missing_name=True)
     run_dir = _resolve_stored_path(entry.run_dir)
     manifest = _load_manifest(run_dir)
-    return ResolvedRun(
-        entry=entry, manifest=manifest, cfg=dict(manifest.cfg or {}), run_dir=run_dir
-    )
+    return ResolvedRun(entry=entry, manifest=manifest, cfg=dict(manifest.cfg or {}), run_dir=run_dir)
 
 
 def _competition_submit(
@@ -1172,9 +1118,7 @@ def _competition_submit(
     submit_type = str(cfg.get("submit_type") or "notebook").lower()
     message = _format_submit_message(cfg.get("_msg"))
     if not competition:
-        result = CompetitionSubmitResult(
-            ok=False, state="unsupported", message="competition is not configured"
-        )
+        result = CompetitionSubmitResult(ok=False, state="unsupported", message="competition is not configured")
     elif submit_type == "notebook":
         if entry.version_number in (None, 0):
             result = CompetitionSubmitResult(
@@ -1195,9 +1139,7 @@ def _competition_submit(
                 raw = (
                     resp.to_dict()
                     if hasattr(resp, "to_dict")
-                    else (
-                        dict(resp) if isinstance(resp, dict) else {"result": str(resp)}
-                    )
+                    else (dict(resp) if isinstance(resp, dict) else {"result": str(resp)})
                 )
                 result = CompetitionSubmitResult(
                     ok=True,
@@ -1207,13 +1149,9 @@ def _competition_submit(
                     raw=raw,
                 )
             except Exception as exc:
-                result = CompetitionSubmitResult(
-                    ok=False, state="failed", message=str(exc), raw={"error": str(exc)}
-                )
+                result = CompetitionSubmitResult(ok=False, state="failed", message=str(exc), raw={"error": str(exc)})
     elif submit_type == "local":
-        candidates = _output_file_candidates(
-            run_dir, str(cfg.get("submit_file") or "submission.csv")
-        )
+        candidates = _output_file_candidates(run_dir, str(cfg.get("submit_file") or "submission.csv"))
         if not candidates:
             result = CompetitionSubmitResult(
                 ok=False,
@@ -1230,9 +1168,7 @@ def _competition_submit(
                 raw = (
                     resp.to_dict()
                     if hasattr(resp, "to_dict")
-                    else (
-                        dict(resp) if isinstance(resp, dict) else {"result": str(resp)}
-                    )
+                    else (dict(resp) if isinstance(resp, dict) else {"result": str(resp)})
                 )
                 result = CompetitionSubmitResult(
                     ok=True,
@@ -1242,9 +1178,7 @@ def _competition_submit(
                     raw=raw,
                 )
             except Exception as exc:
-                result = CompetitionSubmitResult(
-                    ok=False, state="failed", message=str(exc), raw={"error": str(exc)}
-                )
+                result = CompetitionSubmitResult(ok=False, state="failed", message=str(exc), raw={"error": str(exc)})
     else:
         result = CompetitionSubmitResult(
             ok=False,
@@ -1311,9 +1245,7 @@ def _competition_submit_with_retry(
             break
         time.sleep(max(1, int(interval_seconds or 1)))
     if last_result is None:
-        last_result = CompetitionSubmitResult(
-            ok=False, state="failed", message="competition submit retry exhausted"
-        )
+        last_result = CompetitionSubmitResult(ok=False, state="failed", message="competition submit retry exhausted")
     last_result.raw = dict(last_result.raw or {})
     last_result.raw["submit_retry"] = {
         "timeout_seconds": int(timeout_seconds or 0),
@@ -1341,11 +1273,7 @@ def _refresh_entry_from_remote(
     raw = api.kernels_status(entry.kernel_ref)
     status = parse_kernel_status(raw)
     raw_status = _status_text(raw)
-    score = (
-        _best_effort_score_info(api, cfg.get("competition"))
-        if entry.action == ACTION_SUBMIT
-        else ScoreInfo()
-    )
+    score = _best_effort_score_info(api, cfg.get("competition")) if entry.action == ACTION_SUBMIT else ScoreInfo()
     entry.updated_at = _now_iso()
     entry.status = status
     entry.raw_status = raw_status
@@ -1378,16 +1306,10 @@ def _refresh_entry_from_remote(
 
 def _watch_run(
     args: argparse.Namespace, *, resolved: ResolvedRun, auto_submit: bool
-) -> tuple[
-    RunState, list[dict[str, Any]], CompetitionSubmitResult | None, ScoreInfo | None
-]:
+) -> tuple[RunState, list[dict[str, Any]], CompetitionSubmitResult | None, ScoreInfo | None]:
     api = _get_kaggle_api()
     history = []
-    deadline = (
-        None
-        if int(getattr(args, "timeout", 0) or 0) <= 0
-        else time.time() + int(args.timeout)
-    )
+    deadline = None if int(getattr(args, "timeout", 0) or 0) <= 0 else time.time() + int(args.timeout)
     final_status = "unknown"
     final_raw = ""
     while True:
@@ -1402,9 +1324,7 @@ def _watch_run(
         resolved.entry.status = status
         resolved.entry.raw_status = raw_status
         resolved.entry.updated_at = at
-        resolved.entry.submit_state = _determine_submit_state(
-            resolved.entry, resolved.manifest, status
-        )
+        resolved.entry.submit_state = _determine_submit_state(resolved.entry, resolved.manifest, status)
         _save_registry(Path(args.run_root).expanduser().resolve(), resolved.entry)
         _save_state(
             resolved.run_dir,
@@ -1428,17 +1348,11 @@ def _watch_run(
             break
         if deadline is not None and time.time() >= deadline:
             raise TimeoutError(f"watch timed out for {resolved.entry.run_id}")
-        time.sleep(
-            max(5, int(getattr(args, "interval", DEFAULT_INTERVAL) or DEFAULT_INTERVAL))
-        )
+        time.sleep(max(5, int(getattr(args, "interval", DEFAULT_INTERVAL) or DEFAULT_INTERVAL)))
     _write_json(resolved.run_dir / DEFAULT_WATCH_FILENAME, {"history": history})
     submit_result = None
     score = None
-    if (
-        final_status in SUCCESS_STATUSES
-        and auto_submit
-        and not resolved.manifest.submit_result
-    ):
+    if final_status in SUCCESS_STATUSES and auto_submit and not resolved.manifest.submit_result:
         submit_result = _competition_submit_with_retry(
             api, resolved.cfg, resolved.run_dir, resolved.entry, resolved.manifest
         )
@@ -1449,9 +1363,7 @@ def _watch_run(
         resolved.entry.submit_state = submit_result.state
         _save_registry(Path(args.run_root).expanduser().resolve(), resolved.entry)
     elif resolved.manifest.submit_result:
-        submit_result = _dataclass_from_dict(
-            CompetitionSubmitResult, resolved.manifest.submit_result
-        )
+        submit_result = _dataclass_from_dict(CompetitionSubmitResult, resolved.manifest.submit_result)
         resolved.entry.submit_state = submit_result.state or resolved.entry.submit_state
     state = RunState(
         run_id=resolved.entry.run_id,
@@ -1502,22 +1414,16 @@ def _fetch_runtime(cfg: dict[str, Any], run_dir: Path) -> FetchResult:
 
 def _selector_mode_submit(args: argparse.Namespace) -> bool:
     return bool(
-        getattr(args, "run", None)
-        or getattr(args, "kernel", None)
-        or getattr(args, "version", None) is not None
+        getattr(args, "run", None) or getattr(args, "kernel", None) or getattr(args, "version", None) is not None
     )
 
 
 def _create_new_run(args: argparse.Namespace, *, action: str) -> int:
     run_root = Path(args.run_root).expanduser().resolve()
-    cfg_base, env_map = _merged_config(
-        Path(args.yaml).expanduser().resolve(), args.name
-    )
+    cfg_base, env_map = _merged_config(Path(args.yaml).expanduser().resolve(), args.name)
     cfg_base = _apply_runtime_overrides(cfg_base, args, action=action)
 
-    env_path = _load_env_for_owner(
-        cfg_base["owner"], env_override=getattr(args, "env", None), env_map=env_map
-    )
+    env_path = _load_env_for_owner(cfg_base["owner"], env_override=getattr(args, "env", None), env_map=env_map)
     warnings = _config_warnings(cfg_base)
     cfg, base_kernel_ref, base_title, version_label = _apply_versioned_slug(
         run_root, cfg_base, allocate=not args.dry_run
@@ -1538,9 +1444,7 @@ def _create_new_run(args: argparse.Namespace, *, action: str) -> int:
             version_label=version_label,
             warnings=warnings,
             wait=bool(getattr(args, "wait", False)),
-            submit_state="pending_kernel_success"
-            if action == ACTION_SUBMIT
-            else "not_applicable",
+            submit_state="pending_kernel_success" if action == ACTION_SUBMIT else "not_applicable",
             dry_run=True,
         )
     _ensure_dir(run_dir)
@@ -1587,9 +1491,7 @@ def _create_new_run(args: argparse.Namespace, *, action: str) -> int:
         submit_file=cfg.get("submit_file"),
         env_path=env_path,
         status="staged",
-        submit_state="pending_kernel_success"
-        if action == ACTION_SUBMIT
-        else "not_applicable",
+        submit_state="pending_kernel_success" if action == ACTION_SUBMIT else "not_applicable",
     )
     _save_registry(run_root, entry)
     _save_state(
@@ -1609,9 +1511,7 @@ def _create_new_run(args: argparse.Namespace, *, action: str) -> int:
             "waiting for kernel success before competition submit",
         )
     api = _get_kaggle_api()
-    resp = api.kernels_push(
-        str(run_dir), timeout=int(args.timeout) if int(args.timeout or 0) > 0 else None
-    )
+    resp = api.kernels_push(str(run_dir), timeout=int(args.timeout) if int(args.timeout or 0) > 0 else None)
     push_result = _coerce_push_result(resp)
     manifest.push_result = _to_data(push_result)
     _save_manifest(run_dir, manifest)
@@ -1733,12 +1633,8 @@ def _create_new_run(args: argparse.Namespace, *, action: str) -> int:
 def _submit_existing(args: argparse.Namespace) -> int:
     run_root = Path(args.run_root).expanduser().resolve()
     resolved = _resolved_run(run_root, args)
-    cfg_yaml, env_map = _merged_config(
-        Path(args.yaml).expanduser().resolve(), resolved.entry.name
-    )
-    _load_env_for_owner(
-        cfg_yaml["owner"], env_override=getattr(args, "env", None), env_map=env_map
-    )
+    cfg_yaml, env_map = _merged_config(Path(args.yaml).expanduser().resolve(), resolved.entry.name)
+    _load_env_for_owner(cfg_yaml["owner"], env_override=getattr(args, "env", None), env_map=env_map)
     resolved.cfg = _apply_runtime_overrides(
         _deep_merge(cfg_yaml, dict(resolved.manifest.cfg or {})),
         args,
@@ -1765,9 +1661,7 @@ def _submit_existing(args: argparse.Namespace) -> int:
         "waiting for kernel success before competition submit",
     )
     if resolved.manifest.submit_result:
-        existing = _dataclass_from_dict(
-            CompetitionSubmitResult, resolved.manifest.submit_result
-        )
+        existing = _dataclass_from_dict(CompetitionSubmitResult, resolved.manifest.submit_result)
         resolved.entry.submit_state = existing.state or resolved.entry.submit_state
         _save_registry(run_root, resolved.entry)
         if existing.ok:
@@ -1796,9 +1690,7 @@ def _submit_existing(args: argparse.Namespace) -> int:
     _save_registry(run_root, resolved.entry)
     if status not in SUCCESS_STATUSES:
         if getattr(args, "wait", False):
-            state, history, submit_result, score = _watch_run(
-                args, resolved=resolved, auto_submit=True
-            )
+            state, history, submit_result, score = _watch_run(args, resolved=resolved, auto_submit=True)
             if state.status not in SUCCESS_STATUSES:
                 return _emit_fail(
                     args,
@@ -1874,11 +1766,7 @@ def _submit_existing(args: argparse.Namespace) -> int:
     submit_result = _competition_submit_with_retry(
         api, resolved.cfg, resolved.run_dir, resolved.entry, resolved.manifest
     )
-    score = (
-        _best_effort_score_info(api, resolved.cfg.get("competition"))
-        if submit_result.ok
-        else ScoreInfo()
-    )
+    score = _best_effort_score_info(api, resolved.cfg.get("competition")) if submit_result.ok else ScoreInfo()
     resolved.entry.updated_at = _now_iso()
     resolved.entry.submit_state = submit_result.state
     if score.pb_score is not None:
@@ -1943,9 +1831,7 @@ def _submit_existing(args: argparse.Namespace) -> int:
 def _watch_impl(args: argparse.Namespace) -> int:
     run_root = Path(args.run_root).expanduser().resolve()
     resolved = _resolved_run(run_root, args)
-    cfg, env_map = _merged_config(
-        Path(args.yaml).expanduser().resolve(), resolved.entry.name
-    )
+    cfg, env_map = _merged_config(Path(args.yaml).expanduser().resolve(), resolved.entry.name)
     resolved.cfg = _deep_merge(cfg, dict(resolved.manifest.cfg or {}))
     if args.dry_run:
         return _emit_ok(
@@ -1959,12 +1845,8 @@ def _watch_impl(args: argparse.Namespace) -> int:
             version_label=resolved.entry.version_label,
             dry_run=True,
         )
-    _load_env_for_owner(
-        cfg["owner"], env_override=getattr(args, "env", None), env_map=env_map
-    )
-    state, history, submit_result, score = _watch_run(
-        args, resolved=resolved, auto_submit=False
-    )
+    _load_env_for_owner(cfg["owner"], env_override=getattr(args, "env", None), env_map=env_map)
+    state, history, submit_result, score = _watch_run(args, resolved=resolved, auto_submit=False)
     if state.status not in SUCCESS_STATUSES:
         return _emit_fail(
             args,
@@ -2006,9 +1888,7 @@ def _watch_impl(args: argparse.Namespace) -> int:
 def _fetch_impl(args: argparse.Namespace) -> int:
     run_root = Path(args.run_root).expanduser().resolve()
     resolved = _resolved_run(run_root, args)
-    cfg, env_map = _merged_config(
-        Path(args.yaml).expanduser().resolve(), resolved.entry.name
-    )
+    cfg, env_map = _merged_config(Path(args.yaml).expanduser().resolve(), resolved.entry.name)
     cfg = _deep_merge(cfg, dict(resolved.manifest.cfg or {}))
     cfg["id"] = resolved.entry.kernel_ref
     if args.dry_run:
@@ -2023,9 +1903,7 @@ def _fetch_impl(args: argparse.Namespace) -> int:
             version_label=resolved.entry.version_label,
             dry_run=True,
         )
-    _load_env_for_owner(
-        cfg["owner"], env_override=getattr(args, "env", None), env_map=env_map
-    )
+    _load_env_for_owner(cfg["owner"], env_override=getattr(args, "env", None), env_map=env_map)
     fetch = _fetch_runtime(cfg, resolved.run_dir)
     post = _post_process(
         resolved.run_dir,
@@ -2164,13 +2042,9 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     common.add_argument("--env", help="Override dotenv path for the selected owner")
     common.add_argument("--json", action="store_true", help="Emit JSON to stdout")
-    common.add_argument(
-        "--dry-run", action="store_true", help="Plan only; do not call Kaggle"
-    )
+    common.add_argument("--dry-run", action="store_true", help="Plan only; do not call Kaggle")
     common.add_argument("--quiet", action="store_true", help="Suppress non-error logs")
-    common.add_argument(
-        "-v", "--verbose", action="count", default=0, help="Increase log verbosity"
-    )
+    common.add_argument("-v", "--verbose", action="count", default=0, help="Increase log verbosity")
     selector = argparse.ArgumentParser(add_help=False)
     selector.add_argument(
         "name",
@@ -2182,18 +2056,14 @@ def _build_parser() -> argparse.ArgumentParser:
         "--kernel",
         help="Exact Kaggle kernel ref, e.g. firefly2006/gpt-oss-120b-b09m-v0006",
     )
-    selector.add_argument(
-        "--version", type=int, help="Filter a registry lookup by version number"
-    )
+    selector.add_argument("--version", type=int, help="Filter a registry lookup by version number")
     parser = argparse.ArgumentParser(
         prog="kkr.py",
         description="Kaggle notebook runner with stable JSON outputs, local registry, and .kkr run tracking.",
         formatter_class=argparse.RawTextHelpFormatter,
     )
     sub = parser.add_subparsers(dest="action", required=True)
-    push = sub.add_parser(
-        ACTION_PUSH, parents=[common], help="Build and push a Kaggle notebook run"
-    )
+    push = sub.add_parser(ACTION_PUSH, parents=[common], help="Build and push a Kaggle notebook run")
     push.add_argument("name", help="Config name in kkr.yaml, e.g. b09m")
     push.add_argument("--stub", help="Override _stub for this run only")
     push.add_argument(
@@ -2279,9 +2149,7 @@ def _build_parser() -> argparse.ArgumentParser:
         parents=[common, selector],
         help="List tracked runs from the local registry",
     )
-    lst.add_argument(
-        "--limit", type=int, default=50, help="Maximum number of rows to return"
-    )
+    lst.add_argument("--limit", type=int, default=50, help="Maximum number of rows to return")
     lst.add_argument(
         "--refresh",
         action="store_true",
@@ -2340,15 +2208,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     except ValueError as exc:
         return _emit_fail(args, str(exc), error="invalid_input", exit_code=EXIT_INPUT)
     except RuntimeError as exc:
-        return _emit_fail(
-            args, str(exc), error="missing_dependency", exit_code=EXIT_DEP
-        )
+        return _emit_fail(args, str(exc), error="missing_dependency", exit_code=EXIT_DEP)
     except TimeoutError as exc:
         return _emit_fail(args, str(exc), error="timeout", exit_code=EXIT_RUNTIME)
     except KeyboardInterrupt:
-        return _emit_fail(
-            args, "interrupted", error="interrupted", exit_code=EXIT_RUNTIME
-        )
+        return _emit_fail(args, "interrupted", error="interrupted", exit_code=EXIT_RUNTIME)
     except Exception as exc:
         return _emit_fail(args, str(exc), error="runtime_error", exit_code=EXIT_RUNTIME)
 

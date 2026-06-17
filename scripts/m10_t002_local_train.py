@@ -202,9 +202,7 @@ def main() -> int:
 
     run_dir = Path(args.run_dir)
     run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / "metrics.json").write_text(
-        json.dumps(metrics, indent=2), encoding="utf-8"
-    )
+    (run_dir / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
 
     cv_summary = {
         "method": "fixed-holdout (Kaggle-published train/val split, single-shard slice)",
@@ -214,9 +212,7 @@ def main() -> int:
         "epochs": args.epochs,
         "backbone": "MobileNetV2",
     }
-    (run_dir / "cv_summary.json").write_text(
-        json.dumps(cv_summary, indent=2), encoding="utf-8"
-    )
+    (run_dir / "cv_summary.json").write_text(json.dumps(cv_summary, indent=2), encoding="utf-8")
 
     # Sanity guards from the task spec.
     if holdout_accuracy >= 0.99:
@@ -256,9 +252,7 @@ def main() -> int:
                 check=True,
             )
     else:
-        print(
-            "SUPABASE_DB_URL unset — metrics recorded only in metrics.json, not in experiment_runs."
-        )
+        print("SUPABASE_DB_URL unset — metrics recorded only in metrics.json, not in experiment_runs.")
 
     print(json.dumps({"ok": True, **metrics}))
     return 0

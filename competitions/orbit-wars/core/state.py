@@ -126,9 +126,7 @@ def _phase(step, total):
     return "opening" if f < 0.16 else ("midgame" if f < 0.6 else "endgame")
 
 
-def _strategic_value(
-    p_owner, prod, capture_cost, holdability, frontier, centrality, pressure
-):
+def _strategic_value(p_owner, prod, capture_cost, holdability, frontier, centrality, pressure):
     """Explainable, deterministic, bounded [1,100], decomposable.
     Weighted blend of normalized components; returns (value, components)."""
     roi = prod / (1.0 + max(0.0, capture_cost) / 20.0)  # production per (scaled) cost
@@ -168,9 +166,7 @@ def build_battlefield_state(obs, horizon=80) -> BattlefieldState:
     for p in planets_raw:
         pid, owner, x, y, r, ships, prod = p
         orb = G.orbital_radius(init_by_id.get(pid, p)[2], init_by_id.get(pid, p)[3])
-        orbiting = G.is_orbiting(
-            init_by_id.get(pid, p)[2], init_by_id.get(pid, p)[3], r
-        )
+        orbiting = G.is_orbiting(init_by_id.get(pid, p)[2], init_by_id.get(pid, p)[3], r)
         # nearest enemy/friendly source ETA (rough: distance / speed of a token fleet)
         ne, nf = None, None
         for q in planets_raw:
@@ -195,18 +191,10 @@ def build_battlefield_state(obs, horizon=80) -> BattlefieldState:
         holdability = (
             1.0
             if (owner == me and tw is None)
-            else (
-                slack / (ships + 1.0)
-                if owner == me
-                else 1.0 / (1.0 + (ne or 50) / 20.0)
-            )
+            else (slack / (ships + 1.0) if owner == me else 1.0 / (1.0 + (ne or 50) / 20.0))
         )
-        capture_cost = (
-            psh[min(int(ne or 1), len(psh) - 1)] if owner != me and psh else ships
-        )
-        sv, comp = _strategic_value(
-            owner, prod, capture_cost, holdability, frontier, centrality, pressure
-        )
+        capture_cost = psh[min(int(ne or 1), len(psh) - 1)] if owner != me and psh else ships
+        sv, comp = _strategic_value(owner, prod, capture_cost, holdability, frontier, centrality, pressure)
         pstates[pid] = PlanetState(
             id=pid,
             owner=owner,
@@ -233,9 +221,7 @@ def build_battlefield_state(obs, horizon=80) -> BattlefieldState:
             threat_window=tw,
             reinforcement_need=led.reinforcement_need(pid),
             defense_slack=slack,
-            is_hub_candidate=(
-                owner == me and orbiting and centrality > 0.4 and slack > prod * 5
-            ),
+            is_hub_candidate=(owner == me and orbiting and centrality > 0.4 and slack > prod * 5),
             is_frontline=(owner == me and ne is not None and ne < 20),
             is_safe_bank=(owner == me and ne is not None and ne > 35 and tw is None),
             is_comet=(pid in comet_ids),
@@ -265,9 +251,7 @@ def build_battlefield_state(obs, horizon=80) -> BattlefieldState:
                 if dtype == "none"
                 else "ok"
             )
-        tgt_owner = (
-            by_id.get(decoded_id, (None, None))[1] if decoded_id is not None else None
-        )
+        tgt_owner = by_id.get(decoded_id, (None, None))[1] if decoded_id is not None else None
         fstates[fid] = FleetState(
             id=fid,
             owner=fowner,
@@ -293,17 +277,11 @@ def build_battlefield_state(obs, horizon=80) -> BattlefieldState:
     for pl in player_ids:
         own = [p for p in planets_raw if p[1] == pl]
         infl = [f for f in fleets_raw if f[1] == pl]
-        thr = sum(
-            1
-            for ps in pstates.values()
-            if ps.owner == pl and ps.threat_window is not None
-        )
+        thr = sum(1 for ps in pstates.values() if ps.owner == pl and ps.threat_window is not None)
         score_now = sum(p[5] for p in own) + sum(f[6] for f in infl)
         scores[pl] = score_now
     leader = max(scores, key=scores.get) if scores else None
-    prod_rank = sorted(
-        player_ids, key=lambda pl: -sum(p[6] for p in planets_raw if p[1] == pl)
-    )
+    prod_rank = sorted(player_ids, key=lambda pl: -sum(p[6] for p in planets_raw if p[1] == pl))
     score_rank = sorted(player_ids, key=lambda pl: -scores.get(pl, 0))
     players = {}
     for pl in player_ids:
@@ -316,55 +294,25 @@ def build_battlefield_state(obs, horizon=80) -> BattlefieldState:
             ships_on_planets=sum(p[5] for p in own),
             ships_in_flight=sum(f[6] for f in infl),
             fleet_count=len(infl),
-            frontier_planets=sum(
-                1 for ps in pstates.values() if ps.owner == pl and ps.is_frontline
-            ),
-            hub_planets=sum(
-                1 for ps in pstates.values() if ps.owner == pl and ps.is_hub_candidate
-            ),
-            safe_bank_ships=sum(
-                ps.ships
-                for ps in pstates.values()
-                if ps.owner == pl and ps.is_safe_bank
-            ),
-            threatened_planets=sum(
-                1
-                for ps in pstates.values()
-                if ps.owner == pl and ps.threat_window is not None
-            ),
+            frontier_planets=sum(1 for ps in pstates.values() if ps.owner == pl and ps.is_frontline),
+            hub_planets=sum(1 for ps in pstates.values() if ps.owner == pl and ps.is_hub_candidate),
+            safe_bank_ships=sum(ps.ships for ps in pstates.values() if ps.owner == pl and ps.is_safe_bank),
+            threatened_planets=sum(1 for ps in pstates.values() if ps.owner == pl and ps.threat_window is not None),
             attack_pressure=sum(f[6] for f in infl),
-            reinforcement_capacity=sum(
-                ps.defense_slack for ps in pstates.values() if ps.owner == pl
-            ),
+            reinforcement_capacity=sum(ps.defense_slack for ps in pstates.values() if ps.owner == pl),
             score_now=scores.get(pl, 0.0),
             score_projected_H=sum(
-                (
-                    ps.projected_ships[-1]
-                    if ps.projected_owner and ps.projected_owner[-1] == pl
-                    else 0
-                )
+                (ps.projected_ships[-1] if ps.projected_owner and ps.projected_owner[-1] == pl else 0)
                 for ps in pstates.values()
             ),
             rank_by_score=score_rank.index(pl) + 1,
             rank_by_production=prod_rank.index(pl) + 1,
-            leader_gap=(scores.get(leader, 0) - scores.get(pl, 0))
-            if leader is not None
-            else 0.0,
-            elimination_risk=(
-                1.0 if len(own) == 0 else min(1.0, thr / max(1, len(own)))
-            ),
-            dogpile_risk=(
-                min(1.0, (len(player_ids) - 1) / 3.0)
-                if pl == leader and len(player_ids) > 2
-                else 0.0
-            ),
+            leader_gap=(scores.get(leader, 0) - scores.get(pl, 0)) if leader is not None else 0.0,
+            elimination_risk=(1.0 if len(own) == 0 else min(1.0, thr / max(1, len(own)))),
+            dogpile_risk=(min(1.0, (len(player_ids) - 1) / 3.0) if pl == leader and len(player_ids) > 2 else 0.0),
         )
 
-    alive = [
-        pl
-        for pl in player_ids
-        if players[pl].planet_count > 0 or players[pl].fleet_count > 0
-    ]
+    alive = [pl for pl in player_ids if players[pl].planet_count > 0 or players[pl].fleet_count > 0]
     enemies = [pl for pl in player_ids if pl != me]
     glob = GlobalState(
         step=step,
@@ -374,16 +322,8 @@ def build_battlefield_state(obs, horizon=80) -> BattlefieldState:
         phase=_phase(step, G.EPISODE_STEPS),
         my_id=me,
         leader_id=leader,
-        nearest_enemy_id=min(enemies, key=lambda e: players[e].score_now)
-        if enemies
-        else None,
-        strongest_enemy_id=max(enemies, key=lambda e: players[e].score_now)
-        if enemies
-        else None,
-        weakest_enemy_id=min(enemies, key=lambda e: players[e].score_now)
-        if enemies
-        else None,
+        nearest_enemy_id=min(enemies, key=lambda e: players[e].score_now) if enemies else None,
+        strongest_enemy_id=max(enemies, key=lambda e: players[e].score_now) if enemies else None,
+        weakest_enemy_id=min(enemies, key=lambda e: players[e].score_now) if enemies else None,
     )
-    return BattlefieldState(
-        planets=pstates, fleets=fstates, players=players, glob=glob, ledger=led
-    )
+    return BattlefieldState(planets=pstates, fleets=fstates, players=players, glob=glob, ledger=led)

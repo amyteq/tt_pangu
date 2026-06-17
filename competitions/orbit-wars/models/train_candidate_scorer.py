@@ -86,23 +86,17 @@ def _recall_at_k(groups, scores, y, mask, ks=(1, 3, 5)):
         ordered = sorted(idxs, key=lambda i: -scores[i])
         for k in ks:
             out[k].append(len(set(ordered[:k]) & set(sel)) / len(sel))
-    return {
-        str(k): (round(float(np.mean(v)), 4) if v else None) for k, v in out.items()
-    }
+    return {str(k): (round(float(np.mean(v)), 4) if v else None) for k, v in out.items()}
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Train Orbit Wars candidate-scorer v0 (MLP)."
-    )
+    ap = argparse.ArgumentParser(description="Train Orbit Wars candidate-scorer v0 (MLP).")
     ap.add_argument(
         "--data-root",
         required=True,
         help="dataset artifact dir (candidates.jsonl[, episodes.jsonl])",
     )
-    ap.add_argument(
-        "--out-root", required=True, help="output run dir (model.pt + meta.json)"
-    )
+    ap.add_argument("--out-root", required=True, help="output run dir (model.pt + meta.json)")
     ap.add_argument("--max-epochs", type=int, default=60)
     ap.add_argument("--lr", type=float, default=1e-3)
     ap.add_argument("--valid-frac", type=float, default=0.2)
@@ -129,13 +123,7 @@ def main():
         win_col.append(win)
         groups.append((eid, step, pid))
     if len(feats) < 50:
-        print(
-            json.dumps(
-                {
-                    "blocker": f"dataset too small ({len(feats)} candidates) — build a larger corpus"
-                }
-            )
-        )
+        print(json.dumps({"blocker": f"dataset too small ({len(feats)} candidates) — build a larger corpus"}))
         return
     X = np.asarray(feats, dtype=np.float32)
     y = np.asarray(ys, dtype=np.float32)

@@ -76,9 +76,7 @@ def _build_meta(data: dict, *, fallback_name: str) -> SkillMeta:
     argument_hint = str(data.get("argument-hint", data.get("argument_hint", "")))
     arguments = list(data.get("arguments", []) or [])
     allowed_tools = list(data.get("allowed-tools", data.get("allowed_tools", [])) or [])
-    approval_policy = str(
-        data.get("approval-policy", data.get("approval_policy", "default"))
-    )
+    approval_policy = str(data.get("approval-policy", data.get("approval_policy", "default")))
     disable_model_invocation = bool(
         data.get(
             "disable-model-invocation",

@@ -105,9 +105,7 @@ def _emit_blocked(
     return EXIT_BLOCKED
 
 
-def _emit_stub(
-    command_name: str, side_effect: SideEffect, extra: dict | None = None
-) -> int:
+def _emit_stub(command_name: str, side_effect: SideEffect, extra: dict | None = None) -> int:
     out = {
         "ok": True,
         "stub": True,
@@ -159,9 +157,7 @@ def _utc_next_window_open() -> str:
     resets to 0.
     """
     now = _dt.datetime.now(_dt.timezone.utc)
-    tomorrow = (now + _dt.timedelta(days=1)).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
+    tomorrow = (now + _dt.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
     return tomorrow.isoformat()
 
 
@@ -239,10 +235,7 @@ def _check_budget_gates(
                     json.dumps(
                         {
                             "ok": False,
-                            "error": (
-                                f"max_concurrent_pushes reached "
-                                f"({active}/{max_concurrent}); refusing to push"
-                            ),
+                            "error": (f"max_concurrent_pushes reached ({active}/{max_concurrent}); refusing to push"),
                             "competition": competition,
                             "command": f"kaggle {command_name}",
                             "side_effect": se.value,
@@ -314,9 +307,7 @@ def cmd_submit(args: argparse.Namespace) -> int:
 
     # Daily-budget gate (ADR-0020 §7) — refuse past max_daily_submissions for
     # the UTC calendar day, BEFORE the approval gate. Courtesy guard only.
-    budget_block = _check_budget_gates(
-        "submit", competition, se, check_concurrency=False
-    )
+    budget_block = _check_budget_gates("submit", competition, se, check_concurrency=False)
     if budget_block is not None:
         return budget_block
 
@@ -402,11 +393,7 @@ def _lint_kernel(kernel_dir: str) -> tuple[bool, str | None]:
 
         if src_path.suffix == ".ipynb":
             nb = json.loads(src_path.read_text())
-            code = "\n".join(
-                "".join(c.get("source", []))
-                for c in nb.get("cells", [])
-                if c.get("cell_type") == "code"
-            )
+            code = "\n".join("".join(c.get("source", [])) for c in nb.get("cells", []) if c.get("cell_type") == "code")
         elif src_path.suffix == ".py":
             code = src_path.read_text()
         else:
@@ -467,9 +454,7 @@ def cmd_push(args: argparse.Namespace) -> int:
 
         # 2. Concurrency + 3. daily-budget courtesy gates (ADR-0020 §7), BEFORE
         #    the approval gate. No real Kaggle call on any refusal path.
-        gate_block = _check_budget_gates(
-            "push", competition, se, check_concurrency=True
-        )
+        gate_block = _check_budget_gates("push", competition, se, check_concurrency=True)
         if gate_block is not None:
             return gate_block
 
@@ -486,10 +471,7 @@ def cmd_push(args: argparse.Namespace) -> int:
     # Static lint gate: refuse to push a kernel whose code has undefined-name /
     # pyflakes errors (caught in seconds, before any GPU time). Runs for both
     # --dry-run and real push. Override: --skip-lint or KCA_SKIP_KERNEL_LINT=1.
-    if not (
-        getattr(args, "skip_lint", False)
-        or os.environ.get("KCA_SKIP_KERNEL_LINT") == "1"
-    ):
+    if not (getattr(args, "skip_lint", False) or os.environ.get("KCA_SKIP_KERNEL_LINT") == "1"):
         lint_ok, lint_out = _lint_kernel(kernel_dir)
         if not lint_ok:
             return _emit_json(
@@ -849,12 +831,8 @@ def _watch_kernel_until_terminal(
         "polls": polls,
         "cadence": cadence,
         "runtime_seconds": round(runtime, 1),
-        "queue_time_seconds": (
-            round(queue_time_seconds, 1) if queue_time_seconds is not None else None
-        ),
-        "running_time_seconds": (
-            round(running_time_seconds, 1) if running_time_seconds is not None else None
-        ),
+        "queue_time_seconds": (round(queue_time_seconds, 1) if queue_time_seconds is not None else None),
+        "running_time_seconds": (round(running_time_seconds, 1) if running_time_seconds is not None else None),
         "log_path": str(log_path) if terminal else None,
     }
 
@@ -863,16 +841,8 @@ def _watch_kernel_until_terminal(
         try:
             db.set_run_analysis_jsonb(
                 run_id,
-                queue_time_seconds=(
-                    round(queue_time_seconds, 1)
-                    if queue_time_seconds is not None
-                    else None
-                ),
-                running_time_seconds=(
-                    round(running_time_seconds, 1)
-                    if running_time_seconds is not None
-                    else None
-                ),
+                queue_time_seconds=(round(queue_time_seconds, 1) if queue_time_seconds is not None else None),
+                running_time_seconds=(round(running_time_seconds, 1) if running_time_seconds is not None else None),
             )
         except Exception as exc:  # best-effort; telemetry never blocks the watch
             result["telemetry_warning"] = f"{type(exc).__name__}: {exc}"
@@ -884,19 +854,13 @@ def _watch_kernel_until_terminal(
         try:
             entries = json.loads(log_path.read_text())
             stderr_lines = [
-                r["data"]
-                for r in entries
-                if r.get("stream_name") == "stderr" and "Traceback" in r.get("data", "")
+                r["data"] for r in entries if r.get("stream_name") == "stderr" and "Traceback" in r.get("data", "")
             ]
             error_window = []
             if stderr_lines:
                 # Capture the last ~30 stderr lines starting from the traceback
                 tail_start = next(
-                    (
-                        i
-                        for i, r in enumerate(entries)
-                        if "Traceback" in r.get("data", "")
-                    ),
+                    (i for i, r in enumerate(entries) if "Traceback" in r.get("data", "")),
                     -1,
                 )
                 if tail_start >= 0:
@@ -905,9 +869,7 @@ def _watch_kernel_until_terminal(
                         for r in entries[tail_start : tail_start + 60]
                         if r.get("stream_name") == "stderr"
                     ]
-            result["error_excerpt"] = (
-                "\n".join(error_window[-30:]) if error_window else None
-            )
+            result["error_excerpt"] = "\n".join(error_window[-30:]) if error_window else None
         except Exception as exc:
             result["error_excerpt"] = f"<log parse failed: {exc!r}>"
 
@@ -999,9 +961,7 @@ def _watch_many(
     queued_cadence = _fibonacci_queued_cadence(est_queue_seconds / 3.0)
 
     slugs = {ref.split("/")[-1]: ref for ref in kernel_refs}
-    per_slug: dict[str, dict] = {
-        s: {"state": _STATE_QUEUED, "terminal": False, "polls": 0} for s in slugs
-    }
+    per_slug: dict[str, dict] = {s: {"state": _STATE_QUEUED, "terminal": False, "polls": 0} for s in slugs}
     started = now_fn()
     deadline = started + max_minutes * 60
     polls = 0
@@ -1081,9 +1041,7 @@ def cmd_upload(args: argparse.Namespace) -> int:
     try:
         _check_approval_gate("dataset_upload", _policy_from_env())
     except ApprovalRequired:
-        return _emit_blocked(
-            "upload", se, "ApprovalRequired: dataset_upload", options=options
-        )
+        return _emit_blocked("upload", se, "ApprovalRequired: dataset_upload", options=options)
     proc = subprocess.run(
         ["kaggle", "datasets", "version", "-p", args.path, "-m", "kca upload"],
         capture_output=True,
@@ -1346,15 +1304,9 @@ def _fetch_kaggle_submissions(competition: str) -> list[dict]:
                 "date": str(getattr(s, "date", "") or ""),
                 "description": getattr(s, "description", "") or "",
                 "status": str(getattr(s, "status", "") or ""),
-                "public_score": (
-                    float(s.public_score)
-                    if getattr(s, "public_score", None) not in (None, "")
-                    else None
-                ),
+                "public_score": (float(s.public_score) if getattr(s, "public_score", None) not in (None, "") else None),
                 "private_score": (
-                    float(s.private_score)
-                    if getattr(s, "private_score", None) not in (None, "")
-                    else None
+                    float(s.private_score) if getattr(s, "private_score", None) not in (None, "") else None
                 ),
                 "ref": getattr(s, "ref", None),
             }
@@ -1404,8 +1356,7 @@ def cmd_score(args: argparse.Namespace) -> int:
         if not matched:
             payload["ok"] = False
             payload["error"] = (
-                f"no Kaggle submissions row matched filters for "
-                f"competition={competition!r}; refusing to update DB"
+                f"no Kaggle submissions row matched filters for competition={competition!r}; refusing to update DB"
             )
             return _emit_json(payload)
         top = matched[0]
@@ -1523,8 +1474,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
         "--run-id",
         dest="run_id",
         default=None,
-        help="experiment_runs.id to record queue_time_seconds / "
-        "running_time_seconds on (analysis_jsonb telemetry)",
+        help="experiment_runs.id to record queue_time_seconds / running_time_seconds on (analysis_jsonb telemetry)",
     )
     p_push.add_argument("--json", action="store_true")
     p_push.set_defaults(func=cmd_push)
@@ -1534,13 +1484,9 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_upload.add_argument("--json", action="store_true")
     p_upload.set_defaults(func=cmd_upload)
 
-    p_download = kg_sub.add_parser(
-        "download", help="Download competition data (LOCAL_WRITE)"
-    )
+    p_download = kg_sub.add_parser("download", help="Download competition data (LOCAL_WRITE)")
     p_download.add_argument("--competition", required=True)
-    p_download.add_argument(
-        "--path", default=None, help="Destination dir (default ./data/<competition>)"
-    )
+    p_download.add_argument("--path", default=None, help="Destination dir (default ./data/<competition>)")
     p_download.add_argument(
         "--resume",
         action="store_true",
@@ -1549,20 +1495,14 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_download.add_argument("--json", action="store_true")
     p_download.set_defaults(func=cmd_download)
 
-    p_verify = kg_sub.add_parser(
-        "verify", help="Verify a downloaded dataset against manifest.json"
-    )
-    p_verify.add_argument(
-        "--path", required=True, help="Directory holding manifest.json"
-    )
+    p_verify = kg_sub.add_parser("verify", help="Verify a downloaded dataset against manifest.json")
+    p_verify.add_argument("--path", required=True, help="Directory holding manifest.json")
     p_verify.add_argument("--json", action="store_true")
     p_verify.set_defaults(func=cmd_verify)
 
     p_watch = kg_sub.add_parser("watch", help="Watch a kernel run (READ_ONLY)")
     p_watch.add_argument("--run", default=None, help="Legacy alias for --kernel")
-    p_watch.add_argument(
-        "--kernel", default=None, help="Kernel ref (user/slug) to poll status for"
-    )
+    p_watch.add_argument("--kernel", default=None, help="Kernel ref (user/slug) to poll status for")
     p_watch.add_argument("--poll-seconds", dest="poll_seconds", type=int, default=30)
     p_watch.add_argument("--max-iterations", dest="max_iterations", type=int, default=1)
     p_watch.add_argument("--json", action="store_true")
@@ -1578,8 +1518,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
         "--kernel-ref",
         dest="kernel_ref",
         default=None,
-        help="Match the submission row whose description contains this kernel "
-        "slug (user/slug or just slug)",
+        help="Match the submission row whose description contains this kernel slug (user/slug or just slug)",
     )
     p_score.add_argument(
         "--message-filter",

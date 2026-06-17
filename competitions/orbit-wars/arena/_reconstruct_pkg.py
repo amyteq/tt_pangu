@@ -3,6 +3,7 @@
 Usage: python _reconstruct_pkg.py <notebook.ipynb> <out_dir>
 Writes every `%%writefile <path>` cell to <out_dir>/<path>.
 """
+
 import json, os, sys
 
 nb_path, out_dir = sys.argv[1], sys.argv[2]

@@ -214,9 +214,7 @@ def test_register_competition_idempotent(offline_fetch: None, stub_db: _StubDB) 
     assert isinstance(row["submission_format"], list)
 
 
-def test_register_rejects_invalid_competition_type(
-    offline_fetch: None, stub_db: _StubDB
-) -> None:
+def test_register_rejects_invalid_competition_type(offline_fetch: None, stub_db: _StubDB) -> None:
     with pytest.raises(ValueError, match="competition_type"):
         devpost_mod.register_competition("sample-hack", competition_type="kaggle")
 
@@ -272,9 +270,7 @@ def test_import_devpost_does_not_eagerly_import_playwright() -> None:
         text=True,
         timeout=30,
     )
-    assert proc.returncode == 0, (
-        f"playwright leaked into the import graph: {proc.stdout}{proc.stderr}"
-    )
+    assert proc.returncode == 0, f"playwright leaked into the import graph: {proc.stdout}{proc.stderr}"
 
 
 # ---------------------------------------------------------------------------

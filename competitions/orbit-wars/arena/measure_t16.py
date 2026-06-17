@@ -159,9 +159,7 @@ def main():
     print("=== T16 identity check (8 seeds) ===")
     ok = identity_check(list(range(args.seed0, args.seed0 + 8)))
     if not ok:
-        print(
-            "ABORT: instrumented twin diverges from stock v3.2 — measurement invalid."
-        )
+        print("ABORT: instrumented twin diverges from stock v3.2 — measurement invalid.")
         sys.exit(1)
     print(f"\n=== T16 measurement ({args.games} seeds x {len(OPPS)} opps) ===")
     plog = measure(seeds)

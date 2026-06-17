@@ -77,10 +77,7 @@ def _network_guard(monkeypatch: pytest.MonkeyPatch) -> None:
     """
 
     def _boom(*args: object, **kwargs: object):
-        raise RuntimeError(
-            "network access disabled in M12 e2e tests (would have hit: "
-            f"{args!r} / {kwargs!r})"
-        )
+        raise RuntimeError(f"network access disabled in M12 e2e tests (would have hit: {args!r} / {kwargs!r})")
 
     try:
         import requests  # type: ignore
@@ -103,9 +100,7 @@ def _network_guard(monkeypatch: pytest.MonkeyPatch) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_submission_pack_templater_idempotency(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_submission_pack_templater_idempotency(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Calling ``devpost._load_submission_pack`` twice on the same inputs
     must produce byte-identical output. The templater is the load-bearing
     pure function the M12-T007 submit path depends on.
@@ -154,9 +149,7 @@ def test_submission_pack_templater_idempotency(
 # ---------------------------------------------------------------------------
 
 
-def test_submission_checklist_deterministic(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_submission_checklist_deterministic(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """For a fixed ``submission_format`` jsonb + fixture pack the checklist
     tool emits the committed ``golden_checklist.json``.
     """
@@ -201,9 +194,7 @@ def test_submission_checklist_deterministic(
 # ---------------------------------------------------------------------------
 
 
-def test_devpost_submit_refusal_without_creds(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_devpost_submit_refusal_without_creds(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``cmd_submit`` MUST refuse cleanly when DEVPOST_USERNAME / DEVPOST_TOKEN
     are unset, AND the refusal path must NOT issue any HTTP request.
     """
@@ -276,9 +267,7 @@ def test_decision_api_approval_roundtrip(monkeypatch: pytest.MonkeyPatch) -> Non
             self.decisions[did]["status"] = resolution
             self.decisions[did]["notes"] = notes
 
-        def append_job_event(
-            self, job_id: str, event_type: str, event_data=None, **_kw
-        ) -> int:
+        def append_job_event(self, job_id: str, event_type: str, event_data=None, **_kw) -> int:
             self.events.append(
                 {
                     "job_id": job_id,
@@ -320,9 +309,7 @@ def test_decision_api_approval_roundtrip(monkeypatch: pytest.MonkeyPatch) -> Non
 # ---------------------------------------------------------------------------
 
 
-def test_audit_no_devpost_network(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_audit_no_devpost_network(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Drive the dry-run path then grep the audit log for ``devpost.com``.
 
     Exercises the refusal branch (no creds) which writes a SUBMISSION-tagged
@@ -372,12 +359,8 @@ def test_audit_no_devpost_network(
         audit_path.write_text("")
 
     contents = audit_path.read_text()
-    devpost_hits = [
-        line for line in contents.splitlines() if "devpost.com" in line.lower()
-    ]
-    assert devpost_hits == [], (
-        f"audit log shows unexpected devpost.com HTTP lines: {devpost_hits!r}"
-    )
+    devpost_hits = [line for line in contents.splitlines() if "devpost.com" in line.lower()]
+    assert devpost_hits == [], f"audit log shows unexpected devpost.com HTTP lines: {devpost_hits!r}"
 
     # Also assert via subprocess grep against the actual fixture audit
     # path: belt-and-suspenders, matches the M9 e2e assertion shape.
@@ -387,9 +370,7 @@ def test_audit_no_devpost_network(
         text=True,
     )
     # grep exits 1 when no matches found, which is what we want.
-    assert proc.returncode == 1, (
-        f"grep found devpost.com lines in audit log: stdout={proc.stdout!r}"
-    )
+    assert proc.returncode == 1, f"grep found devpost.com lines in audit log: stdout={proc.stdout!r}"
 
 
 # ---------------------------------------------------------------------------

@@ -226,9 +226,7 @@ def expand_cells(spec: dict) -> list[dict]:
             raise ValueError(f"axis '{name}' has no values")
         value_lists.append(list(vals))
 
-    product = [
-        dict(zip(axis_names, combo)) for combo in itertools.product(*value_lists)
-    ]
+    product = [dict(zip(axis_names, combo)) for combo in itertools.product(*value_lists)]
 
     sample = spec.get("sample", "full")
     if sample in (None, "full", "all"):
@@ -259,9 +257,7 @@ def _cell_run_id(batch_id: str, cell: dict) -> str:
     """
     parts = [f"{k}{_slug(v)}" for k, v in cell.items()]
     base = "-".join(parts)[:48]
-    h = hashlib.sha1(
-        (batch_id + json.dumps(cell, sort_keys=True)).encode("utf-8")
-    ).hexdigest()[:6]
+    h = hashlib.sha1((batch_id + json.dumps(cell, sort_keys=True)).encode("utf-8")).hexdigest()[:6]
     return f"{batch_id[:8]}-{base}-{h}"
 
 
@@ -317,15 +313,9 @@ def _render_cell_baseline(seed_src: str, cell: dict, run_id: str) -> str:
     if "backbone" in cell:
         keras_name = _BACKBONE_KERAS.get(str(cell["backbone"]).lower(), "MobileNetV2")
         header_lines.append(f"_KCA_BACKBONE = {keras_name!r}")
-    header_lines.append(
-        "# The seed body follows; its constant defaults are overridden where the"
-    )
-    header_lines.append(
-        "# seed reads _KCA_* (the templated copy rewrites the matching lines)."
-    )
-    header_lines.append(
-        "# ====================================================================="
-    )
+    header_lines.append("# The seed body follows; its constant defaults are overridden where the")
+    header_lines.append("# seed reads _KCA_* (the templated copy rewrites the matching lines).")
+    header_lines.append("# =====================================================================")
     header = "\n".join(header_lines) + "\n\n"
 
     body = seed_src
@@ -365,9 +355,7 @@ def fake_screen(cell: dict, run_id: str, seed: int = 0) -> dict:
     the dry-run path exercise the full pipeline without a backbone train.
     """
     digest = hashlib.sha256(
-        (json.dumps(cell, sort_keys=True) + "|" + run_id + "|" + str(seed)).encode(
-            "utf-8"
-        )
+        (json.dumps(cell, sort_keys=True) + "|" + run_id + "|" + str(seed)).encode("utf-8")
     ).hexdigest()
     # Map two hex windows into [0,1) deterministically.
     acc_jitter = int(digest[:8], 16) / 0xFFFFFFFF
@@ -455,10 +443,7 @@ def resolve_max_concurrent(requested: int | None, n_cells: int) -> tuple[int, st
         return 1, "no GPU detected (nvidia-smi absent) — serial screening"
     cap = max(1, free // _EST_CELL_VRAM_MIB)
     val = max(1, min(cap, n_cells))
-    return val, (
-        f"GPU free={free}MiB / est_cell={_EST_CELL_VRAM_MIB}MiB -> {cap}; "
-        f"clamped to {val}"
-    )
+    return val, (f"GPU free={free}MiB / est_cell={_EST_CELL_VRAM_MIB}MiB -> {cap}; clamped to {val}")
 
 
 # ---------------------------------------------------------------------------
@@ -625,8 +610,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         return _emit(
             False,
             {
-                "error": f"competition '{slug}' not registered; run "
-                "`kca competition register` first",
+                "error": f"competition '{slug}' not registered; run `kca competition register` first",
                 "side_effect": SideEffect.LOCAL_WRITE.value,
             },
             EXIT_RUNTIME,
@@ -750,9 +734,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         # cell.yaml — the axis values requested for this cell.
         _write_cell_yaml(run_dir / "cell.yaml", batch_id, run_id, cell)
         # baseline.py templated from the seed.
-        (run_dir / "baseline.py").write_text(
-            _render_cell_baseline(seed_src, cell, run_id), encoding="utf-8"
-        )
+        (run_dir / "baseline.py").write_text(_render_cell_baseline(seed_src, cell, run_id), encoding="utf-8")
         # experiment_runs row: enum status=queued + explore_stage=planned in
         # analysis_jsonb, plus analysis_jsonb.exploration_batch_id.
         run_db_id = _db.create_experiment_run(
@@ -909,9 +891,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
 
     n_cells = len(planned)
-    max_conc, conc_reason = resolve_max_concurrent(
-        getattr(args, "max_concurrent", None), n_cells
-    )
+    max_conc, conc_reason = resolve_max_concurrent(getattr(args, "max_concurrent", None), n_cells)
 
     seed = int(getattr(args, "seed", 0) or 0)
     payloads = [
@@ -944,9 +924,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             _db.record_metric(run_db_id, key, float(metrics[key]))
         _set_run_stage(_db, run_db_id, STAGE_SCREENED)
         screened += 1
-        out_cells.append(
-            {"run_id": res["run_id"], "run_db_id": run_db_id, "metrics": metrics}
-        )
+        out_cells.append({"run_id": res["run_id"], "run_db_id": run_db_id, "metrics": metrics})
 
     out_cells.sort(key=lambda c: c["run_id"])
     return _emit(
@@ -1010,9 +988,7 @@ def _resolve_screen_threshold(_db, batch_id: str, runs: list[dict], override):
         target = None
     if target is None:
         return None, "no active goal target — qualifies left null"
-    return round(_DEFAULT_SCREEN_FRACTION * target, 6), (
-        f"{_DEFAULT_SCREEN_FRACTION} x goal target_lb_score={target}"
-    )
+    return round(_DEFAULT_SCREEN_FRACTION * target, 6), (f"{_DEFAULT_SCREEN_FRACTION} x goal target_lb_score={target}")
 
 
 def cmd_rank(args: argparse.Namespace) -> int:
@@ -1038,9 +1014,7 @@ def cmd_rank(args: argparse.Namespace) -> int:
         )
 
     screened = [r for r in runs if r.get("stage") == STAGE_SCREENED]
-    threshold, thr_source = _resolve_screen_threshold(
-        _db, batch_id, runs, getattr(args, "threshold", None)
-    )
+    threshold, thr_source = _resolve_screen_threshold(_db, batch_id, runs, getattr(args, "threshold", None))
 
     cohort = []
     for r in screened:
@@ -1063,9 +1037,7 @@ def cmd_rank(args: argparse.Namespace) -> int:
         )
 
     cohort.sort(
-        key=lambda c: (
-            c["holdout_accuracy"] if c["holdout_accuracy"] is not None else -1.0
-        ),
+        key=lambda c: c["holdout_accuracy"] if c["holdout_accuracy"] is not None else -1.0,
         reverse=True,
     )
     return _emit(
@@ -1267,9 +1239,7 @@ def _write_next_candidates_yaml(
         lines.append(f"    image_size: {_yaml_scalar(cell['image_size'])}")
         lines.append(f"    epochs: {_yaml_scalar(cell['epochs'])}")
         lines.append(f"    source_url: {_yaml_quote(p.get('source_url'))}")
-        lines.append(
-            f"    trust_label: {_yaml_scalar(p.get('trust_label', 'unknown'))}"
-        )
+        lines.append(f"    trust_label: {_yaml_scalar(p.get('trust_label', 'unknown'))}")
         lines.append(f"    rationale: {_yaml_quote(p.get('rationale', ''))}")
         markers = p.get("injection_markers") or []
         if markers:
@@ -1302,8 +1272,7 @@ def cmd_propose_next(args: argparse.Namespace) -> int:
         return _emit(
             False,
             {
-                "error": f"competition '{slug}' not registered; run "
-                "`kca competition register` first",
+                "error": f"competition '{slug}' not registered; run `kca competition register` first",
                 "side_effect": se.value,
             },
             EXIT_RUNTIME,
@@ -1347,9 +1316,7 @@ def cmd_propose_next(args: argparse.Namespace) -> int:
 
     out_path = _comp_dir(slug) / "next_candidates.yaml"
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    _write_next_candidates_yaml(
-        out_path, slug=slug, proposals=proposals, n_tried=len(tried)
-    )
+    _write_next_candidates_yaml(out_path, slug=slug, proposals=proposals, n_tried=len(tried))
 
     payload = {
         "competition": slug,

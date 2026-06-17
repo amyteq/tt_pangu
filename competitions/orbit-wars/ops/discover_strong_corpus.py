@@ -95,9 +95,7 @@ def discover(seed_subs, strong_mu, teacher_mu, max_subs):
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Discover a strong-tier teacher corpus manifest."
-    )
+    ap = argparse.ArgumentParser(description="Discover a strong-tier teacher corpus manifest.")
     ap.add_argument("--seed-subs", type=int, nargs="+", default=[53582503, 53730511])
     ap.add_argument(
         "--strong-mu",
@@ -120,9 +118,7 @@ def main():
     ap.add_argument("--out-dir", default=OUT_DIR)
     args = ap.parse_args()
 
-    manifest, strong_subs, calls, n_eps = discover(
-        args.seed_subs, args.strong_mu, args.teacher_mu, args.max_subs
-    )
+    manifest, strong_subs, calls, n_eps = discover(args.seed_subs, args.strong_mu, args.teacher_mu, args.max_subs)
     os.makedirs(args.out_dir, exist_ok=True)
     with open(os.path.join(args.out_dir, "manifest.json"), "w") as f:
         json.dump(manifest, f, indent=2)
@@ -141,21 +137,15 @@ def main():
 
     twop = sum(1 for m in manifest.values() if m["size"] == 2)
     fourp = sum(1 for m in manifest.values() if m["size"] == 4)
-    won_eps = sum(
-        1 for m in manifest.values() if any(s["won"] for s in m["teacher_seats"])
-    )
+    won_eps = sum(1 for m in manifest.values() if any(s["won"] for s in m["teacher_seats"]))
     print(
         f"\nBFS: {calls} subs queried, {n_eps} episodes seen, {len(strong_subs)} strong subs (μ≥{args.strong_mu:.0f})"
     )
     print(
         f"teacher episodes (≥1 seat μ≥{args.teacher_mu:.0f}): {len(manifest)} ({twop} 2p, {fourp} 4p; {won_eps} have a winning teacher seat)"
     )
-    print(
-        f"manifest -> {os.path.relpath(os.path.join(args.out_dir, 'manifest.json'), COMP)}"
-    )
-    print(
-        f"episode ids -> {os.path.relpath(os.path.join(args.out_dir, 'episode_ids.txt'), COMP)}"
-    )
+    print(f"manifest -> {os.path.relpath(os.path.join(args.out_dir, 'manifest.json'), COMP)}")
+    print(f"episode ids -> {os.path.relpath(os.path.join(args.out_dir, 'episode_ids.txt'), COMP)}")
 
 
 if __name__ == "__main__":

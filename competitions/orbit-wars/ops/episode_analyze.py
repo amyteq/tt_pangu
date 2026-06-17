@@ -200,9 +200,7 @@ def analyze(path: str, our_usernames: set[str]) -> list[dict]:
         # late near-sun = collapse signal (second half of game)
         late_sun = worst is not None and worst[0] >= len(steps) // 2
         if n_sun > 0:
-            hard.append(
-                f"sun-proximity ticks={n_sun} worst(step={worst[0]},dist={worst[1]})"
-            )
+            hard.append(f"sun-proximity ticks={n_sun} worst(step={worst[0]},dist={worst[1]})")
         rew = rewards[seat]
         orew = rewards[1 - seat]
         result = "tie"
@@ -211,9 +209,7 @@ def analyze(path: str, our_usernames: set[str]) -> list[dict]:
         stats = {
             "attacks": attacks,
             "reinforces": reinforces,
-            "atk_size_mean": round(sum(atk_sizes) / len(atk_sizes), 1)
-            if atk_sizes
-            else 0.0,
+            "atk_size_mean": round(sum(atk_sizes) / len(atk_sizes), 1) if atk_sizes else 0.0,
         }
         # opponent quick stats for the reason heuristic
         opp_atk = []
@@ -231,9 +227,7 @@ def analyze(path: str, our_usernames: set[str]) -> list[dict]:
                     n = 0
                 if dec and pl.get(dec[0], [None, None])[1] not in (-1, seat, None):
                     opp_atk.append(n)
-        opp_stats = {
-            "atk_size_mean": round(sum(opp_atk) / len(opp_atk), 1) if opp_atk else 0.0
-        }
+        opp_stats = {"atk_size_mean": round(sum(opp_atk) / len(opp_atk), 1) if opp_atk else 0.0}
         reason = _winner_reason(seat, result == "win", stats, opp_stats, late_sun)
         sun_flag = "YES" if n_sun > 0 else "no"
         hard_flag = "; ".join(hard) if hard else "none"
@@ -248,12 +242,8 @@ def analyze(path: str, our_usernames: set[str]) -> list[dict]:
             "opp_class": "unknown",
             "result": result,
             "steps": len(steps),
-            "our_final_ships": round(
-                _final_ships(last[0].get("observation", {}), seat)
-            ),
-            "opp_final_ships": round(
-                _final_ships(last[0].get("observation", {}), 1 - seat)
-            ),
+            "our_final_ships": round(_final_ships(last[0].get("observation", {}), seat)),
+            "opp_final_ships": round(_final_ships(last[0].get("observation", {}), 1 - seat)),
             "launches": launches,
             "attacks": attacks,
             "reinforces": reinforces,
@@ -335,9 +325,7 @@ def render_findings_md(index_path: str = EP_INDEX, out_path: str = FINDINGS_MD) 
         ]
         for r in flagged:
             eid = r.get("episode_id", "?")
-            links = (
-                f"[watch]({r.get('watch_url', '')}) · [JSON]({r.get('replay_url', '')})"
-            )
+            links = f"[watch]({r.get('watch_url', '')}) · [JSON]({r.get('replay_url', '')})"
             lines.append(
                 f"| `{eid}` | {r.get('result', '?')} | **{r.get('interesting', '')}** | "
                 f"{r.get('hard_bug', '') if r.get('hard_bug') not in ('', 'none') else r.get('winner_reason', '')} | "

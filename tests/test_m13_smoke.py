@@ -95,8 +95,7 @@ def test_migration_0008_applied():
                 if regclass is None:
                     missing.append(table)
     assert not missing, (
-        f"migration 0010 not applied — missing tables: {missing}. "
-        "Apply supabase/migrations/0010_m13_eval.sql."
+        f"migration 0010 not applied — missing tables: {missing}. Apply supabase/migrations/0010_m13_eval.sql."
     )
 
 
@@ -201,10 +200,7 @@ def test_kca_eval_list_shows_registered_suites():
         text=True,
         timeout=60,
     )
-    assert proc.returncode == 0, (
-        f"kca eval list rc={proc.returncode}\n"
-        f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
-    )
+    assert proc.returncode == 0, f"kca eval list rc={proc.returncode}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
     # The last JSON line is the payload (suites may also print stderr warnings).
     json_lines = [ln for ln in proc.stdout.splitlines() if ln.startswith("{")]
     assert json_lines, f"no JSON payload in stdout:\n{proc.stdout}"
@@ -232,10 +228,7 @@ def test_kca_eval_list_shows_registered_suites():
             "kaggle-replay-house-prices",
         }
         missing_kaggle = kaggle_suites - names
-        assert not missing_kaggle, (
-            f"kaggle-replay suites missing despite eval deps installed: "
-            f"{sorted(missing_kaggle)}"
-        )
+        assert not missing_kaggle, f"kaggle-replay suites missing despite eval deps installed: {sorted(missing_kaggle)}"
 
 
 @requires_db
@@ -268,8 +261,7 @@ def test_kca_eval_run_creates_one_runs_row():
             timeout=120,
         )
         assert proc.returncode == 0, (
-            f"kca eval run rc={proc.returncode}\n"
-            f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+            f"kca eval run rc={proc.returncode}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
         )
         # Parse the payload from the last JSON line of stdout.
         json_lines = [ln for ln in proc.stdout.splitlines() if ln.startswith("{")]
@@ -282,9 +274,7 @@ def test_kca_eval_run_creates_one_runs_row():
         after = db_mod.list_eval_runs(limit=200)
         after_ids = {str(r["id"]) for r in after}
         added = after_ids - before_ids
-        assert len(added) == 1, (
-            f"expected exactly one new eval_runs row, got {len(added)}: {added}"
-        )
+        assert len(added) == 1, f"expected exactly one new eval_runs row, got {len(added)}: {added}"
         assert new_run_id in added
     finally:
         if new_run_id:
@@ -316,9 +306,7 @@ def test_kca_eval_report_json_shape():
     # to populate so we use it for the report shape probe.
     suites = db_mod.list_eval_suites()
     suite_id = next((s["id"] for s in suites if s["name"] == suite_name), None)
-    assert suite_id is not None, (
-        f"suite {suite_name!r} not registered; run any kca eval run first."
-    )
+    assert suite_id is not None, f"suite {suite_name!r} not registered; run any kca eval run first."
 
     run_id = db_mod.start_eval_run(
         route="mocked",
@@ -365,8 +353,7 @@ def test_kca_eval_report_json_shape():
             timeout=60,
         )
         assert proc.returncode == 0, (
-            f"kca eval report rc={proc.returncode}\n"
-            f"stdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
+            f"kca eval report rc={proc.returncode}\nstdout:\n{proc.stdout}\nstderr:\n{proc.stderr}"
         )
         payload = json.loads(proc.stdout)
         for key in (
@@ -429,8 +416,7 @@ def test_audit_grep_sentinel_clean():
         timeout=300,
     )
     assert proc.returncode == 0, (
-        f"kca eval run --all rc={proc.returncode}\n"
-        f"stdout:\n{proc.stdout[-2000:]}\nstderr:\n{proc.stderr[-2000:]}"
+        f"kca eval run --all rc={proc.returncode}\nstdout:\n{proc.stdout[-2000:]}\nstderr:\n{proc.stderr[-2000:]}"
     )
 
     # Parse the run payload to extract run_id for cleanup.
@@ -449,15 +435,13 @@ def test_audit_grep_sentinel_clean():
                         if needle in line:
                             violations.append(line.rstrip("\n"))
                             break
-        assert not violations, (
-            f"audit-grep sentinel tripped — {len(violations)} forbidden lines:\n"
-            + "\n".join(violations[:5])
+        assert not violations, f"audit-grep sentinel tripped — {len(violations)} forbidden lines:\n" + "\n".join(
+            violations[:5]
         )
         # The CLI itself also tallies audit_grep_violations across all
         # suites during the run; that must be 0 as well.
         assert payload.get("audit_grep_violations", 0) == 0, (
-            f"in-process audit_grep_violations="
-            f"{payload.get('audit_grep_violations')}; expected 0"
+            f"in-process audit_grep_violations={payload.get('audit_grep_violations')}; expected 0"
         )
     finally:
         if new_run_id:

@@ -43,9 +43,7 @@ def _profile_episode(args):
     if not steps:
         return None
     rewards = [s.get("reward") for s in steps[-1]]
-    won = rewards[seat] is not None and rewards[seat] == max(
-        r for r in rewards if r is not None
-    )
+    won = rewards[seat] is not None and rewards[seat] == max(r for r in rewards if r is not None)
     m = {
         "player": player_name,
         "won": bool(won),
@@ -105,9 +103,7 @@ def _profile_episode(args):
             if town == seat:
                 m["reinforce"] += 1
                 if srow and trow:
-                    m["rein_dist"].append(
-                        math.hypot(srow[2] - trow[2], srow[3] - trow[3])
-                    )
+                    m["rein_dist"].append(math.hypot(srow[2] - trow[2], srow[3] - trow[3]))
                 if tgt in threat_seen:
                     m["react_lags"].append(t - threat_seen.pop(tgt))
             elif town == -1:
@@ -129,9 +125,7 @@ def _agg(metrics):
 
     def avg(key, sub=None):
         pool_ = sub if sub is not None else metrics
-        vals = [
-            v for m in pool_ for v in (m[key] if isinstance(m[key], list) else [m[key]])
-        ]
+        vals = [v for m in pool_ for v in (m[key] if isinstance(m[key], list) else [m[key]])]
         return round(sum(vals) / len(vals), 2) if vals else 0.0
 
     atk = [v for m in metrics for v in m["atk_ships"]]
@@ -148,18 +142,15 @@ def _agg(metrics):
         "launches_per_game": avg("launches"),
         "opening25": avg("opening25"),
         "mix_attack": round(
-            sum(m["attacks"] for m in metrics)
-            / max(1, sum(m["launches"] for m in metrics)),
+            sum(m["attacks"] for m in metrics) / max(1, sum(m["launches"] for m in metrics)),
             2,
         ),
         "mix_reinforce": round(
-            sum(m["reinforce"] for m in metrics)
-            / max(1, sum(m["launches"] for m in metrics)),
+            sum(m["reinforce"] for m in metrics) / max(1, sum(m["launches"] for m in metrics)),
             2,
         ),
         "mix_neutral": round(
-            sum(m["neutral"] for m in metrics)
-            / max(1, sum(m["launches"] for m in metrics)),
+            sum(m["neutral"] for m in metrics) / max(1, sum(m["launches"] for m in metrics)),
             2,
         ),
         "atk_size_mean": round(sum(atk) / len(atk), 1) if atk else 0,

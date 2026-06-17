@@ -86,17 +86,11 @@ def _process_episode(args):
                 tt = traj.get(tgt[0])
                 if tt is not None:
                     def_eta, o_eta = tt["ships"][k], tt["owner"][k]
-                    flips = (
-                        1.0
-                        if any(tt["owner"][i] != tgt[1] for i in range(1, PROJ_H + 1))
-                        else 0.0
-                    )
+                    flips = 1.0 if any(tt["owner"][i] != tgt[1] for i in range(1, PROJ_H + 1)) else 0.0
                 else:
                     def_eta, o_eta, flips = tgt[5], tgt[1], 0.0
                 fr_arr = sum(s for _k, o, s in sched.get(tgt[0], []) if o == player)
-                en_arr = sum(
-                    s for _k, o, s in sched.get(tgt[0], []) if o not in (player, -1)
-                )
+                en_arr = sum(s for _k, o, s in sched.get(tgt[0], []) if o not in (player, -1))
                 rows_X.append(
                     [
                         src[5],
@@ -134,9 +128,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--data", required=True)
     ap.add_argument("--index", required=True)
-    ap.add_argument(
-        "--winners", default="", help="comma-separated winner names; empty = all"
-    )
+    ap.add_argument("--winners", default="", help="comma-separated winner names; empty = all")
     ap.add_argument("--min-steps", type=int, default=0)
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--out", default=os.path.expanduser("~/work/episode_pairs.npz"))

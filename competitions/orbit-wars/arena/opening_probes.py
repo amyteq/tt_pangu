@@ -54,8 +54,13 @@ def _obs_tuples(obs):
     planets = [Planet(*p) for p in obs["planets"]]  # namedtuples (.id/.x… AND indexable)
     fleets = [tuple(f) for f in obs.get("fleets", [])]
     init_by_id = {p[0]: tuple(p) for p in obs["initial_planets"]}
-    return planets, fleets, init_by_id, obs["angular_velocity"], int(obs["step"]), set(
-        obs.get("comet_planet_ids", []) or []
+    return (
+        planets,
+        fleets,
+        init_by_id,
+        obs["angular_velocity"],
+        int(obs["step"]),
+        set(obs.get("comet_planet_ids", []) or []),
     )
 
 
@@ -87,9 +92,7 @@ def _candidate_grabs(planets, fleets, init_by_id, ang_vel, step, comet_ids, me, 
             needed = ships_guess
             eta_k = 1
             for _ in range(3):
-                sol = v4mod._solve_intercept(
-                    src[2], src[3], tgt[0], ships_guess, step, init_by_id, ang_vel
-                )
+                sol = v4mod._solve_intercept(src[2], src[3], tgt[0], ships_guess, step, init_by_id, ang_vel)
                 if sol is None:
                     break
                 _, t_ticks, _ = sol
@@ -105,13 +108,17 @@ def _candidate_grabs(planets, fleets, init_by_id, ang_vel, step, comet_ids, me, 
             angle, t_ticks, pos = sol
             if t_ticks > HO:
                 continue
-            if v4mod._path_blocked(
-                src[2], src[3], pos[0], pos[1], src[0], tgt[0], planets, comet_ids
-            ):
+            if v4mod._path_blocked(src[2], src[3], pos[0], pos[1], src[0], tgt[0], planets, comet_ids):
                 continue
             if best is None or eta_k < best["eta"]:
-                best = {"tgt": tgt[0], "src": src[0], "ships": int(needed), "eta": eta_k,
-                        "angle": angle, "prod": tgt[6]}
+                best = {
+                    "tgt": tgt[0],
+                    "src": src[0],
+                    "ships": int(needed),
+                    "eta": eta_k,
+                    "angle": angle,
+                    "prod": tgt[6],
+                }
         if best is not None:
             cands.append(best)
     return cands
@@ -135,8 +142,7 @@ def _eval_plan(plan, planets, fleets, init_by_id, ang_vel, step, comet_ids, me, 
         if pid in touched:
             arrs = list(base_arr.get(pid, []))
             arrs += arr_add.get(pid, [])
-            o, _s = fs.replay_planet(owner0[pid], ships0[pid] - debit.get(pid, 0.0),
-                                     prod[pid], arrs, HO)
+            o, _s = fs.replay_planet(owner0[pid], ships0[pid] - debit.get(pid, 0.0), prod[pid], arrs, HO)
             owner_by[pid] = o
         else:
             owner_by[pid] = base_traj[pid]["owner"]
@@ -158,11 +164,11 @@ def _term_value(grab, planets, init_by_id, me, base_traj, base_arr):
         bt = base_traj[pid]
         return term(bt["owner"], bt["ships"])
 
-    so, ss = fs.replay_planet(owner0[grab["src"]], ships0[grab["src"]] - grab["ships"],
-                              prod[grab["src"]], base_arr.get(grab["src"], []), HO)
+    so, ss = fs.replay_planet(
+        owner0[grab["src"]], ships0[grab["src"]] - grab["ships"], prod[grab["src"]], base_arr.get(grab["src"], []), HO
+    )
     tarr = list(base_arr.get(grab["tgt"], [])) + [(grab["eta"], me, float(grab["ships"]))]
-    to, ts = fs.replay_planet(owner0[grab["tgt"]], ships0[grab["tgt"]],
-                              prod[grab["tgt"]], tarr, HO)
+    to, ts = fs.replay_planet(owner0[grab["tgt"]], ships0[grab["tgt"]], prod[grab["tgt"]], tarr, HO)
     return (term(so, ss) + term(to, ts)) - (base_adv(grab["src"]) + base_adv(grab["tgt"]))
 
 
@@ -178,15 +184,19 @@ def _greedy_select(cands, planets, me, key):
     return sel
 
 
-def _search_best(cands, planets, fleets, init_by_id, ang_vel, step, comet_ids, me,
-                 base_traj, base_arr, depth=3, beam=6):
+def _search_best(
+    cands, planets, fleets, init_by_id, ang_vel, step, comet_ids, me, base_traj, base_arr, depth=3, beam=6
+):
     """Beam search over SET+ORDER of grabs (budget-respecting), maximizing controlled
     production. Captured-planet feedback is implicit in the joint replay (a held target
     contributes its production; source contention is enforced by the ship budget)."""
     ships_avail0 = {p[0]: float(p[5]) for p in planets if p[1] == me}
     # state: (plan_list, remaining_avail dict, cp)
-    init = ([], dict(ships_avail0), _eval_plan([], planets, fleets, init_by_id, ang_vel,
-                                               step, comet_ids, me, base_traj, base_arr))
+    init = (
+        [],
+        dict(ships_avail0),
+        _eval_plan([], planets, fleets, init_by_id, ang_vel, step, comet_ids, me, base_traj, base_arr),
+    )
     frontier = [init]
     best = init
     for _d in range(depth):
@@ -199,8 +209,7 @@ def _search_best(cands, planets, fleets, init_by_id, ang_vel, step, comet_ids, m
                 np_ = plan + [g]
                 na = dict(avail)
                 na[g["src"]] -= g["ships"]
-                cp = _eval_plan(np_, planets, fleets, init_by_id, ang_vel, step,
-                                comet_ids, me, base_traj, base_arr)
+                cp = _eval_plan(np_, planets, fleets, init_by_id, ang_vel, step, comet_ids, me, base_traj, base_arr)
                 nxt.append((np_, na, cp))
                 if cp > best[2]:
                     best = (np_, na, cp)
@@ -214,6 +223,7 @@ def _search_best(cands, planets, fleets, init_by_id, ang_vel, step, comet_ids, m
 # ---------- data generation ----------
 def _run_game(seed, opp):
     from kaggle_environments import make
+
     env = make("orbit_wars", configuration={"seed": seed})
     env.run([V4, opp])
     steps = env.steps
@@ -227,6 +237,7 @@ def _run_game(seed, opp):
 
 def _gen(seeds, opp, procs):
     from multiprocessing import Pool
+
     with Pool(procs) as p:
         return p.starmap(_run_game, [(s, opp) for s in seeds])
 
@@ -234,21 +245,20 @@ def _gen(seeds, opp, procs):
 # ---------- probes ----------
 def _state_probe(obs, me=0):
     planets, fleets, init_by_id, ang_vel, step, comet_ids = _obs_tuples(obs)
-    base_traj, base_arr = fs.project(planets, fleets, ang_vel, init_by_id, step, HO,
-                                     comet_ids=comet_ids)
+    base_traj, base_arr = fs.project(planets, fleets, ang_vel, init_by_id, step, HO, comet_ids=comet_ids)
     cands = _candidate_grabs(planets, fleets, init_by_id, ang_vel, step, comet_ids, me, base_traj)
     if len(cands) < 2:
         return None
-    cp_indep = {g["tgt"]: _eval_plan([g], planets, fleets, init_by_id, ang_vel, step,
-                                     comet_ids, me, base_traj, base_arr)
-                - _eval_plan([], planets, fleets, init_by_id, ang_vel, step, comet_ids,
-                             me, base_traj, base_arr)
-                for g in cands}
+    cp_indep = {
+        g["tgt"]: _eval_plan([g], planets, fleets, init_by_id, ang_vel, step, comet_ids, me, base_traj, base_arr)
+        - _eval_plan([], planets, fleets, init_by_id, ang_vel, step, comet_ids, me, base_traj, base_arr)
+        for g in cands
+    }
     greedy_sel = _greedy_select(cands, planets, me, key=lambda g: cp_indep[g["tgt"]])
-    cp_greedy = _eval_plan(greedy_sel, planets, fleets, init_by_id, ang_vel, step,
-                           comet_ids, me, base_traj, base_arr)
-    _plan, _av, cp_search = _search_best(cands, planets, fleets, init_by_id, ang_vel,
-                                         step, comet_ids, me, base_traj, base_arr)
+    cp_greedy = _eval_plan(greedy_sel, planets, fleets, init_by_id, ang_vel, step, comet_ids, me, base_traj, base_arr)
+    _plan, _av, cp_search = _search_best(
+        cands, planets, fleets, init_by_id, ang_vel, step, comet_ids, me, base_traj, base_arr
+    )
     super_add = (cp_search - cp_greedy) / cp_greedy if cp_greedy > 1e-9 else 0.0
     # P2: first-3 by CP vs by conservation _term
     by_cp = [g["tgt"] for g in sorted(cands, key=lambda g: cp_indep[g["tgt"]], reverse=True)[:3]]
@@ -257,14 +267,20 @@ def _state_probe(obs, me=0):
     agree = len(set(by_cp) & set(by_term)) / max(1, len(by_cp))
     # P1b: CP of v4's ACTUAL conservation-greedy selection (value>0 gated) vs CP-search-optimal —
     # does a CP-planner control MORE production at Ho than what v4 currently picks?
-    consv_sel = _greedy_select([g for g in cands if tvals[g["tgt"]] > 0], planets, me,
-                               key=lambda g: tvals[g["tgt"]])
-    cp_consv = _eval_plan(consv_sel, planets, fleets, init_by_id, ang_vel, step,
-                          comet_ids, me, base_traj, base_arr)
+    consv_sel = _greedy_select([g for g in cands if tvals[g["tgt"]] > 0], planets, me, key=lambda g: tvals[g["tgt"]])
+    cp_consv = _eval_plan(consv_sel, planets, fleets, init_by_id, ang_vel, step, comet_ids, me, base_traj, base_arr)
     super_consv = (cp_search - cp_consv) / cp_consv if cp_consv > 1e-9 else 0.0
-    return {"super_add": super_add, "super_consv": super_consv, "agree": agree,
-            "ncand": len(cands), "n_consv": len(consv_sel), "n_search": 0,
-            "cp_greedy": cp_greedy, "cp_search": cp_search, "cp_consv": cp_consv}
+    return {
+        "super_add": super_add,
+        "super_consv": super_consv,
+        "agree": agree,
+        "ncand": len(cands),
+        "n_consv": len(consv_sel),
+        "n_search": 0,
+        "cp_greedy": cp_greedy,
+        "cp_search": cp_search,
+        "cp_consv": cp_consv,
+    }
 
 
 def _board_control(obs, me=0):
@@ -304,8 +320,11 @@ def main():
 
     evo = _gen(list(range(args.seed0, args.seed0 + args.games)), EVO, args.procs)
     sta = _gen(list(range(args.seed0, args.seed0 + args.starter_games)), "starter", args.procs)
-    print(f"games: evogen={len(evo)} (won {sum(1 for r in evo if r['reward0'] > r['reward1'])}), "
-          f"starter={len(sta)} (won {sum(1 for r in sta if r['reward0'] > r['reward1'])})", flush=True)
+    print(
+        f"games: evogen={len(evo)} (won {sum(1 for r in evo if r['reward0'] > r['reward1'])}), "
+        f"starter={len(sta)} (won {sum(1 for r in sta if r['reward0'] > r['reward1'])})",
+        flush=True,
+    )
 
     # P1 + P2 over opening states (evogen games)
     sadds, sconsv, agrees = [], [], []
@@ -321,16 +340,26 @@ def main():
     med_sa = sadds[len(sadds) // 2] if sadds else 0.0
     med_sc = sconsv[len(sconsv) // 2] if sconsv else 0.0
     mean_ag = sum(agrees) / len(agrees) if agrees else 1.0
-    print(f"\nP1 super-additivity: n={len(sadds)} states | median Δ(CP-search vs CP-greedy)={med_sa * 100:+.1f}% "
-          f"| frac>5%={sum(1 for x in sadds if x > 0.05) / max(1, len(sadds)) * 100:.0f}%")
-    print(f"   P1b Δ(CP-search vs v4 conservation-greedy)={med_sc * 100:+.1f}% (does a CP-planner control MORE @Ho than v4 picks?)")
-    print(f"   VERDICT: {'KILL (search ≈ greedy → set+order planner redundant)' if med_sa < 0.05 else 'PASS (search beats greedy ≥5%)'}")
-    print(f"\nP2 objective-divergence: n={len(agrees)} states | mean first-3 agreement(CP vs _term)={mean_ag * 100:.0f}%")
-    print(f"   VERDICT: {'KILL (objectives colinear → OW_OPENING-with-a-sort)' if mean_ag > 0.80 else 'PASS (CP ranks differently)'}")
+    print(
+        f"\nP1 super-additivity: n={len(sadds)} states | median Δ(CP-search vs CP-greedy)={med_sa * 100:+.1f}% "
+        f"| frac>5%={sum(1 for x in sadds if x > 0.05) / max(1, len(sadds)) * 100:.0f}%"
+    )
+    print(
+        f"   P1b Δ(CP-search vs v4 conservation-greedy)={med_sc * 100:+.1f}% (does a CP-planner control MORE @Ho than v4 picks?)"
+    )
+    print(
+        f"   VERDICT: {'KILL (search ≈ greedy → set+order planner redundant)' if med_sa < 0.05 else 'PASS (search beats greedy ≥5%)'}"
+    )
+    print(
+        f"\nP2 objective-divergence: n={len(agrees)} states | mean first-3 agreement(CP vs _term)={mean_ag * 100:.0f}%"
+    )
+    print(
+        f"   VERDICT: {'KILL (objectives colinear → OW_OPENING-with-a-sort)' if mean_ag > 0.80 else 'PASS (CP ranks differently)'}"
+    )
 
     # P3 conversion over all games: board-control@80 vs win
     xs, ys = [], []
-    for r in (evo + sta):
+    for r in evo + sta:
         prodc, _cnt = _board_control(r["s80"])
         xs.append(prodc)
         ys.append(1.0 if r["reward0"] > r["reward1"] else 0.0)
@@ -342,9 +371,13 @@ def main():
         ye.append(1.0 if r["reward0"] > r["reward1"] else 0.0)
     r_all = _point_biserial(xs, ys)
     r_evo = _point_biserial(xe, ye) if len(set(ye)) > 1 else float("nan")
-    print(f"\nP3 conversion: control@80 vs win | r(all {len(xs)})={r_all:+.2f} | r(evogen {len(xe)})={r_evo:+.2f} "
-          f"| evogen wins={int(sum(ye))}/{len(ye)}")
-    print(f"   VERDICT: {'KILL (control@80 does not predict win)' if abs(r_all) < 0.2 else 'PASS (control@80 predicts win)'}")
+    print(
+        f"\nP3 conversion: control@80 vs win | r(all {len(xs)})={r_all:+.2f} | r(evogen {len(xe)})={r_evo:+.2f} "
+        f"| evogen wins={int(sum(ye))}/{len(ye)}"
+    )
+    print(
+        f"   VERDICT: {'KILL (control@80 does not predict win)' if abs(r_all) < 0.2 else 'PASS (control@80 predicts win)'}"
+    )
     print("\n=== PROBES COMPLETE ===")
 
 

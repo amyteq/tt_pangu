@@ -59,9 +59,7 @@ def test_missing_weights_returns_none_not_raise():
 
 
 if __name__ == "__main__":
-    fns = [
-        v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)
-    ]
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0
     for fn in fns:
         fn()

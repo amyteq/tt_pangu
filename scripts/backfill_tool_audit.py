@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Backfill .agent/audit.jsonl into agent_tool_audit.
+"""Backfill .agent/kca/audit.jsonl into agent_tool_audit.
 
 Idempotent: de-duplicates by (session_id, timestamp, tool_name).
 Reads from the JSONL file, inserts each line into the M8 audit table.
@@ -93,7 +93,7 @@ def backfill(jsonl: Path, dry_run: bool = False) -> tuple[int, int]:
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--jsonl", default=".agent/audit.jsonl", type=Path)
+    p.add_argument("--jsonl", default=".agent/kca/audit.jsonl", type=Path)
     p.add_argument("--dry-run", action="store_true")
     args = p.parse_args()
     inserted, skipped = backfill(args.jsonl, dry_run=args.dry_run)

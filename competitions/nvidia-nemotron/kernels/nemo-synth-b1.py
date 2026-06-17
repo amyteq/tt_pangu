@@ -210,11 +210,7 @@ def _make_bit_ops(rng: random.Random) -> list:
         BitManipOp(f"SHIFT RIGHT {shift_r_n}", lambda x, n=shift_r_n: x >> n),
         BitManipOp(
             "MAJORITY(x, ROTL1, ROTR1)",
-            lambda x: (
-                (x & rotate_left(x, 1))
-                | (x & rotate_right(x, 1))
-                | (rotate_left(x, 1) & rotate_right(x, 1))
-            ),
+            lambda x: (x & rotate_left(x, 1)) | (x & rotate_right(x, 1)) | (rotate_left(x, 1) & rotate_right(x, 1)),
         ),
         BitManipOp(
             "CHOICE(x, ROTL2, NOT)",
@@ -246,9 +242,7 @@ def make_bit_puzzle(rng: random.Random) -> tuple:
         query_val = rng.randint(0, 255)
     answer_val = transform(query_val)
 
-    ex_lines = "\n".join(
-        f"{format(i, '08b')} -> {format(o, '08b')}" for i, o in examples
-    )
+    ex_lines = "\n".join(f"{format(i, '08b')} -> {format(o, '08b')}" for i, o in examples)
     prompt = (
         f"{ALICE_HEADER}a secret bit manipulation rule transforms 8-bit binary numbers. "
         "The transformation involves operations like bit shifts, rotations, XOR, AND, OR, "
@@ -274,15 +268,10 @@ def make_bit_puzzle(rng: random.Random) -> tuple:
     for op in chosen:
         x_prev = x_check
         x_check = op.apply(x_check)
-        cot += (
-            f"  {op.name}: {format(x_prev, '08b')} ({x_prev})"
-            f" -> {format(x_check, '08b')} ({x_check})\n"
-        )
+        cot += f"  {op.name}: {format(x_prev, '08b')} ({x_prev}) -> {format(x_check, '08b')} ({x_check})\n"
     cot += f"  Final: {format(x_check, '08b')} == {format(e0_out, '08b')} ✓\n\n"
 
-    cot += (
-        f"Applying confirmed rule to query {format(query_val, '08b')} ({query_val}):\n"
-    )
+    cot += f"Applying confirmed rule to query {format(query_val, '08b')} ({query_val}):\n"
     x = query_val
     for op in chosen:
         x_prev = x
@@ -292,10 +281,7 @@ def make_bit_puzzle(rng: random.Random) -> tuple:
             f"    Input : {format(x_prev, '08b')} (decimal {x_prev})\n"
             f"    Output: {format(x, '08b')} (decimal {x})\n"
         )
-    cot += (
-        f"\nFinal answer: {format(x, '08b')}\n"
-        f"This is the definitive result. No further revision."
-    )
+    cot += f"\nFinal answer: {format(x, '08b')}\nThis is the definitive result. No further revision."
     return prompt, answer, cot
 
 
@@ -457,9 +443,7 @@ def make_unit_puzzle(rng: random.Random) -> tuple:
     example_inputs = [round(rng.uniform(1.0, 50.0), 2) for _ in range(n_examples)]
     query_input = round(rng.uniform(1.0, 50.0), 2)
 
-    ex_lines = "\n".join(
-        f"{v} m becomes {round(v * multiplier, 2)}" for v in example_inputs
-    )
+    ex_lines = "\n".join(f"{v} m becomes {round(v * multiplier, 2)}" for v in example_inputs)
     prompt = (
         f"{ALICE_HEADER}a secret unit conversion is applied to measurements. "
         f"For example:\n{ex_lines}\n"
@@ -560,9 +544,7 @@ def _apply_sym_map(s: str, char_map: dict) -> str:
     return "".join(char_map.get(c, c) for c in s)
 
 
-def _gen_sym_string(
-    rng: random.Random, length: int, charset: list = SYMBOL_CHARS
-) -> str:
+def _gen_sym_string(rng: random.Random, length: int, charset: list = SYMBOL_CHARS) -> str:
     return "".join(rng.choices(charset, k=length))
 
 
@@ -603,12 +585,7 @@ def make_symbol_puzzle(rng: random.Random) -> tuple:
         mapped = learned.get(ci, ci)
         result_chars.append(mapped)
         cot += f"  Position {pos}: '{ci}' -> '{mapped}'\n"
-    cot += (
-        "\nConcatenating in order: "
-        + " + ".join(f"'{c}'" for c in result_chars)
-        + f" = '{q_out}'\n"
-        f"Result: {q_out}"
-    )
+    cot += "\nConcatenating in order: " + " + ".join(f"'{c}'" for c in result_chars) + f" = '{q_out}'\nResult: {q_out}"
     return prompt, q_out, cot
 
 
@@ -801,12 +778,8 @@ def _build_expr_cot(puzzle: dict) -> str:
 
     # FIX: If unknown symbol present, explicitly note it doesn't affect result
     if has_unknown:
-        lines.append(
-            "  NOTE: Some characters in this query may not appear in examples."
-        )
-        lines.append(
-            "  This does NOT matter — the rule operates on positions, not lookups."
-        )
+        lines.append("  NOTE: Some characters in this query may not appear in examples.")
+        lines.append("  This does NOT matter — the rule operates on positions, not lookups.")
         lines.append(f"  We apply the rule directly to A='{q_a}' and B='{q_b}'.")
 
     lines.append("  Computing result position by position:")
@@ -831,9 +804,7 @@ def make_cryptarithm_deduce_puzzle(rng: random.Random) -> tuple:
     force_unknown = rng.random() < 0.30
     puzzle = _build_sym_expr_puzzle(rng, force_unknown=force_unknown)
 
-    ex_lines = "\n".join(
-        f"{expr} = {result}" for expr, result, _, _, _ in puzzle["examples"]
-    )
+    ex_lines = "\n".join(f"{expr} = {result}" for expr, result, _, _, _ in puzzle["examples"])
     prompt = (
         f"{ALICE_HEADER}a secret set of transformation rules is applied to equations. "
         f"Below are a few examples:\n{ex_lines}\n"
@@ -1090,19 +1061,14 @@ def make_equation_numeric_guess_puzzle(rng: random.Random) -> tuple:
             rng.randint(6, 8),
         )
         seq = [a * i * i + b * i + c for i in range(1, n + 1)]
-        cot_rule = (
-            f"Quadratic sequence: second differences are constant = {2 * a}. "
-            f"Rule: f(n) = {a}n^2 + {b}n + {c}."
-        )
+        cot_rule = f"Quadratic sequence: second differences are constant = {2 * a}. Rule: f(n) = {a}n^2 + {b}n + {c}."
 
     else:
         a0, a1, n = rng.randint(1, 5), rng.randint(1, 5), rng.randint(7, 9)
         seq = [a0, a1]
         for _ in range(n - 2):
             seq.append(seq[-1] + seq[-2])
-        cot_rule = (
-            f"Fibonacci-like: each term = sum of two preceding. Starts {a0}, {a1}."
-        )
+        cot_rule = f"Fibonacci-like: each term = sum of two preceding. Starts {a0}, {a1}."
 
     hide_idx = rng.randint(2, len(seq) - 2)
     answer_val = seq[hide_idx]
@@ -1217,9 +1183,7 @@ def validate(records):
 # %%
 import os
 
-assert os.path.isdir("/kaggle/input"), (
-    "This final notebook is Kaggle-only and must run inside a Kaggle session."
-)
+assert os.path.isdir("/kaggle/input"), "This final notebook is Kaggle-only and must run inside a Kaggle session."
 print("Kaggle runtime detected.")
 
 
@@ -1302,8 +1266,7 @@ def find_path(label, candidates, predicate=lambda path: True, required=True):
             )
             matches = [matches[0]]
         assert len(matches) == 1, (
-            f"{label} is ambiguous for candidate {raw_candidate}: "
-            f"{[str(path) for path in matches]}"
+            f"{label} is ambiguous for candidate {raw_candidate}: {[str(path) for path in matches]}"
         )
         return matches[0]
 
@@ -1361,10 +1324,7 @@ MODEL_CONFIG = find_unique(
     ],
     lambda path: (
         path.is_file()
-        and (
-            (path.parent / "model.safetensors.index.json").is_file()
-            or any(path.parent.glob("*.safetensors"))
-        )
+        and ((path.parent / "model.safetensors.index.json").is_file() or any(path.parent.glob("*.safetensors")))
     ),
 )
 MODEL_PATH = str(MODEL_CONFIG.parent)
@@ -1399,11 +1359,7 @@ HUIKANG_SFT_DIR = find_unique(
         "/kaggle/input/datasets/huikang/*/*/nemotron-master/training/sft/04-08-16-14",
         "/kaggle/input/datasets/huikang/**/nemotron-master/training/sft/04-08-16-14",
     ],
-    lambda path: (
-        path.is_dir()
-        and (path / "tokens").is_dir()
-        and (path / "logprobs/index.jsonl").is_file()
-    ),
+    lambda path: path.is_dir() and (path / "tokens").is_dir() and (path / "logprobs/index.jsonl").is_file(),
 )
 CORPUS_PATH = str(HUIKANG_SFT_DIR / "tokens")
 TRAIN_ORDER_PATH = str(HUIKANG_SFT_DIR / "logprobs/index.jsonl")
@@ -1492,9 +1448,7 @@ def run_training() -> None:
     cc = torch.cuda.get_device_capability(0)
     print(f"GPU: {torch.cuda.get_device_name(0)}, sm_{cc[0] * 10 + cc[1]}")
     print(f"torch={torch.__version__}, cuda={torch.version.cuda}")
-    print(
-        f"mamba_ssm={mamba_ssm.__version__}, causal_conv1d={causal_conv1d.__version__}"
-    )
+    print(f"mamba_ssm={mamba_ssm.__version__}, causal_conv1d={causal_conv1d.__version__}")
     print(f"VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
     assert cc == (12, 0), f"Expected sm_120 (RTX PRO 6000), got sm_{cc[0] * 10 + cc[1]}"
     from causal_conv1d import causal_conv1d_fn
@@ -1522,16 +1476,11 @@ def run_training() -> None:
                 continue
             seen.add(pid)
             ordered_ids.append(pid)
-    print(
-        f"Loaded {len(ordered_ids)} problem_ids in training order from "
-        f"{TRAIN_ORDER_PATH}"
-    )
+    print(f"Loaded {len(ordered_ids)} problem_ids in training order from {TRAIN_ORDER_PATH}")
 
     for sid in ordered_ids:
         seg_path = os.path.join(CORPUS_PATH, sid, "synthetic.json")
-        assert os.path.isfile(seg_path), (
-            f"problem_id {sid} from training order missing in corpus: {seg_path}"
-        )
+        assert os.path.isfile(seg_path), f"problem_id {sid} from training order missing in corpus: {seg_path}"
         with open(seg_path) as f:
             rec = json.load(f)
         tokens = rec["tokens"]
@@ -1553,18 +1502,13 @@ def run_training() -> None:
         )
     total_unmasked = sum(sum(e["weights"]) for e in examples)
     total_tokens = sum(len(e["tokens"]) for e in examples)
-    print(
-        f"Loaded {len(examples)} examples, {total_tokens:,} tokens "
-        f"(unmasked={total_unmasked:,.0f})"
-    )
+    print(f"Loaded {len(examples)} examples, {total_tokens:,} tokens (unmasked={total_unmasked:,.0f})")
 
     assert len(ordered_ids) >= MIN_CORPUS_EXAMPLES, (
-        f"Corpus order is unexpectedly small: {len(ordered_ids)} ids; "
-        f"expected at least {MIN_CORPUS_EXAMPLES}."
+        f"Corpus order is unexpectedly small: {len(ordered_ids)} ids; expected at least {MIN_CORPUS_EXAMPLES}."
     )
     assert len(examples) >= MIN_CORPUS_EXAMPLES, (
-        f"Corpus produced only {len(examples)} examples; "
-        f"expected at least {MIN_CORPUS_EXAMPLES}."
+        f"Corpus produced only {len(examples)} examples; expected at least {MIN_CORPUS_EXAMPLES}."
     )
 
     # -- Load base model ----------------------------------------------
@@ -1592,9 +1536,7 @@ def run_training() -> None:
         # apply_chat_template(tokenize=True) returns a BatchEncoding, so
         # len(full_ids) <= len(prompt_ids) compared DICT KEY COUNTS (2 <= 2)
         # and silently skipped every row. Unwrap to a flat token list.
-        out = tokenizer.apply_chat_template(
-            msgs, tokenize=True, add_generation_prompt=add_gen
-        )
+        out = tokenizer.apply_chat_template(msgs, tokenize=True, add_generation_prompt=add_gen)
         if hasattr(out, "keys"):
             out = out["input_ids"]
         if out and isinstance(out[0], (list, tuple)):
@@ -1615,8 +1557,7 @@ def run_training() -> None:
             if not _first_row_logged:
                 _first_row_logged = True
                 print(
-                    f"replay row 0: keys={sorted(row.keys())}, "
-                    f"prompt_ids={len(prompt_ids)}, full_ids={len(full_ids)}"
+                    f"replay row 0: keys={sorted(row.keys())}, prompt_ids={len(prompt_ids)}, full_ids={len(full_ids)}"
                 )
             if len(full_ids) <= len(prompt_ids):
                 replay_skipped += 1
@@ -1643,9 +1584,7 @@ def run_training() -> None:
             if replay_answer_tokens >= TARGET_REPLAY_ANSWER_TOKENS:
                 break
 
-    assert len(replay_examples) >= MIN_REPLAY_EXAMPLES, (
-        f"Only {len(replay_examples)} replay examples were tokenized."
-    )
+    assert len(replay_examples) >= MIN_REPLAY_EXAMPLES, f"Only {len(replay_examples)} replay examples were tokenized."
     assert replay_answer_tokens >= MIN_REPLAY_ANSWER_TOKENS, (
         f"Only {replay_answer_tokens:,} supervised replay answer tokens; "
         f"expected at least {MIN_REPLAY_ANSWER_TOKENS:,}."
@@ -1667,19 +1606,13 @@ def run_training() -> None:
         f"{replay_answer_tokens:,} supervised answer tokens, "
         f"skipped={replay_skipped}, truncated={replay_truncated}"
     )
-    print(
-        f"Replay inserted every ~{replay_every} Huikang examples; "
-        f"mixed total={len(examples)}"
-    )
+    print(f"Replay inserted every ~{replay_every} Huikang examples; mixed total={len(examples)}")
 
     # ---- v15: cryptarithm-weighted synthetic CoT, tokenised + interleaved -----
     # Same masking convention as the replay block (reasoning_content + boxed
     # content, prompt tokens masked out). The user turn carries the eval SUFFIX
     # so the trained prompt shape matches the grader exactly.
-    SYNTH_SUFFIX = (
-        "\nPlease put your final answer inside \\boxed{}. "
-        "For example: \\boxed{your answer}"
-    )
+    SYNTH_SUFFIX = "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
     synth_records = build_records(seed=SYNTH_SEED)
     synth_examples: list[dict] = []
     synth_skipped = 0
@@ -1698,10 +1631,7 @@ def run_training() -> None:
         full_ids = _template_ids(messages, False)
         if not _synth_first:
             _synth_first = True
-            print(
-                f"synth row 0 ({rec['category']}): prompt_ids={len(prompt_ids)}, "
-                f"full_ids={len(full_ids)}"
-            )
+            print(f"synth row 0 ({rec['category']}): prompt_ids={len(prompt_ids)}, full_ids={len(full_ids)}")
         if len(full_ids) <= len(prompt_ids):
             synth_skipped += 1
             continue
@@ -1722,8 +1652,7 @@ def run_training() -> None:
             }
         )
     assert len(synth_examples) >= MIN_SYNTH_EXAMPLES, (
-        f"only {len(synth_examples)} synthetic examples tokenised "
-        f"(skipped={synth_skipped})"
+        f"only {len(synth_examples)} synthetic examples tokenised (skipped={synth_skipped})"
     )
     if synth_examples:
         synth_every = max(1, len(examples) // len(synth_examples))
@@ -1791,14 +1720,10 @@ def run_training() -> None:
 
     for name, param in model.named_parameters():
         if ".lora_" in name:
-            assert param.dtype == torch.float32, (
-                f"LoRA param {name} expected fp32, got {param.dtype}"
-            )
+            assert param.dtype == torch.float32, f"LoRA param {name} expected fp32, got {param.dtype}"
             continue
 
-        is_router = (
-            ".mixer.gate." in name
-        )  # NemotronHTopkRouter.weight + e_score_correction_bias
+        is_router = ".mixer.gate." in name  # NemotronHTopkRouter.weight + e_score_correction_bias
         # Nemotron-H loads the MoE router (`mixer.gate`) in fp32 on purpose.
         # Ref: transformers/src/transformers/models/nemotron_h/modeling_nemotron_h.py
         #
@@ -1819,14 +1744,10 @@ def run_training() -> None:
         # The per-forward fp32 cast on `self.weight` plus the strict list entry
         # mean the gate weight is promoted to fp32 at load time.
         if is_router:
-            assert param.dtype == torch.float32, (
-                f"param {name} expected fp32, got {param.dtype}"
-            )
+            assert param.dtype == torch.float32, f"param {name} expected fp32, got {param.dtype}"
             continue
 
-        assert param.dtype == torch.bfloat16, (
-            f"param {name} expected bf16, got {param.dtype}"
-        )
+        assert param.dtype == torch.bfloat16, f"param {name} expected bf16, got {param.dtype}"
         continue
 
     print("Verified: LoRA params fp32, base params bf16 (MoE router fp32)")
@@ -1840,17 +1761,11 @@ def run_training() -> None:
     while hasattr(_base, "model"):
         _base = _base.model
 
-    def _patched_causal_forward(
-        input_ids=None, attention_mask=None, labels=None, **kwargs
-    ):
+    def _patched_causal_forward(input_ids=None, attention_mask=None, labels=None, **kwargs):
         backbone_out = _base.backbone(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k in ("position_ids", "past_key_values", "use_cache")
-            },
+            **{k: v for k, v in kwargs.items() if k in ("position_ids", "past_key_values", "use_cache")},
         )
         hidden_states = backbone_out[0]
         lm_head = _base.lm_head
@@ -1860,9 +1775,7 @@ def run_training() -> None:
         scaling = lm_head.scaling["default"]
         lm_weight = base_w + scaling * lora_B @ lora_A
         if labels is not None:
-            per_token_ce = linear_cross_entropy(
-                hidden_states, lm_weight, labels, reduction="none"
-            )
+            per_token_ce = linear_cross_entropy(hidden_states, lm_weight, labels, reduction="none")
             loss = per_token_ce.mean()
         else:
             per_token_ce = None
@@ -1876,13 +1789,10 @@ def run_training() -> None:
     # Fresh initialization is intentional; no adapter is loaded here.
     print("Fresh rank-32 LoRA initialization confirmed")
 
-    trainable_names = [
-        name for name, param in model.named_parameters() if param.requires_grad
-    ]
+    trainable_names = [name for name, param in model.named_parameters() if param.requires_grad]
     assert trainable_names, "No trainable LoRA parameters found"
     assert all(".lora_" in name for name in trainable_names), (
-        "Unexpected non-LoRA trainable tensors: "
-        f"{[name for name in trainable_names if '.lora_' not in name][:20]}"
+        f"Unexpected non-LoRA trainable tensors: {[name for name in trainable_names if '.lora_' not in name][:20]}"
     )
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     frozen_params = sum(p.numel() for p in model.parameters() if not p.requires_grad)
@@ -1955,9 +1865,7 @@ def run_training() -> None:
     device = next(model.parameters()).device
     optimizer: torch.optim.AdamW | None = None
 
-    assert examples, (
-        "No Huikang training examples loaded from the required token corpus."
-    )
+    assert examples, "No Huikang training examples loaded from the required token corpus."
     indices = list(range(len(examples)))
     if SHUFFLE_DATASET:
         rng = random.Random(0)
@@ -1983,8 +1891,7 @@ def run_training() -> None:
         num_steps = max_steps
 
     _log(
-        f"Training: {num_steps} steps, batch_size={BATCH_SIZE}, "
-        f"micro_batch_size={MICRO_BATCH_SIZE}, lr={LEARNING_RATE}"
+        f"Training: {num_steps} steps, batch_size={BATCH_SIZE}, micro_batch_size={MICRO_BATCH_SIZE}, lr={LEARNING_RATE}"
     )
 
     step = 0
@@ -2021,25 +1928,15 @@ def run_training() -> None:
             max_len = max(len(t) for t in mb_toks)
             total_len = sum(len(t) for t in mb_toks)
 
-            padded_input = torch.zeros(
-                n_micro, max_len, dtype=torch.long, device=device
-            )
-            padded_targets = torch.zeros(
-                n_micro, max_len, dtype=torch.long, device=device
-            )
-            padded_weights = torch.zeros(
-                n_micro, max_len, dtype=torch.float32, device=device
-            )
-            attention_mask = torch.zeros(
-                n_micro, max_len, dtype=torch.long, device=device
-            )
+            padded_input = torch.zeros(n_micro, max_len, dtype=torch.long, device=device)
+            padded_targets = torch.zeros(n_micro, max_len, dtype=torch.long, device=device)
+            padded_weights = torch.zeros(n_micro, max_len, dtype=torch.float32, device=device)
+            attention_mask = torch.zeros(n_micro, max_len, dtype=torch.long, device=device)
             for i in range(n_micro):
                 seq_len = len(mb_toks[i])
                 padded_input[i, :seq_len] = torch.tensor(mb_toks[i], dtype=torch.long)
                 padded_targets[i, :seq_len] = torch.tensor(mb_tgts[i], dtype=torch.long)
-                padded_weights[i, :seq_len] = torch.tensor(
-                    mb_wts[i], dtype=torch.float32
-                )
+                padded_weights[i, :seq_len] = torch.tensor(mb_wts[i], dtype=torch.float32)
                 attention_mask[i, :seq_len] = 1
 
             t0 = time.time()
@@ -2054,9 +1951,7 @@ def run_training() -> None:
                 weighted_loss = per_token_ce * padded_weights
                 weight_sum_t = padded_weights.sum()
                 loss_sum_t = weighted_loss.sum()
-                loss = (
-                    loss_sum_t / weight_sum_t if weight_sum_t > 0 else loss_sum_t * 0.0
-                )
+                loss = loss_sum_t / weight_sum_t if weight_sum_t > 0 else loss_sum_t * 0.0
                 assert torch.isfinite(loss), f"Non-finite loss at step {step}"
 
             (loss / n_accum).backward()
@@ -2099,14 +1994,9 @@ def run_training() -> None:
         optimizer.zero_grad()
         loss_mean = total_loss_sum / total_weight_sum if total_weight_sum > 0 else 0
         step += 1
-        _log(
-            f"  step {step}/{num_steps}: "
-            f"loss:mean={loss_mean:.6f}, grad_norm={grad_norm:.4f}, lr={lr:.2e}"
-        )
+        _log(f"  step {step}/{num_steps}: loss:mean={loss_mean:.6f}, grad_norm={grad_norm:.4f}, lr={lr:.2e}")
 
-    print(
-        f"\nTraining complete. Peak VRAM: {torch.cuda.max_memory_allocated() / 1e9:.1f} GB"
-    )
+    print(f"\nTraining complete. Peak VRAM: {torch.cuda.max_memory_allocated() / 1e9:.1f} GB")
 
     # -- Save adapter + rename lm_head keys (identical on both sides) --
     from safetensors.torch import load_file, save_file
@@ -2120,8 +2010,7 @@ def run_training() -> None:
     st_path = os.path.join(save_dir, "adapter_model.safetensors")
     tensors = load_file(st_path)
     renamed = {
-        k.replace("base_model.model.lm_head.", "base_model.model.backbone.lm_head."): v
-        for k, v in tensors.items()
+        k.replace("base_model.model.lm_head.", "base_model.model.backbone.lm_head."): v for k, v in tensors.items()
     }
     save_file(renamed, st_path)
 
@@ -2167,10 +2056,7 @@ def run_training() -> None:
         os.remove(os.path.join(save_dir, filename))
 
     print(f"Wrote {submission_zip}")
-    print(
-        "Submission validation OK: root files only, "
-        f"rank={LORA_RANK}, alpha={LORA_ALPHA}"
-    )
+    print(f"Submission validation OK: root files only, rank={LORA_RANK}, alpha={LORA_ALPHA}")
     print(f"submission.zip sha256={digest.hexdigest()}")
     print("Training complete.")
 

@@ -26,9 +26,7 @@ from _featurize import FEATURES, N_FEATURES, featurize  # noqa: E402
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Train Orbit Wars value model v0 (regressor)."
-    )
+    ap = argparse.ArgumentParser(description="Train Orbit Wars value model v0 (regressor).")
     ap.add_argument("--data-root", required=True)
     ap.add_argument("--out-root", required=True)
     ap.add_argument("--horizon", type=int, choices=(20, 50), default=50)
@@ -44,20 +42,10 @@ def main():
     torch.manual_seed(args.seed)
     key = f"future_value_delta_h{args.horizon}"
     alt = "future_value_delta_h20" if args.horizon == 50 else "future_value_delta_h50"
-    rows = [
-        json.loads(line)
-        for line in open(os.path.join(args.data_root, "candidates.jsonl"))
-        if line.strip()
-    ]
+    rows = [json.loads(line) for line in open(os.path.join(args.data_root, "candidates.jsonl")) if line.strip()]
     rows = [r for r in rows if r.get(key) is not None or r.get(alt) is not None]
     if len(rows) < 50:
-        print(
-            json.dumps(
-                {
-                    "blocker": f"too few labeled rows ({len(rows)}) for value target {key}"
-                }
-            )
-        )
+        print(json.dumps({"blocker": f"too few labeled rows ({len(rows)}) for value target {key}"}))
         return
     X = np.array([featurize(r) for r in rows], dtype=np.float32)
     y = np.array(

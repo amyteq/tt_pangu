@@ -53,9 +53,7 @@ def _parse(obs):
 class FlightOracle:
     """Stateless per-observation flight oracle (cheap to re-instantiate per turn)."""
 
-    def first_hit(
-        self, obs, source_planet_id, angle, ships, horizon=120
-    ) -> FlightResult:
+    def first_hit(self, obs, source_planet_id, angle, ships, horizon=120) -> FlightResult:
         planets, fleets, init_by_id, ang_vel, step, comet_ids, me = _parse(obs)
         by_id = {p[0]: p for p in planets}
         src = by_id.get(source_planet_id)
@@ -162,9 +160,7 @@ class FlightOracle:
             f"no body hit within horizon {horizon}",
         )
 
-    def validate_target(
-        self, obs, source_planet_id, target_id, ships, horizon=120
-    ) -> FlightResult:
+    def validate_target(self, obs, source_planet_id, target_id, ships, horizon=120) -> FlightResult:
         """Solve the intercept angle to `target_id`, trace it, and accept ONLY if the
         intended target is the first hit (no wrong-first-hit, no strict sun, no OOB)."""
         planets, fleets, init_by_id, ang_vel, step, comet_ids, me = _parse(obs)
@@ -184,9 +180,7 @@ class FlightOracle:
                 0.0,
                 "source or target planet not found",
             )
-        sol = G.solve_intercept(
-            src[2], src[3], target_id, int(ships), step, init_by_id, ang_vel
-        )
+        sol = G.solve_intercept(src[2], src[3], target_id, int(ships), step, init_by_id, ang_vel)
         if sol is None:
             return FlightResult(
                 False,
@@ -207,9 +201,8 @@ class FlightOracle:
         if res.first_hit_id == target_id:
             res.first_hit_type = "target"
             res.valid = True
-            res.reason = (
-                f"intended target {target_id} is first hit at eta {res.eta}"
-                + (" (near-sun warning)" if res.near_sun else "")
+            res.reason = f"intended target {target_id} is first hit at eta {res.eta}" + (
+                " (near-sun warning)" if res.near_sun else ""
             )
         else:
             res.valid = False

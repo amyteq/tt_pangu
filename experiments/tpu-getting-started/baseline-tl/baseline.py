@@ -78,14 +78,11 @@ def _resolve_kaggle_input_path() -> str | None:
     root = Path("/kaggle/input")
     if root.exists():
         try:
-            print(
-                f"[data-resolve] /kaggle/input contents: {sorted(p.name for p in root.iterdir())}"
-            )
+            print(f"[data-resolve] /kaggle/input contents: {sorted(p.name for p in root.iterdir())}")
             comp_root = root / "competitions"
             if comp_root.exists():
                 print(
-                    f"[data-resolve] /kaggle/input/competitions contents: "
-                    f"{sorted(p.name for p in comp_root.iterdir())}"
+                    f"[data-resolve] /kaggle/input/competitions contents: {sorted(p.name for p in comp_root.iterdir())}"
                 )
         except Exception as exc:
             print(f"[data-resolve] /kaggle/input listdir failed: {exc!r}")
@@ -98,9 +95,7 @@ def _resolve_local_slice() -> str | None:
     # When this notebook is executed locally from the repo root.
     for candidate in [
         Path.cwd() / "data" / COMPETITION / "local-slice",
-        Path("/home/harry/test/tt_pangu/.claude/worktrees/m10-petals-to-the-metal/data")
-        / COMPETITION
-        / "local-slice",
+        Path("/home/harry/test/tt_pangu/.claude/worktrees/m10-petals-to-the-metal/data") / COMPETITION / "local-slice",
     ]:
         if candidate.exists():
             return str(candidate)
@@ -133,10 +128,7 @@ for label, candidate in (
         print(f"[data-resolve] accepted {label} root={candidate}")
         break
     elif candidate:
-        print(
-            f"[data-resolve] rejected {label} root={candidate} — "
-            f"{_SUBDIR}/train not present"
-        )
+        print(f"[data-resolve] rejected {label} root={candidate} — {_SUBDIR}/train not present")
 
 if DATA_ROOT is None:
     local = _resolve_local_slice()
@@ -194,9 +186,7 @@ def _split_glob(split: str) -> str:
 def load_dataset(split: str, labeled: bool):
     files = tf.io.gfile.glob(_split_glob(split))
     if not files:
-        raise RuntimeError(
-            f"No TFRecords found for split={split} glob={_split_glob(split)}"
-        )
+        raise RuntimeError(f"No TFRecords found for split={split} glob={_split_glob(split)}")
     ds = tf.data.TFRecordDataset(files, num_parallel_reads=tf.data.AUTOTUNE)
     ds = ds.with_options(tf.data.Options())
     ds = ds.map(
@@ -406,9 +396,7 @@ if test_files:
             f.write(f"{i},{int(p)}\n")
     print(f"submission written to {out_path} (n={len(ids)})")
 else:
-    print(
-        "no test/ split available locally — skipping submission.csv (Kaggle kernel will produce it)"
-    )
+    print("no test/ split available locally — skipping submission.csv (Kaggle kernel will produce it)")
 
 # %% [markdown]
 # ## Done.

@@ -186,9 +186,7 @@ def _clear_ctftime_env(monkeypatch) -> None:
 def test_load_ctftime_credentials_from_home_env_file(tmp_path, monkeypatch) -> None:
     fake_env = tmp_path / ".env"
     fake_env.write_text(
-        f"# CTFtime platform account\n"
-        f"CTFTIME_USERNAME={_SENTINEL_USER}\n"
-        f'CTFTIME_PASSWORD="{_SENTINEL_TOKEN}"\n',
+        f'# CTFtime platform account\nCTFTIME_USERNAME={_SENTINEL_USER}\nCTFTIME_PASSWORD="{_SENTINEL_TOKEN}"\n',
         encoding="utf-8",
     )
     monkeypatch.setattr(ctf_mod, "_CTFTIME_ENV_PATH", fake_env)
@@ -480,9 +478,7 @@ def test_event_register_helper_idempotent_signature() -> None:
     # The helper should NOT accept any param that smells like a
     # credential value rather than a hint.
     for forbidden in ("password", "token", "username", "secret"):
-        assert forbidden not in params, (
-            f"register_event accepts {forbidden!r} — should be a path hint only"
-        )
+        assert forbidden not in params, f"register_event accepts {forbidden!r} — should be a path hint only"
 
 
 # ---------------------------------------------------------------------------
@@ -505,12 +501,6 @@ def test_read_flag_length_returns_int_only(tmp_path) -> None:
 
 def test_audit_grep_no_flag_or_credential_in_captured_output() -> None:
     blob = "\n".join(_CAPTURED_STDOUT + _CAPTURED_STDERR)
-    assert _SENTINEL_FLAG not in blob, (
-        "sentinel flag leaked into subprocess stdout/stderr"
-    )
-    assert _SENTINEL_TOKEN not in blob, (
-        "sentinel token leaked into subprocess stdout/stderr"
-    )
-    assert _SENTINEL_USER not in blob, (
-        "sentinel username leaked into subprocess stdout/stderr"
-    )
+    assert _SENTINEL_FLAG not in blob, "sentinel flag leaked into subprocess stdout/stderr"
+    assert _SENTINEL_TOKEN not in blob, "sentinel token leaked into subprocess stdout/stderr"
+    assert _SENTINEL_USER not in blob, "sentinel username leaked into subprocess stdout/stderr"

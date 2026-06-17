@@ -124,15 +124,9 @@ def _side_effect_ge(a: str, b: str) -> bool:
 def _bash_side_effect(command: str) -> str:
     """Classify the side-effect level of a bash command."""
     cmd = command.strip()
-    if any(
-        fnmatch.fnmatch(cmd, pat)
-        for pat in ["kca kaggle submit*", "kca kaggle push*", "kca kaggle upload*"]
-    ):
+    if any(fnmatch.fnmatch(cmd, pat) for pat in ["kca kaggle submit*", "kca kaggle push*", "kca kaggle upload*"]):
         return "SUBMISSION"
-    if any(
-        fnmatch.fnmatch(cmd, pat)
-        for pat in ["kca kaggle *", "kca run *", "python *", "pytest *"]
-    ):
+    if any(fnmatch.fnmatch(cmd, pat) for pat in ["kca kaggle *", "kca run *", "python *", "pytest *"]):
         return "LOCAL_WRITE"
     return "LOCAL_WRITE"
 
@@ -187,10 +181,7 @@ class ToolExecutor:
     def execute(self, tool_name: str, tool_input: dict) -> str:
         # Determine side effect and check approval gate.
         se = self._classify_side_effect(tool_name, tool_input)
-        if (
-            _side_effect_ge(se, self.policy.max_side_effect)
-            and se != self.policy.max_side_effect
-        ):
+        if _side_effect_ge(se, self.policy.max_side_effect) and se != self.policy.max_side_effect:
             raise ApprovalRequired(tool_name, tool_input, se)
 
         if tool_name == "read_file":
@@ -289,9 +280,7 @@ class ToolExecutor:
                 if not p.is_file():
                     continue
                 try:
-                    for i, line in enumerate(
-                        p.read_text(errors="replace").splitlines(), 1
-                    ):
+                    for i, line in enumerate(p.read_text(errors="replace").splitlines(), 1):
                         if pattern.lower() in line.lower():
                             results.append(
                                 {

@@ -96,10 +96,7 @@ def _recommend(rows: list[dict], decide_after: int) -> str:
     wins = sum(1 for r in twop if r["result"] == "win")
     bugs = sum(1 for r in rows if r.get("hard_bug") not in ("", "NO", "no"))
     trend = last - first
-    base = (
-        f"n={n} | μ {first:.0f}→{last:.0f} (Δ{trend:+.0f}) | "
-        f"2p {wins}W-{len(twop) - wins}L | hard-bugs {bugs}"
-    )
+    base = f"n={n} | μ {first:.0f}→{last:.0f} (Δ{trend:+.0f}) | 2p {wins}W-{len(twop) - wins}L | hard-bugs {bugs}"
     if bugs:
         return base + " | ⚠ HARD BUG present → REVIEW before keeping the slot"
     if last >= 1150 and trend > 0:
@@ -160,9 +157,7 @@ def main() -> None:
             replay = json.load(open(path))
             seat, profile = _our_seat_and_profile(replay, our_reward)
             rows = ea.analyze(path, {profile}) if profile != "?" else []
-            mine = next(
-                (r for r in rows if str(r.get("our_seat")) == str(seat)), None
-            ) or (rows[0] if rows else None)
+            mine = next((r for r in rows if str(r.get("our_seat")) == str(seat)), None) or (rows[0] if rows else None)
             if mine:
                 tag = mine.get("interesting", "")
                 sun = mine.get("sun_collision", "")

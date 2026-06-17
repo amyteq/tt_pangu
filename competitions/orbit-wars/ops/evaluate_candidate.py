@@ -53,12 +53,8 @@ def evaluate(agent: str, baseline: str, games: int, seed0: int, procs: int) -> d
 
     # 3. 4p robustness (hero vs 3x baseline field) — avg_rank, lower is better
     field = [baseline, baseline, baseline]
-    r4 = P.ffa(
-        agent, field, list(range(seed0, seed0 + max(10, games // 3))), procs=procs
-    )
-    r4b = P.ffa(
-        baseline, field, list(range(seed0, seed0 + max(10, games // 3))), procs=procs
-    )
+    r4 = P.ffa(agent, field, list(range(seed0, seed0 + max(10, games // 3))), procs=procs)
+    r4b = P.ffa(baseline, field, list(range(seed0, seed0 + max(10, games // 3))), procs=procs)
     gates["agent_avg_rank4"] = round(r4["avg_rank"], 2)
     gates["baseline_avg_rank4"] = round(r4b["avg_rank"], 2)
     gates["robust_4p"] = r4["avg_rank"] <= r4b["avg_rank"] + RANK4_TOL
@@ -66,12 +62,7 @@ def evaluate(agent: str, baseline: str, games: int, seed0: int, procs: int) -> d
     # crash safety: P.h2h would have raised; reaching here over all games = ok
     gates["crash_safe"] = True
 
-    submit_ready = (
-        gates["crash_safe"]
-        and gates["weak_no_regress"]
-        and gates["beats_baseline"]
-        and gates["robust_4p"]
-    )
+    submit_ready = gates["crash_safe"] and gates["weak_no_regress"] and gates["beats_baseline"] and gates["robust_4p"]
     return {
         "agent": os.path.relpath(agent, COMP),
         "baseline": os.path.relpath(baseline, COMP),

@@ -84,9 +84,7 @@ def _fetch_cv_accuracy(cur, external_run_id: str) -> float | None:
     if row is None:
         return None
     cv = row[0]
-    assert cv is not None, (
-        f"experiment_runs[{external_run_id!r}].metrics->'cv_accuracy'->>'value' is NULL"
-    )
+    assert cv is not None, f"experiment_runs[{external_run_id!r}].metrics->'cv_accuracy'->>'value' is NULL"
     return float(cv)
 
 
@@ -172,10 +170,7 @@ def test_hgb_beats_lr_on_cv(m9_metrics):
 def test_m9_t004_public_score_recorded(m9_metrics):
     score = m9_metrics["public_score"]
     assert score is not None, (
-        f"submissions row for external_submission_id="
-        f"{M9_T004_EXTERNAL_SUBMISSION_ID!r} has NULL public_score"
+        f"submissions row for external_submission_id={M9_T004_EXTERNAL_SUBMISSION_ID!r} has NULL public_score"
     )
     # Sanity: a Kaggle accuracy LB score sits in (0, 1].
-    assert 0.0 < float(score) <= 1.0, (
-        f"public_score={score!r} outside plausible range (0, 1]"
-    )
+    assert 0.0 < float(score) <= 1.0, f"public_score={score!r} outside plausible range (0, 1]"

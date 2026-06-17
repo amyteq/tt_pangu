@@ -1,5 +1,7 @@
 """Find v1's losses vs starter and trace the failure mode."""
-import logging, os, sys
+
+import logging, os
+
 logging.disable(logging.INFO)
 from kaggle_environments import make
 
@@ -45,18 +47,20 @@ def main():
     for g in range(games):
         seed = 1000 + g
         # ordering 1: v1 = player 0
-        env = make("orbit_wars", configuration={"seed": seed}); env.run([MAIN, "starter"])
+        env = make("orbit_wars", configuration={"seed": seed})
+        env.run([MAIN, "starter"])
         r = [s["reward"] for s in env.steps[-1]]
         if r[0] < r[1]:
             losses.append((seed, 0, [MAIN, "starter"]))
         # ordering 2: v1 = player 1
-        env = make("orbit_wars", configuration={"seed": seed}); env.run(["starter", MAIN])
+        env = make("orbit_wars", configuration={"seed": seed})
+        env.run(["starter", MAIN])
         r = [s["reward"] for s in env.steps[-1]]
         if r[1] < r[0]:
             losses.append((seed, 1, ["starter", MAIN]))
-    print(f"Found {len(losses)} v1 losses vs starter (P{[(s,seat) for s,seat,_ in losses]})\n")
+    print(f"Found {len(losses)} v1 losses vs starter (P{[(s, seat) for s, seat, _ in losses]})\n")
     for seed, seat, agents in losses:
-        print(f"=== LOSS: seed={seed}, v1 is player {seat}, order={['v1' if a==MAIN else a for a in agents]}")
+        print(f"=== LOSS: seed={seed}, v1 is player {seat}, order={['v1' if a == MAIN else a for a in agents]}")
         trace(agents, seed, seat)
         print()
 

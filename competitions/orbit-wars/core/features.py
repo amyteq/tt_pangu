@@ -98,9 +98,7 @@ def feature_vector(cf: dict, ship_bucket=None) -> list[float]:
     ]
 
 
-def candidate_features(
-    state, candidate, obs, oracle: FlightOracle | None = None
-) -> dict:
+def candidate_features(state, candidate, obs, oracle: FlightOracle | None = None) -> dict:
     oracle = oracle or FlightOracle()
     src = state.planets.get(candidate["source"])
     tgt = state.planets.get(candidate["target"])
@@ -135,9 +133,7 @@ def candidate_features(
                 "tgt_centrality": tgt.centrality,
                 "tgt_is_comet": int(tgt.is_comet),
                 "tgt_reinforcement_need": tgt.reinforcement_need,
-                "tgt_threat_window": tgt.threat_window
-                if tgt.threat_window is not None
-                else -1,
+                "tgt_threat_window": tgt.threat_window if tgt.threat_window is not None else -1,
             }
         )
     # FlightOracle path verdict for this exact launch
@@ -146,13 +142,9 @@ def candidate_features(
         {
             "path_valid": int(res.valid),
             "path_first_hit_type": res.first_hit_type,
-            "path_first_hit_id": res.first_hit_id
-            if res.first_hit_id is not None
-            else -1,
+            "path_first_hit_id": res.first_hit_id if res.first_hit_id is not None else -1,
             "path_eta": res.eta if res.eta is not None else -1,
-            "path_min_sun_distance": res.min_sun_distance
-            if res.min_sun_distance is not None
-            else -1.0,
+            "path_min_sun_distance": res.min_sun_distance if res.min_sun_distance is not None else -1.0,
             "path_near_sun": int(res.near_sun),
         }
     )

@@ -129,9 +129,7 @@ def budget_remaining(b: dict, account: str) -> tuple[bool, str]:
     return True, "within budget"
 
 
-def allocate_account(
-    slots: dict, candidate_account: str | None
-) -> tuple[str | None, str]:
+def allocate_account(slots: dict, candidate_account: str | None) -> tuple[str | None, str]:
     """Pick the account for a real submit per the smart-allocation principles.
     slots = {account: build_slots(...)}. Returns (account|None, reason)."""
     if candidate_account in ("harry", "may"):
@@ -141,23 +139,15 @@ def allocate_account(
     for acct, s in slots.items():
         if s.get("error"):
             continue
-        weakest = (
-            min((sl["public_lb_mu"] or 1e9) for sl in s["latest2"])
-            if s["latest2"]
-            else 1e9
-        )
+        weakest = min((sl["public_lb_mu"] or 1e9) for sl in s["latest2"]) if s["latest2"] else 1e9
         ranked.append((weakest, acct))
     if not ranked:
         return None, "no readable account slots"
     ranked.sort()
-    return ranked[0][
-        1
-    ], f"auto: lowest-opportunity-cost slot (weakest μ={ranked[0][0]:.1f})"
+    return ranked[0][1], f"auto: lowest-opportunity-cost slot (weakest μ={ranked[0][0]:.1f})"
 
 
-def build_plan(
-    candidate: str | None, verdict: dict | None, account_arg: str, slots: dict
-) -> dict:
+def build_plan(candidate: str | None, verdict: dict | None, account_arg: str, slots: dict) -> dict:
     """Construct the replacement plan dict. No side effects."""
     b = load_budget()
     plan = {
@@ -178,9 +168,7 @@ def build_plan(
         )
         return plan
     if not verdict.get("submit_ready"):
-        plan["reasons"].append(
-            f"candidate failed validation gates: {verdict.get('gates')}"
-        )
+        plan["reasons"].append(f"candidate failed validation gates: {verdict.get('gates')}")
         return plan
     acct, why = allocate_account(slots, None if account_arg == "auto" else account_arg)
     plan["account"] = acct
@@ -210,8 +198,7 @@ def build_plan(
         f"slot '{evicted}'; budget + compliance OK."
     )
     plan["command"] = (
-        f"python submit.py --file {candidate} --account {acct} "
-        f"--authorized-by-task {TASK_ID} --msg '<auto>'"
+        f"python submit.py --file {candidate} --account {acct} --authorized-by-task {TASK_ID} --msg '<auto>'"
     )
     return plan
 
@@ -232,12 +219,7 @@ def write_plan_md(plan: dict) -> None:
     lines.append("")
     lines.append("### Active latest-2 slots (read-only Kaggle)")
     for acct, sl in plan["slots"].items():
-        cells = (
-            ", ".join(
-                f"{s['slot_order']}=`{s['file']}`(μ{s['public_lb_mu']})" for s in sl
-            )
-            or "(none read)"
-        )
+        cells = ", ".join(f"{s['slot_order']}=`{s['file']}`(μ{s['public_lb_mu']})" for s in sl) or "(none read)"
         lines.append(f"- **{acct}**: {cells}")
     if plan["decision"] == "SUBMIT":
         lines += [
@@ -259,10 +241,7 @@ def audit(entry: str) -> None:
     new = not os.path.isfile(AUDIT_MD)
     with open(AUDIT_MD, "a") as f:
         if new:
-            f.write(
-                f"# Orbit Wars — push/submit audit ({TASK_ID})\n\n"
-                "> Append-only. Secrets never recorded.\n\n"
-            )
+            f.write(f"# Orbit Wars — push/submit audit ({TASK_ID})\n\n> Append-only. Secrets never recorded.\n\n")
         f.write(f"- {_now().strftime('%Y-%m-%d %H:%M UTC')} — {entry}\n")
 
 
@@ -300,9 +279,7 @@ def do_submit(plan: dict, msg: str, dry_run: bool) -> int:
     prev_last = b["last_submit_iso"].get(acct)
     b["last_submit_iso"][acct] = _now().isoformat()
     save_budget(b)
-    audit(
-        f"RESERVED submit slot: {cand} -> {acct} (submits_total={b['submits_total']})"
-    )
+    audit(f"RESERVED submit slot: {cand} -> {acct} (submits_total={b['submits_total']})")
 
     print("running:", " ".join(cmd))
     proc = subprocess.run(cmd, cwd=COMP)
@@ -319,9 +296,7 @@ def do_submit(plan: dict, msg: str, dry_run: bool) -> int:
         else:
             b["last_submit_iso"][acct] = prev_last
         save_budget(b)
-        audit(
-            f"submit FAILED rc={proc.returncode}: {cand} -> {acct}; budget reservation rolled back"
-        )
+        audit(f"submit FAILED rc={proc.returncode}: {cand} -> {acct}; budget reservation rolled back")
     return proc.returncode
 
 

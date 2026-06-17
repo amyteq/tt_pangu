@@ -24,9 +24,7 @@ def fleet_speed(ships):
     """speed = 1 + 5*(ln n/ln 1000)^1.5, capped at 6 (bigger fleets fly FASTER)."""
     if ships <= 1:
         return 1.0
-    return min(
-        MAX_SPEED, 1.0 + (MAX_SPEED - 1.0) * (math.log(ships) / math.log(1000.0)) ** 1.5
-    )
+    return min(MAX_SPEED, 1.0 + (MAX_SPEED - 1.0) * (math.log(ships) / math.log(1000.0)) ** 1.5)
 
 
 def planet_pos(init_x, init_y, radius, ang_vel, step):
@@ -170,17 +168,9 @@ def project(planets, fleets, ang_vel, init_by_id, step0, H, comet_ids=()):
         for p in planets
         if p[0] not in comet_ids
     }
-    init = {
-        pid: (init_by_id[pid][2], init_by_id[pid][3]) for pid in pl if pid in init_by_id
-    }
-    fl = [
-        {"owner": f[1], "x": f[2], "y": f[3], "ang": f[4], "ships": float(f[6])}
-        for f in fleets
-        if f[6] > 0
-    ]
-    traj = {
-        pid: {"owner": [pl[pid]["owner"]], "ships": [pl[pid]["ships"]]} for pid in pl
-    }
+    init = {pid: (init_by_id[pid][2], init_by_id[pid][3]) for pid in pl if pid in init_by_id}
+    fl = [{"owner": f[1], "x": f[2], "y": f[3], "ang": f[4], "ships": float(f[6])} for f in fleets if f[6] > 0]
+    traj = {pid: {"owner": [pl[pid]["owner"]], "ships": [pl[pid]["ships"]]} for pid in pl}
     arrivals = {pid: [] for pid in pl}
     for k in range(1, H + 1):
         step = step0 + k
@@ -217,9 +207,7 @@ def project(planets, fleets, ang_vel, init_by_id, step0, H, comet_ids=()):
             p["x"], p["y"] = new_pos[pid]
         for pid, arr in combat.items():
             if arr:
-                pl[pid]["owner"], pl[pid]["ships"] = resolve_combat(
-                    pl[pid]["owner"], pl[pid]["ships"], arr
-                )
+                pl[pid]["owner"], pl[pid]["ships"] = resolve_combat(pl[pid]["owner"], pl[pid]["ships"], arr)
                 for o, s in arr:
                     arrivals[pid].append((k, o, s))
         for pid, p in pl.items():

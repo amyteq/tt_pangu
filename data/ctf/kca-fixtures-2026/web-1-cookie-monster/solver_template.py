@@ -96,9 +96,7 @@ def solve() -> str:
         client.cookies.set("session", tampered)
         r2 = client.get("/admin")
         if r2.status_code != 200:
-            raise RuntimeError(
-                f"unexpected /admin status: {r2.status_code} body={r2.text[:64]!r}"
-            )
+            raise RuntimeError(f"unexpected /admin status: {r2.status_code} body={r2.text[:64]!r}")
         # The app returns "<pre>FLAG: kca{...}</pre>".
         m = re.search(r"FLAG:\s*(\S+?)\s*</pre>", r2.text)
         if not m:

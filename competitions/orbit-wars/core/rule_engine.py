@@ -45,8 +45,7 @@ def TARGET_HOLDABLE(state, feat):
 def MY_CORE_UNDER_THREAT(state, feat=None):
     me = state.glob.my_id
     return any(
-        p.owner == me and p.threat_window is not None and p.strategic_value_1_100 >= 50
-        for p in state.planets.values()
+        p.owner == me and p.threat_window is not None and p.strategic_value_1_100 >= 50 for p in state.planets.values()
     )
 
 
@@ -56,11 +55,7 @@ def I_AM_4P_LEADER(state, feat=None):
 
 def I_AM_4P_UNDERDOG(state, feat=None):
     me = state.glob.my_id
-    return (
-        state.glob.player_count >= 4
-        and state.players.get(me) is not None
-        and state.players[me].rank_by_score >= 3
-    )
+    return state.glob.player_count >= 4 and state.players.get(me) is not None and state.players[me].rank_by_score >= 3
 
 
 def ENEMY_FIELD_ARMY_COMMITTED(state, feat=None):
@@ -114,9 +109,7 @@ class RuleEngine:
         if TARGET_ROI_POSITIVE(state, feat):
             w *= 1.1
             reasons.append("positive ROI -> +10%")
-        if MY_CORE_UNDER_THREAT(state) and not (
-            feat.get("tgt_owner") == state.glob.my_id
-        ):
+        if MY_CORE_UNDER_THREAT(state) and not (feat.get("tgt_owner") == state.glob.my_id):
             w *= 0.7
             reasons.append("core under threat, non-defensive launch -> -30%")
         if I_AM_4P_LEADER(state):
