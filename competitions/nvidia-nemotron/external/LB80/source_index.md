@@ -13,8 +13,8 @@
 |---|---|---|---|---|---|
 | 0 | **writeup PDF (primary)** | `temp/LB80.pdf` (local render of the writeup page) | **full 15-section body — read directly** | **YES** | 544 KB |
 | 0 | Kaggle writeup | https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/writeups/breaking-the-sft-ceiling-on-nemotron-3-nano-30b | LB80 writeup (= the PDF) | NO (JS body) | n/a |
-| 1 | Kaggle notebook | https://www.kaggle.com/code/mspawar/breaking-the-sft-ceiling-on-nemotron-3-nano-30b | companion notebook (author's, linked) | NO (JS) | unknown |
-| 1 | Kaggle dataset | https://www.kaggle.com/datasets/mspawar/nemotron-cot-training-data-v2v12v13 | author's training data (V2/V12/V13) | NO (Kaggle) | unknown |
+| 1 | Kaggle notebook | https://www.kaggle.com/code/mspawar/breaking-the-sft-ceiling-on-nemotron-3-nano-30b | companion notebook; **followed 2026-06-17 → NO_CONTENT** (JS body, title only) | NO (JS) | unknown |
+| 1 | Kaggle dataset | https://www.kaggle.com/datasets/mspawar/nemotron-cot-training-data-v2v12v13 | author's training data (V2/V12/V13); **followed → NO_CONTENT** | NO (Kaggle) | unknown |
 | 1 | GitHub repo | https://github.com/tonghuikang/nemotron | deterministic-solver methodology the 0.86 V2 baseline builds on | **YES** | small |
 | 1 | arXiv | https://arxiv.org/abs/2512.20848 | NVIDIA Nemotron-3-Nano report (cited for the SFT→GRPO→DPO→RLHF recipe) | **YES** | PDF |
 | 2 | GitHub repo | https://github.com/NVIDIA-NeMo/RL | NeMo-RL toolkit (GRPO/DPO context) | **YES** | large code |
@@ -24,14 +24,37 @@
 Link-budget honored: 4 depth-1 (≤10), 2 depth-2 (≤20), 1 depth-3 (≤20). (Most resources cited in the writeup
 are the author's own private Kaggle notebooks/datasets — JS/auth-gated; the PDF body is the primary source.)
 
-## Downloaded resources
-**None vendored.** `temp/LB80.pdf` (544 KB, user-supplied) is the primary source — referenced, not re-hosted
-in-repo (avoid redistributing a competitor's page). No public `.ipynb` reachable without Kaggle auth (companion
-notebook is JS-gated; the author's datasets are Kaggle-hosted). All resources **linked + described** here.
+## Saved resources
+- **`writeup/LB80-writeup-verbatim.md`** — a faithful markdown conversion of `temp/LB80.pdf` (full 39-page /
+  15-section body via `pdftotext -layout`; repeated page header/footer + `content_copy` artifacts removed,
+  page margin dedented; content + the inline URLs reproduced verbatim, incl. the source writeup link, the
+  companion notebook `code/mspawar/breaking-the-sft-ceiling-on-nemotron-3-nano-30b`, and the dataset
+  `datasets/mspawar/nemotron-cot-training-data-v2v12v13`).
+- **`writeup/images/lb80-000.png` (240×240 comp banner), `lb80-001.png` (120×120 icon)** — the only raster
+  images embedded in the PDF (`pdfimages`). The in-page figures (training-pipeline flowcharts, train_loss /
+  grad-norm / ORPO-rewards plots, BPE example) are **vector-rendered → not raster-extractable**; described
+  inline in `LB80-progress-prize-improvements.md`.
 
-## Notebook conversions
-N/A — no `.ipynb` available to convert (companion notebook JS/auth-gated). Kaggle CLI (`kaggle kernels pull`)
-**not used** (forbidden: reads `kaggle.json`).
+## Link-following + notebook download (2026-06-17)
+Per `wiki/24.LB80_task.md` (follow links ≥3 levels deep + download the author's notebook when available):
+- **Companion notebook** `code/mspawar/breaking-the-sft-ceiling-on-nemotron-3-nano-30b` — **fetched → NO_CONTENT**
+  (JavaScript-rendered; only the title without a Kaggle login). **Could not be downloaded credential-free.**
+- **Dataset** `datasets/mspawar/nemotron-cot-training-data-v2v12v13` — **fetched → NO_CONTENT** (JS; likely
+  >20 MB regardless → would be metadata-only).
+- Depth-2/3 fetchable substrate (`tonghuikang/nemotron`, `NVIDIA-NeMo/RL`, arXiv) is in the source tree above.
+- **Notebook download is blocked under this task's secret policy** (downloading a Kaggle kernel needs the
+  `kaggle` CLI, which reads `kaggle.json`; the task forbids that). Exact command for a human to run if the
+  no-`kaggle.json` constraint is lifted:
+  ```
+  kaggle kernels pull mspawar/breaking-the-sft-ceiling-on-nemotron-3-nano-30b -p competitions/nvidia-nemotron/external/LB80/writeup/notebook
+  python tools/kca/kca.py nb to-py competitions/nvidia-nemotron/external/LB80/writeup/notebook/*.ipynb   # then add the attribution header
+  ```
+
+## Blockers / unknowns (writeup body RESOLVED)
+- **Writeup body, the 0.86 score, the 30+-experiment table, the equation structure, discovery-leakage finding,
+  DPO design, Mamba-merge-fails claim, and the selection-hedge story are all CONFIRMED** from `temp/LB80.pdf`.
+- Still `unknown`: the companion notebook's code + dataset contents (JS/auth-gated; download needs `kaggle.json`,
+  forbidden here); whether the "Model Soup fails on Mamba-2" claim generalizes to our LoRA-delta SVD soup.
 
 ## Blockers / unknowns (writeup body RESOLVED)
 - **Writeup body, the 0.86 score, the 30+-experiment table, the equation structure, discovery-leakage finding,
