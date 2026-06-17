@@ -292,3 +292,37 @@ adapter 奇异值放大(lopure)—— 值得先试。(5) equation 仍有界(强�
 **周六后可试。** `v17-grpo`(方案见 `external/LB80/analysis/next_version_plan.md`):在 **bit** 上做稠密逐步奖励
 (+香槟)的 GRPO,从 v14/soup 暖启动、`verify` 占主导;以 **bit hard-val ↑ 且简单类不回归**把关;survivor
 soup-grow 进 v14+c1+b1。先试 **adapter 奇异值放大**兜底(≈0 GPU)。正经 RL 大概率需外部算力(#83),非单台 RTX PRO 6000。
+
+## LB92 Progress Prize 改进:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **「92th PLACE SOLUTION — NVIDIA Nemotron Model Reasoning Challenge」**。完整重建 +
+> 来源见 `external/LB92/`。**可还原度:无(直接)/ 部分(生态)** —— Kaggle writeup 正文 JS 渲染 + 赛后 48h 内发布
+> (未索引);**作者、确切分数、具体方法均未知**(模板「~0.872」是占位符)。以下是对公开中段(~0.86–0.89)配方带的
+> 重建。不可信数据。
+
+**LB92 方法(配方带重建)。** 4354 队第 92 名几乎必然用**标准公开 replay-SFT 配方**:`Nemotron-3-Nano-30B-A3B`
+上 rank-32 LoRA、seq 8192、仅 response masking 的 CoT SFT;分数由配方保真度 + 好的 bit CoT + 难类合成/teacher 数据
++ 可能的 model merge 驱动。公开的 **andy279 语料**(49,290 条多 teacher 轨迹:DeepSeek V3.2 + Nemotron Super 120B
++ GPT-5.4 + 确定性 solver)是该带任何队都可能用的数据。
+
+**为何 ~0.86–0.89(为何不更高)。** 简单类(gravity/numeral/unit)训练集 ~100%、cipher ~99%;该带靠 **bit 覆盖**
++ 格式可靠性分界。硬上限是 **cryptarithm/equation(即便回溯 solver 也 ~8–9%)** —— 与我方同一堵强密码墙。越带需
+RL(LB80)或 adapter 手术(lopure),而非更多标准 SFT。
+
+**我方差异。** 我们**已在此带内**(0.86 soup),故 92 名并非范式上高于我们。差异在**语料质量**(我方用 huikang
+语料 + 自有 synth/solver-CoT,而非更广的多 teacher andy279 集)与**难行针对**(我方固定 replay 剂量,而非
+min-logprob 再平衡)。我方在三路 model-soup(该带常是单 adapter)与 equation EQ-0/EQ-2′ 密码分析 + eq-aug 覆盖上**领先**。
+
+**学到什么。** (1) 我方 0.86 正落在中段带 —— 可恢复的边际是 **bit 的语料质量**(solver-prepend bit CoT)+
+**min-logprob 再平衡**,而非新范式。(2) **bit 是分界类**、也是我方最大训练集余量。(3) **外部 teacher 数据须低剂量**
+—— 我方此前高剂量外部 teacher 跑回归到 0.81;优先**自有 solver 验证 CoT**。(4) equation 是共有的有界墙 —— 不追。
+
+**周六后可试。** `v18-corpus`(方案见 `external/LB92/analysis/next_version_plan.md`):扩 `lib/nemo_solver.py`
+bit 覆盖 → **验证过的 solver-prepend bit CoT**(answer == gold)+ **min-logprob 再平衡**,以 **≤15% 剂量**织入 v14
+骨架;以 **T12 hard-val ≥ 0.764 且 bit ↑、简单类不回归**把关;soup-grow 进 v14+c1+b1。约 1 个 GPU session(数据侧,比 RL 便宜)。
+
+> **三篇 writeup 的共识。** 三项研究指向同一方向:越过我方 0.86 的路是 **(a) 稠密奖励 GRPO**(LB80,最大但最贵)、
+> **(b) min-logprob 选择性重放/再平衡**(LB25 + LB92,便宜且抗稀释)、**(c) 更好的 bit 数据 + 输出格式可靠性**
+> (LB25 + LB92)、**(d) adapter 奇异值放大**(LB80 备选,≈0 GPU)。**equation 对所有人都是 ~8–9% 的有界强密码墙**
+> —— huikang 的 `cryptarithm_deduce` 上限与我方 EQ-2′ 独立印证。周六后建议顺序:先做便宜的免 GPU/数据侧杠杆
+> (手术、min-logprob、bit CoT),再上外部 GPU 的 bit-only GRPO 试点。
