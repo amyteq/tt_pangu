@@ -51,19 +51,27 @@ def _player_score_at(replay, t, seat, horizon=20):
 
 
 def build(
-    replay_root, out_root, use_oracle=True, stride=10, horizon=40, max_per_step=40
+    replay_root, out_root, use_oracle=True, stride=10, horizon=40, max_per_step=40, shard=None
 ):
+    """shard = (i, n): process only replays whose index %% n == i, writing candidates.shard{i}.jsonl
+    (lets N processes build disjoint slices in parallel; concat the shards afterwards)."""
     os.makedirs(out_root, exist_ok=True)
-    out = os.path.join(out_root, "candidates.jsonl")
+    if shard is not None:
+        out = os.path.join(out_root, f"candidates.shard{shard[0]}.jsonl")
+    else:
+        out = os.path.join(out_root, "candidates.jsonl")
     orc = FlightOracle()
     n = 0
     with open(out, "w") as fout:
-        for path, replay in iter_replays(replay_root):
+        for ridx, (path, replay) in enumerate(iter_replays(replay_root)):
+            if shard is not None and ridx % shard[1] != shard[0]:
+                continue
             meta = parse_meta(path, replay)
             if meta.get("malformed"):
                 continue
             ns = meta["num_steps"]
             rewards = meta["rewards"] or []
+            winner_seat = meta.get("winner_seat")
             for t in range(0, ns, stride):
                 board = board_at(replay, t, seat=0)
                 if board is None:
@@ -132,6 +140,7 @@ def build(
                                 "oracle_first_hit_id": feat.get("path_first_hit_id"),
                                 "min_sun_distance": feat.get("path_min_sun_distance"),
                                 "candidate_features_json": feat,
+                                "seat_is_winner": int(winner_seat == seat),
                                 "teacher_selected": int(sel is not None),
                                 "teacher_ship_fraction": (
                                     round(sel / (src.ships + 1e-9), 3)
@@ -170,7 +179,14 @@ def main():
     ap.add_argument("--step-stride", type=int, default=10)
     ap.add_argument("--horizon", type=int, default=40)
     ap.add_argument("--max-per-step", type=int, default=40)
+    ap.add_argument(
+        "--shard", default=None, help="i/n: process only replays with index %% n == i (parallel build)"
+    )
     args = ap.parse_args()
+    shard = None
+    if args.shard:
+        i, n = (int(x) for x in args.shard.split("/"))
+        shard = (i, n)
     build(
         args.replay_root,
         args.out_root,
@@ -178,6 +194,7 @@ def main():
         args.step_stride,
         args.horizon,
         args.max_per_step,
+        shard,
     )
 
 
