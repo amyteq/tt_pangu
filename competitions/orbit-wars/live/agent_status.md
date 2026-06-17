@@ -4,19 +4,19 @@
 > evidence reclassifies them. μ values are this-session ListEpisodes (read-only); a **fresh** refresh
 > is pending an API rate-limit (HTTP 429) cooldown — see account_status.md.
 
-**Updated after the 2026-06-17 ladder-probe submit (×2).** Scored latest-2 per account now:
+**Updated after the 2026-06-17 ROTATION-FIX submit (×2).** Scored latest-2 per account now:
 
 | account | slot | file | submissionId | public μ | status |
 |---|---|---|---|---:|---|
-| harry | latest1 | `hybrid_v0_submission.tar.gz` | **53767016** | tbd (awaiting eps) | **neutral — probe** |
-| harry | latest2 | `v4_scheduler.tar.gz` (v4) | 53730511 | ~700 (peak 843) | weak |
-| may | latest1 | `hybrid_v0_submission.tar.gz` | **53767026** | tbd (awaiting eps) | **neutral — probe** |
-| may | latest2 | `v3_forecast.py` | 53730517 | ~678 | weak |
+| harry | latest1 | `v3_2_rotfix_submission.tar.gz` | **53769740** | tbd (awaiting eps) | **neutral — B11 fix (45% vs evogen)** |
+| harry | latest2 | `hybrid_v0_submission.tar.gz` (buggy) | 53767016 | tbd | probe — superseded by 53769740 |
+| may | latest1 | `v3_2_rotfix_submission.tar.gz` | **53769744** | tbd (awaiting eps) | **neutral — B11 fix** |
+| may | latest2 | `hybrid_v0_submission.tar.gz` (buggy) | 53767026 | tbd | probe — superseded by 53769744 |
 
-Evicted from scored latest-2 (2026-06-17, replaceable <1200): harry kuni05 `53582503` (~1077),
-may coarr `53582925` (~644). kuni05 re-lockable by re-submitting its tarball if the probe underperforms.
-
-Prior cycle slots (pre-probe, for reference): harry [kuni05 ~1077, v4 ~700]; may [coarr ~644, v3 ~678].
+The **rotation-fix (53769740/53769744)** is the candidate to watch — fixes the planet-phase off-by-one
+(B11) behind the fleet-into-sun report; validated 13.8%→45% vs evogen (+31pt). The buggy hybrid_v0
+probes are now latest-2 (still scored until the next submit evicts them). Earlier evicted: v4
+(53730511), v3 (53730517), kuni05 (53582503), coarr (53582925) — all <1200, replaceable.
 
 - **episodes analyzed this cycle:** 60 cached real-ladder replays (execution-safety audit), incl. v4's
   tracked games; **new ladder episodes:** not fetched (API 429 — recorded blocker).

@@ -5,6 +5,8 @@
 
 | submissionId | version | account | profile (TeamNames) | μ0 | notes |
 |---|---|---|---|---|---|
+| **53769740** | **v3.2 rotation-fix** (`v3_2_rotfix_submission.tar.gz`) | harrysun2006 | flyingfox | — | **2026-06-17 B11 fix** (planet-phase off-by-one; fixes fleet-into-sun). Validated +31pt vs evogen (13.8→45%). latest-1; replaces hybrid_v0 buggy probe. **Track:** `track_submission.py --once --submission-id 53769740` |
+| **53769744** | **v3.2 rotation-fix** (`v3_2_rotfix_submission.tar.gz`) | firefly2006 | _tbd_ | — | **2026-06-17 B11 fix** (may lane). same tarball. latest-1. **Track:** `track_submission.py --once --submission-id 53769744` |
 | **53767016** | **hybrid_v0** (`hybrid_v0_submission.tar.gz`) | harrysun2006 | flyingfox | — | **2026-06-17 ladder-probe** (OW-LADDER-LOOP-001). v3.2 + model candidate re-ranker (OW_HYBRID baked). latest-1; evicts kuni05 from scored latest-2. neutral, awaiting episodes. **Track:** `track_submission.py --once --submission-id 53767016` |
 | **53767026** | **hybrid_v0** (`hybrid_v0_submission.tar.gz`) | firefly2006 | _tbd_ | — | **2026-06-17 ladder-probe** (may lane). same tarball. latest-1; evicts coarr from scored latest-2. neutral, awaiting episodes. **Track:** `track_submission.py --once --submission-id 53767026` |
 | 53582503 | adapted-kuni05 (`submission_kuni.tar.gz`) | harrysun2006 | **flyingfox** | — | μ~1080; 229 eps; **evicted from scored latest-2 by 53767016** (2026-06-17, replaceable <1200) — re-lockable by re-submitting the tarball if the probe underperforms |
