@@ -316,10 +316,7 @@ def _run_reviewer_gate_fires() -> tuple[CaseResult, list[str], list[str], list[s
             raise RuntimeError("failed to insert stub agent_jobs row")
         job_ids.append(job_id)
 
-        prompt = (
-            "M13-T004 reviewer_gate_fires stub: approve kernel_push for "
-            "tpu-getting-started?"
-        )
+        prompt = "M13-T004 reviewer_gate_fires stub: approve kernel_push for tpu-getting-started?"
         decision_id = db_mod.insert_approval_request(
             decision_type="kernel_push",
             prompt=prompt,
@@ -347,8 +344,7 @@ def _run_reviewer_gate_fires() -> tuple[CaseResult, list[str], list[str], list[s
         with db_mod.get_conn() as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT id::text AS id, target_op FROM agent_reviews "
-                    "WHERE id = %s::uuid",
+                    "SELECT id::text AS id, target_op FROM agent_reviews WHERE id = %s::uuid",
                     (review_id,),
                 )
                 fetched_rev = cur.fetchone()
@@ -356,11 +352,7 @@ def _run_reviewer_gate_fires() -> tuple[CaseResult, list[str], list[str], list[s
         decision_target = (fetched_dec or {}).get("decision_type") or ""
         review_target = (fetched_rev or {}).get("target_op") or ""
         rows_created = (1 if fetched_dec else 0) + (1 if fetched_rev else 0)
-        gates_fired = (
-            1
-            if (decision_target == "kernel_push" and review_target == "kernel_push")
-            else 0
-        )
+        gates_fired = 1 if (decision_target == "kernel_push" and review_target == "kernel_push") else 0
         latency_ms = int((time.perf_counter() - t0) * 1000)
         status = "pass" if (gates_fired == 1 and rows_created == 2) else "fail"
         return (
@@ -375,11 +367,7 @@ def _run_reviewer_gate_fires() -> tuple[CaseResult, list[str], list[str], list[s
                     "latency_ms": latency_ms,
                 },
                 latency_ms=latency_ms,
-                error_text=(
-                    None
-                    if status == "pass"
-                    else f"gates_fired={gates_fired}, rows_created={rows_created}"
-                ),
+                error_text=(None if status == "pass" else f"gates_fired={gates_fired}, rows_created={rows_created}"),
             ),
             decision_ids,
             review_ids,
@@ -459,9 +447,7 @@ def _run_decision_api_approve_roundtrip() -> tuple[CaseResult, list[str]]:
             )
 
         # Same code path the FastAPI service uses internally.
-        db_mod.resolve_decision(
-            decision_id, "approved", notes="m13-t004 dry-run approve"
-        )
+        db_mod.resolve_decision(decision_id, "approved", notes="m13-t004 dry-run approve")
         post = db_mod.get_decision(decision_id)
         post_status = (post or {}).get("status")
         approved = post_status == "approved"
@@ -476,11 +462,7 @@ def _run_decision_api_approve_roundtrip() -> tuple[CaseResult, list[str]]:
                     "latency_ms": latency_ms,
                 },
                 latency_ms=latency_ms,
-                error_text=(
-                    None
-                    if approved
-                    else f"post_status={post_status!r}, expected approved"
-                ),
+                error_text=(None if approved else f"post_status={post_status!r}, expected approved"),
             ),
             decision_ids,
         )
@@ -573,9 +555,7 @@ def _run_credentials_gate_refusal(tmpdir: Path, command_log: list[str]) -> CaseR
     # raw "kaggle competitions submit / kernels push / datasets ..." actually
     # reaching the kaggle CLI counts. The on-disk audit captures real CLI
     # invocations from src/worker/tools.py; we read it separately.
-    raw_kaggle_pattern = re.compile(
-        "|".join(re.escape(p) for p in AUDIT_GREP_FORBIDDEN if not p.startswith("kca "))
-    )
+    raw_kaggle_pattern = re.compile("|".join(re.escape(p) for p in AUDIT_GREP_FORBIDDEN if not p.startswith("kca ")))
     raw_hits_in_cmd_log = [c for c in command_log if raw_kaggle_pattern.search(c)]
     # The subprocess we ran is the only command in the log; it starts with
     # "python tools/kca/kca.py kaggle push" which contains "kaggle push" but
@@ -587,10 +567,7 @@ def _run_credentials_gate_refusal(tmpdir: Path, command_log: list[str]) -> CaseR
     # short-circuits in --dry-run when kernel-metadata.json is missing; if
     # we ever DO reach kaggle, stdout would contain "Kaggle API" auth
     # output or competition data. We check for the explicit dry-run error.
-    short_circuited = (
-        "kernel-metadata.json not found" in error_text
-        or "ApprovalRequired" in error_text
-    )
+    short_circuited = "kernel-metadata.json not found" in error_text or "ApprovalRequired" in error_text
 
     latency_ms = int((time.perf_counter() - t0) * 1000)
     metrics = {
@@ -612,9 +589,7 @@ def _run_credentials_gate_refusal(tmpdir: Path, command_log: list[str]) -> CaseR
         status=status,
         metrics=metrics,
         latency_ms=latency_ms,
-        error_text=None
-        if status == "pass"
-        else f"refused={refused}, audit_clean={audit_clean}",
+        error_text=None if status == "pass" else f"refused={refused}, audit_clean={audit_clean}",
     )
 
 
@@ -675,9 +650,7 @@ def _audit_grep_disk(audit_path: Path) -> tuple[int, list[str]]:
     """Grep the on-disk audit log for forbidden Kaggle CLI patterns."""
     if not audit_path.exists():
         return 0, []
-    raw_kaggle_pattern = re.compile(
-        "|".join(re.escape(p) for p in AUDIT_GREP_FORBIDDEN if not p.startswith("kca "))
-    )
+    raw_kaggle_pattern = re.compile("|".join(re.escape(p) for p in AUDIT_GREP_FORBIDDEN if not p.startswith("kca ")))
     violations: list[str] = []
     with audit_path.open("r", encoding="utf-8", errors="replace") as fh:
         for line in fh:
@@ -718,8 +691,7 @@ def run(
         "gpt_4o",
     }:
         raise ValueError(
-            f"unknown route {route!r}; expected one of mocked, local_vllm, "
-            "claude_haiku_4_5, claude_sonnet_4_6, gpt_4o"
+            f"unknown route {route!r}; expected one of mocked, local_vllm, claude_haiku_4_5, claude_sonnet_4_6, gpt_4o"
         )
     if tmpdir is None:
         import tempfile
@@ -776,9 +748,7 @@ def run(
 
     # Cleanup any rows the suite inserted.
     db_mod = _db_module()
-    if db_mod is not None and (
-        rg_decision_ids or rg_review_ids or dapi_decision_ids or rg_job_ids
-    ):
+    if db_mod is not None and (rg_decision_ids or rg_review_ids or dapi_decision_ids or rg_job_ids):
         _cleanup_rows(
             db_mod,
             rg_decision_ids + dapi_decision_ids,

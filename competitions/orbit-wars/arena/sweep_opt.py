@@ -53,14 +53,10 @@ BASELINE = {  # current baked defaults (v3.1-equivalent forecast.py)
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--trials", type=int, default=20)
-    ap.add_argument(
-        "--games", type=int, default=12, help="seeds per opponent (x2 seats)"
-    )
+    ap.add_argument("--games", type=int, default=12, help="seeds per opponent (x2 seats)")
     ap.add_argument("--procs", type=int, default=None)
     ap.add_argument("--rng", type=int, default=1)
-    ap.add_argument(
-        "--seed0", type=int, default=8000, help="fresh block per VALIDATION.md"
-    )
+    ap.add_argument("--seed0", type=int, default=8000, help="fresh block per VALIDATION.md")
     args = ap.parse_args()
     procs = args.procs or max(1, (os.cpu_count() or 2) - 1)
     evo_seeds = list(range(args.seed0, args.seed0 + args.games))
@@ -89,16 +85,11 @@ def main():
         ok = s["winpct"] >= 85.0
         results.append((e["winpct"] if ok else -1.0, name, cfg, e, s))
         flag = "" if ok else "  [REJECT: starter regress]"
-        print(
-            f"{name:9s} evogen={e['winpct']:5.1f}% ({e['w']}-{e['l']})  "
-            f"starter={s['winpct']:5.1f}%{flag}  cfg={cfg}"
-        )
+        print(f"{name:9s} evogen={e['winpct']:5.1f}% ({e['w']}-{e['l']})  starter={s['winpct']:5.1f}%{flag}  cfg={cfg}")
     results.sort(reverse=True, key=lambda r: r[0])
     print(f"\n=== TOP 5 (wall {time.perf_counter() - t0:.0f}s) ===")
     for score, name, cfg, e, s in results[:5]:
-        print(
-            f"{name:9s} evogen={e['winpct']:5.1f}%  starter={s['winpct']:5.1f}%  {cfg}"
-        )
+        print(f"{name:9s} evogen={e['winpct']:5.1f}%  starter={s['winpct']:5.1f}%  {cfg}")
 
 
 if __name__ == "__main__":

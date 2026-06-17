@@ -88,11 +88,7 @@ def _jsonable(v: Any) -> Any:
         return v.isoformat()
     if isinstance(v, list):
         return [_jsonable(x) for x in v]
-    return (
-        v
-        if (v is None or isinstance(v, (str, int, float, bool, list, dict)))
-        else str(v)
-    )
+    return v if (v is None or isinstance(v, (str, int, float, bool, list, dict))) else str(v)
 
 
 def _emit(payload: dict) -> None:
@@ -162,17 +158,12 @@ def _load_event_credentials(event_slug: str) -> dict[str, Any]:
         try:
             data = json.loads(cred_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
-            raise CredentialsMissing(
-                f"~/.ctf/{event_slug}.json is not valid JSON: {type(exc).__name__}"
-            ) from exc
+            raise CredentialsMissing(f"~/.ctf/{event_slug}.json is not valid JSON: {type(exc).__name__}") from exc
         username = data.get("username")
         token = data.get("token")
         team_id = data.get("team_id")
         if not (username and token):
-            raise CredentialsMissing(
-                f"~/.ctf/{event_slug}.json missing 'username' or 'token' "
-                f"(team_id is optional)"
-            )
+            raise CredentialsMissing(f"~/.ctf/{event_slug}.json missing 'username' or 'token' (team_id is optional)")
         return {
             "source": "file",
             "has_username": True,
@@ -275,9 +266,7 @@ def _load_ctftime_credentials() -> dict[str, Any]:
         try:
             parsed = _parse_dotenv(_CTFTIME_ENV_PATH.read_text(encoding="utf-8"))
         except OSError as exc:
-            raise CredentialsMissing(
-                f"~/.env unreadable: {type(exc).__name__}"
-            ) from exc
+            raise CredentialsMissing(f"~/.env unreadable: {type(exc).__name__}") from exc
         username = parsed.get("CTFTIME_USERNAME")
         token = parsed.get("CTFTIME_PASSWORD") or parsed.get("CTFTIME_TOKEN")
         if username and token:
@@ -527,8 +516,7 @@ def cmd_challenge_add(args: argparse.Namespace) -> int:
                 _emit(
                     {
                         "ok": False,
-                        "error": f"no event with slug={args.event!r}; "
-                        f"run `kca ctf event register` first",
+                        "error": f"no event with slug={args.event!r}; run `kca ctf event register` first",
                         "command": "ctf challenge add",
                         "side_effect": se.value,
                     }
@@ -541,8 +529,7 @@ def cmd_challenge_add(args: argparse.Namespace) -> int:
                     _emit(
                         {
                             "ok": False,
-                            "error": f"no scope with name={args.scope!r}; "
-                            f"run `kca ctf scope set` first",
+                            "error": f"no scope with name={args.scope!r}; run `kca ctf scope set` first",
                             "command": "ctf challenge add",
                             "side_effect": se.value,
                         }
@@ -998,8 +985,7 @@ def cmd_solver_run(args: argparse.Namespace) -> int:
                 "ok": False,
                 "command": "ctf solver run",
                 "side_effect": se.value,
-                "error": f"ApprovalRequired: challenge_run (set {_GATE_ENV}=1 "
-                f"after human approval)",
+                "error": f"ApprovalRequired: challenge_run (set {_GATE_ENV}=1 after human approval)",
                 "target_op": "challenge_run",
             }
         )
@@ -1220,15 +1206,12 @@ def cmd_flag_submit(args: argparse.Namespace) -> int:
 def add_parsers(sub: argparse._SubParsersAction) -> None:
     ctf = sub.add_parser(
         "ctf",
-        help="Authorized CTF / lab workflow (event / challenge / scope / "
-        "solver / flag). See COMMANDS.md.",
+        help="Authorized CTF / lab workflow (event / challenge / scope / solver / flag). See COMMANDS.md.",
     )
     ctf_sub = ctf.add_subparsers(dest="ctf_cmd", required=True)
 
     # event ---------------------------------------------------------------
-    p_event = ctf_sub.add_parser(
-        "event", help="Event (CTF round) lifecycle (LOCAL_WRITE / READ_ONLY)"
-    )
+    p_event = ctf_sub.add_parser("event", help="Event (CTF round) lifecycle (LOCAL_WRITE / READ_ONLY)")
     event_sub = p_event.add_subparsers(dest="event_cmd", required=True)
 
     p_ev_reg = event_sub.add_parser(
@@ -1250,9 +1233,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_ev_reg.add_argument("--json", action="store_true")
     p_ev_reg.set_defaults(func=cmd_event_register)
 
-    p_ev_list = event_sub.add_parser(
-        "list", help="List registered CTF events (READ_ONLY)."
-    )
+    p_ev_list = event_sub.add_parser("list", help="List registered CTF events (READ_ONLY).")
     p_ev_list.add_argument("--project", default=None)
     p_ev_list.add_argument("--json", action="store_true")
     p_ev_list.set_defaults(func=cmd_event_list)
@@ -1269,9 +1250,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     )
     chal_sub = p_chal.add_subparsers(dest="challenge_cmd", required=True)
 
-    p_chal_add = chal_sub.add_parser(
-        "add", help="Add a challenge to a registered event (LOCAL_WRITE)."
-    )
+    p_chal_add = chal_sub.add_parser("add", help="Add a challenge to a registered event (LOCAL_WRITE).")
     p_chal_add.add_argument("--event", required=True)
     p_chal_add.add_argument("--slug", required=True)
     p_chal_add.add_argument("--name", required=True)
@@ -1282,9 +1261,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     )
     p_chal_add.add_argument("--points", type=int, default=None)
     p_chal_add.add_argument("--description", default=None)
-    p_chal_add.add_argument(
-        "--expected-flag-format", dest="expected_flag_format", default=None
-    )
+    p_chal_add.add_argument("--expected-flag-format", dest="expected_flag_format", default=None)
     p_chal_add.add_argument("--attachments-path", dest="attachments_path", default=None)
     p_chal_add.add_argument("--remote-endpoint", dest="remote_endpoint", default=None)
     p_chal_add.add_argument(
@@ -1306,16 +1283,12 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_chal_fetch.add_argument("--json", action="store_true")
     p_chal_fetch.set_defaults(func=cmd_challenge_fetch)
 
-    p_chal_list = chal_sub.add_parser(
-        "list", help="List challenges for an event (READ_ONLY)."
-    )
+    p_chal_list = chal_sub.add_parser("list", help="List challenges for an event (READ_ONLY).")
     p_chal_list.add_argument("--event", required=True)
     p_chal_list.add_argument("--json", action="store_true")
     p_chal_list.set_defaults(func=cmd_challenge_list)
 
-    p_chal_info = chal_sub.add_parser(
-        "info", help="Show one challenge row (READ_ONLY)."
-    )
+    p_chal_info = chal_sub.add_parser("info", help="Show one challenge row (READ_ONLY).")
     p_chal_info.add_argument("--event", required=True)
     p_chal_info.add_argument("--slug", required=True)
     p_chal_info.add_argument("--json", action="store_true")
@@ -1328,9 +1301,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     )
     scope_sub = p_scope.add_subparsers(dest="scope_cmd", required=True)
 
-    p_scope_set = scope_sub.add_parser(
-        "set", help="Insert or update a ctf_scopes row (LOCAL_WRITE)."
-    )
+    p_scope_set = scope_sub.add_parser("set", help="Insert or update a ctf_scopes row (LOCAL_WRITE).")
     p_scope_set.add_argument("--slug", required=True, help="Scope name (unique-ish).")
     p_scope_set.add_argument("--authorized", required=True)
     p_scope_set.add_argument(
@@ -1344,9 +1315,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_scope_set.add_argument("--json", action="store_true")
     p_scope_set.set_defaults(func=cmd_scope_set)
 
-    p_scope_list = scope_sub.add_parser(
-        "list", help="List ctf_scopes rows (READ_ONLY)."
-    )
+    p_scope_list = scope_sub.add_parser("list", help="List ctf_scopes rows (READ_ONLY).")
     p_scope_list.add_argument("--json", action="store_true")
     p_scope_list.set_defaults(func=cmd_scope_list)
 

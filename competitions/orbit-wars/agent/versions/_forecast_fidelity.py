@@ -4,10 +4,14 @@ Strategy: one agent launches several fleets ONLY on step 0, then both agents no-
 With no further launches, the engine's evolution from step 1 is a pure do-nothing
 projection — exactly what project() computes. Compare planet (owner, ships) over H.
 """
-import logging; logging.disable(logging.INFO)
+
+import logging
+
+logging.disable(logging.INFO)
 import math
 import sys
 import os
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from kaggle_environments import make
 import forecast_sim as fs

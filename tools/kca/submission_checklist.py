@@ -117,9 +117,7 @@ def _evidence_for_path(p: Path, *, status: str, runs_root: Path) -> str:
             return str(p)
 
 
-def _dedup_format_keys(
-    format_keys: Iterable[Any], canonical_paths: set[str]
-) -> list[str]:
+def _dedup_format_keys(format_keys: Iterable[Any], canonical_paths: set[str]) -> list[str]:
     """Normalize `submission_format` items to strings, dedup case-insensitively.
 
     Drop any key whose lower-case form matches a canonical item's path /

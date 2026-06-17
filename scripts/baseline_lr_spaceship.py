@@ -52,11 +52,7 @@ def _split_cabin(df: pd.DataFrame) -> pd.DataFrame:
     cabin = df["Cabin"].astype("string")
     parts = cabin.str.split("/", expand=True)
     deck = parts[0].fillna("Missing")
-    side = (
-        parts[2].fillna("Missing")
-        if parts.shape[1] >= 3
-        else pd.Series("Missing", index=df.index)
-    )
+    side = parts[2].fillna("Missing") if parts.shape[1] >= 3 else pd.Series("Missing", index=df.index)
     out = df.copy()
     out["Deck"] = deck.astype("string")
     out["Side"] = side.astype("string")
@@ -112,14 +108,8 @@ def main() -> int:
     test_feat = _prep(test)
 
     # Choose columns AFTER prep so Deck/Side are picked up.
-    numeric_cols = [
-        c
-        for c in train_feat.columns
-        if train_feat[c].dtype.kind in {"f", "i"} and c != "PassengerId"
-    ]
-    categorical_cols = [
-        c for c in train_feat.columns if c not in numeric_cols and c != "PassengerId"
-    ]
+    numeric_cols = [c for c in train_feat.columns if train_feat[c].dtype.kind in {"f", "i"} and c != "PassengerId"]
+    categorical_cols = [c for c in train_feat.columns if c not in numeric_cols and c != "PassengerId"]
 
     pipe = _build_pipeline(numeric_cols, categorical_cols)
 
@@ -143,9 +133,7 @@ def main() -> int:
     )
     # Preserve sample_submission ordering for safety.
     sub_path = run_dir / "submission.csv"
-    submission = (
-        submission.set_index("PassengerId").loc[sample["PassengerId"]].reset_index()
-    )
+    submission = submission.set_index("PassengerId").loc[sample["PassengerId"]].reset_index()
     submission.to_csv(sub_path, index=False)
 
     summary = {

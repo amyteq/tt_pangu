@@ -1,6 +1,9 @@
 """Triage candidate gate agents: load OK? play vs starter without error? speed? result."""
-import logging; logging.disable(logging.INFO)
-import glob, os, sys, time, math
+
+import logging
+
+logging.disable(logging.INFO)
+import glob, os, sys, time
 from kaggle_environments import make
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -19,7 +22,9 @@ for path in sorted(glob.glob(SUITE + "/*.py")):
         r = env.steps[-1][0]["reward"]
         res = "WIN" if r == 1 else ("LOSS" if r == -1 else "TIE")
         nstep = len(env.steps)
-        print(f"{name:14s}: {'OK ' if not bad else 'ERR'} vs starter={res:4s} "
-              f"steps={nstep:3d} wall={dt:5.1f}s ~{dt/nstep*1000:5.1f}ms/step")
+        print(
+            f"{name:14s}: {'OK ' if not bad else 'ERR'} vs starter={res:4s} "
+            f"steps={nstep:3d} wall={dt:5.1f}s ~{dt / nstep * 1000:5.1f}ms/step"
+        )
     except Exception as e:
         print(f"{name:14s}: LOAD/RUN FAIL — {type(e).__name__}: {str(e)[:80]}")

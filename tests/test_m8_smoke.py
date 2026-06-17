@@ -39,9 +39,7 @@ def test_tool_audit_table_present_on_db_target():
         with conn.cursor() as cur:
             cur.execute("SELECT to_regclass('public.agent_tool_audit') IS NOT NULL")
             tbl = cur.fetchone()[0]
-            cur.execute(
-                "SELECT to_regclass('public.v_agent_tool_audit_recent') IS NOT NULL"
-            )
+            cur.execute("SELECT to_regclass('public.v_agent_tool_audit_recent') IS NOT NULL")
             view = cur.fetchone()[0]
     assert tbl, "agent_tool_audit table missing"
     assert view, "v_agent_tool_audit_recent view missing"
@@ -173,9 +171,7 @@ def _build_test_worker(tmp_path, monkeypatch, decision):
             )
             msg = _types.SimpleNamespace(content=None, tool_calls=[tc])
             return _types.SimpleNamespace(
-                choices=[
-                    _types.SimpleNamespace(message=msg, finish_reason="tool_calls")
-                ],
+                choices=[_types.SimpleNamespace(message=msg, finish_reason="tool_calls")],
                 usage=_types.SimpleNamespace(prompt_tokens=10, completion_tokens=5),
             )
         msg = _types.SimpleNamespace(content="done", tool_calls=None)
@@ -250,9 +246,7 @@ def client():
             self.decisions[did]["notes"] = notes
 
         def append_job_event(self, job_id, event_type, event_data=None, **_):
-            self.events.append(
-                {"job_id": job_id, "event_type": event_type, "event_data": event_data}
-            )
+            self.events.append({"job_id": job_id, "event_type": event_type, "event_data": event_data})
             return len(self.events)
 
     fake = _FakeDB()

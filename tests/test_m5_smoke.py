@@ -242,9 +242,7 @@ def test_model_routing_override():
 
 
 def test_run_job_job_type_flag():
-    proc = _run(
-        [*RUN_JOB, "--prompt", "p", "--dry-run", "--job-type", "analysis", "--json"]
-    )
+    proc = _run([*RUN_JOB, "--prompt", "p", "--dry-run", "--job-type", "analysis", "--json"])
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout.strip())
     assert "opus" in payload.get("model", "").lower(), payload

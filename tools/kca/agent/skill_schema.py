@@ -61,23 +61,15 @@ def _matches_type(value: Any, type_name: str) -> bool:
 def _validate_field(name: str, value: Any, spec: dict[str, Any]) -> None:
     type_name = spec.get("type")
     if type_name and not _matches_type(value, type_name):
-        raise SkillValidationError(
-            f"field {name!r}: expected type {type_name}, got {type(value).__name__}"
-        )
+        raise SkillValidationError(f"field {name!r}: expected type {type_name}, got {type(value).__name__}")
     if type_name == "string":
         if "minLength" in spec and len(value) < spec["minLength"]:
-            raise SkillValidationError(
-                f"field {name!r}: minLength {spec['minLength']} not met"
-            )
+            raise SkillValidationError(f"field {name!r}: minLength {spec['minLength']} not met")
         if "maxLength" in spec and len(value) > spec["maxLength"]:
-            raise SkillValidationError(
-                f"field {name!r}: maxLength {spec['maxLength']} exceeded"
-            )
+            raise SkillValidationError(f"field {name!r}: maxLength {spec['maxLength']} exceeded")
         pattern = spec.get("pattern")
         if pattern and not re.match(pattern, value):
-            raise SkillValidationError(
-                f"field {name!r}: value {value!r} does not match pattern {pattern}"
-            )
+            raise SkillValidationError(f"field {name!r}: value {value!r} does not match pattern {pattern}")
     if type_name == "array":
         item_spec = spec.get("items")
         if item_spec is None:
@@ -114,6 +106,5 @@ def validate_allowed_tools(allowed_tools: list[str], known_tools: set[str]) -> N
     for t in allowed_tools or []:
         if t not in known_tools:
             raise SkillValidationError(
-                f"allowed-tools references unknown tool: {t!r} "
-                f"(must be one of {sorted(known_tools)[:6]}…)"
+                f"allowed-tools references unknown tool: {t!r} (must be one of {sorted(known_tools)[:6]}…)"
             )

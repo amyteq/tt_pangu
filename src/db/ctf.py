@@ -73,8 +73,7 @@ def _validate_credentials_ref(ref: str | None) -> None:
         return
     if any(marker in ref for marker in _CREDENTIAL_VALUE_MARKERS):
         raise ValueError(
-            "credentials_ref must be a path hint (e.g. '~/.ctf/<slug>.json'), "
-            "never the credential value itself"
+            "credentials_ref must be a path hint (e.g. '~/.ctf/<slug>.json'), never the credential value itself"
         )
 
 
@@ -186,10 +185,7 @@ def list_events(
 
 def _list_events(conn, project_id: str | None, limit: int) -> list[dict]:
     if project_id is not None:
-        query = (
-            "SELECT * FROM ctf_events WHERE project_id = %s::uuid "
-            "ORDER BY created_at DESC LIMIT %s"
-        )
+        query = "SELECT * FROM ctf_events WHERE project_id = %s::uuid ORDER BY created_at DESC LIMIT %s"
         params: list[Any] = [project_id, limit]
     else:
         query = "SELECT * FROM ctf_events ORDER BY created_at DESC LIMIT %s"
@@ -229,9 +225,7 @@ def add_challenge(
     if not name:
         raise ValueError("name is required")
     if category not in VALID_CATEGORIES:
-        raise ValueError(
-            f"category must be one of {VALID_CATEGORIES!r}, got {category!r}"
-        )
+        raise ValueError(f"category must be one of {VALID_CATEGORIES!r}, got {category!r}")
     return _db._with_conn(
         conn,
         _add_challenge,
@@ -382,11 +376,7 @@ def record_attempt(
     """
     if flag_length is not None and flag_length < 0:
         raise ValueError("flag_length must be non-negative")
-    if (
-        flag_length is not None
-        and response_excerpt is not None
-        and "flag length" in response_excerpt.lower()
-    ):
+    if flag_length is not None and response_excerpt is not None and "flag length" in response_excerpt.lower():
         raise ValueError(
             "response_excerpt must not echo 'flag length' alongside the "
             "numeric flag_length column; scrub the excerpt first"

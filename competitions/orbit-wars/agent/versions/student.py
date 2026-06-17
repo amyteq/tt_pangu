@@ -32,13 +32,9 @@ try:
 except Exception:  # pragma: no cover
     from collections import namedtuple
 
-    Planet = namedtuple(
-        "Planet", ["id", "owner", "x", "y", "radius", "ships", "production"]
-    )
+    Planet = namedtuple("Planet", ["id", "owner", "x", "y", "radius", "ships", "production"])
 
-_W_PATH = _os.environ.get(
-    "OW_STUDENT_W", _os.path.expanduser("~/work/distill_student.npz")
-)
+_W_PATH = _os.environ.get("OW_STUDENT_W", _os.path.expanduser("~/work/distill_student.npz"))
 _W = _np.load(_W_PATH)
 THRESH = float(_os.environ.get("OW_STUDENT_TH", 0.5))
 MAX_MOVES = int(_os.environ.get("OW_STUDENT_MAXMV", 3))
@@ -121,17 +117,11 @@ def _agent(obs):
             if tt is not None:
                 def_eta = tt["ships"][k]
                 o_eta = tt["owner"][k]
-                flips = (
-                    1.0
-                    if any(tt["owner"][i] != tgt.owner for i in range(1, PROJ_H + 1))
-                    else 0.0
-                )
+                flips = 1.0 if any(tt["owner"][i] != tgt.owner for i in range(1, PROJ_H + 1)) else 0.0
             else:
                 def_eta, o_eta, flips = tgt.ships, tgt.owner, 0.0
             fr_arr = sum(s for _k, o, s in sched.get(tgt.id, []) if o == player)
-            en_arr = sum(
-                s for _k, o, s in sched.get(tgt.id, []) if o not in (player, -1)
-            )
+            en_arr = sum(s for _k, o, s in sched.get(tgt.id, []) if o not in (player, -1))
             feats.append(
                 [
                     src.ships,
@@ -180,9 +170,7 @@ def _agent(obs):
         angle, t_ticks, pos = sol
         if step + t_ticks > 498:
             continue
-        if _path_blocked(
-            src.x, src.y, pos[0], pos[1], src.id, tgt.id, planets, comet_ids
-        ):
+        if _path_blocked(src.x, src.y, pos[0], pos[1], src.id, tgt.id, planets, comet_ids):
             continue
         moves.append([src.id, angle, ships])
         spent[src.id] = spent.get(src.id, 0) + ships

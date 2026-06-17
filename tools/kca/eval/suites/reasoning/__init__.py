@@ -148,9 +148,7 @@ class RunOutcome:
 
 def _load_mocked_responses() -> dict[str, Any]:
     if not _MOCKED_RESPONSES_PATH.exists():
-        raise FileNotFoundError(
-            f"mocked_responses.json missing at {_MOCKED_RESPONSES_PATH}"
-        )
+        raise FileNotFoundError(f"mocked_responses.json missing at {_MOCKED_RESPONSES_PATH}")
     return json.loads(_MOCKED_RESPONSES_PATH.read_text(encoding="utf-8"))
 
 
@@ -205,8 +203,7 @@ def _deterministic_check(
         min_n = int(extra["citation_count_min"])
         if not isinstance(citations, list) or len(citations) < min_n:
             reasons.append(
-                f"citations count {len(citations) if isinstance(citations, list) else 'n/a'} "
-                f"< required minimum {min_n}"
+                f"citations count {len(citations) if isinstance(citations, list) else 'n/a'} < required minimum {min_n}"
             )
 
     # trust label enum check (over the `sources` field) -------------------
@@ -215,9 +212,7 @@ def _deterministic_check(
         trust_field = extra.get("trust_field", "sources")
         sources = response.get(trust_field) or []
         if not isinstance(sources, list) or not sources:
-            reasons.append(
-                f"trust-labelled sources missing or empty under {trust_field!r}"
-            )
+            reasons.append(f"trust-labelled sources missing or empty under {trust_field!r}")
         else:
             for s in sources:
                 if not isinstance(s, dict):
@@ -225,9 +220,7 @@ def _deterministic_check(
                     continue
                 trust = s.get("trust")
                 if trust not in allowed:
-                    reasons.append(
-                        f"trust label {trust!r} not in enum {sorted(allowed)}"
-                    )
+                    reasons.append(f"trust label {trust!r} not in enum {sorted(allowed)}")
 
     # evidence_min + valid_event_id_prefix (debug_worker_trace) -----------
     if "evidence_min" in extra:
@@ -235,16 +228,13 @@ def _deterministic_check(
         min_n = int(extra["evidence_min"])
         if not isinstance(ev, list) or len(ev) < min_n:
             reasons.append(
-                f"evidence_event_ids count {len(ev) if isinstance(ev, list) else 'n/a'} "
-                f"< required minimum {min_n}"
+                f"evidence_event_ids count {len(ev) if isinstance(ev, list) else 'n/a'} < required minimum {min_n}"
             )
         else:
             prefix = extra.get("valid_event_id_prefix", "")
             for eid in ev:
                 if not isinstance(eid, str) or (prefix and not eid.startswith(prefix)):
-                    reasons.append(
-                        f"event id {eid!r} fails prefix check (expected {prefix!r})"
-                    )
+                    reasons.append(f"event id {eid!r} fails prefix check (expected {prefix!r})")
 
     # recommendation_enum (cv_result_analysis) ----------------------------
     if "recommendation_enum" in extra:
@@ -409,9 +399,7 @@ def _run_case(
             )
 
     # Deterministic check.
-    det_pass, det_reasons = _deterministic_check(
-        response, case.deterministic_check, case
-    )
+    det_pass, det_reasons = _deterministic_check(response, case.deterministic_check, case)
 
     # Rubric judge — null in mocked mode by design. T006 calls the real
     # rubric LLM and emits a float in [0, 1].
@@ -492,8 +480,7 @@ def run(
         "gpt_4o",
     }:
         raise ValueError(
-            f"unknown route {route!r}; expected one of mocked, local_vllm, "
-            "claude_haiku_4_5, claude_sonnet_4_6, gpt_4o"
+            f"unknown route {route!r}; expected one of mocked, local_vllm, claude_haiku_4_5, claude_sonnet_4_6, gpt_4o"
         )
 
     mocked_responses = _load_mocked_responses()

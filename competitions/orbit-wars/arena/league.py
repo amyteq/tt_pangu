@@ -56,9 +56,7 @@ def main():
                 flush=True,
             )
 
-    avg = {
-        n: sum(cell[(n, m)] for m in names if m != n) / (len(names) - 1) for n in names
-    }
+    avg = {n: sum(cell[(n, m)] for m in names if m != n) / (len(names) - 1) for n in names}
     rank = sorted(names, key=lambda n: -avg[n])
 
     lines = [

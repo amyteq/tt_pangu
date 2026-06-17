@@ -211,9 +211,7 @@ def _fetch_http(
     max_bytes = _max_bytes()
     headers = {"User-Agent": user_agent, "Accept": "text/html,*/*;q=0.5"}
     try:
-        resp = requests.get(
-            url, timeout=timeout_s, headers=headers, stream=True, allow_redirects=True
-        )
+        resp = requests.get(url, timeout=timeout_s, headers=headers, stream=True, allow_redirects=True)
     except Exception as e:
         return {"ok": False, "url": url, "error": f"fetch_error: {e}"}
 

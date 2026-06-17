@@ -150,9 +150,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
 
     p_list = inner.add_parser("list", help="List reviewer rows (READ_ONLY).")
     p_list.add_argument("--job-id", dest="job_id", default=None)
-    p_list.add_argument(
-        "--verdict", default=None, choices=("approve", "reject", "abstain")
-    )
+    p_list.add_argument("--verdict", default=None, choices=("approve", "reject", "abstain"))
     p_list.add_argument("--limit", type=int, default=50)
     p_list.add_argument("--json", action="store_true")
     p_list.set_defaults(func=cmd_list)

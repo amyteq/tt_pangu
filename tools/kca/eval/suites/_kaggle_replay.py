@@ -114,8 +114,7 @@ def assert_mocked_route(route: str) -> None:
     }:
         return
     raise ValueError(
-        f"unknown route {route!r}; expected one of mocked, local_vllm, "
-        "claude_haiku_4_5, claude_sonnet_4_6, gpt_4o"
+        f"unknown route {route!r}; expected one of mocked, local_vllm, claude_haiku_4_5, claude_sonnet_4_6, gpt_4o"
     )
 
 

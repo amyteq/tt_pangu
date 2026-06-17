@@ -11,9 +11,7 @@ import os
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.normpath(os.path.join(HERE, "..", "agent", "versions", "forecast.py"))
-DST = os.path.normpath(
-    os.path.join(HERE, "..", "agent", "versions", "forecast_measure.py")
-)
+DST = os.path.normpath(os.path.join(HERE, "..", "agent", "versions", "forecast_measure.py"))
 
 s = io.open(SRC, encoding="utf-8").read()
 

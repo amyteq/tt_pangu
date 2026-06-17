@@ -41,9 +41,7 @@ def _format_events(events: list[dict]) -> str:
                 ed = json.loads(ed)
             except Exception:
                 ed = {"raw": ed}
-        lines.append(
-            f"[turn={tn} type={et}] {json.dumps(ed, default=str, ensure_ascii=False)}"
-        )
+        lines.append(f"[turn={tn} type={et}] {json.dumps(ed, default=str, ensure_ascii=False)}")
     return "\n".join(lines)
 
 
@@ -170,9 +168,7 @@ def triage_job_events(
         import sys
         from pathlib import Path
 
-        sys.path.insert(
-            0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca")
-        )
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "tools" / "kca"))
         import db as _db
     except Exception as exc:
         return {
@@ -201,8 +197,6 @@ def triage_job_events(
             "model": None,
         }
     formatted = _format_events(events)
-    result = summarise_text(
-        formatted, max_input_chars=max_input_chars, endpoint=endpoint
-    )
+    result = summarise_text(formatted, max_input_chars=max_input_chars, endpoint=endpoint)
     result["event_count"] = len(events)
     return result

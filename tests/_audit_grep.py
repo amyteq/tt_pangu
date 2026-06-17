@@ -158,10 +158,7 @@ def _self_test() -> None:
         "KCA_TOKEN=x\n"
     )
     assert benign == [], f"expected 0 hits on benign input, got {benign!r}"
-    print(
-        f"audit_grep self-test PASS — patterns={fingerprint()}, "
-        f"positive_hits={len(leaks)}"
-    )
+    print(f"audit_grep self-test PASS — patterns={fingerprint()}, positive_hits={len(leaks)}")
 
 
 if __name__ == "__main__":

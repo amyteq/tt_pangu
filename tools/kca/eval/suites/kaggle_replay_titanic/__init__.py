@@ -33,8 +33,7 @@ SUITE_NAME = "kaggle-replay-titanic"
 SUITE_CATEGORY = "kaggle_replay"
 SUITE_VERSION = "0.1.0"
 SUITE_DESCRIPTION = (
-    "Offline Titanic LR baseline replay (M13-T003). Reads "
-    "tests/fixtures/titanic/train.csv; no Kaggle network, no LLM."
+    "Offline Titanic LR baseline replay (M13-T003). Reads tests/fixtures/titanic/train.csv; no Kaggle network, no LLM."
 )
 
 _FIXTURE = "titanic"
@@ -93,9 +92,7 @@ def _run_case() -> dict[str, Any]:
     cv_std = float(cv_scores.std())
 
     # Holdout split for the leaderboard-shaped score.
-    X_tr, X_ho, y_tr, y_ho = train_test_split(
-        X, y, test_size=_HOLDOUT_FRAC, random_state=_SEED, stratify=y
-    )
+    X_tr, X_ho, y_tr, y_ho = train_test_split(X, y, test_size=_HOLDOUT_FRAC, random_state=_SEED, stratify=y)
     t0 = time.perf_counter()
     pipe.fit(X_tr, y_tr)
     fit_time_ms = int((time.perf_counter() - t0) * 1000)

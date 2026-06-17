@@ -132,9 +132,7 @@ def test_tool_smoke_suite_runs_mocked(scrubbed_env):
     payload = _last_json(stdout)
     assert payload.get("ok") is True
     # No DB → run_id is None (and that's fine — payload still has totals).
-    assert payload.get("run_id") in (None, ""), (
-        f"unexpected run_id with no DB: {payload.get('run_id')}"
-    )
+    assert payload.get("run_id") in (None, ""), f"unexpected run_id with no DB: {payload.get('run_id')}"
     # Find the tool-smoke suite summary.
     suites = payload.get("suites", [])
     assert suites, "no per-suite summaries"
@@ -195,9 +193,7 @@ def test_kaggle_replays_run_mocked(scrubbed_env):
         metrics = results[0].get("metrics") or {}
         # All three replays carry a "fixture" key plus at least one
         # score-shaped metric.
-        assert "fixture" in metrics or "model" in metrics, (
-            f"{name} missing fixture/model in metrics: {metrics}"
-        )
+        assert "fixture" in metrics or "model" in metrics, f"{name} missing fixture/model in metrics: {metrics}"
 
 
 # ---------------------------------------------------------------------------
@@ -228,8 +224,7 @@ def test_kernel_dryrun_credentials_gate_refusal(scrubbed_env):
         None,
     )
     assert refusal is not None, (
-        f"credentials_gate_refusal case not present in kernel-dryrun "
-        f"results: {[r.get('case_name') for r in results]}"
+        f"credentials_gate_refusal case not present in kernel-dryrun results: {[r.get('case_name') for r in results]}"
     )
     # The case shape — either passes (refusal happened, gate caught it)
     # or carries a refusal flag in metrics.
@@ -237,8 +232,7 @@ def test_kernel_dryrun_credentials_gate_refusal(scrubbed_env):
     # The case is a pass when the gate fires; the metric records the
     # observed refusal code (or equivalent).
     assert refusal.get("status") in {"pass", "skip"}, (
-        f"unexpected status for credentials_gate_refusal: "
-        f"{refusal.get('status')} metrics={metrics}"
+        f"unexpected status for credentials_gate_refusal: {refusal.get('status')} metrics={metrics}"
     )
 
 
@@ -268,10 +262,7 @@ def test_reasoning_deterministic_check_passes(scrubbed_env):
     pass_count = suite.get("pass", 0)
     assert case_count > 0, "reasoning suite produced no cases"
     pass_rate = pass_count / case_count
-    assert pass_rate >= 0.80, (
-        f"reasoning pass rate {pass_rate:.2%} < 0.80 "
-        f"(pass={pass_count}, total={case_count})"
-    )
+    assert pass_rate >= 0.80, f"reasoning pass rate {pass_rate:.2%} < 0.80 (pass={pass_count}, total={case_count})"
 
 
 # ---------------------------------------------------------------------------
@@ -292,10 +283,7 @@ def test_route_compare_refuses_without_allow_remote(scrubbed_env):
         "--json",
     )
     # rc != 0 — refusal is a runtime error per the spec.
-    assert rc != 0, (
-        f"expected non-zero rc on refusal; got rc={rc}\n"
-        f"stdout:\n{stdout}\nstderr:\n{stderr}"
-    )
+    assert rc != 0, f"expected non-zero rc on refusal; got rc={rc}\nstdout:\n{stdout}\nstderr:\n{stderr}"
     payload = _last_json(stdout)
     assert payload.get("ok") is False
     assert payload.get("error") == "REMOTE_NOT_APPROVED"

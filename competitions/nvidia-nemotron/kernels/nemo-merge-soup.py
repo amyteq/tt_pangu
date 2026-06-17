@@ -18,16 +18,8 @@ import zipfile
 
 # Locate the merged adapter on the attached dataset. Prefer a path under a
 # *merge* dataset so we never accidentally grab a base-model config.
-cfgs = [
-    p
-    for p in glob.glob("/kaggle/input/**/adapter_config.json", recursive=True)
-    if "merge" in p.lower()
-]
-sts = [
-    p
-    for p in glob.glob("/kaggle/input/**/adapter_model.safetensors", recursive=True)
-    if "merge" in p.lower()
-]
+cfgs = [p for p in glob.glob("/kaggle/input/**/adapter_config.json", recursive=True) if "merge" in p.lower()]
+sts = [p for p in glob.glob("/kaggle/input/**/adapter_model.safetensors", recursive=True) if "merge" in p.lower()]
 assert len(cfgs) == 1, f"expected exactly 1 merged adapter_config.json, got {cfgs}"
 assert len(sts) == 1, f"expected exactly 1 merged adapter_model.safetensors, got {sts}"
 CFG_PATH, ST_PATH = cfgs[0], sts[0]

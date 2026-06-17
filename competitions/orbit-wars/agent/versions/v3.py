@@ -37,9 +37,7 @@ MAX_SPEED = 6.0
 def fleet_speed(ships):
     if ships <= 1:
         return 1.0
-    return min(
-        MAX_SPEED, 1.0 + (MAX_SPEED - 1.0) * (math.log(ships) / math.log(1000.0)) ** 1.5
-    )
+    return min(MAX_SPEED, 1.0 + (MAX_SPEED - 1.0) * (math.log(ships) / math.log(1000.0)) ** 1.5)
 
 
 def _seg_point_dist(px, py, ax, ay, bx, by):
@@ -149,17 +147,9 @@ def project(planets, fleets, ang_vel, init_by_id, step0, H, comet_ids=()):
         for p in planets
         if p[0] not in comet_ids
     }
-    init = {
-        pid: (init_by_id[pid][2], init_by_id[pid][3]) for pid in pl if pid in init_by_id
-    }
-    fl = [
-        {"owner": f[1], "x": f[2], "y": f[3], "ang": f[4], "ships": float(f[6])}
-        for f in fleets
-        if f[6] > 0
-    ]
-    traj = {
-        pid: {"owner": [pl[pid]["owner"]], "ships": [pl[pid]["ships"]]} for pid in pl
-    }
+    init = {pid: (init_by_id[pid][2], init_by_id[pid][3]) for pid in pl if pid in init_by_id}
+    fl = [{"owner": f[1], "x": f[2], "y": f[3], "ang": f[4], "ships": float(f[6])} for f in fleets if f[6] > 0]
+    traj = {pid: {"owner": [pl[pid]["owner"]], "ships": [pl[pid]["ships"]]} for pid in pl}
     arrivals = {pid: [] for pid in pl}
 
     for k in range(1, H + 1):
@@ -202,9 +192,7 @@ def project(planets, fleets, ang_vel, init_by_id, step0, H, comet_ids=()):
         # 4. combat
         for pid, arr in combat.items():
             if arr:
-                pl[pid]["owner"], pl[pid]["ships"] = _resolve_combat(
-                    pl[pid]["owner"], pl[pid]["ships"], arr
-                )
+                pl[pid]["owner"], pl[pid]["ships"] = _resolve_combat(pl[pid]["owner"], pl[pid]["ships"], arr)
                 for o, s in arr:
                     arrivals[pid].append((k, o, s))
         # record
@@ -241,12 +229,8 @@ try:
 except Exception:  # pragma: no cover - fallback if import path changes
     from collections import namedtuple
 
-    Planet = namedtuple(
-        "Planet", ["id", "owner", "x", "y", "radius", "ships", "production"]
-    )
-    Fleet = namedtuple(
-        "Fleet", ["id", "owner", "x", "y", "angle", "from_planet_id", "ships"]
-    )
+    Planet = namedtuple("Planet", ["id", "owner", "x", "y", "radius", "ships", "production"])
+    Fleet = namedtuple("Fleet", ["id", "owner", "x", "y", "angle", "from_planet_id", "ships"])
 
 # Engine constants (mirrored from orbit_wars.py).
 BOARD_SIZE = 100.0
@@ -269,21 +253,11 @@ TIME_DISCOUNT = 0.04  # how strongly to prefer near targets in the value score
 # v2 defaults tuned via arena sweep vs the frozen v1 snapshot. The decisive lever is
 # the in-flight cap (don't over-commit the empire into transit); a small frontier
 # garrison complements it. Heavy garrison / a tight cap (<1.0) over-corrects and loses.
-REAR_FLOOR = float(
-    _os.environ.get("OW_REAR_FLOOR", 0)
-)  # garrison kept on a safe (rear) planet
-FRONTIER_FLOOR = float(
-    _os.environ.get("OW_FRONTIER_FLOOR", 10)
-)  # garrison kept on a planet near an enemy
-FRONTIER_DIST = float(
-    _os.environ.get("OW_FRONTIER_DIST", 28.0)
-)  # enemy planet within this distance => frontier
-GARRISON_PROD_MULT = float(
-    _os.environ.get("OW_PROD_MULT", 0)
-)  # extra standing garrison per unit production
-INFLIGHT_CAP_FRAC = float(
-    _os.environ.get("OW_INFLIGHT_CAP", 1.2)
-)  # cap in-flight at this frac of on-planet ships
+REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 10))  # garrison kept on a planet near an enemy
+FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 28.0))  # enemy planet within this distance => frontier
+GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
 # Phase-scaled cap: looser early (win the land-grab) -> tighter late (hold and bank).
 # Tuned via arena sweep vs the flat-1.2 v2 snapshot; mild scaling (2.0 -> 1.0) won,
 # aggressive scaling (2.5-3.0 early / 0.6-0.8 late) lost. Linearly interpolated by step.
@@ -296,12 +270,8 @@ CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.0))
 # them wastes transit, starves the in-flight cap, and funnels the empire into fewer launch
 # points. Code kept (env-gated) so the result stays reproducible via OW_CONSOLIDATE=1.
 CONSOLIDATE = int(_os.environ.get("OW_CONSOLIDATE", 0))
-CONSOLIDATE_MIN = float(
-    _os.environ.get("OW_CONSOLIDATE_MIN", 12)
-)  # min surplus to bother (tiny fleets crawl)
-CONSOLIDATE_MARGIN = float(
-    _os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0)
-)  # front-distance gain required
+CONSOLIDATE_MIN = float(_os.environ.get("OW_CONSOLIDATE_MIN", 12))  # min surplus to bother (tiny fleets crawl)
+CONSOLIDATE_MARGIN = float(_os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0))  # front-distance gain required
 
 
 def _hypot(ax, ay, bx, by):
@@ -444,9 +414,7 @@ def _agent(obs):
     if not my_planets:
         return []
 
-    enemy_planets = [
-        p for p in planets if p.owner not in (-1, player) and p.id not in comet_ids
-    ]
+    enemy_planets = [p for p in planets if p.owner not in (-1, player) and p.id not in comet_ids]
 
     # Reserve = standing garrison floor + any extra for currently-inbound enemy fleets.
     # The floor is the v2 fix: it lets freshly captured planets accumulate production
@@ -468,9 +436,7 @@ def _agent(obs):
     targets = [p for p in planets if p.owner != player and p.id not in comet_ids]
 
     # --- Forecast: bit-exact do-nothing projection drives defender floors + value ---
-    base_traj, base_arr = _project(
-        raw_planets, raw_fleets, ang_vel, init_by_id, step, PROJ_H, comet_ids=comet_ids
-    )
+    base_traj, base_arr = _project(raw_planets, raw_fleets, ang_vel, init_by_id, step, PROJ_H, comet_ids=comet_ids)
     prod_by_id = {p.id: p.production for p in planets}
     owner0_by_id = {p.id: p.owner for p in planets}
     ships0_by_id = {p.id: float(p.ships) for p in planets}
@@ -500,9 +466,7 @@ def _agent(obs):
             needed = ships_guess
             eta_k = 1
             for _ in range(3):
-                sol = _solve_intercept(
-                    mp.x, mp.y, tgt.id, ships_guess, step, init_by_id, ang_vel
-                )
+                sol = _solve_intercept(mp.x, mp.y, tgt.id, ships_guess, step, init_by_id, ang_vel)
                 if sol is None:
                     break
                 _, t_ticks, _ = sol
@@ -526,9 +490,7 @@ def _agent(obs):
                 continue
             if t_ticks > PROJ_H:  # beyond the projection horizon -> can't score it
                 continue
-            if _path_blocked(
-                mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids
-            ):
+            if _path_blocked(mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids):
                 continue
             # Value = simulated differential advantage: replay the two touched planets
             # with this launch (source debited now, target gets my arrival at eta) and
@@ -548,9 +510,7 @@ def _agent(obs):
                 tw_arr,
                 PROJ_H,
             )
-            value = (_term(sw_o, sw_s) + _term(tw_o, tw_s)) - (
-                base_src_adv + _base_adv(tgt.id)
-            )
+            value = (_term(sw_o, sw_s) + _term(tw_o, tw_s)) - (base_src_adv + _base_adv(tgt.id))
             if value <= 0:
                 continue  # net-negative or pointless -> don't fire
             candidates.append((value, mp.id, tgt.id, angle, needed))
@@ -591,15 +551,11 @@ def _agent(obs):
                     best, best_d = q, d
             if best is None:
                 continue
-            sol = _solve_intercept(
-                src.x, src.y, best.id, surplus, step, init_by_id, ang_vel
-            )
+            sol = _solve_intercept(src.x, src.y, best.id, surplus, step, init_by_id, ang_vel)
             if sol is None:
                 continue
             angle, _t, pos = sol
-            if _path_blocked(
-                src.x, src.y, pos[0], pos[1], src.id, best.id, planets, comet_ids
-            ):
+            if _path_blocked(src.x, src.y, pos[0], pos[1], src.id, best.id, planets, comet_ids):
                 continue
             moves.append([src.id, angle, int(surplus)])
             remaining[src.id] = 0

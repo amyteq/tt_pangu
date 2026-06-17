@@ -74,9 +74,7 @@ def cmd_list(args: argparse.Namespace) -> int:
     name_w = max(len(s["name"]) for s in summaries)
     policy_w = max(len(s["approval_policy"]) for s in summaries)
     for s in summaries:
-        print(
-            f"{s['name']:<{name_w}}  {s['approval_policy']:<{policy_w}}  {s['description']}"
-        )
+        print(f"{s['name']:<{name_w}}  {s['approval_policy']:<{policy_w}}  {s['description']}")
     return EXIT_OK
 
 

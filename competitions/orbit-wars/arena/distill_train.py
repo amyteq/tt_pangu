@@ -30,17 +30,13 @@ HID = 64
 class Student(nn.Module):
     def __init__(self, nfeat):
         super().__init__()
-        self.body = nn.Sequential(
-            nn.Linear(nfeat, HID), nn.ReLU(), nn.Linear(HID, HID), nn.ReLU()
-        )
+        self.body = nn.Sequential(nn.Linear(nfeat, HID), nn.ReLU(), nn.Linear(HID, HID), nn.ReLU())
         self.head_launch = nn.Linear(HID, 1)
         self.head_frac = nn.Linear(HID, 1)
 
     def forward(self, x):
         h = self.body(x)
-        return self.head_launch(h).squeeze(-1), torch.sigmoid(
-            self.head_frac(h)
-        ).squeeze(-1)
+        return self.head_launch(h).squeeze(-1), torch.sigmoid(self.head_frac(h)).squeeze(-1)
 
 
 def main():
@@ -81,15 +77,13 @@ def main():
         sub[keep] = True
         tr_m = sub
         print(
-            f"neg-ratio {args.neg_ratio}: train rows {len(keep)} "
-            f"({len(pos_idx)} pos + {len(keep_neg)} neg)",
+            f"neg-ratio {args.neg_ratio}: train rows {len(keep)} ({len(pos_idx)} pos + {len(keep_neg)} neg)",
             flush=True,
         )
     mean, std = X[tr_m].mean(0), X[tr_m].std(0) + 1e-6
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     print(
-        f"pairs={len(X)} train={tr_m.sum()} val={val_m.sum()} "
-        f"pos={yl.mean() * 100:.2f}% dev={dev}",
+        f"pairs={len(X)} train={tr_m.sum()} val={val_m.sum()} pos={yl.mean() * 100:.2f}% dev={dev}",
         flush=True,
     )
 
@@ -121,11 +115,7 @@ def main():
             logit, frac = model(xb)
             loss_l = (bce(logit, lb) * wb).mean()
             pos = lb > 0
-            loss_f = (
-                ((frac[pos] - fb[pos]) ** 2 * wb[pos]).mean()
-                if pos.any()
-                else torch.tensor(0.0, device=dev)
-            )
+            loss_f = ((frac[pos] - fb[pos]) ** 2 * wb[pos]).mean() if pos.any() else torch.tensor(0.0, device=dev)
             loss = loss_l + loss_f
             opt.zero_grad()
             loss.backward()

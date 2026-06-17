@@ -13,9 +13,7 @@
 import glob
 import site
 
-_cutlass = glob.glob(
-    "/kaggle/usr/lib/notebooks/ryanholbrook/*nvidia*util*/nvidia_cutlass_dsl/python_packages"
-)
+_cutlass = glob.glob("/kaggle/usr/lib/notebooks/ryanholbrook/*nvidia*util*/nvidia_cutlass_dsl/python_packages")
 for _p in _cutlass:
     site.addsitedir(_p)
 
@@ -23,16 +21,12 @@ import os
 import shutil
 import stat as _stat
 
-_ptxas = glob.glob(
-    "/kaggle/usr/lib/notebooks/ryanholbrook/*/triton/backends/nvidia/bin/ptxas-blackwell"
-)
+_ptxas = glob.glob("/kaggle/usr/lib/notebooks/ryanholbrook/*/triton/backends/nvidia/bin/ptxas-blackwell")
 if _ptxas:
     _dst = "/tmp/ptxas-blackwell"
     try:
         shutil.copy2(_ptxas[0], _dst)
-        os.chmod(
-            _dst, os.stat(_dst).st_mode | _stat.S_IEXEC | _stat.S_IXGRP | _stat.S_IXOTH
-        )
+        os.chmod(_dst, os.stat(_dst).st_mode | _stat.S_IEXEC | _stat.S_IXGRP | _stat.S_IXOTH)
         os.environ["TRITON_PTXAS_BLACKWELL_PATH"] = _dst
         os.environ["TRITON_PTXAS_PATH"] = _dst
         print("ptxas-blackwell ->", _dst)
@@ -234,13 +228,9 @@ def extract_final_answer(text):
 def verify(gold, predicted):
     gold = str(gold).strip()
     predicted = str(predicted).strip()
-    if not _LEADING_ZERO_INT.fullmatch(gold) and not _LEADING_ZERO_INT.fullmatch(
-        predicted
-    ):
+    if not _LEADING_ZERO_INT.fullmatch(gold) and not _LEADING_ZERO_INT.fullmatch(predicted):
         try:
-            return math.isclose(
-                float(predicted), float(gold), rel_tol=1e-2, abs_tol=1e-5
-            )
+            return math.isclose(float(predicted), float(gold), rel_tol=1e-2, abs_tol=1e-5)
         except (ValueError, TypeError):
             pass
     return predicted.lower() == gold.lower()
@@ -266,9 +256,7 @@ def classify(p):
 # %%
 import csv
 
-_train = glob.glob("/kaggle/input/competitions/*/train.csv") or glob.glob(
-    "/kaggle/input/**/train.csv", recursive=True
-)
+_train = glob.glob("/kaggle/input/competitions/*/train.csv") or glob.glob("/kaggle/input/**/train.csv", recursive=True)
 assert _train, "train.csv not found"
 all_rows = list(csv.DictReader(open(_train[0], encoding="utf-8")))
 rows = [r for r in all_rows if r["id"] in EVAL_IDS]
@@ -277,9 +265,7 @@ for r in rows:
 print(f"hard-val rows matched: {len(rows)} / {len(EVAL_IDS)} ids")
 assert len(rows) >= 60, "too few hard-val rows matched; check id set vs train.csv"
 
-MODEL_PATH = kagglehub.model_download(
-    "metric/nemotron-3-nano-30b-a3b-bf16/transformers/default"
-)
+MODEL_PATH = kagglehub.model_download("metric/nemotron-3-nano-30b-a3b-bf16/transformers/default")
 print("model:", MODEL_PATH)
 
 # %%
@@ -294,9 +280,7 @@ _sts = [
     for p in glob.glob("/kaggle/input/**/adapter_model.safetensors", recursive=True)
     if "soup" in p.lower() or "merge-soup" in p.lower()
 ]
-assert len(_cfgs) == 1 and len(_sts) == 1, (
-    f"expected 1 soup adapter; got {_cfgs} {_sts}"
-)
+assert len(_cfgs) == 1 and len(_sts) == 1, f"expected 1 soup adapter; got {_cfgs} {_sts}"
 SOUP_CFG, SOUP_ST = _cfgs[0], _sts[0]
 print(
     "soup config:",
@@ -347,9 +331,7 @@ def _make_reweight(cfg):
             keep_sorted = (energy / total) <= e
             keep_sorted[0] = True  # always keep the top component
             out = torch.zeros_like(S)
-            out[order] = torch.where(
-                keep_sorted, S_sorted * amp, torch.zeros_like(S_sorted)
-            )
+            out[order] = torch.where(keep_sorted, S_sorted * amp, torch.zeros_like(S_sorted))
             return out
 
         return fn
@@ -367,9 +349,7 @@ def build_variant(cfg, src_state, out_dir):
         bk = ak[: -len("lora_A.weight")] + "lora_B.weight"
         A = src_state[ak]
         B = src_state[bk]
-        do_it = cfg["mode"] != "identity" and (
-            target_mods is None or any(m in ak for m in target_mods)
-        )
+        do_it = cfg["mode"] != "identity" and (target_mods is None or any(m in ak for m in target_mods))
         if do_it:
             B2, A2 = _refactor(B, A, reweight)
             new_state[ak] = A2.to(A.dtype).contiguous()
@@ -408,9 +388,7 @@ llm = LLM(
     max_lora_rank=int(soup_config.get("r", 32)),
 )
 tok = llm.get_tokenizer()
-SUFFIX = (
-    "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
-)
+SUFFIX = "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
 GEN = SamplingParams(temperature=0.0, top_p=1.0, max_tokens=7680)
 prompts = [
     tok.apply_chat_template(
@@ -429,9 +407,7 @@ def eval_adapter(adapter_dir, lora_id):
     per_cat = {}
     correct = 0
     for r, o in zip(rows, outs):
-        ok = bool(o.outputs) and verify(
-            r["answer"], extract_final_answer(o.outputs[0].text)
-        )
+        ok = bool(o.outputs) and verify(r["answer"], extract_final_answer(o.outputs[0].text))
         correct += int(ok)
         d = per_cat.setdefault(r["category"], [0, 0])
         d[0] += int(ok)
@@ -470,9 +446,7 @@ for i, cfg in enumerate(SURGERY_CONFIGS):
         "per_category": per_cat,
         "modules_touched": touched,
     }
-    print(
-        f"[{cfg['name']}] hard-val acc = {acc:.4f}  touched={touched}  per-cat={per_cat}"
-    )
+    print(f"[{cfg['name']}] hard-val acc = {acc:.4f}  touched={touched}  per-cat={per_cat}")
     if acc > best_acc:
         best_acc, best_name = acc, cfg["name"]
         shutil.rmtree(BEST_DIR, ignore_errors=True)
@@ -517,12 +491,9 @@ if best_name and best_name != "soup_baseline" and best_acc > base_acc:
         assert names == {"adapter_config.json", "adapter_model.safetensors"}, names
     h = hashlib.sha256(open(sub, "rb").read()).hexdigest()
     print(f"WROTE submission.zip ({os.path.getsize(sub) / 1e9:.2f} GB) sha256={h}")
-    print(
-        f"  -> surgery '{best_name}' beat soup baseline {base_acc:.4f} -> {best_acc:.4f}"
-    )
+    print(f"  -> surgery '{best_name}' beat soup baseline {base_acc:.4f} -> {best_acc:.4f}")
 else:
     print(
-        f"No surgery variant beat the soup baseline ({base_acc:.4f}); "
-        "NOT writing submission.zip (hold the 0.86 soup)."
+        f"No surgery variant beat the soup baseline ({base_acc:.4f}); NOT writing submission.zip (hold the 0.86 soup)."
     )
 print("Done.")

@@ -87,14 +87,8 @@ for K in range(1, 61):
     # nonstruct == 1 means G is purely 2^a 3^b (structural). Flag otherwise.
     if nonstruct != 1:
         flagged.append((K, G, nonstruct, f23))
-        print(
-            f"  K={K}: G has non-2/3 part = {nonstruct} (2^{f23[2]} 3^{f23[3]} * {nonstruct})"
-        )
+        print(f"  K={K}: G has non-2/3 part = {nonstruct} (2^{f23[2]} 3^{f23[3]} * {nonstruct})")
 if not flagged:
-    print(
-        "No K in 1..60 yields a non-structural modulus -> multiplicative-hash out=K*in mod M unlikely."
-    )
+    print("No K in 1..60 yields a non-structural modulus -> multiplicative-hash out=K*in mod M unlikely.")
 else:
-    print(
-        f"\n{len(flagged)} candidate K flagged; inspect the non-2/3 modulus part above."
-    )
+    print(f"\n{len(flagged)} candidate K flagged; inspect the non-2/3 modulus part above.")

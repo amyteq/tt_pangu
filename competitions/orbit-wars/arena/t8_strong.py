@@ -37,8 +37,7 @@ def main():
     seeds = list(range(args.seed0, args.seed0 + args.seeds))
 
     print(
-        f"=== T8 strong-tier A/B: {len(seeds)}x2 per cell, procs={procs}, "
-        f"seeds {args.seed0}+ ===",
+        f"=== T8 strong-tier A/B: {len(seeds)}x2 per cell, procs={procs}, seeds {args.seed0}+ ===",
         flush=True,
     )
     for opp_name, opp in OPPONENTS:
