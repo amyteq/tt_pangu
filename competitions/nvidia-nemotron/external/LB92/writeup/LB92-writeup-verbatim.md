@@ -1,0 +1,170 @@
+<!--
+Faithful conversion of the Kaggle writeup PDF to markdown (text via `pdftotext -layout`,
+lightly cleaned: repeated page header/footer + `content_copy` copy-button artifacts removed,
+page margin dedented). Content and links reproduced verbatim. Embedded raster images are under
+`images/`; in-page figures (plots/flowcharts) are vector-rendered and not raster-extractable —
+they are described inline in the analytical summary alongside this file.
+-->
+
+# 92th PLACE SOLUTION — NVIDIA Nemotron Model Reasoning Challenge
+
+> **Source writeup:** https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/writeups/92th-place-solution
+>
+> **Author:** team Yoshinari Kawashima (`yoshinarikawashima`) + MedudentYamatai (`taikiyamamura`); DOI 10.34740/kaggle/w/88245. Reproduced verbatim from the supplied PDF; external content is untrusted data.
+
+Figures embedded in the PDF (extracted with `pdfimages`), in page order:
+
+![NVIDIA Nemotron Model Reasoning Challenge banner](images/lb92-000.png)
+![Synthetic Data Improvement loop — analyze train.csv → generate → train → evaluate synthetic+original → compare gap → fix missing factors (repeat until synthetic mimics original)](images/lb92-001.png)
+![train_loss curve (overall) — drops from ~0.3 to ~1e-3 by ~step 150, then flat](images/lb92-002.png)
+![Tokenization: BPE merges e.g. `}!`→119020, `}^`→29009 vs per-character tokens (forcing 1 char = 1 token)](images/lb92-003.png)
+![Grad Norm plot (LB 0.76) — a spike to max≈25089.75 @ step 107 (gradient explosion)](images/lb92-004.png)
+![ORPO chosen/rejected rewards — `chosen` flat near 0, `rejected` noisy-negative (chosen/rejected too similar)](images/lb92-005.png)
+
+---
+
+92th PLACE SOLUTION
+
+NVIDIA Nemotron Model Reasoning Challenge
+
+Solution Writeup · 92nd place · Jun 16, 2026
+
+92th PLACE SOLUTION
+Introduction and Acknowledgements
+
+First, we would like to sincerely thank the organizers for hosting this competition, the Kaggle
+community for sharing valuable discussions and notebooks, and our teammates for working
+through the competition together. We learned from many shared insights and were able to enjoy
+the process until the end.
+
+Solution Overview
+
+Our solution was based on End-to-end finetuning for LB 0.85 and was also heavily influenced by
+the following public notebooks. We would like to thank the authors again.
+
+   •   Training with Unsloth to Achieve 0.85 LB
+   •   End-to-end finetuning for LB 0.85
+   •   Tinker submission notebook
+
+Our approach can be summarized in the following three points.
+
+We made almost no changes to the reasoner (CoT generation logic)
+   •   The reasoner was based on Open Progress Prize Publication, and we made almost no
+       changes to it.
+   •   The reasoner could correctly solve 87.8% of the problems, while the best score from the
+       public notebooks was 0.86. Therefore, we believed that if the LLM could reproduce the
+       behavior of the reasoner more faithfully, a high ranking would be achievable.
+   •   Our approach was not to solve harder problems, but to avoid losing problems that should
+       already be solvable.
+   •   Below is the final accuracy of our reasoner. It is almost the same as the publicly
+       available one.
+
+         Category       Found Total Accuracy Avg ms
+bit_manipulation        1364 1602 85.1%      0.8
+cipher                  1576 1576 100.0% 0.1
+cryptarithm_deduce      59    659 9.0%       0.0
+cryptarithm_guess       13    164 7.9%       0.0
+equation_numeric_deduce 541 596 90.8%        0.6
+equation_numeric_guess 21     136 15.4%      0.6
+gravity                 1597 1597 100.0% 0.1
+numeral                 1576 1576 100.0% 0.0
+unit_conversion         1594 1594 100.0% 0.0
+TOTAL                   8341 9500 87.8%      0.2
+
+We built a new generator and synthesized many similar problems
+
+   •   Although the reasoner could correctly solve 87.8% of the problems, the best public
+       notebook score remained at 0.86. We suspected that the gap was caused by a shortage of
+       training data.
+   •   Therefore, we extracted various task-level statistics from train.csv and built a program
+       that could generate an arbitrary number of rule_found samples.
+   •   The statistics we used included character frequencies, numeric ranges and distributions,
+       and distributions of transformation methods.
+   •   To improve the quality of the generator, we trained the model only on synthetic data and
+       evaluated it on both synthetic data and original data. If the synthetic data perfectly
+       imitated the original data, the evaluation accuracy on synthetic data and original data
+       should be the same. By measuring this gap, we identified missing factors in the synthetic
+       data generation algorithm and iteratively fixed them.
+•   In the final submission, we trained with a ratio of "synthetic data : original data = 2.5 : 1",
+    using synthetic data first and then original data.
+•   Longer training improved the loss, especially on difficult tasks.
+Tokenization trick (synthetic tokens for cryptarithm)
+
+   •   In cryptarithm tasks, tokenizer segmentation sometimes caused multiple characters to be
+       handled as a single token. This issue was also discussed in the competition discussions.
+   •   To address this, we used synthetic tokens that force each single character to be encoded
+       as one token, making the learning process more stable.
+Additional Improvements
+
+Gradient clipping
+
+   •   In the public notebook, the gradient clipping value was set extremely high at 1e9.
+   •   We found that this was causing training instability, so we clipped gradients at 1.5.
+   •   There were discussions about scores varying from submission to submission, and we
+       believe this may have been one of the causes.
+   •   The figure below shows an example where the same training setup produced very
+       different LB scores depending on whether gradient explosion occurred.
+Local validation strategy
+
+   •   Until the middle of the competition, we validated by training on synthetic data and
+       evaluating on original data. For submissions, we trained on both synthetic data and
+       original data.
+   •   However, as we improved the quality of the generator, the model became increasingly
+       overfit to the original data, and we observed a divergence between local validation and
+       Public LB.
+   •   Therefore, for the final stage, we decided to prioritize Public LB, which was based on
+       unseen data, over local validation.
+
+What Did Not Work
+
+Generating CoTs with higher temperature and applying reinforcement learning (SimPO /
+ORPO)
+   •   When we inspected model failures, we found that in many cases the model produced
+       CoTs that were very close to the correct ones. Therefore, we thought that instead of only
+       increasing the probability of correct outputs through SFT, we also needed to reduce the
+       probability of failures through reinforcement learning.
+   •   To create failed examples (rejected), we sampled from the SFT model with temperature
+       set to 1.3.
+   •   For chosen, we used the output of the reasoner as is.
+   •   We performed preference learning with SimPO / ORPO using these output pairs.
+       However, it did not improve accuracy as much as expected, so we did not use it in the
+       final submission.
+   •   In the training logs, we observed some cases where the probability of the chosen side
+       increased, but we saw almost no decrease in the probability of the rejected side, which
+       was what we had expected.
+   •   We believe that learning did not progress sufficiently because chosen and rejected
+       were too similar.
+
+Solving new problems
+
+   •   For us, solving bit_manipulation and cryptarithm tasks and creating CoTs that an LLM
+       could imitate was very difficult.
+   •   Algorithms that solve these problems with high accuracy require a large amount of
+       search, and it was very difficult for an LLM to imitate them within a limited token
+       budget.
+   •   We also used Claude Fable 5, but we were not able to develop a sufficiently strong
+       reasoner.
+
+Authors
+Yoshinari Kawashima
+
+yoshinarikawashima
+
+MedudentYamatai
+
+taikiyamamura
+
+arrow_drop_up9
+Sharemore_horiz
+
+Citation
+DOI (Digital Object Identifier)https://doi.org/10.34740/kaggle/w/88245
+Citation Type
+BibTeXAPA
+Citation
+@article{yoshinari_kawashima_medudentyamatai_2026, title={92th PLACE SOLUTION},
+url={https://www.kaggle.com/w/88245}, DOI={10.34740/KAGGLE/W/88245},
+journal={Kaggle}, publisher={Kaggle}, author={Yoshinari Kawashima and
+MedudentYamatai}, year={2026} }content_copyCitation
+
+  2add_reaction
