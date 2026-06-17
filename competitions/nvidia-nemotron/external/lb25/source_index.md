@@ -18,10 +18,10 @@
 |---|---|---|---|---|---|
 | 0 | **writeup PDF (primary)** | `temp/LB25.pdf` (local render of the writeup page) | **full body — read directly** | **YES** | 170 KB |
 | 0 | Kaggle writeup | https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/writeups/lb25-progress-prize-improvements | LB25 writeup (target; = the PDF) | NO (JS body) | n/a |
-| 1 | data explorer | https://nemotron.huikang.dev/evaluation.html?logpath=06-07-03-07&problem=021ed764 | author's per-problem eval dashboard (linked in the writeup) | YES (static) | small |
-| 1 | Kaggle model | nemotron-adapter-private (writeup "Project Links") | the submission adapter (Public, Usability 0.7) | NO (Kaggle) | unknown |
-| 1 | Kaggle notebook | "[private] Adapter validation …" (writeup "Project Links") | the eval notebook fixed in change #1 (Public, 3 upvotes) | NO (JS) | unknown |
-| 1 | Kaggle notebook | "[private] Tinker submission …" (writeup "Project Links") | tinker submission (1 upvote) | NO (JS) | unknown |
+| 1 | data explorer | https://nemotron.huikang.dev/evaluation.html?logpath=06-07-03-07&problem=021ed764 | author's per-problem eval dashboard (embedded link) | YES (static) | small |
+| 1 | Kaggle model | https://kaggle.com/models/huikang/nemotron-adapter-private | "Project Links" — submission adapter; **followed 2026-06-17 → NO_CONTENT (private/JS, title only)** | NO (private) | unknown |
+| 1 | Kaggle notebook | https://www.kaggle.com/code/huikang/private-adapter-validation-notebook | embedded as "adapter evaluation notebook" (change #1) + "Project Links"; **followed → NO_CONTENT (private)** | NO (private) | unknown |
+| 1 | Kaggle notebook | https://kaggle.com/code/huikang/private-tinker-submission-notebook | "Project Links" — tinker submission; **followed → NO_CONTENT (private)** | NO (private) | unknown |
 | 1 | GitHub repo | https://github.com/tonghuikang/nemotron | Progress-Prize pipeline (master); `.py` only, no `.ipynb` | **YES** | ~50 MB repo (individual files small) |
 | 1 | blog | https://blog.huikang.dev/2026/05/02/nemotron-progress-prize.html | "Winning the Nemotron Progress Prize" | **YES** | small |
 | 1 | Kaggle discussion | https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/689915 | Progress-Prize writeup (companion) | NO (JS) | n/a |
@@ -45,12 +45,30 @@
 
 Link-budget honored: 6 depth-1 (≤10), 11 depth-2 (≤20), 3 depth-3 (≤20).
 
-## Downloaded resources
-**None.** No public `.ipynb` is reachable without Kaggle auth (the `tonghuikang/nemotron` repo is pure `.py`,
-no notebooks; all Kaggle notebooks are JS/auth-gated). Per the task's "save descriptions/metadata instead"
-rule, the winner's code is **linked and described, not copied** (licensing) — see `writeup/` and `analysis/`.
-The two eval JSONL snapshots (~1.6 MB each, fetchable, <20 MB) are summarized in the writeup rather than
-vendored, to keep the PR small. The andy279 HF datasets (~0.5–1 GB) are **>20 MB → not downloaded** (metadata only).
+## Saved / downloaded resources
+- **`writeup/lb25-writeup-verbatim.md`** — a faithful markdown conversion of `temp/LB25.pdf` (text via
+  `pdftotext -layout`; hyperlink targets from the PDF's embedded URI annotations, reproduced unchanged).
+- **`writeup/images/lb25-000.png`, `lb25-001.png`** — the only raster images embedded in the PDF (thin
+  grayscale header strips, 2311×69 / 2261×21, extracted with `pdfimages`). The page's "Project Links" card
+  thumbnails were unloaded spinner placeholders at print time → no thumbnail images exist in the PDF.
+- No public `.ipynb` is reachable without Kaggle auth (the `tonghuikang/nemotron` repo is pure `.py`; all
+  Kaggle notebooks/model are JS/auth-gated). The winner's code is **linked, not copied** (licensing). The eval
+  JSONL snapshots (~1.6 MB each) and andy279 HF datasets (~0.5–1 GB, **>20 MB**) are summarized, not vendored.
+
+## Link-following (depth-1) — results of actually fetching the writeup's links (2026-06-17)
+Per `wiki/24.LB25_task.md` (follow links ≥3 levels deep), the writeup's embedded URIs were fetched:
+- **`discussion/689915`** ("my progress prize winning submission") — Kaggle, JS-gated → reconstructed
+  separately as the Progress-Prize companion (huikang); see `lb25-progress-prize-improvements.md` §5 / blog.
+- **`nemotron.huikang.dev/evaluation.html?...`** — static data dashboard (per-problem solve/min-logprob);
+  the source repo `tonghuikang/nemotron` `evaluation/*.jsonl` backs it (summarized in the writeup).
+- **`models/huikang/nemotron-adapter-private`** — **fetched → NO_CONTENT** (private/JS; title only). Depth-2/3 N/A.
+- **`code/huikang/private-adapter-validation-notebook`** — **fetched → NO_CONTENT** (private; this is the eval
+  notebook of change #1; its *body* is what we can't see, but the writeup describes the fix). Depth-2/3 N/A.
+- **`code/huikang/private-tinker-submission-notebook`** — **fetched → NO_CONTENT** (private). Depth-2/3 N/A.
+- author profile `kaggle.com/huikang`, `kaggle.com/` — nav links, no content.
+> **Conclusion:** the three "Project Links" are **private Kaggle resources** (slugs literally say `private`);
+> following them yields only their titles without a Kaggle login (forbidden by this task). The fetchable depth-2/3
+> substrate (GitHub repo, blog, arXiv) is already enumerated in the source tree above.
 
 ## Notebook conversions
 N/A — no `.ipynb` available to convert. (`kca nb to-py` / `to-ipynb` is the tool that would be used; inspected,
