@@ -5,9 +5,14 @@
 
 | submissionId | version | account | profile (TeamNames) | μ0 | notes |
 |---|---|---|---|---|---|
-| 53582503 | adapted-kuni05 (`submission_kuni.tar.gz`) | harrysun2006 | **flyingfox** | — | μ~1080; 229 eps (112 2p / 117 4p); the prior "flyingfox history" = US |
-| **53730511** | **v4 Scheduler (`v4_scheduler.tar.gz`)** | harrysun2006 | **flyingfox** | 600 | orbit5: tracked 10 eps → settled **~690–720 (peak 843)**, 5W-3L+p2; **best own-agent yet**, < 1200 → KEEP + focus T20 (see Decision below) |
-| _(may v3)_ | v3 Forecast (`v3_forecast.py`) | firefly2006 | _tbd_ | — | submitted orbit5; id/profile to be discovered if tracked |
+| **53769740** | **v3.2 rotation-fix** (`v3_2_rotfix_submission.tar.gz`) | harrysun2006 | flyingfox | — | **2026-06-17 B11 fix** (planet-phase off-by-one; fixes fleet-into-sun). Validated +31pt vs evogen (13.8→45%). latest-1; replaces hybrid_v0 buggy probe. **Track:** `track_submission.py --once --submission-id 53769740` |
+| **53769744** | **v3.2 rotation-fix** (`v3_2_rotfix_submission.tar.gz`) | firefly2006 | _tbd_ | — | **2026-06-17 B11 fix** (may lane). same tarball. latest-1. **Track:** `track_submission.py --once --submission-id 53769744` |
+| **53767016** | **hybrid_v0** (`hybrid_v0_submission.tar.gz`) | harrysun2006 | flyingfox | — | **2026-06-17 ladder-probe** (OW-LADDER-LOOP-001). v3.2 + model candidate re-ranker (OW_HYBRID baked). latest-1; evicts kuni05 from scored latest-2. neutral, awaiting episodes. **Track:** `track_submission.py --once --submission-id 53767016` |
+| **53767026** | **hybrid_v0** (`hybrid_v0_submission.tar.gz`) | firefly2006 | _tbd_ | — | **2026-06-17 ladder-probe** (may lane). same tarball. latest-1; evicts coarr from scored latest-2. neutral, awaiting episodes. **Track:** `track_submission.py --once --submission-id 53767026` |
+| 53582503 | adapted-kuni05 (`submission_kuni.tar.gz`) | harrysun2006 | **flyingfox** | — | μ~1080; 229 eps; **evicted from scored latest-2 by 53767016** (2026-06-17, replaceable <1200) — re-lockable by re-submitting the tarball if the probe underperforms |
+| **53730511** | **v4 Scheduler (`v4_scheduler.tar.gz`)** | harrysun2006 | **flyingfox** | 600 | orbit5: settled **~690–720 (peak 843)**; now latest-2 (with hybrid_v0) |
+| 53730517 | v3 Forecast (`v3_forecast.py`) | firefly2006 | _tbd_ | — | may; ~678; now latest-2 (with hybrid_v0) |
+| 53582925 | v3.2+coarr (`v3_2_coarr.py`) | firefly2006 | _tbd_ | — | ~644.6; **evicted from scored latest-2 by 53767026** (2026-06-17) |
 
 **Loop:** every ~4 min, `python ops/track_submission.py --once --submission-id 53730511` downloads the next
 unprocessed episode (oldest first), analyzes + tags it (sun/hard-bug/winner-reason), appends to

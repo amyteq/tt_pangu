@@ -1,0 +1,20 @@
+{
+  "candidate": "agent/versions/hybrid_v0.py",
+  "version": "hybrid_v0",
+  "base": "v3.2 Forecast + model candidate re-ranker (OW_HYBRID, beta=0.5)",
+  "model": "20260617-cs-ladder310 (agent/hybrid_weights.json)",
+  "submit_ready": false,
+  "evaluated_utc": "2026-06-17",
+  "gates": {
+    "crash_safety": {"pass": true, "detail": "0 crashes / 8 games / 3650 steps"},
+    "runtime_p99_ms": {"pass": true, "detail": "p50 9ms / p99 44ms in-agent (<50ms local target, 20x under Kaggle 1000ms)"},
+    "fallback_rules_only": {"pass": true, "detail": "OW_HYBRID=0 byte-identical to v3.2 (499-turn obs replay); any load/inference failure -> v3.2"},
+    "no_torch_online": {"pass": true, "detail": "agent/hybrid_model.py pure-Python (stdlib+core); matches numpy/torch to 3e-16"},
+    "weak_tier_non_regression": {"pass": true, "detail": "vs pub_tactical 97.9% == 97.9% control"},
+    "four_player_non_regression": {"pass": true, "detail": "4p avg_rank 1.77/4 == control"},
+    "two_player_vs_incumbent_non_regression": {"pass": true, "detail": "vs frozen v3.2 net ~even (111W/129L at b0.5; tie-conversion, not a gain)"},
+    "strong_tier_improvement_ge_7pt": {"pass": false, "detail": "vs evogen1093 13.8% -> 13.8-14.6% (flat); vs kuni05 0.8% -> 0.8% (crushed). VALIDATION #3 NOT met."}
+  },
+  "summary": "Hybrid integration is complete, safe, fast, and non-regressive, but the v0 model (mid-ladder imitation, offline AUC 0.88) does NOT improve strong-tier results. The strong-tier gap is strategic, not a candidate-ranking problem. NOT promotable. Reject/retrain with genuine strong-tier teachers (mu>1240 episodes). See postmortems/2026-06-17-hybrid-v0.md.",
+  "kaggle_submit_performed": false
+}

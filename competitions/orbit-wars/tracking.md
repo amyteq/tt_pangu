@@ -6,7 +6,7 @@
 
 ## Current snapshot
 - **$50,000 Featured, μ-ladder, deadline 2026-06-23** (final eval ~2 weeks after); id 138420; 5/day, latest-2 scored.
-- 🔴 **Format correction (2026-06-15, KCT-OW-LIVE-002, verified from flyingfox's 205-episode history via `ListEpisodes` API):**
+- 🔴 **Format correction (2026-06-15, KCT-OW-LIVE-002, verified from our own kuni05 submission's 205-episode history — `flyingfox` = harrysun2006's profile name = US, sub 53582503, not an external competitor — via `ListEpisodes` API):**
   the ladder runs **BOTH 2p AND 4p FFA** episodes and **both update μ** — ~half the games are 4p (net μ ~83% 2p / ~17% 4p).
   The prior "1v1 only / 4p robustness-only" assumption (T7) was WRONG; our whole line was tuned 2p-only.
   4p gate now exists (`arena/eval_4p.py`); naive 4p-aware mode (`OW_4P_MODE`) tested NEGATIVE → default OFF; situational 4p = T18.
@@ -20,7 +20,8 @@
 - 🟢 **orbit5 cycle 2026-06-16:** stopped gating on local arena (Harry: it under-discriminates our cluster →
   test shelved candidates on the REAL ladder; only >1200-in-reasonable-time keeps a slot). **Submitted 2**:
   harry ← `v4_scheduler.tar.gz` (keeps kuni05 1079.7 anchor), may ← `v3_forecast.py` (keeps coarr 640.7). Active
-  slots: harry [v4 _pend_, kuni05 1079.7], may [v3 _pend_, coarr 640.7]. **Arena reliability (calibrated):** local
+  slots (refreshed 2026-06-16, COMPLETE): harry [**v4 703.9**, kuni05 **1069.9**], may [**v3 678.1**, coarr **644.4**]
+  — v4/v3 settled ≈ predicted (~700/~686), both < the >1200 bar; kuni05 our best (drifting 1085→1070). **Arena reliability (calibrated):** local
   win% vs evogen separates GROSS tiers (kuni05 90% ≫ ours ≤20% ↔ ladder 1083 ≫ 640–686) but is BLIND within our
   cluster (v3 μ686 & v3.2 μ640 both 16.7%; v4 best 20.0%). Fleet-massing discussion → T19–T22 + rotation-relay
   PARK (`tasks.md`); relay rigorously refuted (riding ≤2.35 < flying 2.39 u/step). **DOC FIX: `flyingfox` =
@@ -28,6 +29,56 @@
   was our OWN history, label only). Episode 80118852 = our kuni05's 4p WIN, and it CONFIRMS an early 多而小 weakness:
   early (≤step80) median launch **20 ships**, behind at step40 (5 vs 7 planets), massing only mid/late (median
   238 late). Mass-earlier is the real lever (T20/T21). Monitor μ via `ops/live_loop.py --once`.
+- 🟢 **Strong-tier foundation (2026-06-16, prompts 01/03):** built the deterministic execution +
+  battlefield-awareness substrate `core/` (geometry + FlightOracle + ArrivalLedger + typed
+  BattlefieldState + ECA RuleEngine) the hybrid/model plan sits on — `tests_orbit` 11/11 pass,
+  `arena/validate.py` clean (no agent regression). Schema: `discussions/2026-06-16-battlefield-state-schema.md`.
+  Plus the replay **dataset pipeline** `datasets/` (prompt 04): episode index + step + candidate
+  tables with FlightOracle safety/first-hit labels (fixture smoke OK; 20G corpus → snorlax).
+  ✅ FlightOracle gate now WIRED into `agent/main.py` emission (prompt 02 — `core/action_sanitizer.py`
+  + `_emit_gate`, import-guarded; verified active, 0 false-positives on v3.2, no regression; activate on
+  ladder via `main.py+core/` tar.gz). Next: model training (05) → hybrid (06) → ladder loop (07) toward μ≥1200.
+- 🟡 **Model training + hybrid (2026-06-17, prompts 05/06) — infra GO, model REJECTED.** Rebuilt the corpus
+  from **310 REAL ladder episodes** (subs 53582503/53730511, fetched read-only; 2.48M candidates) and trained the
+  candidate scorer (MLP, valid **AUC 0.882**; `agent/hybrid_weights.json`, pure-Python online, p99 44ms). Wired as
+  an additive re-ranker in `agent/main.py` (`OW_HYBRID`; β=0 byte-identical to v3.2; `agent/versions/hybrid_v0.py`).
+  **Arena A/B (240g/cell): strong-tier FLAT** — vs evogen1093 13.8%→13.8–14.6%, vs kuni05 0.8%→0.8% (crushed,
+  avg 17 vs 2315); weak/4p non-regressive; crash-safe. **VALIDATION #3 (+7pt) NOT met → not submitted**
+  (`live/last_eval.json` submit_ready=false). 3rd confirmation that offline AUC ≠ ladder strength (INS-003); the
+  cliff is candidate-GENERATION/strategy, not ranking (INS-008). Compute: local HARRY-ARCH (snorlax off + GPU-useless
+  for a CPU MLP). Postmortem `2026-06-17-hybrid-v0.md`; card `models/reports/model_card_20260617-cs-ladder310.md`.
+  Next: strong-tier-teacher corpus (μ>1240 episodes) and/or past-imitation generation.
+- 🟢 **Ladder loop cycle 2026-06-17 (prompt 07, OW-LADDER-LOOP-001) — NO_SUBMIT; corpus built.**
+  Bounded cycle: (a) **execution-safety audit** over 60 cached real-ladder replays (10,648 of our
+  launches via FlightOracle) — **0 strict-sun, no fix_required**; the ~11% `first_hit` "oob" is a
+  trace artifact (winner 11.0% ≈ loser 10.8%, non-causal; sanitizer blocks 0 → B11). (b) **early-stop:**
+  kuni05 (53582503, μ~1077) = keep anchor; v4 (53730511, ~700) / v3 / coarr = weak-but-retained (no
+  validated >1200 replacement; hybrid_v0 rejected). (c) **NO_SUBMIT** — no candidate beats the strong
+  tier; budget/quota untouched. (d) **idle task = built the strong-tier-teacher corpus manifest**
+  (`datasets/strong_corpus/`, 1272 strong-vs-strong episodes μ≥1200) via `ops/discover_strong_corpus.py`;
+  fetch/build/train queued (`live/parallel_work_queue.md`). (e) fresh ListEpisodes refresh **blocked by
+  HTTP 429** (added backoff to `ops/episode_discover.py`); μ from this session's earlier queries.
+  Distance to target: **kuni05 ~1077, ≈123 below μ1200**.
+- 🟢 **Submit override (2026-06-17, Harry-directed): hybrid_v0 ladder-probe ×2.** Harry: *"any agents
+  <1200 can be replaced; submit to both accounts to collect more episodes."* So the cycle's NO_SUBMIT was
+  superseded: built + validated the `hybrid_v0_submission.tar.gz` (v3.2 + model re-ranker, OW_HYBRID baked,
+  core/+weights bundled; clean-extract validated: hybrid active, crash-free, p99 59 ms) and submitted it as
+  a **ladder-probe** (failed local +7pt gate but qualifies for the exception) to **harry `53767016`**
+  (latest-2 [hybrid_v0, v4]; kuni05 evicted) + **may `53767026`** (latest-2 [hybrid_v0, v3]; coarr evicted).
+  Both `neutral`, awaiting episodes — the goal is real-ladder data on the model-integrated agent (orbit5
+  thesis: local under-discriminates). Next: after 10/20 eps, track 53767016/53767026 → early-stop; in
+  parallel, fetch the strong-corpus → retrain a stronger scorer.
+- 🟢🔑 **CRITICAL BUG FIX (2026-06-17, user-reported): planet-rotation off-by-one (B11).** Harry flagged a
+  fleet flying into the sun (ep 80276901, sub 53767016, ~step 20). Traced to a 1-tick phase error: the
+  engine observes orbiting planets at `rotate(init, ang_vel*max(0,step-1))` but ALL our predictors used
+  `ang_vel*step` (one tick ahead). This mis-aimed every intercept (~1.6u, into the sun for sun-line
+  targets) AND made `FlightOracle.first_hit` phantom-hit planets, masking sun/OOB so the sanitizer
+  didn't block. **Fixed** in `core/geometry.planet_pos` + `agent/main.py._planet_pos`/`._predict_pos`
+  (`_predict_pos(t-1)==obs(t)` verified). **Impact: fixed-v3.2 beats buggy-v3.2 95% (200g); vs evogen
+  13.8%→45.0% (+31pt); sun launches 0%, oob 0.5% (was ~9%); 4p avg_rank 1.72.** tests 4/4. **The
+  evogen cliff was largely THIS BUG, not strategy** (INS-009; revises the 13-levers-refuted narrative).
+  kuni05 still ~1% (separate gap). Fixed tarball `v3_2_rotfix_submission.tar.gz` built + validated;
+  **submit to ladder PENDING Harry's go-ahead** (the live probes 53767016/53767026 carry the bug).
 - **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
   (evogen 1093 / multifocus / kuni05 1240).
 

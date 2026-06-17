@@ -17,3 +17,9 @@ agent/versions/forecast_measure.py
 
 # Live-loop transient state (no secrets; per-task-run counters)
 live/budget_state.json
+
+# Replay dataset / model artifacts (OW-P1-DATASET-001) — keep scripts/schema/reports, not bulk data
+datasets/artifacts/
+datasets/cache/
+datasets/fixtures/*.json
+models/artifacts/

@@ -23,6 +23,8 @@ import argparse
 import json
 import os
 import statistics as st
+import time
+import urllib.error
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -31,11 +33,32 @@ PENDING = os.path.join(COMP, "live", "pending_episodes.txt")
 API = "https://www.kaggle.com/api/i/competitions.EpisodeService/ListEpisodes"
 
 
-def list_episodes(submission_id: int, timeout: int = 60) -> list[dict]:
+def list_episodes(submission_id: int, timeout: int = 60, retries: int = 5) -> list[dict]:
+    """Read-only ListEpisodes with exponential backoff on HTTP 429 (public rate limit).
+
+    The endpoint rate-limits bursts; the ladder loop / BFS discovery hit it, so back off
+    (2,4,8,16,32s) rather than fail the cycle. No creds, no writes.
+    """
     body = json.dumps({"submissionId": submission_id}).encode()
-    req = urllib.request.Request(API, data=body, headers={"Content-Type": "application/json", "User-Agent": "x"})
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read()).get("episodes", [])
+    last = None
+    for attempt in range(retries):
+        req = urllib.request.Request(
+            API,
+            data=body,
+            headers={"Content-Type": "application/json", "User-Agent": "x"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return json.loads(r.read()).get("episodes", [])
+        except urllib.error.HTTPError as e:  # noqa: PERF203
+            last = e
+            if e.code == 429 and attempt < retries - 1:
+                time.sleep(2 ** (attempt + 1))
+                continue
+            raise
+    if last:
+        raise last
+    return []
 
 
 def summarize(submission_id: int) -> dict:
