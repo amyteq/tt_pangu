@@ -1,7 +1,8 @@
 meta:
   cycle: 2026-06-17 (OW-LADDER-LOOP-001, prompt 07)
   task: OW-LADDER-LOOP-001
-  submit_decision: NO_SUBMIT
+  submit_decision: SUBMIT x2 (hybrid_v0 ladder-probe, Harry-directed) — harry 53767016 + may 53767026; both neutral, awaiting episodes
+  new_submissions: {harry: 53767016, may: 53767026}
   refresh_status: STALE — fresh ListEpisodes blocked by HTTP 429; see live/agent_status.md + account_status.md for this-cycle (cached) μ
   note: harry latest2 is v4_scheduler.tar.gz (sub 53730511, μ~700) as of orbit5 2026-06-16, not the main.py entry below; agent_status.md is the authoritative this-cycle slot view
   execution_safety: clean — 0 strict-sun over 60 cached eps / 10648 launches (FlightOracle audit); no fix_required
