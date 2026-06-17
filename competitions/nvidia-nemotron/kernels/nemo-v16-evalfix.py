@@ -47,16 +47,17 @@ MOE_TIE_WEIGHTS = True
 SHUFFLE_DATASET = False
 
 # --- v16-evalfix levers (LB25 plan) ---------------------------------------
-EVAL_PARITY_PREFLIGHT = True   # LEVER 1 (headline): assert local eval == grader prompt/decode
-BIT_COT_DOSE = 0.0             # LEVER 2 scaffold: fraction of bit solver-CoT to weave (set <=0.15 on Saturday)
-MINLOGPROB_REPLAY = False      # LEVER 3 scaffold: enable the hardest-row replay pass
-REPLAY_FRAC = 0.15             # of examples, the hardest by min per-token logprob
+EVAL_PARITY_PREFLIGHT = (
+    True  # LEVER 1 (headline): assert local eval == grader prompt/decode
+)
+BIT_COT_DOSE = 0.0  # LEVER 2 scaffold: fraction of bit solver-CoT to weave (set <=0.15 on Saturday)
+MINLOGPROB_REPLAY = False  # LEVER 3 scaffold: enable the hardest-row replay pass
+REPLAY_FRAC = 0.15  # of examples, the hardest by min per-token logprob
 # Grader-exact decode (must match the official scorer). Used by the parity preflight.
 EVAL_MAX_NEW_TOKENS = 7680
 EVAL_TEMPERATURE = 0.0
 EVAL_SUFFIX = (
-    "\nPlease put your final answer inside \\boxed{}. "
-    "For example: \\boxed{your answer}"
+    "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
 )
 
 TARGET_MODULES = [
@@ -346,7 +347,9 @@ def assert_eval_submission_parity(tokenizer):
         row = next(_csv.DictReader(f))
     prompt = build_eval_prompt(tokenizer, row["prompt"])
     assert EVAL_SUFFIX in prompt, "eval prompt is missing the boxed-answer SUFFIX"
-    assert prompt.rstrip().endswith(("assistant", ">", "\n")) or True  # template tail varies
+    assert (
+        prompt.rstrip().endswith(("assistant", ">", "\n")) or True
+    )  # template tail varies
     assert EVAL_MAX_NEW_TOKENS == 7680 and EVAL_TEMPERATURE == 0.0, (
         "decode settings must match the grader (greedy, 7680 new tokens)"
     )
@@ -617,7 +620,9 @@ def run_training() -> None:
                 bi += 1
         woven.extend(bit_examples[bi:])
         examples = woven
-        print(f"bit-CoT woven: {len(bit_examples)} examples (dose={BIT_COT_DOSE}); total={len(examples)}")
+        print(
+            f"bit-CoT woven: {len(bit_examples)} examples (dose={BIT_COT_DOSE}); total={len(examples)}"
+        )
 
     # -- Wrap in LoRA -------------------------------------------------
     model = FastLanguageModel.get_peft_model(
@@ -986,7 +991,9 @@ def run_training() -> None:
     # logprob). Complete minlogprob_replay_indices() + the short retrain on Saturday.
     if MINLOGPROB_REPLAY:
         hard_idx = minlogprob_replay_indices(model, examples, REPLAY_FRAC)
-        _log(f"min-logprob replay: {len(hard_idx)} hardest examples selected (frac={REPLAY_FRAC})")
+        _log(
+            f"min-logprob replay: {len(hard_idx)} hardest examples selected (frac={REPLAY_FRAC})"
+        )
         # SATURDAY: re-run the training inner loop over [examples[i] for i in hard_idx].
 
     print(

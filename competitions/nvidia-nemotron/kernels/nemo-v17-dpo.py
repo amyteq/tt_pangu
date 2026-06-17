@@ -50,10 +50,15 @@ MOE_TIE_WEIGHTS = True
 SHUFFLE_DATASET = False
 
 # --- v17-dpo config (LB80 plan, Part B) -----------------------------------
-DPO_BETA = 0.1                 # DPO temperature
-DPO_GEN_TEMPS = (0.0, 0.7)     # greedy (capture eval-time failure) + diverse
-DPO_GEN_N = (1, 8)             # samples per temperature
-DPO_SFT_MIX_CATS = ("cipher", "gravity", "numeral", "unit_conversion")  # forgetting guard
+DPO_BETA = 0.1  # DPO temperature
+DPO_GEN_TEMPS = (0.0, 0.7)  # greedy (capture eval-time failure) + diverse
+DPO_GEN_N = (1, 8)  # samples per temperature
+DPO_SFT_MIX_CATS = (
+    "cipher",
+    "gravity",
+    "numeral",
+    "unit_conversion",
+)  # forgetting guard
 INIT_ADAPTER_HINT = "v14 or the 0.86 soup (cold-start DPO from base is unstable)"
 
 TARGET_MODULES = [
@@ -1001,7 +1006,9 @@ def run_dpo() -> None:
     Lower EV: mspawar's DPO did not beat 0.86; treat as a research bet. The v14
     run_training() above remains available to (re)produce the SFT prior to init from."""
     print("v17-dpo: scaffold. Init from", INIT_ADAPTER_HINT)
-    print("DPO design: dual-temp generate -> oracle/greedy pairs -> length-norm DPO + easy-cat SFT mix.")
+    print(
+        "DPO design: dual-temp generate -> oracle/greedy pairs -> length-norm DPO + easy-cat SFT mix."
+    )
     raise NotImplementedError(
         "run_dpo is a Saturday scaffold: complete generate_dual_temp/build_dpo_pairs/dpo_loss "
         "+ the DPO training loop on external GPU (see LB80 next_version_plan.md, Part B)."
