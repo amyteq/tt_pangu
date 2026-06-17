@@ -330,6 +330,23 @@ INFLIGHT_CAP_FRAC = float(
 # aggressive scaling (2.5-3.0 early / 0.6-0.8 late) lost. Linearly interpolated by step.
 CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 3.2))
 CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.3))
+# === 4p-aware mode (KCT-OW-LIVE-002) ===========================================
+# The ladder runs BOTH 2p and 4p episodes and BOTH update mu (~half are 4p,
+# verified from the flyingfox 205-episode history); our value function was tuned
+# 2p-only and is owner-BLIND across rivals. This mode triggers ONLY when >=3
+# distinct rival owners are present, so 2p play is byte-identical (provable).
+# In 4p mu is placement-vs-rating (avg_rank), and the flyingfox 4p analysis
+# showed losers get ELIMINATED in the t35-110 gauntlet while winners expand
+# fast on NEUTRALS and don't paint a target by early PvP. Three env-gated knobs:
+FOURP_MODE = int(_os.environ.get("OW_4P_MODE", 0))  # master gate
+FOURP_ATK_SCALE = float(_os.environ.get("OW_4P_ATK_SCALE", 0.5))  # opening PvP damping
+FOURP_PEACE = int(
+    _os.environ.get("OW_4P_PEACE_TURNS", 25)
+)  # "no early aggressor" window
+FOURP_RIVAL_W = float(
+    _os.environ.get("OW_4P_RIVAL_W", 1.0)
+)  # weight hurting the leader
+FOURP_CAP_BUMP = float(_os.environ.get("OW_4P_CAP_BUMP", 0.0))  # survival reserve bump
 # Consolidation: forward an idle rear planet's surplus to the friendly planet nearest the
 # front (the getting-started tutorial's flaw #4). DEFAULT OFF — an arena sweep showed it
 # never beats v2.1: harmful when aggressive (min=12 -> 30% vs v2.1), at best neutral when
@@ -489,6 +506,17 @@ def _agent(obs):
         p for p in planets if p.owner not in (-1, player) and p.id not in comet_ids
     ]
 
+    # 4p regime detection (no-op in 2p: triggers only with >= 3 distinct rivals).
+    rival_owners = {p.owner for p in planets if p.owner not in (-1, player)}
+    is_4p = bool(FOURP_MODE) and len(rival_owners) >= 3
+    top_rival = None
+    if is_4p:
+        strength = dict.fromkeys(rival_owners, 0.0)
+        for p in planets:
+            if p.owner in strength:
+                strength[p.owner] += p.ships
+        top_rival = max(strength, key=strength.get) if strength else None
+
     # Reserve = standing garrison floor + any extra for currently-inbound enemy fleets.
     # The floor is the v2 fix: it lets freshly captured planets accumulate production
     # instead of being immediately re-emptied, which breaks v1's capture-churn loop.
@@ -497,6 +525,8 @@ def _agent(obs):
         floor = _garrison_floor(mp, enemy_planets)
         threat = _incoming_threat(mp, fleets, player)
         reserve[mp.id] = max(floor, threat)
+        if is_4p:  # survival floor: clear the t35-110 4p elimination gauntlet
+            reserve[mp.id] = max(reserve[mp.id], floor + FOURP_CAP_BUMP)
 
     # Global in-flight cap: don't pour the whole empire into simultaneous fleets.
     # Phase-scaled: interpolate from CAP_EARLY (step 0) to CAP_LATE (game end).
@@ -521,7 +551,15 @@ def _agent(obs):
         # Conservation-correct (ships in transit have landed by H), so launching is not
         # wrongly penalized; production accrued by H preserves tempo (earlier capture wins).
         o, s = o_list[PROJ_H], s_list[PROJ_H]
-        return s if o == player else (-s if o != -1 else 0.0)
+        if o == player:
+            return s
+        if o == -1:
+            return 0.0
+        if is_4p:
+            # owner-aware in 4p: hurting the LEADER is worth more; force spent
+            # against a small rival mostly hands tempo to a third party.
+            return -s * (FOURP_RIVAL_W if o == top_rival else 1.0 / FOURP_RIVAL_W)
+        return -s
 
     def _base_adv(pid):
         t = base_traj.get(pid)
@@ -713,6 +751,11 @@ def _agent(obs):
             value = (_term(sw_o, sw_s) + _term(tw_o, tw_s)) - (
                 base_src_adv + _base_adv(tgt.id)
             )
+            # 4p: don't be the early aggressor everyone gangs. Damp player-vs-
+            # player attacks in the opening (neutral grabs untouched -> expansion
+            # tempo, the actual 4p win driver, is preserved).
+            if is_4p and step < FOURP_PEACE and tgt.owner not in (-1, player):
+                value *= FOURP_ATK_SCALE
             if value <= 0:
                 continue  # net-negative or pointless -> don't fire
             candidates.append((value, mp.id, tgt.id, angle, needed))

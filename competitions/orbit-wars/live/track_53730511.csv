@@ -1,0 +1,11 @@
+ep,size,place,result,our_mu0,our_mu1,d_mu,profile,tag,sun_collision,hard_bug,winner_reason,followup
+80121924,2,1,win,,600,,flyingfox,hard-bug,YES,"sun-proximity ticks=95 worst(step=198,dist=10.03)",supply-chain reinforcement / reserve concentration,
+80122056,2,1,win,600,739.5,139.5,flyingfox,hard-bug,YES,"sun-proximity ticks=12 worst(step=58,dist=10.18)",supply-chain reinforcement / reserve concentration,
+80122483,2,2,loss,739.5,637.9,-101.6,flyingfox,hard-bug,YES,"sun-proximity ticks=3 worst(step=87,dist=10.14)",loss: late near-sun flight (board-position collapse / pathing),
+80122951,2,1,win,637.9,766.3,128.4,flyingfox,hard-bug,YES,"sun-proximity ticks=24 worst(step=128,dist=10.1)",supply-chain reinforcement / reserve concentration,
+80123401,2,1,win,766.3,842.9,76.6,flyingfox,,no,none,supply-chain reinforcement / reserve concentration,
+80123845,2,2,loss,842.9,754.1,-88.7,flyingfox,hard-bug,YES,"sun-proximity ticks=4 worst(step=182,dist=10.14)",loss: late near-sun flight (board-position collapse / pathing),
+80124502,2,2,loss,754.1,676.7,-77.4,flyingfox,hard-bug,YES,"sun-proximity ticks=1 worst(step=171,dist=11.89)",loss: late near-sun flight (board-position collapse / pathing),
+80124749,4,1,win,676.7,724.2,47.5,flyingfox,,,,,
+80125053,4,2,p2,724.2,702.7,-21.5,Jack Su,,,,,
+80125315,4,2,p2,702.7,689.9,-12.9,CinayetMemet,,,,,

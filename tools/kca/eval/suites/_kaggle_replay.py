@@ -173,7 +173,8 @@ def run_suite(
         outcome.total_error = 1
 
     if audit_path is None:
-        audit_path = _REPO_ROOT / ".agent" / "audit.jsonl"
+        # KCA audit log (ADR-0021): .agent/kca/audit.jsonl.
+        audit_path = _REPO_ROOT / ".agent" / "kca" / "audit.jsonl"
     v_count, v_lines = _audit_grep(audit_path)
     outcome.audit_grep_violations = v_count
     outcome.audit_grep_lines = v_lines

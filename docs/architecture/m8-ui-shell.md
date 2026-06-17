@@ -105,8 +105,9 @@ is empty so the SPA still renders cleanly in tests and demo previews.
 
 - Every action service mutation writes to `agent_tool_audit` via
   `tools.kca.agent.audit.log_policy_decision`.
-- `.agent/audit.jsonl` continues to exist for offline ops; the
-  dual-write behaviour from M8-T001 keeps both backends in sync when a
+- `.agent/kca/audit.jsonl` (ADR-0021; formerly `.agent/audit.jsonl`) continues
+  to exist for offline ops; the dual-write behaviour from M8-T001 keeps both
+  backends in sync when a
   DB is configured. The writer never raises on DB failure — JSONL is
   the source of truth.
 - The DecisionGate page surfaces the last 20 audit rows for the job

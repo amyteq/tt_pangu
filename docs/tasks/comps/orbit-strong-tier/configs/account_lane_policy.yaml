@@ -1,0 +1,50 @@
+policy_id: OW-ACCOUNT-LANE-001
+competition: orbit-wars
+accounts:
+  harry:
+    env_file: .vscode/.env.harry
+    lane: stable_and_final
+    preferred_uses:
+      - preserve_strong_anchor
+      - submit_best_validated_candidate
+      - final_lock_re_submit
+    avoid_uses:
+      - risky_unvalidated_probe
+  may:
+    env_file: .vscode/.env.may
+    lane: experimental_probe
+    preferred_uses:
+      - probe_promising_candidates
+      - train_ladder_signal_for_uncertain_variant
+      - preserve_secondary_anchor_if_positive
+    avoid_uses:
+      - evicting_strong_harry_anchor
+
+latest2_mechanics:
+  newest_submit_eviction_model: "[A newest, B oldest] + submit C => [C newest, A oldest]; B evicted"
+  replace_oldest: one_submit
+  replace_newest_while_preserving_oldest: usually_two_submits
+
+allocation_rules:
+  priority:
+    - replace_fix_required_slot
+    - replace_weak_slot
+    - replace_lower_mu_neutral_slot
+    - preserve_strong_slot
+  account_choice:
+    - choose_account_with_lowest_opportunity_cost
+    - prefer_may_for_experiment_if_compliant
+    - prefer_harry_for_stable_or_final_candidate
+  quota:
+    max_submits_total_per_task_run: 4
+    max_submits_per_account_per_task_run: 2
+    leave_daily_submit_quota_per_account: 1
+    min_minutes_between_real_submits_same_account: 5
+
+credentials:
+  allowed_read_only_files:
+    - .vscode/.env.harry
+    - .vscode/.env.may
+  never_print_secret_values: true
+  never_commit_credential_files: true
+  may_print_usernames: true

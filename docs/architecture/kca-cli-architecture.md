@@ -126,7 +126,7 @@ Three profiles ship under `.kca/permissions/`:
 
 ## Audit trail
 
-Every non-dry-run skill invocation records a JSONL line to `.agent/audit.jsonl`
+Every non-dry-run skill invocation records a JSONL line to `.agent/kca/audit.jsonl`
 via `tools/kca/agent/audit.py`. An `AuditRecord` contains:
 
 - `timestamp` (ISO 8601 UTC)
@@ -147,7 +147,7 @@ against `agent_jobs` for operator queries. The M7-era best-effort write to
 readers but is now deprecated — prefer the typed table.
 
 Offline → DB backfill: `scripts/backfill_tool_audit.py` reads
-`.agent/audit.jsonl` and inserts missing rows into `agent_tool_audit`,
+`.agent/kca/audit.jsonl` and inserts missing rows into `agent_tool_audit`,
 de-duplicating by `(session_id, ts, tool_name)`. Idempotent.
 
 ## Decision gate
