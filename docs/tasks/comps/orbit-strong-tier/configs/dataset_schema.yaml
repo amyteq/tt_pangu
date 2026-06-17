@@ -1,0 +1,83 @@
+policy_id: OW-DATASET-SCHEMA-001
+competition: orbit-wars
+raw_replays:
+  location_examples:
+    - /data/orbit-wars/replays
+    - /mnt/snorlax/orbit/replays
+  git_policy: do_not_commit_raw_20gb_json
+
+tables:
+  episodes:
+    columns:
+      - episode_id
+      - source_path
+      - player_count
+      - seed
+      - module_version
+      - team_names
+      - rewards
+      - winner_seat
+      - winner_name
+      - top_player_flag
+  steps:
+    columns:
+      - episode_id
+      - step
+      - player_id
+      - phase
+      - planets_owned
+      - production_total
+      - ships_on_planets
+      - ships_in_flight
+      - score_estimate
+      - leader_gap
+  candidates:
+    grain: one_row_per_candidate_per_step
+    columns:
+      - episode_id
+      - step
+      - player_id
+      - source_planet_id
+      - target_object_id
+      - target_type
+      - ship_bucket
+      - oracle_valid
+      - oracle_eta
+      - oracle_first_hit_type
+      - oracle_first_hit_id
+      - min_sun_distance
+      - candidate_features_json
+      - teacher_selected
+      - teacher_ship_fraction
+      - future_value_delta_h20
+      - future_value_delta_h50
+      - terminal_outcome
+  actions:
+    columns:
+      - episode_id
+      - step
+      - player_id
+      - source_planet_id
+      - angle
+      - ships
+      - decoded_first_hit_id
+      - decoded_target_type
+      - eta
+      - action_type
+
+splits:
+  leakage_rule: split_by_episode_id_and_submission_or_player_when_possible
+  train: 0.80
+  valid: 0.10
+  test: 0.10
+
+quality_report:
+  required_metrics:
+    - replay_count
+    - decoded_action_rate
+    - candidate_count
+    - positive_label_rate
+    - 2p_4p_balance
+    - top_player_distribution
+    - hard_bug_label_rate
+    - unknown_target_rate

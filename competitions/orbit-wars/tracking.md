@@ -5,13 +5,29 @@
 > `unknown` = not in available evidence.
 
 ## Current snapshot
-- **$50,000 Featured, 1v1 μ-ladder, deadline 2026-06-23** (final eval ~2 weeks after); id 138420; 5/day, latest-2 scored.
+- **$50,000 Featured, μ-ladder, deadline 2026-06-23** (final eval ~2 weeks after); id 138420; 5/day, latest-2 scored.
+- 🔴 **Format correction (2026-06-15, KCT-OW-LIVE-002, verified from flyingfox's 205-episode history via `ListEpisodes` API):**
+  the ladder runs **BOTH 2p AND 4p FFA** episodes and **both update μ** — ~half the games are 4p (net μ ~83% 2p / ~17% 4p).
+  The prior "1v1 only / 4p robustness-only" assumption (T7) was WRONG; our whole line was tuned 2p-only.
+  4p gate now exists (`arena/eval_4p.py`); naive 4p-aware mode (`OW_4P_MODE`) tested NEGATIVE → default OFF; situational 4p = T18.
+  See `EPISODES.md` analysis #3.
 - Direction **D1 = C** (low-cost continue). Incremental path largely exhausted (7 single-mechanism levers failed);
   strong tier wins as integrated systems.
 - **Ladder (refreshed 2026-06-14, read-only Kaggle):**
   - harrysun2006 latest-2: adapted-kuni05 (attributed) **1085.4** + v3.2 **660.0**
   - firefly2006 (may) latest-2: v3_2_coarr **648.8** + v3.2 **636.7**
   - retired peaks: adapted-kuni05 **1151.0**, Forecast v3 686.1, v2.1 555.8
+- 🟢 **orbit5 cycle 2026-06-16:** stopped gating on local arena (Harry: it under-discriminates our cluster →
+  test shelved candidates on the REAL ladder; only >1200-in-reasonable-time keeps a slot). **Submitted 2**:
+  harry ← `v4_scheduler.tar.gz` (keeps kuni05 1079.7 anchor), may ← `v3_forecast.py` (keeps coarr 640.7). Active
+  slots: harry [v4 _pend_, kuni05 1079.7], may [v3 _pend_, coarr 640.7]. **Arena reliability (calibrated):** local
+  win% vs evogen separates GROSS tiers (kuni05 90% ≫ ours ≤20% ↔ ladder 1083 ≫ 640–686) but is BLIND within our
+  cluster (v3 μ686 & v3.2 μ640 both 16.7%; v4 best 20.0%). Fleet-massing discussion → T19–T22 + rotation-relay
+  PARK (`tasks.md`); relay rigorously refuted (riding ≤2.35 < flying 2.39 u/step). **DOC FIX: `flyingfox` =
+  harrysun2006's profile name = US** (so sub 53582503 = our adapted-kuni05; the "flyingfox 205-episode" 4p finding
+  was our OWN history, label only). Episode 80118852 = our kuni05's 4p WIN, and it CONFIRMS an early 多而小 weakness:
+  early (≤step80) median launch **20 ships**, behind at step40 (5 vs 7 planets), massing only mid/late (median
+  238 late). Mass-earlier is the real lever (T20/T21). Monitor μ via `ops/live_loop.py --once`.
 - **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
   (evogen 1093 / multifocus / kuni05 1240).
 
@@ -96,6 +112,13 @@
 | 648.8 | v3_2_coarr | v3.2 + co-arrival ON (may account; on-ladder +~12 vs v3.2) |
 | parity | v4 Scheduler | hub-and-hammer integrated rewrite (≈v3.2, iterating) |
 | 1151.0 / 1085.4 | adapted-kuni05 | attributed public agent; competitive entry (peak / current) |
+
+## Live loop (KCT-OW-LIVE-002, 2026-06-15)
+- Bounded live-submission loop under `ops/` (credential-safe two-account status, episode ingest/analyze with
+  sun-collision detection, slot classification, gated autonomous submit). Commands in `ops/README.md`; state
+  in `live/`. Run one cycle: `python competitions/orbit-wars/ops/live_loop.py --once`.
+- Cycle 2026-06-15 (read-only Kaggle): harry [kuni05 **1086.5**, v3.2 **655.7**]; may [v3_2_coarr **644.0**,
+  v3.2 **630.1**]. **NO_SUBMIT** (no candidate beats an active slot; v4 = parity; budget/quota preserved).
 
 ## Evidence links
 - GitHub issue #87 (body + 15 comments) — original hub. `tracking_zh.md` — original Chinese verbatim.

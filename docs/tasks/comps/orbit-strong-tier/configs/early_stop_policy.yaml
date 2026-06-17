@@ -1,0 +1,83 @@
+policy_id: OW-EARLY-STOP-001
+competition: orbit-wars
+target_public_mu: 1200
+status_values: [neutral, strong, weak, fix_required, retired, unknown]
+
+hard_stop:
+  mark: fix_required
+  triggers:
+    - strict_sun_collision_by_our_fleet
+    - invalid_action_format
+    - agent_exception_or_timeout
+    - repeated_wrong_first_hit_target
+    - repeated_oob_self_loss
+    - catastrophic_source_emptying_confirmed_logic_bug
+  action:
+    - generate_P0_bug_task
+    - stop_submitting_same_version
+    - patch_execution_layer_before_next_submit
+
+first_10_episodes:
+  min_episodes: 10
+  evaluate_by_submission_id: true
+  preserve_format_breakdown: [2p, 4p]
+  mark_weak_if_any:
+    - hard_stop_triggered
+    - two_losses_vs_weaker_opponents
+    - losses_in_recent_window_gte: 7
+    - public_mu_delta_lte: -40
+    - public_mu_current_lt: 800
+      and_public_mu_slope_lte: 0
+    - two_p_win_rate_lt: 0.35
+      and_no_strong_opponent_win: true
+  continue_if_any:
+    - public_mu_delta_gte: 80
+    - public_mu_current_gte: 950
+      and_public_mu_slope_gt: 0
+    - strong_opponent_wins_gte: 1
+    - two_p_win_rate_gte: 0.50
+  notes:
+    - Do not weak-label from one unlucky loss unless a hard bug is confirmed.
+    - If all first 10 opponents are much stronger, require failure-mode evidence before weak-labeling.
+
+first_20_episodes:
+  min_episodes: 20
+  mark_weak_if_any:
+    - hard_stop_triggered
+    - public_mu_current_lt: 950
+      and_public_mu_slope_lte: 0
+    - public_mu_current_lt: 1000
+      and_losses_in_last_10_gte: 6
+    - public_mu_current_lt_incumbent_by_gte: 50
+    - no_strong_tier_wins: true
+      and_public_mu_current_lt: 1000
+    - five_game_window_losses_gte: 3
+      and_public_mu_slope_lte: 0
+  continue_if_any:
+    - public_mu_current_gte: 1050
+      and_public_mu_slope_gt: 0
+    - strong_tier_wins_gte: 2
+    - latest_10_mu_delta_gte: 50
+    - two_p_win_rate_gte: 0.55
+  mark_strong_if_any:
+    - public_mu_current_gte: 1200
+    - public_mu_current_gte: 1100
+      and_public_mu_slope_gt: 0
+      and_strong_tier_wins_gte: 2
+
+release_slot:
+  if_status: [weak, fix_required]
+  conditions:
+    - weak_for_more_than_minutes: 60
+    - validated_replacement_available: true
+  action:
+    - prepare_latest2_replacement_plan
+    - submit_replacement_if_authorized_and_within_budget
+
+recording:
+  files:
+    - competitions/orbit-wars/live/track_<submission_id>.csv
+    - competitions/orbit-wars/live/agent_status.md
+    - competitions/orbit-wars/live/active_agents.yaml
+    - competitions/orbit-wars/submissions.md
+    - competitions/orbit-wars/tracking.md

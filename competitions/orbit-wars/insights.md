@@ -7,9 +7,39 @@
   still in transit. This was the one big lever (556→686). Evidence: `README.md` (Forecast key bug).
 - **少而重 > 多而小** — concentrated strikes (e.g. 27×78 ships) beat many small ones (117×19); ~56% of a top
   winner's launches are short-hop reinforcement (supply chain). Evidence: `EPISODES.md` #1 (Jake Will).
+  *Does not transplant:* OVERKILL multiplier, T14 supply, and the 2026-06-16 v4a/v4f/v4c/v4i revivals all failed
+  the gate — concentration is emergent, and v4 can't reach the top-tier board states where it pays (~1–2% vs
+  kuni05). Evidence: `postmortems/2026-06-16-overkill-revival.md`.
 - **Top-6 are rule/search engines, no NN** — behavior cloning reproduces the *form* not the *system*
   (T12: recall@k 0.387 but 0% in arena). Evidence: `EPISODES.md` #2; issue #87 (T12 v2).
-- **Strong tier wins as integrated systems** — 7 transplanted single-mechanism levers all failed on the suite.
+- **Strong tier wins as integrated systems** — **12** transplanted single-mechanism levers all failed on the suite
+  (incl. v4a counter-attack window, v4f best-response value, v4c cluster hammer, v4i Isaiah two-band, and **T20
+  early-massing `OW_EM`** 2026-06-16: opening capture-and-hold sizing, monotonic-negative vs evogen −7.5→−13.8pt,
+  no positive region — `postmortems/2026-06-16-t20-early-massing.md`). The 多而小 opening gap is real (ep 80118852)
+  but bigger opening fleets over-commit and lose the ship race; the fix is an INTEGRATED opening planner, not a knob.
+- **Rotation is NOT a free transport lever (relay/staging refuted, 2026-06-16).** Inner planets rotate at
+  ω∈[0.025,0.05] (`orbit_wars.py:540-546`); a planet's max radial closing speed toward a target = orbital_r·ω
+  ≈ 2.35 u/step at the inner-ring edge — *below* even a 19-ship fleet's 2.39 u/step. So flying always beats
+  "riding the orbit", the optimal relaunch delay computed to 0 in every geometry/ω, and the orbital
+  minimum-distance phase is 170–210 steps out (games end ~150). The honest 2-hop (ship O→I then relaunch) is
+  strictly worse (35–39 vs 27 turns direct); 2-hop only "wins" when the staging planet is ALREADY held and
+  closer to T — pure geometry, not rotation. **The real value of "少而重" is the source-side massing speedup**
+  (`speed=1+(maxSpeed-1)(ln n/ln1000)^1.5`, `:577`: 19→2.39, 76→3.48 = +46%) + the strict per-arrival capture
+  threshold — obtainable with no hop. → PARK rotation-relay; see `tasks.md` T20/T21.
+- **Local arena reliability is tier-coarse, cluster-blind (calibrated 2026-06-16).** Win% vs evogen tracks the
+  GROSS ladder ordering (kuni05 90% / μ1083 ≫ our line ≤20% / μ640–686 ≫ v2.1 0% / μ556) but cannot finely
+  rank within our cluster (v3 μ686 and v3.2 μ640 BOTH 16.7%). ⇒ use the arena to gate against the strong tier,
+  but use the REAL ladder for fine candidate selection (the orbit5 submit policy). v4 = our best-of-line at 20.0%.
+- **`flyingfox` = harrysun2006 (our profile name), NOT external (corrected 2026-06-16).** Sub 53582503 = our
+  `submission_kuni.tar.gz` (adapted kuni05, μ~1080). So tracking.md's "flyingfox 205-episode history" 4p-format
+  finding + EPISODES.md #3 analyzed OUR OWN account (finding stands; "external" label was wrong — re-label #3).
+- **Our kuni05 plays 多而小 EARLY, 少而重 only LATE (episode 80118852, our 4p WIN).** Seat-1 (=us) launch median
+  by phase: early ≤80 = **20 ships** (74 launches, behind 5 vs 7 planets at step40); mid 81–160 = 36; late >160 =
+  **238** (max 467). We overtook ~step100 and ground out the win after rivals imploded. So even our STRONGEST agent
+  expands with many small fleets early and masses only late — vs the strong tier (no collapse) that loses games.
+  **Lever: mass earlier from the opening (few-but-heavy), don't grind** (T20/T21). 41% of launches from
+  inner(rotating) planets (inner=44% of map) → uses them ~proportionally, no staging bias (corroborates relay PARK).
+  Evidence: `replays/80118852.json` + `ListEpisodes(53582503)`.
 
 ## Potentially reusable insights
 
