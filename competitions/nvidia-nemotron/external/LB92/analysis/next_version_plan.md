@@ -1,72 +1,69 @@
 # Next-version plan — borrowing from LB92 (post-Saturday GPU reset)
 
-> Analysis/planning only (no GPU/submit/push in this task). The LB92 contribution is the **corpus-quality**
-> lever (multi-teacher + solver-prepend bit CoT + min-logprob rebalancing). Borrows are from untrusted
-> competitor sources — verify before trusting; the 92nd-place specifics are `unknown`. Complements the LB25
-> (`v16-mlp`, replay/format) and LB80 (`v17-grpo`, RL) plans.
+> Updated 2026-06-17 from the actual writeup (`temp/LB92.pdf`). Analysis/planning only (no GPU/submit/push in
+> this task). LB92's contribution is **data-engineering + training stability**, not a new paradigm. Borrows
+> from an untrusted competitor writeup — verify before trusting. Complements `v16-evalfix` (LB25) and
+> `v17-discovery`/`v17-dpo` (LB80).
 
 ## Version name
-**v18-corpus** — "richer cold-start corpus: solver-prepend bit CoT + multi-teacher (low-dose)".
+**v18-stable** — "per-char tokenization + grad-clip 1.5 + statistics-matched synthetic" (v14 backbone).
 
 ## Hypothesis
-Our 0.86 already sits in the mid-tier band; the band's edge is **corpus quality for bit-manipulation** (the
-separator category, our most train-set headroom). A **deterministic-solver-prepend bit CoT** (solver finds the
-rule → prepend → clean step-by-step trace) + **min-logprob rebalancing** of the residual hard bit rows, woven
-at low dose into the v14 backbone, lifts bit without diluting the recipe — and souping the result keeps the 0.86.
+Two cheap, high-confidence levers reduce *lost* accuracy without touching the recipe: **(a) per-character
+tokenization** stabilizes learning on the symbol categories (equation/cipher/cryptarithm) where BPE merges
+hurt; **(b) gradient clipping at 1.5** removes the submission-to-submission variance our 1e9-off setting risks
+(gradient explosions). A third, medium-confidence lever: **statistics-matched synthetic data with gap-closing
+QC** can *add* signal where our naive synth (b1/b2/v15) diluted — if (and only if) it matches train.csv
+statistics and is validated by the synthetic-vs-original eval gap.
 
-## What we borrow from LB92 (band)
-1. **Solver-prepend bit CoT** (andy279/huikang pattern) — the highest-quality, own-work bit reasoning data.
-2. **Min-logprob rebalancing** — re-train only on persistently low-min-logprob bit/cipher traces.
-3. (⚠ rules-gated) **multi-teacher distillation breadth** — only as a **low-dose cold-start** (our prior
-   external-teacher run regressed at high dose, 0.81).
+## What we borrow from LB92
+1. **Per-character tokenization** for equation/cipher/cryptarithm — synthetic tokens forcing 1 symbol = 1 token.
+2. **Gradient clipping = 1.5** (replacing our 1e9-off) — to cut run-to-run variance.
+3. **Statistics-matched synthetic generator + synthetic-vs-original gap QC**, final dose ~**2.5:1 synth:original**
+   ONLY if the gap-validation passes (else keep low-dose; our naive synth regressed).
+4. **Protect-the-easy-cats** discipline (don't regress 100%-categories).
 
-## What we add (ours, validated)
-- v14 replay backbone (the biggest lever) + **SVD model-soup** (INS-004; we're ahead of the single-adapter band).
-- Reuse `eval/official_metric.verify` to keep only solver-CoT whose answer matches ground truth (own-work, compliant).
-- Keep **eq-aug** standalone for equation.
+## What we add / keep (ours, validated)
+- v14 replay backbone + SVD model-soup (INS-004; LB92 doesn't soup — our edge).
+- Keep eq-aug standalone; pair with LB80's **discovery-CoT** idea for equation (orthogonal to LB92's coverage lever).
+- T12 hard-val gate; selection discipline (best + diverse hedge).
 
 ## Data / corpus plan
-- **Expand `lib/nemo_solver.py` bit coverage**: emit huikang-style column-match diagnostic traces; keep only
-  verified-correct (answer == gold). Target the bit rows our current solver misses (bit train ceiling ~86%).
-- **Low dose** (≤~10–15%, per the b1/c1 lesson — high dose diluted: b2/v15/c2/andy279 all regressed).
-- min-logprob rebalancing shard: hardest residual bit/cipher rows for a short second pass.
-- **No high-dose external-teacher data** (regressed to 0.81); solver-prepend own-work CoT preferred.
+- **Tokenizer change first** (per-char for the symbol categories) — verify it doesn't break the easy cats.
+- Statistics-matched synth: extract char-freq / numeric-range / transform-method distributions from train.csv;
+  generate; **train-synth / eval-both / close-the-gap** until synthetic eval ≈ original eval; then mix at the
+  validated ratio (start ≤15%, only go toward 2.5:1 if the gap QC + T12 both hold).
+- Own-work generation only (no high-dose external teacher — regressed at 0.81).
 
-## Prompt format
-Eval-faithful (chat template + `\boxed{}` SUFFIX), response-only mask, bounded CoT length (< 7,680 cap — the LB25 lesson).
-
-## Training config (single RTX PRO 6000 kernel, ≤8h guard)
-- LoRA r32/α32; MoE-128 tying; lm_head/attn/in_proj/out_proj; CCE; seq 8192; LR 3.5e-4; micro 4 / global 32.
-- Phase A: v14 backbone. Phase B: weave solver-prepend bit CoT (≤15%) + min-logprob rebalancing pass.
-- 7h `TRAIN_DEADLINE_SEC` guard + fail-fast 1-example preflight (INS-001).
+## Prompt format / training config
+- Eval-faithful prompt; response-only mask; seq 8192; all-linear LoRA r32 (excl. gate_proj — LB80).
+- **`max_grad_norm = 1.5`** (the LB92 change; A/B vs our 1e9-off to confirm it reduces variance, not just changes it).
+- LR 3.5e-4, 2 epochs, AdamW β2 0.95, linear decay, warmup 0; 7h guard + fail-fast preflight.
 
 ## Validation plan (incl. T12 hard-val) — gate BEFORE any submit
-1. `validate_kernel.py` (ruff E9/F821 + masking); in-kernel fail-fast preflight.
-2. **T12 local official metric** on `eval/hard_val_ids.json` (greedy 7680/temp 0, exact-or-1e-2), per category.
-3. **Require bit hard-val ↑ vs v14/soup 0.764 baseline, no regression on cipher/easy cats** (anti-dilution).
-4. CoT-length audit (no truncation before `\boxed{}`).
+1. **Tokenizer sanity**: per-char tokenization doesn't regress cipher/gravity/numeral/unit (the 100% cats).
+2. **Synthetic-vs-original gap QC**: synthetic eval ≈ original eval before trusting the generator.
+3. `validate_kernel.py` + fail-fast preflight.
+4. **T12 local official metric** on `eval/hard_val_ids.json`; require **no easy-cat regression**, total ≥ 0.764.
+5. **Variance check**: train the same config ≥2× and confirm grad-clip 1.5 narrows the score spread vs 1e9.
 
 ## Submit / no-submit gate
-- Submit only if T12 hard-val ≥ 0.764 AND bit ↑ AND no easy-cat regression.
-- **Late-window submission needs explicit human approval** (this task is analysis-only).
-- Soup-grow v18-corpus into v14+c1+b1 only if the local metric improves.
+- Submit only if T12 ≥ 0.764, no easy-cat regression, and the variance check favors clip-1.5.
+- **Late-window submission needs explicit human approval** (analysis-only task). Soup-grow only if local metric improves.
 
 ## Risks
-- **Dilution** (dominant failure mode): bit/teacher data over-weighting regresses (b2/v15/c2/andy279). Mitigate ≤15% dose + T12 gate.
-- **Compliance:** external-teacher traces must satisfy competition/data rules — verify first; prefer own-solver CoT.
-- **Equation won't move** — bounded ~8–9%; target bit, not equation.
-- **Solver coverage:** if the expanded bit solver still misses the hardest multi-op rules, the gain is capped (matches the ~86% bit train ceiling).
+- **Per-char tokenization can hurt the easy/numeric cats** (changes token boundaries everywhere) — gate on easy-cat parity.
+- **Grad-clip 1.5 tension** with LB80/our "off" — treat as an A/B, not gospel.
+- **Statistics-matched synth can still dilute** if the gap QC is imperfect — keep dose conservative; T12-gate.
+- LB92 reached only ~0.86 with all this — modest expectations; these reduce *lost* accuracy, not break the ceiling.
 
 ## GPU estimate
-- 1 training kernel ≈ **6–7 h** on RTX PRO 6000 + 1 short soup kernel (CPU, ~20 min) + local T12 (no extra GPU).
-  Total ≈ **1 GPU session** (data-side work, like `v16-mlp`; cheaper than the LB80 RL plan).
+- Tokenizer + generator + gap-QC work: **CPU, ~0 GPU**. Training + variance A/B: **1–2 RTX PRO 6000 sessions** (~6–7 h each).
 
 ## Implementation checklist
-- [ ] expand `lib/nemo_solver.py` bit solver → verified solver-prepend bit CoT corpus (answer == gold)
-- [ ] min-logprob rebalancing shard (hardest residual bit/cipher rows)
-- [ ] weave at ≤15% dose into the v14 backbone kernel
-- [ ] (if rules permit) low-dose multi-teacher cold-start; else own-solver CoT only
-- [ ] 7h guard + fail-fast preflight + `validate_kernel.py`
-- [ ] T12 hard-val + length audit locally (no quota)
-- [ ] gate: bit hard-val ↑, no easy-cat regression → request human approval → submit
-- [ ] soup-grow v18-corpus into v14+c1+b1 if local metric improves
+- [ ] (CPU) per-char tokenization for symbol categories (synthetic tokens); verify reversible + easy-cat-safe
+- [ ] set `max_grad_norm = 1.5`; A/B vs 1e9-off (≥2 runs each) → variance check
+- [ ] (CPU) statistics-matched generator (char-freq / numeric-range / transform-method dist); synthetic-vs-original gap QC
+- [ ] train v18-stable: per-char tok + clip 1.5 + gap-validated synth (≤15% → up to 2.5:1 if QC holds)
+- [ ] T12 hard-val (no easy-cat regression, ≥0.764) + variance check
+- [ ] gate passes → human approval → submit; soup-grow + diverse hedge

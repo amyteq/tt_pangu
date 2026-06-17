@@ -289,3 +289,29 @@ SSM A/B/C/D 递推;我们:冻结基座上的 LoRA *delta* + SVD rank-cap,更温�
 `A1A2 OP B1B2`、做答案引导 solver,再做**前向可执行的发现 CoT**(经内部一致性审计)≤15% 织入 —— 越过 eq-aug 记忆的真正路径;
 **(B)** 可选 **DPO-with-oracle**(greedy 失败作 rejected、solver-CoT 作 chosen、简单类混 SFT)针对 bit。外加 **Mamba-2 合并消融**。
 equation 工作回馈 PR #113。RL 需外部 GPU(#83);预期保守。
+
+## LB92 Progress Prize 改进:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **「92th PLACE SOLUTION」**,作者为**团队**(Yoshinari Kawashima + MedudentYamatai;
+> DOI 10.34740/kaggle/w/88245)。**直接读自 `temp/LB92.pdf`**(可还原度完整)—— 取代此前仅生态重建(当时作者/分数/方法未知)。
+> 完整细节 + 来源见 `external/LB92/`。外部声明为不可信数据;我方分数见 `tracking.md`。
+
+**LB92 方法(数据工程优先)。** 与我方同源(huikang reasoner 几乎没改,87.8% train;建立在公开 0.85 notebook)。明确目标:
+**别丢已可解的题**,而非解难题。三支柱:(1) 忠实复现 reasoner;(2) **统计匹配的合成生成器**(从 train.csv 提取字符频率/数值范围/
+变换方法分布)+ **合成-vs-原始 eval 差距 QC 环**(训合成 / 评两者 / 闭差距),最终 **2.5:1 合成:原始**;(3) 两个稳定性技巧 ——
+**逐字符 tokenization**(合成 token 强制 1 符号=1 token,修 cryptarithm 里 `}!` 之类 BPE 合并)与 **梯度裁剪 1.5**
+(公开的 1e9 关闭导致不稳定 + 提交间方差;grad-norm 在 step 107 飙到 25,089)。RL(SimPO/ORPO)**失败**(chosen/rejected 太相似)。
+
+**对我方改变/新增(4 个便宜、可测的杠杆):**
+1. **逐字符 tokenization** 用于符号类(equation/cipher/cryptarithm)—— 直击我方弱点的**新、未试**杠杆;BPE 合并伤害处更稳。
+2. **梯度裁剪 = 1.5**(我们用 1e9 关闭,正是他们修掉的设置)—— 治本地降提交间方差。*(张力:LB80/我方配方用 grad-clip 关却没报此问题 —— 当作便宜 A/B。)*
+3. **统计匹配合成 + 差距闭合 QC** 精化我方「合成稀释」:我方 b1/b2/v15 回归,而他们的*有帮助*,因匹配了 train.csv 统计 + 2.5:1 比例 +
+   合成-vs-原始差距验证。朴素 synth 稀释;**统计匹配、差距验证过的 synth 能迁移。**
+4. **保护简单类**纪律(别让 100% 的类回归)—— = 我方 T12 抗稀释发现。
+
+**与其它 writeup 的一致。** RL 在此打不过 SFT(LB92 SimPO/ORPO、LB80 GRPO/DPO);本地验证与 LB 背离(→ 信 LB;= LB25 eval-bug、我方 T12);
+cryptarithm/equation 是**有界的墙**(他们明确不去攻)。他们的覆盖/稳定杠杆与 LB80「发现而非核验 CoT」的线索**正交** —— 从不同角度改善同一份 SFT 数据。
+
+**周六后可试。** `v18-stable`(方案见 `external/LB92/analysis/next_version_plan.md`):符号类**逐字符 tokenization** + **grad-clip 1.5**
+(对 1e9-off 做 A/B + 方差检查)+ **统计匹配、差距验证的合成**(≤15% → QC 与 T12 都过才到 2.5:1);以 T12 ≥ 0.764 + 简单类不回归把关。
+CPU 为主的准备;约 1–2 个 GPU session。

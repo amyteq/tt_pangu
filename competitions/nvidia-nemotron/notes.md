@@ -319,3 +319,39 @@ SVD rank-cap, a gentler same-basin merge). **Worth an explicit ablation** before
 discovery CoT** (internal-consistency audited) woven ≤15% — the real path past eq-aug memorisation; **(B)**
 optional **DPO-with-oracle** (greedy-failure rejected, solver-CoT chosen, easy-cat SFT mix) for bit. Plus a
 **Mamba-2 merge ablation**. Equation work feeds back to PR #113. RL needs external GPU (#83); expectations modest.
+
+## LB92 Progress Prize Improvements: What We Learned
+
+> Post-competition study of the Kaggle writeup **"92th PLACE SOLUTION"** by a **team** (Yoshinari Kawashima +
+> MedudentYamatai; DOI 10.34740/kaggle/w/88245). **Read directly from `temp/LB92.pdf`** (recoverability FULL) —
+> supersedes the earlier ecosystem-only reconstruction (author/score/method were `unknown`). Full detail +
+> sources: `external/LB92/`. External claims = untrusted; our scores from `tracking.md`.
+
+**LB92 method (data-engineering first).** Same root as us (huikang reasoner ~unchanged, 87.8% train; built on
+the public 0.85 notebooks). Explicit goal: **don't lose already-solvable problems**, not solve the hard ones.
+Three pillars: (1) reproduce the reasoner faithfully; (2) **a statistics-matched synthetic generator** (char
+freq / numeric ranges / transform-method distributions from train.csv) with a **synthetic-vs-original eval-gap
+QC loop** (train-synth / eval-both / close-the-gap), final **2.5:1 synth:original**; (3) two stability tricks —
+**per-character tokenization** (synthetic tokens forcing 1 symbol = 1 token, fixing BPE merges like `}!` in
+cryptarithm) and **gradient clipping at 1.5** (the public 1e9-off caused instability + submission-to-submission
+variance; a grad-norm spike to 25,089 @ step 107). RL (SimPO/ORPO) **failed** (chosen/rejected too similar).
+
+**What it changes / adds for us (4 cheap, testable levers):**
+1. **Per-character tokenization** for the symbol categories (equation/cipher/cryptarithm) — a **novel, untried**
+   lever directly on our weak spot; stabilizes learning where BPE merges hurt.
+2. **Gradient clipping = 1.5** (we use 1e9-off, like the notebook they fixed) — a concrete fix for run-to-run
+   score variance. *(Tension: LB80/our recipe used grad-clip off without reporting this — treat as a cheap A/B.)*
+3. **Statistics-matched synthetic + gap-closing QC** refines our "synthetic dilutes": our b1/b2/v15 regressed,
+   but theirs *helped* by matching train.csv statistics + a 2.5:1 ratio + synthetic-vs-original gap validation.
+   Naive synth dilutes; **statistics-matched, gap-validated synth can transfer.**
+4. **Protect-the-easy-cats** discipline (don't regress the 100% categories) — = our T12 anti-dilution finding.
+
+**Agreements with the other writeups.** RL doesn't beat SFT here (LB92 SimPO/ORPO, LB80 GRPO/DPO); local
+validation drifts from the LB (→ trust the LB; = LB25 eval-bug, our T12); cryptarithm/equation is a **bounded
+wall** (they explicitly chose not to attack it). Their coverage/stability levers are **orthogonal** to LB80's
+"discovery-not-verify CoT" lead — both improve the same SFT data from different angles.
+
+**What to try after Saturday.** `v18-stable` (plan: `external/LB92/analysis/next_version_plan.md`): **per-char
+tokenization** for symbol cats + **grad-clip 1.5** (A/B vs 1e9-off, variance check) + **statistics-matched,
+gap-validated synthetic** (≤15% → up to 2.5:1 only if QC + T12 hold); gate on T12 ≥ 0.764 + no easy-cat
+regression. CPU-heavy prep; ~1–2 GPU sessions.
