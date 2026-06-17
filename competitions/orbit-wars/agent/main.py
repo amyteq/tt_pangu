@@ -93,11 +93,15 @@ def _resolve_combat(garrison_owner, garrison_ships, arrivals):
 
 
 def _planet_pos(ix, iy, radius, ang_vel, step):
-    """Engine rotation: orbiting (orbital_r + radius < 50) rotate; else static."""
+    """Engine rotation: orbiting (orbital_r + radius < 50) rotate; else static.
+
+    Phase fix (2026-06-17): obs(step) = rotate(init, ang_vel*(step-1)) per the engine interpreter
+    (verified vs replay 80276901). The prior `ang_vel*step` was one tick ahead, mis-aiming intercepts
+    by ~orbit_r*ang_vel and sending fleets past rotating targets (into the sun)."""
     dx, dy = ix - CENTER, iy - CENTER
     orb = math.hypot(dx, dy)
     if orb + radius < ROT_LIMIT:
-        a = math.atan2(dy, dx) + ang_vel * step
+        a = math.atan2(dy, dx) + ang_vel * max(0, step - 1)
         return CENTER + orb * math.cos(a), CENTER + orb * math.sin(a)
     return ix, iy
 
@@ -344,10 +348,14 @@ def _point_to_segment(px, py, ax, ay, bx, by):
 
 
 def _predict_pos(pid, future_step, init_by_id, ang_vel):
-    """Exact predicted (x, y) of a planet at an absolute game step.
+    """Exact predicted (x, y) of a planet AS OBSERVED at an absolute game step.
 
     Static planets never move (return initial == current position). Orbiting
     planets rotate at constant angular velocity about the center.
+
+    Phase fix (2026-06-17): obs(step) = rotate(init, ang_vel*(step-1)) per the engine interpreter
+    (verified vs replay 80276901: _predict_pos(t-1) == obs(t) exactly). The prior `ang_vel*future_step`
+    aimed intercepts one tick ahead, so fleets missed rotating targets and could sail into the sun.
     """
     ip = init_by_id.get(pid)
     if ip is None:
@@ -356,7 +364,7 @@ def _predict_pos(pid, future_step, init_by_id, ang_vel):
     dx, dy = ix - CENTER, iy - CENTER
     orb = math.hypot(dx, dy)
     if orb + r_planet < ROTATION_RADIUS_LIMIT:
-        a = math.atan2(dy, dx) + ang_vel * future_step
+        a = math.atan2(dy, dx) + ang_vel * max(0, future_step - 1)
         return (CENTER + orb * math.cos(a), CENTER + orb * math.sin(a))
     return (ix, iy)
 
@@ -438,11 +446,139 @@ def _incoming_threat(planet, fleets, player):
     return threat
 
 
+# --- FlightOracle execution gate (OW-P0-FLIGHT-ORACLE-001) -------------------
+# Final emission passes through core.action_sanitizer, which drops provably-fatal launches
+# (strict sun collision / out-of-bounds) via the deterministic FlightOracle. Import-guarded:
+# active when core/ is importable (locally, in the arena, or in a tar.gz that bundles core/
+# beside main.py); a transparent no-op otherwise, and ANY failure falls back to the raw moves
+# so the gate can never break or starve the agent. Disable with OW_NO_SANITIZE=1; set
+# OW_SANITIZE_LOG=<path> to append per-turn counters (off by default online).
+_SANITIZE = int(_os.environ.get("OW_NO_SANITIZE", 0)) == 0
+
+
+def _emit_gate(obs, moves):
+    if not _SANITIZE or not moves:
+        return moves
+    try:
+        import sys as _sys
+
+        try:
+            _here = _os.path.dirname(_os.path.abspath(__file__))
+        except NameError:
+            _here = _os.getcwd()
+        for _p in (_here, _os.path.dirname(_here)):  # comp dir (local) / archive root (tar.gz)
+            if _p and _p not in _sys.path:
+                _sys.path.insert(0, _p)
+        from core.action_sanitizer import ActionSanitizer, new_counters
+
+        ctr = new_counters()
+        clean, ctr = ActionSanitizer().sanitize(obs, moves, horizon=60, counters=ctr)
+        _log = _os.environ.get("OW_SANITIZE_LOG", "")
+        if _log:
+            import json as _json
+
+            with open(_log, "a") as _f:
+                _f.write(_json.dumps({"step": obs.get("step"), **ctr}) + "\n")
+        return clean
+    except Exception:
+        return moves  # core/ unavailable (single-file submission) or any error -> raw moves
+
+
+# --- Hybrid model re-ranker (OW-P2-HYBRID-001, prompt 06) --------------------
+# A trained candidate scorer (agent/hybrid_model.py + hybrid_weights.json) RE-ORDERS the
+# v3.2 candidate list before the greedy commit. It changes only WHICH equally-affordable
+# candidates win the budget — never the sizing, the path/oracle safety, or the value sim.
+# Strictly additive over the deterministic core: OFF by default (OW_HYBRID=0), and any
+# failure (missing weights / core / inference error) falls back to the plain value order,
+# so the agent is never worse than v3.2 by construction. Blend is RANK-based so the model's
+# [0,1] score and the sim's arbitrary-scale value compose cleanly; OW_HYBRID_BETA=0 is
+# byte-identical to v3.2 (model rank ignored). Only the top OW_HYBRID_TOPN candidates are
+# scored (bounds runtime; the budget commits only a handful anyway).
+# Read at CALL time (not module load): the arena pool clears OW_* per task and reuses workers,
+# so a cached `main` module must re-read the env each turn or hybrid would silently misfire.
+def _hybrid_cfg():
+    return (
+        int(_os.environ.get("OW_HYBRID", 0)),
+        float(_os.environ.get("OW_HYBRID_BETA", 0.5)),
+        int(_os.environ.get("OW_HYBRID_TOPN", 80)),
+    )
+
+
+_HYBRID_SCORER = None
+_HYBRID_TRIED = False
+
+
+def _hybrid_scorer():
+    global _HYBRID_SCORER, _HYBRID_TRIED
+    if _HYBRID_TRIED:
+        return _HYBRID_SCORER
+    _HYBRID_TRIED = True
+    try:
+        import sys as _sys
+
+        try:
+            _here = _os.path.dirname(_os.path.abspath(__file__))
+        except NameError:
+            _here = _os.getcwd()
+        for _p in (_here, _os.path.dirname(_here)):
+            if _p and _p not in _sys.path:
+                _sys.path.insert(0, _p)
+        from hybrid_model import load_default
+
+        _HYBRID_SCORER = load_default()
+    except Exception:
+        _HYBRID_SCORER = None
+    return _HYBRID_SCORER
+
+
+def _hybrid_rerank(obs, candidates):
+    """Return candidates re-ordered by a rank blend of (v3.2 value, model score).
+
+    candidates: list of (value, src_id, tgt_id, angle, needed). Any failure -> the plain
+    value-sorted order (identical to v3.2), so the re-ranker can never break the agent.
+    """
+    _, beta, topn = _hybrid_cfg()
+    by_value = sorted(candidates, reverse=True, key=lambda c: c[0])
+    sc = _hybrid_scorer()
+    if sc is None or beta <= 0.0 or len(by_value) < 2:
+        return by_value
+    try:
+        from core.features import candidate_features, ship_bucket_of
+        from core.oracle import FlightOracle
+        from core.state import build_battlefield_state
+
+        state = build_battlefield_state(obs, horizon=PROJ_H)
+        orc = FlightOracle()
+        top = by_value[:topn]
+        rest = by_value[topn:]
+        model = []
+        for value, src_id, tgt_id, angle, needed in top:
+            cf = candidate_features(state, {"source": src_id, "target": tgt_id, "ships": int(needed)}, obs, orc)
+            model.append(sc.score_cf(cf, ship_bucket_of(needed)))
+        # rank blend: lower combined rank = commit earlier
+        order_v = sorted(range(len(top)), key=lambda i: -top[i][0])
+        order_m = sorted(range(len(top)), key=lambda i: -model[i])
+        rv = [0] * len(top)
+        rm = [0] * len(top)
+        for r, i in enumerate(order_v):
+            rv[i] = r
+        for r, i in enumerate(order_m):
+            rm[i] = r
+        blended = sorted(
+            range(len(top)),
+            key=lambda i: (1.0 - beta) * rv[i] + beta * rm[i],
+        )
+        return [top[i] for i in blended] + rest
+    except Exception:
+        return by_value
+
+
 def agent(obs):
     try:
-        return _agent(obs)
+        moves = _agent(obs)
     except Exception:
         return []
+    return _emit_gate(obs, moves)
 
 
 def _agent(obs):
@@ -698,7 +834,12 @@ def _agent(obs):
                 continue  # net-negative or pointless -> don't fire
             candidates.append((value, mp.id, tgt.id, angle, needed))
 
-    candidates.sort(reverse=True, key=lambda c: c[0])
+    # Greedy commit order: v3.2 ranks by simulated value; the hybrid re-ranker (if enabled)
+    # blends in the model's candidate score. OFF / on-failure -> identical value order.
+    if _hybrid_cfg()[0]:
+        candidates = _hybrid_rerank(obs, candidates)
+    else:
+        candidates.sort(reverse=True, key=lambda c: c[0])
     remaining = {mp.id: _avail(mp) for mp in my_planets}
     committed = set()
     moves = []

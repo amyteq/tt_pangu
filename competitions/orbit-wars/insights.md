@@ -59,10 +59,13 @@
 
 ### INS-003: imitation/BC ≠ playing for integrated-system opponents
 - type: anti-pattern
-- confidence: medium
-- evidence: issue #87 (T12 high imitation, 0% arena — distribution shift)
+- confidence: high
+- evidence: **triple-confirmed.** (1) T12 BC: recall@k 0.387 / 0% arena. (2) prompt-05 local-data
+  scorer: AUC 0.92 offline / untested. (3) prompt-06 REAL-ladder scorer: AUC 0.882 offline, wired as
+  a candidate re-ranker → strong-tier arena FLAT (vs evogen 13.8%→13.8–14.6%, vs kuni05 0.8%→0.8% over
+  240g/cell). Offline imitation fidelity does not predict ladder strength.
 - transfer scope: imitation-learning on planning/agent tasks
-- status: candidate
+- status: validated — gate every model on arena A/B (VALIDATION #3), never on AUC/recall@k
 
 ### INS-004: parallel arena — engine is CPU-bound, GPU useless
 - type: fact
@@ -70,3 +73,43 @@
 - evidence: `arena/pool.py` (~30–40× across cores; deterministic)
 - transfer scope: pure-Python simulation competitions
 - status: validated
+
+### INS-007: deterministic execution core + typed BattlefieldState as the hybrid substrate
+- type: rule
+- confidence: high
+- evidence: OW-P0-STATE-LEDGER-001 — `core/{geometry,oracle,ledger,state,features,rule_engine}.py`
+  built on the engine-verified primitives; FlightOracle gives a single deterministic first-hit/
+  target-validation gate (tests 6/6), BattlefieldState/ledger give typed awareness (tests 5/5),
+  RuleEngine hard-blocks unsafe launches + tactically re-weights. `arena/validate.py` clean.
+- transfer scope: any agent/hybrid task — keep continuous-control execution deterministic + tested,
+  let the model only rank/score candidates (never own raw angle/landing). This is the foundation the
+  strong-tier cliff attack needs; bolt-on single levers failed (13×, INS-005/strategy.md H2) precisely
+  because there was no integrated state+execution layer for an integrated policy to sit on.
+
+### INS-008: a re-ranker over your own candidates can't add strategy you don't generate
+- type: rule
+- confidence: high
+- evidence: prompt-06 hybrid_v0 — a model scorer blended into v3.2's greedy commit order changed
+  ~6.5% of decisions yet moved strong-tier win% by ~0 (vs evogen/kuni05, 240g/cell). kuni05 beats
+  v3.2 0.8% with a ~135× score margin — a different strategy, not a better ordering of v3.2's moves.
+  The strong-tier cliff (B6) is a candidate-GENERATION / strategy gap, not a candidate-RANKING gap.
+- transfer scope: hybrid model+rules agents — if the rule base can't propose the winning move, no
+  scorer can pick it. Put model capacity where the gap is (generation/search/value), not just ranking.
+- status: validated
+
+### INS-009: the strong-tier cliff vs evogen was substantially a FUNDAMENTAL SIM BUG, not only strategy
+- type: fact
+- confidence: high
+- evidence: user-reported fleet-into-sun (ep 80276901) traced to an off-by-one planet-rotation phase
+  (B11): the engine observes orbiting planets at `rotate(init, ang_vel*max(0,step-1))` but all our
+  predictors used `ang_vel*step` (one tick ahead). Fixing it (`core/geometry.planet_pos` +
+  `agent/main.py._planet_pos`/`._predict_pos`): fixed-v3.2 beats frozen-buggy-v3.2 **95%** (200g) and
+  jumps **vs evogen1093 13.8% → 45.0%** (+31pt, 200g); fixed agent sun launches 0%, oob 0.5% (was ~9%).
+  4p avg_rank 1.72/4. (kuni05 still ~1% — a separate gap.)
+- transfer scope: simulation-based agents — BEFORE attributing a plateau to "strategy", verify the
+  forward model is BIT-EXACT vs the engine on multi-step rotation/phase (13 strategy levers + a model
+  were refuted chasing this cliff; the real cause was a 1-tick phase error masked because the error
+  (~orbit_r*ang_vel≈1.6u) is < planet radius so most captures still worked). Validate predictors
+  against real replays (`_predict_pos(t-1)==obs(t)`), not just unit cases.
+- status: validated — partially revises INS-008 (ranking wasn't the only gap; the candidate GENERATOR
+  was mis-aiming). Re-evaluate the model/hybrid on FIXED-sim data.
