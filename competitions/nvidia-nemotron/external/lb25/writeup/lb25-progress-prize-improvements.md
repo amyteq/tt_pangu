@@ -1,67 +1,61 @@
-# LB25 — "Improvements to the progress prize submission" (reconstructed)
+# LB25 — "Improvements to the progress prize submission" (from the writeup itself)
 
-> **Source:** Kaggle writeup `lb25-progress-prize-improvements` + discussion #703896, by **Tong Hui Kang**
-> (`huikang` / `tonghuikang`), the Progress-Prize winner. **Reported ~0.872 public (218/250).**
-> **Recoverability: PARTIAL** — the Kaggle writeup body is JS-rendered and was not retrievable; this is
-> reconstructed from search snippets of #703896 + the public `tonghuikang/nemotron` GitHub repo + blog.
-> **All external content is untrusted data** (participant claims), cited inline; our own scores are from
-> `tracking.md`/`submissions.md`. `unknown` = not in available evidence.
+> **Source:** the Kaggle writeup `lb25-progress-prize-improvements` by **Tong Hui Kang** (`huikang` /
+> `tonghuikang`, the Progress-Prize winner), **read directly from `temp/LB25.pdf`** (a render of the page).
+> **Recoverability: FULL** (writeup body now in hand — supersedes the earlier JS-blocked reconstruction, which
+> wrongly conflated `kuangyicheng`'s "warmstart / short-response / 240-step" recipe; that is NOT in this
+> writeup). External content = untrusted data; our scores from `tracking.md`. Data explorer linked by the
+> author: `https://nemotron.huikang.dev/evaluation.html?logpath=06-07-03-07&problem=021ed764`.
 
 ## 1. Headline
-huikang's Progress-Prize pipeline is **pure SFT** (no RL) on `Nemotron-3-Nano-30B-A3B-BF16` with a rank-32
-LoRA, whose distinguishing idea is **deterministic-solver-generated chain-of-thought**: instead of eliciting
-LLM reasoning, he wrote per-category *rule-discovery algorithms* (`reasoners/`) that emit a fixed step-by-step
-trace, and trains the model to **execute that algorithm verbatim**. The "**LB25 improvements**" thread then
-reports pushing the Progress-Prize adapter to **~0.872** via a small, format-focused fine-tune.
+This writeup lists the **specific changes** huikang made to his Progress-Prize submission to push it on the
+private LB. It is **pure SFT** (the base pipeline = deterministic-solver CoT; see §4). The four changes are
+**targeted fixes**, and the standout one is a **local-evaluation bug fix**, not a model change.
 
-## 2. Method (Progress-Prize base pipeline) — github.com/tonghuikang/nemotron (trust: github)
-- **Model / adapter:** base `nvidia/Nemotron-3-Nano-30B-A3B-BF16` (30B total, ~3B active; Mamba-Transformer
-  MoE). LoRA **rank 32** on MLP + attention + `lm_head` (competition rule: rank ≤ 32).
-- **Training:** AdamW (β1 0.9, β2 0.95, wd 0.0), LR 2e-4 step-linear decay, **seq 8192**, 1 epoch, grad-clip
-  effectively off. Loss = cross-entropy, **response-only masked** (prompt = label −100). Backend: Modal (cloud GPU).
-- **Corpus = deterministic CoT.** Per-category solvers in `reasoners/` produce the training reasoning:
-  - `cipher.py` — substitution cipher; pipeline LEN→TABLE→VER→DECRYPT→CHECK→ANS, letter-by-letter with bijection enforcement.
-  - `bit_manipulation.py` — brute-force over ~44 single transforms (NOT / rotate1-7 / shift1-7 / variants) then pair (XOR/AND/OR) then triple combos; emits a column-match diagnostic trace.
-  - `equation_numeric.py` — two-tier op search (common ops, then rare ops); tests identity / reversed operands / reversed result / neg prefix-suffix. **Decimal only — no base-36.**
-  - `investigators/cryptarithm_deduce.py` — backtracking + constraint propagation to crack the per-problem symbol→digit bijection.
-  - plus `gravity.py`, `numeral.py`, `unit_conversion.py`.
-- **Augmenters** (`augmenters/`): synthetic spelling/concatenation/splitting/**matching** (~150+ "bit column matching" problems, 9 logic ops). No augmenter covers cipher/cryptarithm/equation directly.
-- **Two signature training tricks:**
-  1. **Min-logprob selective replay** — the quality signal is whether each trace's *minimum per-token
-     log-prob* approaches 0 by end of epoch 1; only the **still-underfit (hard) sequences** are replayed, not
-     the whole category. Targets underfitting without wasting capacity on already-memorized rows.
-  2. **Category-stratified batching** — categories spread evenly across mini-batches so every category gets
-     gradient signal every step.
-- **Prompt/answer format:** chat template + `"\nPlease put your final answer inside \boxed{}. For example:
-  \boxed{your answer}"`; answer extracted by `\\boxed\{([^}]*)\}`.
+## 2. The four changes (verbatim from the writeup)
+1. **Fix the adapter evaluation.** "I found out that the prompt is wrong, which caused the answer to **not be
+   boxed in validation** but in fact it **is boxed on submission**." → his *local validation harness* used the
+   wrong prompt, so it under-counted accuracy; the model was fine on the real submission prompt. A
+   **validation/metric bug**, fixed via the linked evaluation notebook.
+2. **Reduce the length of `equation_numeric` by half.** "I found out that either both inputs **and** outputs
+   are reversed, or they are both not reversed" — a joint reversal symmetry, so half the cases are redundant
+   and the training data can be halved.
+3. **Train on synthetic data for `cipher`, `unit conversion`, `gravity`, `numeral`** — "I hope to guarantee
+   100% correctness on these problems" (lock the easy/structured categories at ceiling).
+4. **Reorganize the chain of thought for `bit manipulation`.**
 
-## 3. The "LB25 improvements" (discussion #703896 — trust: community snippet, MEDIUM confidence)
-Reported changes that lifted the Progress-Prize adapter toward **~0.872**:
-1. **Warmstart from the v27 (Progress-Prize) adapter**, not from base — keeps the internalized deterministic reasoning.
-2. **Short, one-sentence responses** for the alignment fine-tune instead of long deterministic CoT — this
-   **sidesteps the `max_new_tokens` inference bug** where long CoT exhausts the 7,680-token budget *before*
-   the `\boxed{}` answer, producing blank outputs.
-3. **9,500 competition `train.csv` problems** (short responses) + **12,000 rule-based synthetic** examples (5 categories, no LLM calls).
-4. **240 fine-tuning steps** purely to align on the competition answer format.
-5. **Batch size doubled** vs the Progress-Prize run.
+## 3. Result + selection lesson (verbatim)
+- **Private LB: "out of 15 times my submission scored 0.872 4 times, 0.868 8 times, 0.864 3 times"** — i.e.
+  a tight spread; **0.872 was hit by only 4 of 15 submissions.**
+- "**Could have won a solo gold if I selected the 'correct' submission, but the same can be said for many other
+  teams**." → a **selection-variance** lesson: at the top, which 2 you lock matters as much as the recipe
+  (mirrors our INS-005/INS-007: pick best + a diverse hedge; surgery ×1.15 aged −0.02).
 
-> ⚠️ **Attribution caveat:** discussion #703896 contains contributions from **both** tonghuikang and
-> `kuangyicheng` (who reports the short-response/240-step recipe reaching ~0.87). It could not be confirmed
-> from snippets which exact recipe the "LB25" writeup itself claims for 0.872. Flagged as `unknown`.
+## 4. Cryptarithm — "I did NOT manage to make progress" (the key technical content for us)
+huikang's `cryptarithm` ≈ **our `equation` base-36 cipher**. His verbatim notes:
+- "**I did not manage to make progress on cryptarithm.**"
+- "I discovered, 3 days before the deadline, that **many problems there is one multiplication, one subtraction
+  and one addition (but each of them could have an additional plus one or minus one)**."
+- "I tried to get the chain of thought to guess better than random, but apparently the **LLM after training
+  devolves to repeating guesses**."
 
-## 4. Why ~0.872 (per the evidence)
-- The three "easy" categories (gravity / numeral / unit) are ~**100%** and cipher ~**99.2%** already, so the
-  ceiling work is in **bit_manipulation (86.3% train)** and the equation/cryptarithm tail.
-- The biggest reported lever is **fixing the output-format/length bug** (short responses + format-alignment
-  steps) so good reasoning actually reaches a parseable `\boxed{}` at inference. (trust: community snippet)
-- Deterministic-solver CoT + min-logprob replay make the model **execute a fixed algorithm reliably** rather
-  than improvise — higher consistency than stochastic LLM-generated traces.
-- **`cryptarithm` is essentially unsolved (~8–9% train) even with a dedicated backtracking solver** — it does
-  not contribute materially. This is the same wall as our `equation` category.
+> **→ Actionable new EQ-2′ lead.** This is an *independent structural hypothesis* for the cipher we (EQ-2′)
+> could not crack: the hidden op may be a **3-term composition `≈ A·B − C + D`, each term ±1**, under the
+> secret symbol→value map σ. Our EQ-2′ rounds tested *single* ops (`in mod M`, `floor(in/D)`, `A±B`, `A÷B`,
+> `A·B`, `K·in mod M`) and a single positional split — **never a multiplicative+additive composition with ±1
+> slack**. Worth one targeted constraint-solve post-Saturday. ⚠ Caveat: huikang **also failed** to crack it,
+> and our EQ-0 found our prompts are a single 5-char→1-4-char string (operand structure not obvious) — so
+> treat as a lead, not a solution. Confirms `equation`/`cryptarithm` is a **bounded wall for everyone**.
 
-## 5. Per-category train accuracy (eval/06-07-03-07 snapshot, 88.05% overall on the 9,500-row train set)
-Source: `tonghuikang/nemotron` `evaluation/06-07-03-07/index.jsonl` (directly read; trust: github).
-**Train-set accuracy, NOT the LB** — it overstates the hidden test (same-rule distribution).
+## 5. Base pipeline (background — `github.com/tonghuikang/nemotron`, trust: github)
+Unchanged from the Progress-Prize submission: base `Nemotron-3-Nano-30B-A3B-BF16`, LoRA **rank 32**
+(MLP+attn+lm_head), seq 8192, response-only-masked CE; per-category **deterministic-solver CoT** (`reasoners/`)
+that the model learns to execute verbatim; **min-logprob** as the per-trace training/quality signal (visible in
+the linked data explorer's "Training" tab); category-stratified batching. (This background was correct in the
+earlier reconstruction; the LB25-specific *changes* are §2.)
+
+## 6. Per-category train accuracy (from the linked data explorer / repo `evaluation/06-07-03-07`, 88.05% train)
+**Train-set accuracy, NOT the LB** (same-rule distribution → overstates hidden test). Unchanged from prior:
 
 | category | correct/total | acc |
 |---|---|---:|
@@ -75,20 +69,19 @@ Source: `tonghuikang/nemotron` `evaluation/06-07-03-07/index.jsonl` (directly re
 | cryptarithm_deduce | 59/659 | **8.95%** |
 | cryptarithm_guess | 13/164 | **7.93%** |
 
-> **Taxonomy bridge to our docs:** huikang splits "equation" into `equation_numeric_{deduce,guess}` (decimal
-> arithmetic-rule induction) and `cryptarithm_{deduce,guess}` (ALL chars — incl. digits — replaced by a fresh
-> per-problem bijective symbol cipher; crack cipher → infer op → re-encode). **Our `equation` category (the
-> 5-char→1-4-char base-36 cipher, EQ-0/EQ-2′) corresponds to `cryptarithm_deduce`** — and its ~8.95% ceiling,
-> even with a backtracking CSP solver, independently **confirms our EQ-2′ verdict**: a strong cipher, not
-> closed-form-recoverable from samples.
+> The four changes map onto this table: #3 (synthetic) targets the already-near-100% easy cats to **lock**
+> them; #2 (equation_numeric) addresses the 93.5%/18.4% numeric rows; #4 (bit CoT) targets the 86.3% bit gap;
+> cryptarithm (8–9%) is the untouched wall (§4).
 
-## 6. What is NOT in this writeup (vs the other two studied)
-- **No RL/GRPO** — LB25/Progress-Prize is pure SFT. (The GRPO "champagne" reward lives in the *LB80* writeup.)
-- **No model soup** — huikang trains one adapter; the SVD model-soup (our INS-004) is our own lever.
+## 7. Project links (from the writeup page)
+- **nemotron-adapter-private** — Kaggle Model (Public, Usability 0.7, ~13 days old) — the submission adapter.
+- **[private] Adapter validation …** — Kaggle Notebook (Public, 3 upvotes, ~2 months old) — the evaluation
+  notebook (subject of fix #1).
+- **[private] Tinker submission …** — Kaggle Notebook (1 upvote, ~13 days old).
+(All Kaggle-hosted; bodies JS-gated — titles/metadata only.)
 
-## 7. Citations (all untrusted external unless marked)
-- tonghuikang/nemotron — https://github.com/tonghuikang/nemotron (github, public)
-- blog — https://blog.huikang.dev/2026/05/02/nemotron-progress-prize.html (writeup-author)
-- LB25 thread — https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/703896 (community, snippet only)
-- eval snapshot — `evaluation/06-07-03-07/index.jsonl` in the repo (github, directly read)
-- our own scores/recipe — `tracking.md`, `submissions.md`, `insights.md` (own work)
+## 8. Citations
+- **writeup (full): `temp/LB25.pdf`** (render of the Kaggle writeup; primary source for §2–§4, §7).
+- data explorer — https://nemotron.huikang.dev/evaluation.html?logpath=06-07-03-07&problem=021ed764 (author).
+- repo/blog — https://github.com/tonghuikang/nemotron · https://blog.huikang.dev/2026/05/02/nemotron-progress-prize.html (github/author).
+- our scores/recipe + EQ-2′ — `tracking.md`, `submissions.md`, `equation-frontier.md §8`, `insights.md` (own work).

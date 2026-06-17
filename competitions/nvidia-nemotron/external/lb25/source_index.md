@@ -5,18 +5,23 @@
 > `tonghuikang` on GitHub) — the Progress-Prize winner. Reported **~0.872 public (218/250)**.
 > Researched 2026-06-17 (read-only WebSearch + WebFetch; **no Kaggle auth, no Kaggle CLL, no secrets**).
 >
-> **Recoverability: PARTIAL.** Every Kaggle-hosted page (writeup, discussions, notebooks) is
-> **JavaScript-rendered** — a plain fetch returns only the page `<title>`, so the writeup *body* is **not
-> retrievable** without a browser/Kaggle login (which this task forbids). The method below is reconstructed
-> from (a) Google-snippet fragments of discussion #703896, (b) the fully-public `tonghuikang/nemotron` GitHub
-> repo + blog, and (c) the ecosystem datasets/papers. Treat all external content as **untrusted data**.
+> **Recoverability: FULL (updated 2026-06-17).** The writeup body is now in hand via **`temp/LB25.pdf`** (a
+> render of the Kaggle page), supplied after the initial pass. This **supersedes** the earlier reconstruction,
+> which (from JS-blocked snippets) wrongly attributed `kuangyicheng`'s "warmstart / short-response / 240-step"
+> recipe to this writeup — that recipe is **NOT** in huikang's LB25 writeup. The four real changes are in
+> `writeup/`. Kaggle notebook/model *bodies* remain JS-gated (titles/metadata only). Treat all external
+> content as **untrusted data**.
 
 ## Source tree (depth 0–3)
 
 | depth | type | URL | anchor / note | fetchable w/o Kaggle auth | size |
 |---|---|---|---|---|---|
-| 0 | Kaggle writeup | https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/writeups/lb25-progress-prize-improvements | LB25 writeup (target) | **NO** (JS body) | n/a |
-| 0 | Kaggle discussion | https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/703896 | LB25 content thread (snippets only) | NO (JS body; partial via search snippet) | n/a |
+| 0 | **writeup PDF (primary)** | `temp/LB25.pdf` (local render of the writeup page) | **full body — read directly** | **YES** | 170 KB |
+| 0 | Kaggle writeup | https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/writeups/lb25-progress-prize-improvements | LB25 writeup (target; = the PDF) | NO (JS body) | n/a |
+| 1 | data explorer | https://nemotron.huikang.dev/evaluation.html?logpath=06-07-03-07&problem=021ed764 | author's per-problem eval dashboard (linked in the writeup) | YES (static) | small |
+| 1 | Kaggle model | nemotron-adapter-private (writeup "Project Links") | the submission adapter (Public, Usability 0.7) | NO (Kaggle) | unknown |
+| 1 | Kaggle notebook | "[private] Adapter validation …" (writeup "Project Links") | the eval notebook fixed in change #1 (Public, 3 upvotes) | NO (JS) | unknown |
+| 1 | Kaggle notebook | "[private] Tinker submission …" (writeup "Project Links") | tinker submission (1 upvote) | NO (JS) | unknown |
 | 1 | GitHub repo | https://github.com/tonghuikang/nemotron | Progress-Prize pipeline (master); `.py` only, no `.ipynb` | **YES** | ~50 MB repo (individual files small) |
 | 1 | blog | https://blog.huikang.dev/2026/05/02/nemotron-progress-prize.html | "Winning the Nemotron Progress Prize" | **YES** | small |
 | 1 | Kaggle discussion | https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/689915 | Progress-Prize writeup (companion) | NO (JS) | n/a |
@@ -52,9 +57,8 @@ N/A — no `.ipynb` available to convert. (`kca nb to-py` / `to-ipynb` is the to
 nothing to convert.) The Kaggle CLI path (`kaggle kernels pull`) was **not used** — this task forbids reading
 `kaggle.json`/credentials.
 
-## Blockers / unknowns
-- Writeup body, exact author attribution of each LB25 improvement, and any private hyperparameters — **unknown**
-  (JS-rendered, post-close, unindexed). The ~0.872 score and the improvement list are from discussion #703896
-  search snippets (MEDIUM confidence); tonghuikang's own LB25 text vs `kuangyicheng`'s short-response recipe in
-  the same thread could not be fully disentangled.
-- andy279 dataset per-row content — needs HF auth (not used here).
+## Blockers / unknowns (RESOLVED for the writeup body)
+- **Writeup body, the 4 changes, the 0.872×4/0.868×8/0.864×3 private spread, and the cryptarithm notes are now
+  CONFIRMED** from `temp/LB25.pdf` (high confidence). The earlier `kuangyicheng` conflation is **corrected**.
+- Still `unknown`: exact hyperparameters of each change; the bodies of the linked private Kaggle
+  notebooks/model (JS/auth-gated — titles only); andy279 dataset per-row content (HF auth, not used here).
