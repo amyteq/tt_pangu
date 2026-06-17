@@ -40,7 +40,9 @@ BATCH_SIZE = 32
 MICRO_BATCH_SIZE = 4
 LEARNING_RATE = 3.5e-4
 WARMUP_STEPS = 0
-GRAD_CLIP_NORM = 1.5  # v18-stable LEVER 1 (was 1e9): kill gradient-explosion variance (LB92)
+GRAD_CLIP_NORM = (
+    1.5  # v18-stable LEVER 1 (was 1e9): kill gradient-explosion variance (LB92)
+)
 
 MIN_CORPUS_EXAMPLES = 1000
 TARGET_REPLAY_ANSWER_TOKENS = 2_000_000
@@ -51,8 +53,10 @@ MOE_TIE_WEIGHTS = True
 SHUFFLE_DATASET = False
 
 # --- v18-stable levers 2/3 (LB92 plan) — scaffolds, default OFF -----------
-PER_CHAR_TOKENIZATION = False  # LEVER 2: force 1 symbol = 1 token for cipher/cryptarithm
-SYNTH_RATIO = 0.0              # LEVER 3: synthetic:original ratio (LB92 final = 2.5); 0 = off
+PER_CHAR_TOKENIZATION = (
+    False  # LEVER 2: force 1 symbol = 1 token for cipher/cryptarithm
+)
+SYNTH_RATIO = 0.0  # LEVER 3: synthetic:original ratio (LB92 final = 2.5); 0 = off
 # Symbol alphabet for per-char tokenization (the 36-char equation/cipher set).
 SYMBOL_CHARS = list("!\"#$%&'()*+-/:;<>?@[\\]^`{|}")
 
@@ -567,7 +571,9 @@ def run_training() -> None:
         synth_examples = build_synth_examples(tokenizer, SYNTH_RATIO)
         # LB92: synthetic FIRST, then original. Keep dose gated by the T12 result.
         examples = synth_examples + examples
-        print(f"synthetic woven: {len(synth_examples)} (ratio~{SYNTH_RATIO}); total={len(examples)}")
+        print(
+            f"synthetic woven: {len(synth_examples)} (ratio~{SYNTH_RATIO}); total={len(examples)}"
+        )
 
     # -- Wrap in LoRA -------------------------------------------------
     model = FastLanguageModel.get_peft_model(
