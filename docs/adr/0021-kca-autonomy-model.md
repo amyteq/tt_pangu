@@ -32,7 +32,7 @@ see "Two agents" below). Runtime enforcement is a tracked follow-up (see
 |---|---|---|
 | What it is | The dev tool running these sessions | The product being built (KCA is itself an agent) |
 | Governed by | `CLAUDE.md` + `.claude/hooks/guard_tool.py` + dev-phase policy | KCA's own `.kca/permissions/*.yaml` + `permission_policy.py` + per-comp `kca-<slug>.yaml` + decision/approval gates |
-| Audit log | `.agent/audit/tool-events.jsonl` (`.claude/hooks/audit_event.py`; local, gitignored, dev telemetry) | `.agent/audit.jsonl` (`tools/kca/agent/audit.py`; product policy-decision audit; read by eval/CI/tests) |
+| Audit log | `.agent/audit/tool-events.jsonl` (`.claude/hooks/audit_event.py`; local, gitignored, dev telemetry) | `.agent/kca/audit.jsonl` (`tools/kca/agent/audit.py`; product policy-decision audit; read by eval/CI/tests) |
 | Autonomy | Bounded by dev guardrails; the harness still asks for the human's own machine/account safety | **High** — screened-autonomous per §2 |
 
 Rule of thumb: a `CLAUDE.md` clause governs **Claude Code sessions**; it is not
@@ -48,7 +48,7 @@ Autonomy is a per-competition setting in `kca-<slug>.yaml` (`autonomy:` block).
 When enabled, the KCA agent performs `kaggle kernels push` and leaderboard
 `submit` **without per-action human approval**, provided ALL screening criteria
 pass. The intended-submission summary (file, experiment id, expected score,
-reason) is written to `.agent/audit.jsonl` instead of being posed as a question.
+reason) is written to `.agent/kca/audit.jsonl` instead of being posed as a question.
 
 `autonomy:` schema (lives under `_base`, overridable per section; until the
 runtime reads it, it is an inert annotation key like `lb`/`note`):
@@ -81,21 +81,24 @@ points where the human "provides direction / unblocks", not routine ops.
 **Human role under autonomy:** contribute ideas, unblock, course-correct, and
 decide the human-gated points above. Everything else (screened push/submit,
 exploration within budget) runs autonomously and is reconstructable from
-`.agent/audit.jsonl` + the run artifact. Autonomous actions must stay
+`.agent/kca/audit.jsonl` + the run artifact. Autonomous actions must stay
 **auditable and reversible** (kernel versioning, recorded submissions) so a human
 can override or roll back after the fact.
 
 ### 3. eval / audit — clarified, not activated
 
-- The two audit paths above are clarified (and fix the #65 confusion); a doc
-  pass should split eval/CI references (`.agent/audit.jsonl`) from harness-hook
-  references (`.agent/audit/tool-events.jsonl`) without a blind find-replace.
+- The KCA audit log is now namespaced to `.agent/kca/audit.jsonl` (done as a
+  follow-up to this ADR), removing the `.agent/audit.jsonl`-vs-`.agent/audit/`
+  stem collision that caused #65. The harness hook log stays at
+  `.agent/audit/tool-events.jsonl`. Forward-facing docs reference the new path;
+  dated milestone/task-spec history is left as a point-in-time record.
 - The eval regression framework stays as-is: the nightly + rolling-diff run, but
   the cv-drift delta gate is **not** armed (baseline records no `cv_score`) and
   the PR delta-check is **not** promoted to a hard release blocker yet. Activate
   later when the case library is richer.
-- Audit namespace separation (`.agent/kca/…` vs `.agent/claude-code/…`) is
-  **recommended but deferred** — optional cleanup, not required by this ADR.
+- The rolling-diff tracking issue (#47) is now **optional**: if it is absent,
+  `eval.yml` records the flip in the job summary and warns instead of failing —
+  so the issue can be closed without breaking the nightly.
 
 ## Consequences
 
@@ -109,7 +112,7 @@ can override or roll back after the fact.
      `kca kaggle push/submit` for an autonomy-enabled comp does not pose a
      redundant `ask`.
   2. Per-comp `autonomy:` added to each active `kca-<slug>.yaml`.
-  3. Optional: eval-gate activation + audit namespace separation.
+  3. Optional: eval-gate activation. (Audit namespace separation — done.)
 - **Risk & mitigation:** auto-submit/push are outward-facing. Mitigations:
   default budget cap, mandatory screening, full audit trail, reversibility
   (kernel versions), and the always-human-gated set above. A competition can
