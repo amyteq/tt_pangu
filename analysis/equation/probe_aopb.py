@@ -66,9 +66,13 @@ def main():
     ddc = Counter(digit_counts)
     le10 = sum(v for k, v in ddc.items() if k <= 10)
     print(f"sample={len(sample)} inputs-all-5-char={len5}")
-    print(f"DIGIT symbols/problem (excl middle char): <=10 in {le10}/{n} ({100 * le10 // max(1, n)}%)")
+    print(
+        f"DIGIT symbols/problem (excl middle char): <=10 in {le10}/{n} ({100 * le10 // max(1, n)}%)"
+    )
     print(f"  distribution: {dict(sorted(ddc.items()))}")
-    print(f"middle char (pos 2) constant within problem: {op_constant}/{n} -> operation must be searched")
+    print(
+        f"middle char (pos 2) constant within problem: {op_constant}/{n} -> operation must be searched"
+    )
 
 
 if __name__ == "__main__":

@@ -55,9 +55,16 @@ MOE_TIE_WEIGHTS = True
 SHUFFLE_DATASET = False
 
 # --- v17-discovery lever (LB80 plan, Part A) ------------------------------
-DISCOVERY_COT_DOSE = 0.0       # fraction of forward-executable equation discovery-CoT to weave (set <=0.15 Saturday)
-DISCOVERY_OPS = ("+", "-", "*", "absdiff")  # seed op family; extend toward mspawar's ~83 ops on Saturday
-DISCOVERY_MAX_SYMBOLS = 10     # skip problems with >10 distinct digit-symbols (the hard tail, ~25%)
+DISCOVERY_COT_DOSE = 0.0  # fraction of forward-executable equation discovery-CoT to weave (set <=0.15 Saturday)
+DISCOVERY_OPS = (
+    "+",
+    "-",
+    "*",
+    "absdiff",
+)  # seed op family; extend toward mspawar's ~83 ops on Saturday
+DISCOVERY_MAX_SYMBOLS = (
+    10  # skip problems with >10 distinct digit-symbols (the hard tail, ~25%)
+)
 # NemotronH gate_proj (MoE router) stays out of LoRA targets (LB80: avoids expert collapse) — already excluded above.
 
 TARGET_MODULES = [
@@ -402,8 +409,12 @@ def _forward_cot(examples, query_lhs, opname, d):
         eb = d[lhs[3]] * 10 + d[lhs[4]]
         er = _OPFN[opname](ea, eb)
         enc = "".join(inv[int(ch)] for ch in str(er))
-        lines.append(f"  {lhs}: {ea} {opname} {eb} = {er} -> '{enc}' (want '{rhs}') {'OK' if enc == rhs else 'X'}")
-    lines.append(f"All examples consistent. Apply to query {query_lhs}: {a} {opname} {b} = {r} -> '{ans}'.")
+        lines.append(
+            f"  {lhs}: {ea} {opname} {eb} = {er} -> '{enc}' (want '{rhs}') {'OK' if enc == rhs else 'X'}"
+        )
+    lines.append(
+        f"All examples consistent. Apply to query {query_lhs}: {a} {opname} {b} = {r} -> '{ans}'."
+    )
     return "\n".join(lines), ans
 
 
@@ -440,7 +451,9 @@ def build_discovery_cot_examples(tokenizer, dose):
             audited_fail += 1
             continue
         msgs = [{"role": "user", "content": rec["prompt"] + SUFFIX}]
-        pids = tokenizer.apply_chat_template(msgs, tokenize=True, add_generation_prompt=True)
+        pids = tokenizer.apply_chat_template(
+            msgs, tokenize=True, add_generation_prompt=True
+        )
         if hasattr(pids, "keys"):
             pids = pids["input_ids"]
         if pids and isinstance(pids[0], (list, tuple)):
@@ -463,8 +476,10 @@ def build_discovery_cot_examples(tokenizer, dose):
                 "weights": [float(m) for m in mask[1:]],
             }
         )
-    print(f"discovery-CoT: solver cracked {len(out)} of {len(eqrows)} equation prompts "
-          f"(consistency-audited; {audited_fail} dropped as inconsistent)")
+    print(
+        f"discovery-CoT: solver cracked {len(out)} of {len(eqrows)} equation prompts "
+        f"(consistency-audited; {audited_fail} dropped as inconsistent)"
+    )
     return out
 
 
@@ -693,7 +708,9 @@ def run_training() -> None:
                 di += 1
         woven.extend(disc[di:])
         examples = woven
-        print(f"discovery-CoT woven: {len(disc)} (dose={DISCOVERY_COT_DOSE}); total={len(examples)}")
+        print(
+            f"discovery-CoT woven: {len(disc)} (dose={DISCOVERY_COT_DOSE}); total={len(examples)}"
+        )
 
     # -- Wrap in LoRA -------------------------------------------------
     model = FastLanguageModel.get_peft_model(
