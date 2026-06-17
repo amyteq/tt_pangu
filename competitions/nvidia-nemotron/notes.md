@@ -279,3 +279,43 @@ submission parity audit FIRST** (free; change #1), then v14 backbone + reorganiz
 CoT** (change #4) + **min-logprob replay** of the hardest bit/cipher rows (≤15% dose); gate on **T12 hard-val
 ≥ 0.764 with bit ↑ and no easy-cat regression**; soup-grow into v14+c1+b1 (best + diverse hedge). Keep eq-aug
 standalone. ~1 GPU session.
+
+## LB80 Progress Prize Improvements: What We Learned
+
+> Post-competition study of the Kaggle writeup **"Breaking the SFT Ceiling on Nemotron-3-Nano-30B"** by
+> **Mayur Pawar** (`mspawar`), 80th/4190, final private **0.86**. **Read directly from `temp/LB80.pdf`**
+> (recoverability FULL) — supersedes the earlier reconstruction, which wrongly attributed a *different* author's
+> "per-bit GRPO" story (from discussion #688461) to this writeup. Full detail + sources: `external/LB80/`.
+> External claims = untrusted; our scores from `tracking.md`.
+
+**LB80 method (honest title).** A 30+-experiment study that **PROVES the SFT ceiling at 0.86** — STaR, GRPO,
+DPO, and weight-averaging all **failed to beat it**. Same root as us (Tong Hui Kang's deterministic-solver SFT;
+V2 0.86, never beaten). Levers that worked: **seq 4096→8192 = 0.46→0.77** (43% of data silently truncated at
+4096), **all-linear LoRA incl. lm_head, exclude gate_proj**, deterministic-solver CoT ≫ model/external CoT
+(DeepSeek-R1 long CoT → catastrophic 0.27). The "+397 ranks" came from a **submission HEDGE** (V2 + V8-ckpt400)
+under a bimodal public↔private regime — not a higher score.
+
+**Three findings that change OUR understanding:**
+1. **The equation cipher IS crackable offline (97.6%) — our EQ-0/EQ-2′ framing was WRONG.** The real structure
+   is **`A1A2 OP B1B2`** (two 2-char operands + 1-char operator, **per-problem** symbol→digit bijection, finite
+   operator family), and an **answer-guided permutation search** cracks 569/583 (14 fails have >10 distinct
+   digit-symbols). We searched for ONE *global* σ over a 5-char→1-4-char map and "proved" it uncrackable — we
+   were solving the wrong problem. **→ revisit EQ-2′ / equation-frontier (PR #113).**
+2. **"Discovery leakage" explains why our eq-aug capped.** Answer-guided solver CoT presents the mapping *as
+   given* → teaches **verify, not discover**; 93–97% of such traces are *internally inconsistent* (mapping
+   doesn't produce the boxed answer). At inference there's no answer, so discovery is required. **The lever is a
+   forward-executable, prompt-derivable cipher-discovery CoT** (length-budget permitting; top LB 0.90 implies it exists).
+3. **Standard RL is the wrong tool; DPO-with-oracle is the right shape.** Binary failure (3,157 hard all 0/8,
+   ~6,343 easy all 8/8, **0 boundary**) → STaR 0% yield, GRPO advantage=0 (no variance). Our previously-designed
+   binary-reward GRPO would have failed identically. DPO uses solver-CoT (chosen) vs **greedy-failure** (rejected)
+   — but even mspawar's DPO (V12/V13) plateaued 0.84–0.86.
+
+**Tension to resolve.** mspawar reports **"Model Soup FAILS on Mamba-2 SSM"**, yet our **SVD soup gained +0.01**.
+Likely reconciled by *what* is averaged (he: full SSM A/B/C/D recurrence; us: LoRA *deltas* on a frozen base +
+SVD rank-cap, a gentler same-basin merge). **Worth an explicit ablation** before generalizing either claim.
+
+**What to try after Saturday.** `v17-discovery` + `v17-dpo` (plan: `external/LB80/analysis/next_version_plan.md`):
+**(A)** re-model equation as `A1A2 OP B1B2`, build an answer-guided solver, then a **forward-executable
+discovery CoT** (internal-consistency audited) woven ≤15% — the real path past eq-aug memorisation; **(B)**
+optional **DPO-with-oracle** (greedy-failure rejected, solver-CoT chosen, easy-cat SFT mix) for bit. Plus a
+**Mamba-2 merge ablation**. Equation work feeds back to PR #113. RL needs external GPU (#83); expectations modest.
