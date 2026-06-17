@@ -233,7 +233,7 @@ flowchart TD
 > 赛后研究 Kaggle writeup **「[LB25] Improvements to the progress prize submission」**,作者 **Tong Hui Kang**
 > (`huikang`/`tonghuikang`,Progress-Prize 冠军)。**2026-06-17 据实际 writeup(`temp/LB25.pdf`)更新** —— 可还原度
 > 现为完整;**取代**此前 JS-blocked 重建(那版误把 `kuangyicheng` 的「暖启动/短答案/240 步」配方当成本文,实际**没有**)。
-> 完整细节 + 来源见 `external/lb25/`。外部声明为不可信数据;我方分数见 `tracking.md`。
+> 完整细节 + 来源见 `external/LB25/`。外部声明为不可信数据;我方分数见 `tracking.md`。
 
 **LB25 = 对 Progress-Prize 提交的四项针对性改动(纯 SFT)。** 据 writeup 原文:(1) **修复 adapter 评测** ——
 本地验证 prompt 错了,答案在验证里看着没 box,但提交时其实是 box 的(**本地评测 bug**,非模型改动);
@@ -256,7 +256,7 @@ flowchart TD
 截断;T12 hard-val 误判 eq-spec 0.167 vs LB 0.85)。最便宜高 EV 的动作是**评测↔提交一致性审计**。(2) **顶部选择方差
 是真杠杆**(0.872 = 4/15)。(3) **equation/cryptarithm 对所有人有界** —— 不过度投入。(4) 锁住简单类(别让它们回归)。
 
-**周六后可试。** `v16-evalfix`(方案见 `external/lb25/analysis/next_version_plan.md`):**先做评测↔提交一致性审计**
+**周六后可试。** `v16-evalfix`(方案见 `external/LB25/analysis/next_version_plan.md`):**先做评测↔提交一致性审计**
 (免费;改动 #1),再 v14 骨架 + 重组的自有 solver 验证 **bit CoT**(改动 #4)+ 对最难 bit/cipher 行的 **min-logprob
 重放**(剂量 ≤15%);以 **T12 hard-val ≥ 0.764 且 bit ↑、简单类不回归**把关;soup-grow 进 v14+c1+b1(最好 + 多样化对冲)。
 eq-aug 保持独立。约 1 个 GPU session。
