@@ -113,19 +113,41 @@ M9 metrics snapshot:
 - Post-merge pytest: **149 passed / 8 skipped / 0 failed** (cloud DSN).
 - No paid LLM calls. No real Kaggle calls. Cost: $0.00.
 
-## Current milestone: M15 next — goal-loop submit step (#77) + cross-account quota (#21) + FK hardening (#60)
+## Current milestone: M15 in progress — goal-loop submit step (#77, #78) + ADR-0018 hardening (#59, #60, #61) + Docker retire/parity (#64)
 
 _M10 closed 2026-05-28. M11 PARTIAL + M12 + M13 closed 2026-06-09. M14
 closed 2026-06-10. All numbered milestones M0–M14 in `docs/milestones/README.md`
 are now ✓ done (M11 with T007 deferred; M12 with T007 deferred; M14 with
-T008's "≥ 2 LB scores" PASS-WITH-DEVIATION via the push≠submit gap #77)._
+T008's "≥ 2 LB scores" PASS-WITH-DEVIATION via the push≠submit gap #77). M15
+planned 2026-06-17 — task specs + loop prompts drafted (`docs/milestones/m15/loop-prompts.md`,
+`docs/tasks/m15/M15-T000…T008-*.md`)._
 
-Next prioritised work, in approximate order:
+M15 closes the goal loop on real LB signal and pays down the ADR-0018 tech-debt.
+The new submit step runs **autonomously under the KCA autonomy model**
+(`docs/adr/0021-kca-autonomy-model.md`): when `kca-<slug>.yaml:autonomy.enabled`
+is true and `autonomy.screen` passes, KCA submits without per-action approval and
+records the intended-submission summary to `.agent/kca/audit.jsonl`. Scenario-4 /
+over-budget / ambiguous-rules stay human-gated.
 
-0. **M15 / #77** — add the explicit submit step (`kaggle competitions
-   submit` of the kernel output) so the goal loop advances on real LB
-   signal; the single hardest unmet M14 exit criterion. Plus **#78**
-   (port `refresh-rules` off the removed `competition_view`).
+M15 task breakdown (full scope in `docs/tasks/m15/`):
+
+- **T000** [`arch:`] — explicit-submit-step design + ADR-0020 addendum + the 8 downstream task specs.
+- **T001 (#78)** — port `kca competition refresh-rules` off the removed `competition_view` onto kaggle 2.0.x; keep the degradation path.
+- **T002 (#77)** — explicit submit step (push → terminal → submit → score) + ADR-0021 autonomy screen + `_check_budget_gates` counts the submit. **Headline.**
+- **T003 (#59)** — JSON-Schema per `competition_type` for `submission_format` + read-time permissive validator (ADR-0018 F1).
+- **T004 (#60)** — migration 0012 `human_decisions.approved_by_user_id` + populate + resolver (ADR-0018 F2).
+- **T005 (#61)** — `profile_fallback` event in `permission_policy.py` (ADR-0018 F3).
+- **T006 (#64)** — cloud Supabase parity check / retire local Docker.
+- **T007** — live autonomous submit validation: ≥ 1 real LB score, closing the M14-T008 deviation.
+- **T008** — regression tests + exit criteria + `docs/milestones/m15/final-review.md` + M16 handoff.
+
+**Deferred to M16** (`decision:needed`, not pulled into `ai:ready`): #21 / #85
+(cross-account quota pool + multi-account user pool), #83 (cheaper / free GPU
+compute), and the `approved_by_user_id` FK target (`auth.users`) finalised once
+Supabase auth lands.
+
+Other prioritised work, in approximate order:
+
 1. **M11-T007** — live CTFtime event submit (deferred pending human-supplied
    credentials + approval). See M11 unblock checklist below.
 2. **M12-T007** — real Devpost submit (deferred pending 3 blocked artefacts:
@@ -208,9 +230,9 @@ See `docs/milestones/m11/final-review.md` (23 PASS / 1 SKIP-BLOCKED / 0 FAIL) an
 
 ### M12 ADR-0018 follow-ups (from `docs/adr/0018-generalized-competition-type.md`)
 
-- **F1** — jsonb type-check for `submission_format` (P2 tech-debt).
-- **F2** — `approved_by_user_id` FK on `human_decisions` (P1).
-- **F3** — resolver `profile_fallback` event type in `permission_policy.py`.
+- **F1** (#59) — jsonb type-check for `submission_format` (P2 tech-debt) — **scheduled M15-T003**.
+- **F2** (#60) — `approved_by_user_id` FK on `human_decisions` (P1) — **scheduled M15-T004**.
+- **F3** (#61) — resolver `profile_fallback` event type in `permission_policy.py` — **scheduled M15-T005**.
 - **F4** — `ctf-runner.yaml` permission profile — **DONE in M11** (M11 shipped CTF permission-profile extensions; M12 ADR-0018 F4 is superseded).
 
 See `docs/milestones/m13/handoff.md` for the M13→post-M13 read-first list,

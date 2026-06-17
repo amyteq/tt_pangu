@@ -1143,6 +1143,75 @@ Loop prompts and full task scope: `docs/milestones/m14/loop-prompts.md`.
 
 ---
 
+## M15: close the goal loop on real LB signal + ADR-0018 hardening ▣ in progress
+
+_Planned 2026-06-17. M14 closed 2026-06-10 with one material deviation: its
+sanctioned live run did **2 real kernel pushes but recorded 0 new leaderboard
+scores**, because a kernel push is not a competition submission (gap #77). M15
+closes that loop and pays down the ADR-0018 tech-debt M12/M14 deferred. Scope is
+owner-fixed: goal-loop completion (#77, #78) + ADR-0018 hardening (#59, #60, #61)
++ #64 (local-Docker retire / parity). Cross-account quota (#21/#85) and
+cheaper-GPU (#83) are deferred to M16 (`decision:needed`, not `ai:ready`)._
+
+Goal: add the explicit **submit** step so the goal loop advances on real LB
+signal (push → terminal → **submit** → score), running the submit **autonomously
+under the KCA autonomy model** (`docs/adr/0021-kca-autonomy-model.md`) — and land
+the three ADR-0018 hardening follow-ups plus the dual-DB-path cleanup. When a
+competition's `kca-<slug>.yaml:autonomy.enabled` is true and `autonomy.screen`
+passes, KCA submits without per-action approval and records the
+intended-submission summary (file / experiment id / expected score / reason) to
+`.agent/kca/audit.jsonl`. Scenario-4 / over-budget / ambiguous-rules stay
+human-gated.
+
+Planned tasks:
+
+- T000 [`arch:`] Explicit-submit-step architecture + ADR-0020 addendum + Discovery / Debate Gate + the 8 downstream task specs
+- T001 Port `kca competition refresh-rules` off the removed `competition_view` onto kaggle 2.0.x (issue #78)
+- T002 Explicit submit step between push-terminal and `kca kaggle score` + ADR-0021 autonomy screen + budget gate counts the submit (issue #77)
+- T003 JSON-Schema type-check for `competitions.submission_format` per `competition_type` + read-time permissive validator (issue #59 — ADR-0018 F1)
+- T004 Migration 0012 `human_decisions.approved_by_user_id` + `kca decisions approve` populate + resolver read path (issue #60 — ADR-0018 F2)
+- T005 `profile_fallback` event in `permission_policy.py` on resolver fallback (issue #61 — ADR-0018 F3)
+- T006 Cloud Supabase migration parity check / retire local Docker stack (issue #64)
+- T007 Live autonomous submit validation — push → submit → score, **≥ 1 real LB score** (closes M14-T008 deviation)
+- T008 Regression tests + exit criteria validation + `docs/milestones/m15/final-review.md` + M16 handoff
+
+Pre-requisite: M14 closed on `main` (`docs/milestones/m14/final-review.md`
+exists); migrations 0001–0011 applied on cloud Supabase (0012 lands in T004);
+issues #77 #78 #59 #60 #61 #64 promoted to `ai:ready` after triage.
+
+Exit criteria:
+
+- `kca competition refresh-rules` auto-ingests limits again on kaggle 2.0.x;
+  the `KaggleApiUnsupported` degradation path is preserved.
+- The goal loop performs an explicit submit between push-terminal and
+  `kca kaggle score`; `_check_budget_gates` counts the submit.
+- The submit honours the ADR-0021 autonomy screen (autonomous + audit row when
+  enabled & screen-pass; asks otherwise; scenario-4/over-budget/ambiguous
+  human-gated).
+- `competitions.submission_format` is validated per `competition_type` on read,
+  failing permissively (never crashes the worker); existing M11/M12 rows pass.
+- Migration 0012 adds `human_decisions.approved_by_user_id uuid NULL`;
+  `kca decisions approve` populates it; existing rows stay NULL.
+- `permission_policy.py` emits one `profile_fallback` `agent_job_events` row per
+  fallback per job.
+- #64 resolved (cloud parity verified; local Docker retired or parity-scripted).
+- T007's live run records **≥ 1 real `submissions.public_lb_score`** via the
+  submit → score path, closing the M14-T008 deviation.
+- `docs/milestones/m15/final-review.md` exists; PROJECT_STATE / README /
+  milestones updated.
+
+Out of scope for M15 (deferred to M16):
+
+- Cross-account quota pooling + multi-account user pool (issues #21 / #85) —
+  `decision:needed`; M15 keeps the single-account primitive.
+- Cheaper / free GPU compute for experiments (issue #83) — `decision:needed`.
+- `approved_by_user_id` FK target (`auth.users`) finalised once Supabase auth
+  lands — M15 ships the NULL column + populate / read path only.
+
+Loop prompts and full task scope: `docs/milestones/m15/loop-prompts.md`.
+
+---
+
 ## Open design questions
 
 - Should the first platform UI service be TypeScript-only, or TypeScript API + Python worker from day one?
