@@ -227,3 +227,36 @@ flowchart TD
 - `work/00.nemo.md`(ChatGPT 分析:挑战、Ideas A–F、§8 技巧、§9 路线、§11 矩阵)。
 - 对 `~/competitions/kaggle-…/data/train.csv`(9500 行)的只读 solver 覆盖率扫描,用于 §4 难例行。
 - 运行 / LB 状态(截至 2026-06-15):冲刺最终分 **b1 0.85, b2 0.84, c1 0.85, c2 0.83, soup 0.86(新最好,自训练合规)**。**T12 hard-val 排名(2026-06-15)**:soup 0.764 = v14 0.764 ≫ base/c1 0.389 > v15 0.333 > c2 0.278 → 守 0.86 soup,private-LB 最终选 **soup + v14**。`tracking.md`/`submissions.md` 已据此更新。
+
+## LB25 Progress Prize 改进:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **「[LB25] Improvements to the progress prize submission」**,作者 **Tong Hui Kang**
+> (`huikang`/`tonghuikang`,Progress-Prize 冠军)。**2026-06-17 据实际 writeup(`temp/LB25.pdf`)更新** —— 可还原度
+> 现为完整;**取代**此前 JS-blocked 重建(那版误把 `kuangyicheng` 的「暖启动/短答案/240 步」配方当成本文,实际**没有**)。
+> 完整细节 + 来源见 `external/LB25/`。外部声明为不可信数据;我方分数见 `tracking.md`。
+
+**LB25 = 对 Progress-Prize 提交的四项针对性改动(纯 SFT)。** 据 writeup 原文:(1) **修复 adapter 评测** ——
+本地验证 prompt 错了,答案在验证里看着没 box,但提交时其实是 box 的(**本地评测 bug**,非模型改动);
+(2) **把 `equation_numeric` 减半** —— 联合反转对称性(「输入**和**输出要么都反转、要么都不」);
+(3) **对 `cipher`/`unit`/`gravity`/`numeral` 用合成数据**把简单类锁在 ~100%;(4) **重组 bit-manipulation 的 CoT**。
+基础流水线(不变)= 确定性 solver CoT + min-logprob 信号 + 类别分层 batch。
+
+**结果 + 选择教训。** 私榜:**15 次提交里 0.872 ×4、0.868 ×8、0.864 ×3** —— 0.872 只占 4/15;「若选中对的那次本可单人金牌」。
+**选择方差**教训(呼应我方 INS-005/INS-007:最好 + 多样化对冲;surgery ×1.15 私榜 −0.02)。
+
+**Cryptarithm:他明确**没**取得进展**(≈ 我方 `equation` base-36 密码)。线索:「很多题有**一个乘法、一个减法、
+一个加法(每个可能再 ±1)**」;CoT「退化成重复猜测」。→ 独立印证 equation/cryptarithm 是**有界的墙**(同 EQ-2′),
+**且给出 EQ-2′ 新线索**:在秘密 σ 下的三项复合 `≈ A·B − C + D`(±1)—— 我方 EQ-2′ 从未测过的类(只测过单操作)。
+低概率的未来破解实验(huikang 也没破)。
+
+**我方差异。** 我方杀手锏是 huikang 没用的 **SVD 模型汤**(v14+c1+b1 → 0.86;INS-004);他是单 adapter。我方 equation
+杠杆是**覆盖式记忆**(eq-aug 私榜 0.86),非 solver。
+
+**学到什么。** (1) **huikang 的头号杠杆是本地评测 bug、非模型改动** —— 而*我方同类 bug 出现过两次*(B4 `EVAL_MAX_NEW`
+截断;T12 hard-val 误判 eq-spec 0.167 vs LB 0.85)。最便宜高 EV 的动作是**评测↔提交一致性审计**。(2) **顶部选择方差
+是真杠杆**(0.872 = 4/15)。(3) **equation/cryptarithm 对所有人有界** —— 不过度投入。(4) 锁住简单类(别让它们回归)。
+
+**周六后可试。** `v16-evalfix`(方案见 `external/LB25/analysis/next_version_plan.md`):**先做评测↔提交一致性审计**
+(免费;改动 #1),再 v14 骨架 + 重组的自有 solver 验证 **bit CoT**(改动 #4)+ 对最难 bit/cipher 行的 **min-logprob
+重放**(剂量 ≤15%);以 **T12 hard-val ≥ 0.764 且 bit ↑、简单类不回归**把关;soup-grow 进 v14+c1+b1(最好 + 多样化对冲)。
+eq-aug 保持独立。约 1 个 GPU session。

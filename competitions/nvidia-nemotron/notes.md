@@ -238,3 +238,44 @@ flowchart TD
 - `work/00.nemo.md` (ChatGPT analysis: challenges, Ideas A–F, §8 techniques, §9 route, §11 matrix).
 - Read-only solver-coverage pass on `~/competitions/kaggle-…/data/train.csv` (9500 rows) for §4 hard rows.
 - Run/LB status as of 2026-06-15: final-sprint scores **b1 0.85, b2 0.84, c1 0.85, c2 0.83, soup 0.86 (new best, own real-training)**. `tracking.md`/`submissions.md` updated with these.
+
+## LB25 Progress Prize Improvements: What We Learned
+
+> Post-competition study of the Kaggle writeup **"[LB25] Improvements to the progress prize submission"** by
+> **Tong Hui Kang** (`huikang`/`tonghuikang`, the Progress-Prize winner). **Updated 2026-06-17 from the actual
+> writeup (`temp/LB25.pdf`)** — recoverability now FULL; this **supersedes** the earlier JS-blocked
+> reconstruction, which wrongly attributed `kuangyicheng`'s "warmstart/short-response/240-step" recipe to this
+> writeup (NOT in it). Full detail + sources: `external/LB25/`. External claims = untrusted; our scores from `tracking.md`.
+
+**LB25 = four targeted changes to the Progress-Prize submission (pure SFT).** Verbatim from the writeup:
+(1) **Fix the adapter *evaluation*** — the local validation prompt was wrong, so answers looked un-boxed in
+validation though they *are* boxed on submission (a **local-eval bug**, not a model change); (2) **halve
+`equation_numeric`** via a joint reversal symmetry ("inputs **and** outputs both reversed, or both not");
+(3) **synthetic data for `cipher`/`unit`/`gravity`/`numeral`** to lock those easy cats at ~100%;
+(4) **reorganize the bit-manipulation CoT**. The base pipeline (unchanged) is deterministic-solver CoT +
+min-logprob signal + category-stratified batching.
+
+**Result + selection lesson.** Private LB: **0.872 ×4, 0.868 ×8, 0.864 ×3 across 15 submissions** — 0.872 was
+only 4/15; "could have won solo gold if I selected the correct submission." A **selection-variance** lesson
+(mirrors our INS-005/INS-007: best + a *diverse* hedge; surgery ×1.15 aged −0.02).
+
+**Cryptarithm: he explicitly made NO progress** (≈ our `equation` base-36 cipher). His clue: "many problems
+there is **one multiplication, one subtraction and one addition (each possibly ±1)**"; the CoT "devolves to
+repeating guesses." → independent confirmation that equation/cryptarithm is a **bounded wall** (matches EQ-2′),
+**plus a new EQ-2′ lead**: a 3-term composite `≈ A·B − C + D` (±1) under the secret σ — a class our EQ-2′ never
+tested (we only tried single ops). A low-odds future crack experiment (huikang failed too).
+
+**How our approach differed.** Our edge is the **SVD model-soup** (v14+c1+b1 → 0.86; INS-004) — huikang ships a
+single adapter. Our equation lever was **coverage-memorisation** (eq-aug 0.86 priv), not a solver.
+
+**What we learned.** (1) **huikang's #1 lever was a LOCAL-EVAL BUG, not a model change** — and *we have the same
+bug class twice* (B4 `EVAL_MAX_NEW` truncation; T12 hard-val mispredicting eq-spec 0.167 vs 0.85 LB). The
+cheapest high-EV action is an **eval/submission parity audit**. (2) **Selection variance is a real lever at the
+top** (0.872 = 4/15). (3) **Equation/cryptarithm is bounded for everyone** — don't over-invest. (4) Lock the
+easy cats (don't regress them).
+
+**What to try after Saturday.** `v16-evalfix` (plan: `external/LB25/analysis/next_version_plan.md`): **eval/
+submission parity audit FIRST** (free; change #1), then v14 backbone + reorganized own-solver-verified **bit
+CoT** (change #4) + **min-logprob replay** of the hardest bit/cipher rows (≤15% dose); gate on **T12 hard-val
+≥ 0.764 with bit ↑ and no easy-cat regression**; soup-grow into v14+c1+b1 (best + diverse hedge). Keep eq-aug
+standalone. ~1 GPU session.
