@@ -1,0 +1,43 @@
+# Example profile (OW-ARCH-001): turns on the opt-in wrong-first-hit emission gate + the
+# RuleEngine guardrail layer, plus per-turn sanitizer counters, for a cautious ladder probe.
+#
+# NOT the active profile. To ship it: `python config/bake.py --profile ladder_probe` then golden-
+# verify (note: OW_RULE_ENGINE=1 / OW_BLOCK_WRONG_HIT=1 are EXPERIMENTAL and will change behavior;
+# validate before any submission). Everything else mirrors `current`.
+
+profile: ladder_probe
+
+knobs:
+  OW_PROJ_H: 26
+  OW_MULTISRC: 0
+  OW_HOLD_MULT: 1.6
+  OW_OPENING: 0
+  OW_OPENING_TURNS: 25
+  OW_OPENING_H: 50
+  OW_COARRIVAL: 0
+  OW_COARR_MAX_SRC: 4
+  OW_COARR_HOLD: 1.0
+  OW_COARR_TOL: 1
+  OW_LEDGER: 0
+  OW_REAR_FLOOR: 0.0
+  OW_FRONTIER_FLOOR: 5.0
+  OW_FRONTIER_DIST: 20.0
+  OW_PROD_MULT: 0.0
+  OW_INFLIGHT_CAP: 1.2
+  OW_CAP_EARLY: 3.2
+  OW_CAP_LATE: 1.3
+  OW_4P_MODE: 0
+  OW_4P_ATK_SCALE: 0.5
+  OW_4P_PEACE_TURNS: 25
+  OW_4P_RIVAL_W: 1.0
+  OW_4P_CAP_BUMP: 0.0
+  OW_CONSOLIDATE: 0
+  OW_CONSOLIDATE_MIN: 12.0
+  OW_CONSOLIDATE_MARGIN: 3.0
+  OW_RULE_ENGINE: 1
+  OW_NO_SANITIZE: 0
+  OW_BLOCK_WRONG_HIT: 1
+  OW_SANITIZE_LOG: ""
+  OW_HYBRID: 0
+  OW_HYBRID_BETA: 0.5
+  OW_HYBRID_TOPN: 80

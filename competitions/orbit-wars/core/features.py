@@ -23,6 +23,7 @@ FEATURE_NAMES = [
     "src_defense_slack",
     "src_is_hub",
     "src_is_safe_bank",
+    "tgt_owner_is_own",
     "tgt_owner_is_enemy",
     "tgt_owner_is_neutral",
     "tgt_strategic_value",
@@ -70,6 +71,12 @@ def feature_vector(cf: dict, ship_bucket=None) -> list[float]:
     if ship_bucket is None:
         ship_bucket = ship_bucket_of(_ff(cf, "ships"))
     tgt_owner = cf.get("tgt_owner")
+    my_id = cf.get("my_id")
+    # distinguish OWN / ENEMY / NEUTRAL — never encode "owner != -1" as enemy (that mislabels our
+    # own planets, e.g. reinforcement targets). own requires knowing my_id (carried in cf).
+    is_own = 1.0 if (tgt_owner is not None and my_id is not None and tgt_owner == my_id) else 0.0
+    is_neutral = 1.0 if (tgt_owner == -1) else 0.0
+    is_enemy = 1.0 if (tgt_owner not in (None, -1) and not is_own) else 0.0
     return [
         _ff(cf, "ships"),
         float(ship_bucket),
@@ -79,8 +86,9 @@ def feature_vector(cf: dict, ship_bucket=None) -> list[float]:
         _ff(cf, "src_defense_slack"),
         _ff(cf, "src_is_hub"),
         _ff(cf, "src_is_safe_bank"),
-        1.0 if (tgt_owner not in (None, -1)) else 0.0,
-        1.0 if (tgt_owner == -1) else 0.0,
+        is_own,
+        is_enemy,
+        is_neutral,
         _ff(cf, "tgt_strategic_value"),
         _ff(cf, "tgt_roi"),
         _ff(cf, "tgt_holdability"),
@@ -108,6 +116,7 @@ def candidate_features(state, candidate, obs, oracle: FlightOracle | None = None
         "source_id": candidate["source"],
         "target_id": candidate["target"],
         "ships": ships,
+        "my_id": me,  # so feature_vector can classify target ownership as own/enemy/neutral
         "phase": state.glob.phase,
         "remaining_steps": state.glob.remaining_steps,
     }

@@ -79,6 +79,21 @@
   evogen cliff was largely THIS BUG, not strategy** (INS-009; revises the 13-levers-refuted narrative).
   kuni05 still ~1% (separate gap). Fixed tarball `v3_2_rotfix_submission.tar.gz` built + validated;
   **submit to ladder PENDING Harry's go-ahead** (the live probes 53767016/53767026 carry the bug).
+- 🟢 **Layered-architecture refactor (2026-06-18, prompt 08, OW-ARCH-001).** Split the monolithic
+  `agent/main.py` (now a 62-line thin entrypoint) → `core/policy.py` (v3.2 core + the documented
+  8-layer data-flow); deduped all physics to `core/geometry.py` (`agent/utils.py` → thin wrapper).
+  P0 correctness: in-flight fleets decoded from current `(x,y)` (`FlightOracle.trace_from_position`/
+  `decode_existing_fleet` + `core/state.py`); intended target IDs preserved through `core/action_emitter.py`
+  → `core/action_sanitizer.py` (wrong-first-hit gate opt-in); features split own/enemy/neutral (25-dim).
+  New `core/candidates.py::CandidateAction`; `core/rule_engine.py` wired (pass-through default). **Config
+  layer:** `core/config.py` centralizes all 33 `OW_*` (env→baked→literal); YAML `config/*` baked PyYAML-free
+  to `agent/config_baked.py` (`config/bake.py --check`). **Behavior byte-identical** (golden 526-record
+  obs→moves = 0 mismatches; arena `validate.py` **100% vs v2/v1/starter/random**; mirror vs frozen pre-B11
+  v3_2 = 91.7%, i.e. the B11 fix). **Caught + fixed B12** — the refactor's thin shim referenced `__file__`
+  at load, which kaggle's `exec(code, {})` leaves undefined → agent went silently passive (lost to random
+  in the first arena run); fixed via a `sys.path`-scanning `_locate_core()` + a permanent regression test.
+  10 `tests_orbit` files / 43 tests pass; `ruff check .` clean. No Kaggle ops. Follow-ups OW-ARCH-002..005 in
+  `tasks.md` (chief: re-train the layer-5 scorer on the **25-feat** contract — the 24-feat weights now auto-disable).
 - **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
   (evogen 1093 / multifocus / kuni05 1240).
 

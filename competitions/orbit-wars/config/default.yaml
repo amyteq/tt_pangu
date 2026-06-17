@@ -1,0 +1,66 @@
+# Orbit Wars agent — canonical config schema + default values (OW-ARCH-001).
+#
+# This file is the HUMAN source of truth for every OW_* knob the live policy reads
+# (core/policy.py). It documents each knob's meaning, type, and default. It is NOT loaded
+# at agent runtime: the online Kaggle agent has no PyYAML, so these values are baked into
+# agent/config_baked.py (plain Python). See config/README.md for the bake step.
+#
+# Resolution order at runtime (core/config.py): env OW_*  ->  baked default  ->  call-site literal.
+# Defaults below == the t14-tuned v3.2 "Forecast" baseline + B11 rotation fix.
+
+profile: default
+
+planner:
+  OW_PROJ_H: 26          # int  forward-sim horizon (ticks); 18 too short for slow opening fleets
+
+multisource:             # pool ships from several planets onto one target (default OFF — no strong-tier gain)
+  OW_MULTISRC: 0         # int  master gate
+  OW_HOLD_MULT: 1.6      # float total force = needed * HOLD_MULT (capture AND hold)
+
+opening:                 # aggressive early land-grab expander (default OFF — fired more, win-rate dropped)
+  OW_OPENING: 0          # int  master gate
+  OW_OPENING_TURNS: 25   # int  opening window (steps)
+  OW_OPENING_H: 50       # int  long opening forecast horizon
+
+coarrival:               # T8 true co-arrival strikes: align ARRIVAL turns (default OFF)
+  OW_COARRIVAL: 0        # int  master gate
+  OW_COARR_MAX_SRC: 4    # int  wave fragmentation cap
+  OW_COARR_HOLD: 1.0     # float extra force mult to hold
+  OW_COARR_TOL: 1        # int  K±tol arrival-merge tolerance
+
+ledger:                  # T11 ledger-constrained availability (default OFF, constraint-only)
+  OW_LEDGER: 0           # int  master gate
+
+garrison:                # v2 "hold what you take" — standing garrison + in-flight discipline
+  OW_REAR_FLOOR: 0.0     # float garrison kept on a safe (rear) planet
+  OW_FRONTIER_FLOOR: 5.0 # float garrison kept on a planet near an enemy
+  OW_FRONTIER_DIST: 20.0 # float enemy planet within this distance => frontier
+  OW_PROD_MULT: 0.0      # float extra standing garrison per unit production (GARRISON_PROD_MULT)
+  OW_INFLIGHT_CAP: 1.2   # float cap in-flight at this frac of on-planet ships
+  OW_CAP_EARLY: 3.2      # float phase-scaled cap, early game
+  OW_CAP_LATE: 1.3       # float phase-scaled cap, late game
+
+fourp:                   # 4p-aware mode (default OFF -> 2p play byte-identical; triggers only with >=3 rivals)
+  OW_4P_MODE: 0          # int  master gate
+  OW_4P_ATK_SCALE: 0.5   # float opening PvP damping
+  OW_4P_PEACE_TURNS: 25  # int  "no early aggressor" window
+  OW_4P_RIVAL_W: 1.0     # float weight hurting the leader
+  OW_4P_CAP_BUMP: 0.0    # float survival reserve bump
+
+consolidate:             # forward idle rear surplus toward the front (default OFF — never beats v2.1)
+  OW_CONSOLIDATE: 0          # int  master gate
+  OW_CONSOLIDATE_MIN: 12.0   # float min surplus to bother
+  OW_CONSOLIDATE_MARGIN: 3.0 # float front-distance gain required
+
+ruleengine:              # layer [6] guardrail / tactical re-weight over candidates (default OFF -> pass-through)
+  OW_RULE_ENGINE: 0      # int  master gate (0 = candidate list unchanged, byte-identical to v3.2)
+
+emission:                # layer [7] safety gate (core.action_sanitizer via core.action_emitter)
+  OW_NO_SANITIZE: 0      # int  sanitizer ON unless 1 (drops provable sun/oob launches)
+  OW_BLOCK_WRONG_HIT: 0  # int  opt-in: drop a move whose first hit != intended target
+  OW_SANITIZE_LOG: ""    # str  path for per-turn counters ("" = off; off online)
+
+hybrid:                  # layer [5] trained candidate re-ranker (default OFF; rules-only when off/failed)
+  OW_HYBRID: 0           # int  master gate
+  OW_HYBRID_BETA: 0.5    # float rank-blend weight (0 == byte-identical to v3.2)
+  OW_HYBRID_TOPN: 80     # int  only the top-N candidates are model-scored
