@@ -262,3 +262,33 @@ solver —— 在未见尾部同样是 ~8–9% 的墙。
 **周六后可试。** `v16-mlp`(方案见 `external/lb25/analysis/next_version_plan.md`):v14 骨架 + 对最难 bit/cipher
 行的 **min-logprob 选择性重放**(剂量 ≤15%)+ 从 0.86 soup 暖启动的短**格式对齐**;提交前以 **T12 hard-val
 ≥ 0.764** + 截断审计把关;再 soup-grow 进 v14+c1+b1。eq-aug 保持独立(不可入汤)。约 1 个 GPU session。
+
+## LB80 Progress Prize 改进:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **「Breaking the SFT Ceiling on Nemotron-3-Nano-30B」**。完整重建 + 来源见
+> `external/LB80/`。**可还原度部分** —— Kaggle writeup 正文 JS 渲染 + 赛后未索引(不登录不可抓取);
+> **作者与确切分数未知**(任务模板「~0.872」是占位符)。由竞赛**讨论 #688461**(详细 per-bit GRPO 奖励方案)
+> + 公开 RL 生态(NeMo-RL、Logic-RL、ProRL、Tina)重建。外部声明为不可信数据。
+
+**LB80 方法(杠杆 = 超越 SFT)。** 两阶段:**(1) SFT 冷启动**到已知 0.85–0.86 基线,然后 **(2) GRPO / RLVR +
+稠密逐步可验证奖励** —— 轨迹每一步给部分分(输出列排版、选算子、per-bit 门计算、VER 校验、每个答案 bit),
+外加**超线性「香槟」奖励**(8/8 全对 → +5 平铺)让全对远比接近值钱。把奖励地形从稀疏悬崖变成稠密梯度爬坡,
+目标 **bit-manipulation**(验证最干净)与 equation/symbol。生态里另一条非 RL 越顶路径是 **adapter 手术**
+(lopure ~0.89:放大 LoRA 前 50% 奇异值)。
+
+**为何越顶。** SFT 答案级信号**稀疏** —— 差一位的 8-bit 答案与随机同得 0,最难行梯度消失(我方 T12:全员
+equation ≤2/16、bit 上限 ~14/16,且增补**回归**难尾)。稠密逐步奖励对**部分**正确给梯度,香槟奖励塑形收尾
+—— 即 Logic-RL/RLVR「规则 RL 在谜题上越过 SFT」的结论。
+
+**我方差异。** **我方从未跑 RL** —— 最大方法缺口。`research.md §4` *设计*了 GRPO 但用**二值终端奖励**(0/1)
+且被推迟(GPU/时间)。我们正卡在它描述的 0.86 SFT 天花板(一切增补都稀释;soup = 0.86)。我方杠杆(SVD soup、
+eq-aug 覆盖)是 SFT/合并技巧,与 RL 正交。
+
+**学到什么。** (1) 越过 0.86 的成文路径是**在强 SFT 先验上做稠密奖励 GRPO**,不是更多 SFT 数据。(2) 奖励必须
+**稠密 + 逐步**(我方设计的二值奖励形状错了),且**最终答案 verify 必须占主导**(防奖励作弊)。(3) 30B 的 RL
+需**外部 GPU**(在线 rollout 超出 Kaggle kernel)+ 强冷启动(base 直接 GRPO 不稳)。(4) 有**便宜的非 RL 替代** ——
+adapter 奇异值放大(lopure)—— 值得先试。(5) equation 仍有界(强密码无可用逐步验证器)。
+
+**周六后可试。** `v17-grpo`(方案见 `external/LB80/analysis/next_version_plan.md`):在 **bit** 上做稠密逐步奖励
+(+香槟)的 GRPO,从 v14/soup 暖启动、`verify` 占主导;以 **bit hard-val ↑ 且简单类不回归**把关;survivor
+soup-grow 进 v14+c1+b1。先试 **adapter 奇异值放大**兜底(≈0 GPU)。正经 RL 大概率需外部算力(#83),非单台 RTX PRO 6000。

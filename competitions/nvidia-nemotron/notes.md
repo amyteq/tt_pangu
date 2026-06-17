@@ -280,3 +280,44 @@ b2/v15/c2). (3) **Output-length/format is free accuracy** — verify no answer t
 **min-logprob selective replay** of the hardest bit/cipher rows (≤15% dose) + a short **format-alignment** pass
 warmstarted from the 0.86 soup; gate on **T12 hard-val ≥ 0.764** + a length-truncation audit before any submit;
 then soup-grow into v14+c1+b1. Keep eq-aug standalone (it doesn't soup). ~1 GPU session.
+
+## LB80 Progress Prize Improvements: What We Learned
+
+> Post-competition study of the Kaggle writeup **"Breaking the SFT Ceiling on Nemotron-3-Nano-30B"**.
+> Full reconstruction + sources: `external/LB80/`. **Recoverability PARTIAL** — the Kaggle writeup body is
+> JS-rendered + post-close unindexed (not fetchable without auth, which we don't use); the **author and exact
+> score are `unknown`** (the task template's "~0.872" is a placeholder). Reconstructed from competition
+> **discussion #688461** (a detailed per-bit GRPO reward scheme) + the public RL ecosystem (NeMo-RL, Logic-RL,
+> ProRL, Tina). External claims = untrusted data.
+
+**LB80 method (the lever = go BEYOND SFT).** Two stages: **(1) SFT cold-start** to the known 0.85–0.86 baseline,
+then **(2) GRPO / RLVR with a DENSE per-step verifiable reward** — partial credit at every trace step (output-
+column layout, operation choice, per-bit gate computation, a VER cross-check, each answer bit) plus a
+**superlinear "champagne" bonus** (8/8 correct → +5 flat) that makes perfection worth far more than a near-miss.
+This converts the reward landscape from a sparse cliff into a dense gradient climb, targeting **bit-manipulation**
+(cleanest verifier) and equation/symbol. A second, non-RL above-SFT path in the ecosystem is **adapter surgery**
+(lopure ~0.89: amplify the top-50% LoRA singular values).
+
+**Why it breaks the ceiling.** SFT's answer-level signal is **sparse** — a near-correct 8-bit answer scores the
+same 0 as random, so the hardest rows get vanishing gradient (our T12: equation ≤2/16 everywhere, bit caps
+~14/16, and *augmentation regressed* the hard tail). A dense per-step reward gives gradient on partial
+correctness; the champagne bonus shapes toward completion — the Logic-RL/RLVR result that rule-based RL on
+puzzles generalizes past SFT.
+
+**How our approach differed.** **We never ran RL** — our biggest method gap. `research.md §4` *designed* GRPO
+but with a **binary terminal reward** (0/1) and it was deferred (GPU/time). We are AT the 0.86 SFT ceiling this
+writeup describes (every augmentation diluted; soup = 0.86). Our levers (SVD soup, eq-aug coverage) are SFT/merge
+tricks, orthogonal to RL.
+
+**What we learned.** (1) The documented path past 0.86 is **dense-reward GRPO on a strong SFT prior**, not more
+SFT data. (2) The reward must be **dense + per-step** (our designed binary reward is the wrong shape) and the
+**final-answer verify must dominate** (anti-reward-hack). (3) RL at 30B needs **external GPU** (online rollouts
+exceed Kaggle kernels) and a strong cold-start (base-init GRPO is unstable). (4) A **cheap no-RL alternative**
+exists — adapter singular-value amplification (lopure) — worth trying first. (5) Equation stays bounded (no
+usable per-step verifier for the strong cipher).
+
+**What to try after Saturday.** `v17-grpo` (plan: `external/LB80/analysis/next_version_plan.md`): GRPO with a
+dense per-step reward (+champagne) on **bit**, warmstarted from v14/soup, `verify` dominating; gate on **bit
+hard-val ↑ with no easy-category regression**; soup-grow the survivor into v14+c1+b1. Try the **adapter
+singular-value amplification** fallback first (≈0 GPU). RL proper likely needs external compute (#83), not just
+the RTX PRO 6000.
