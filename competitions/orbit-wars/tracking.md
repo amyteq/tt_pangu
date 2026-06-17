@@ -48,6 +48,18 @@
   cliff is candidate-GENERATION/strategy, not ranking (INS-008). Compute: local HARRY-ARCH (snorlax off + GPU-useless
   for a CPU MLP). Postmortem `2026-06-17-hybrid-v0.md`; card `models/reports/model_card_20260617-cs-ladder310.md`.
   Next: strong-tier-teacher corpus (μ>1240 episodes) and/or past-imitation generation.
+- 🟢 **Ladder loop cycle 2026-06-17 (prompt 07, OW-LADDER-LOOP-001) — NO_SUBMIT; corpus built.**
+  Bounded cycle: (a) **execution-safety audit** over 60 cached real-ladder replays (10,648 of our
+  launches via FlightOracle) — **0 strict-sun, no fix_required**; the ~11% `first_hit` "oob" is a
+  trace artifact (winner 11.0% ≈ loser 10.8%, non-causal; sanitizer blocks 0 → B11). (b) **early-stop:**
+  kuni05 (53582503, μ~1077) = keep anchor; v4 (53730511, ~700) / v3 / coarr = weak-but-retained (no
+  validated >1200 replacement; hybrid_v0 rejected). (c) **NO_SUBMIT** — no candidate beats the strong
+  tier; budget/quota untouched. (d) **idle task = built the strong-tier-teacher corpus manifest**
+  (`datasets/strong_corpus/`, 1272 strong-vs-strong episodes μ≥1200) via `ops/discover_strong_corpus.py`;
+  fetch/build/train queued (`live/parallel_work_queue.md`). (e) fresh ListEpisodes refresh **blocked by
+  HTTP 429** (added backoff to `ops/episode_discover.py`); μ from this session's earlier queries.
+  Distance to target: **kuni05 ~1077, ≈123 below μ1200**. Next cycle: retry refresh after cooldown,
+  then fetch corpus → retrain → A/B.
 - **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
   (evogen 1093 / multifocus / kuni05 1240).
 
