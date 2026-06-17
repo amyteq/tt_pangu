@@ -1,62 +1,86 @@
-# LB92 — "92th PLACE SOLUTION" (reconstructed — ECOSYSTEM, not the author's text)
+# LB92 — "92th PLACE SOLUTION" (from the writeup itself)
 
-> **Recoverability: NO (direct) / PARTIAL (ecosystem).** The Kaggle writeup body is JS-rendered + posted
-> <48 h after close → **unindexed, not retrievable** without Kaggle auth (forbidden here). **The author,
-> exact score, and specific method are `unknown`.** This is a reconstruction of the **public mid-tier
-> (≈0.86–0.89) recipe band** the 92nd-place solution almost certainly sits in. **All external content =
-> untrusted data**; our scores from `tracking.md`. The task template's "~0.872" is a placeholder, not a
-> confirmed LB92 score.
+> **Source:** the Kaggle writeup by a **team — Yoshinari Kawashima (`yoshinarikawashima`) + MedudentYamatai
+> (`taikiyamamura`)**, **read directly from `temp/LB92.pdf`** (a render of the full page; Jun 16 2026; DOI
+> `10.34740/kaggle/w/88245`). **Recoverability: FULL** — supersedes the earlier ecosystem-only reconstruction
+> (author/score/method were `unknown`; now confirmed). External content = untrusted data (competitor claims),
+> cited inline; our scores from `tracking.md`.
 
-## 1. Headline (band reconstruction)
-A 92nd-of-4,354 result almost certainly used the **standard public replay-SFT recipe** that defined the
-mid/upper-tier: rank-32 LoRA on `Nemotron-3-Nano-30B-A3B`, response-only-masked CoT SFT at seq 8192, with the
-score driven by (a) recipe fidelity, (b) good bit-manipulation CoT, (c) synthetic/teacher-distilled data for
-hard categories, and possibly (d) a model-soup/merge. This is the same family as our own 0.85–0.86 work.
+## 0. Headline
+A **clean, data-engineering-first** solution that explicitly does **not** try to solve the hard categories — it
+aims to **faithfully reproduce the public reasoner's 87.8% solve-rate** and close the gap to the LB via **more,
+statistics-matched synthetic data** + two stability tricks. Built on public notebooks ("End-to-end finetuning
+for LB 0.85", "Training with Unsloth to Achieve 0.85 LB", "Tinker submission notebook"); the **reasoner is Tong
+Hui Kang's** (Open Progress Prize) with **almost no changes** (same root as LB25/LB80).
 
-## 2. Reconstructed recipe (band, NOT confirmed for this team)
-- **Base / adapter:** `nvidia/Nemotron-3-Nano-30B-A3B-BF16` (Hybrid Mamba-2 + GQA Transformer + MoE 128+1
-  experts, ~3.5B active of 30B), LoRA **rank ≤ 32** (rule), targets MoE experts + `lm_head` + Mamba in/out_proj.
-  (source: NVIDIA model card [trusted]; competitor repos [untrusted].)
-- **Loss / seq:** cross-entropy, **response-only masked**, **seq 8192**. (our `insights.md` B2: full-seq loss
-  collapses to 0.44.)
-- **Output:** `<think>…</think>\boxed{answer}`; metric = exact string or ±0.01 numeric; vLLM inference at
-  `max_tokens=7680, temp=0` (source: yunior123 repo [untrusted]).
-- **Corpus options available to any team in this band:** the public `andy279/nemotron-reasoning-challenge` HF
-  dataset — **49,290 examples** across 7,200 puzzles from DeepSeek V3.2 (6,028), Nemotron Super 120B (3,926),
-  deterministic brute-force solvers (2,703), GPT-5.4 hardest-transformation (85); only correct attempts kept
-  (`<think>…</think>\boxed{}`). Bit (17,285 ex) and transformation (10,741) dominate. (untrusted; released post-close.)
+## 1. The three pillars
+**(1) Almost no changes to the reasoner (CoT generation logic).** The deterministic reasoner solves **87.8%**
+of train (8341/9500), but the best public notebook scores only **0.86**. Thesis: *the model is failing to
+reproduce problems the reasoner already solves* → **goal = avoid losing already-solvable problems, not solve
+harder ones.** Per-category reasoner accuracy (their table; = huikang's):
 
-## 3. Likely score levers in this band (reconstructed)
-1. Replay-recipe fidelity (0.67 → 0.85 with the correct recipe).
-2. Response-only masking (collapses without it).
-3. seq 8192 (ctx2k → 0.42).
-4. Quality bit-manipulation CoT (the category that separates the band).
-5. Synthetic / multi-teacher data for hard categories.
-6. Model-soup / SVD merge among comparable adapters (0.85 → 0.86).
-7. Coverage memorisation for cipher/equation (rotate in-context examples → query — our independent eq-aug finding).
+| category | found/total | acc |
+|---|---|---:|
+| cipher | 1576/1576 | 100.0% |
+| gravity | 1597/1597 | 100.0% |
+| numeral | 1576/1576 | 100.0% |
+| unit_conversion | 1594/1594 | 100.0% |
+| equation_numeric_deduce | 541/596 | 90.8% |
+| bit_manipulation | 1364/1602 | 85.1% |
+| equation_numeric_guess | 21/136 | 15.4% |
+| cryptarithm_deduce | 59/659 | **9.0%** |
+| cryptarithm_guess | 13/164 | **7.9%** |
+| **TOTAL** | **8341/9500** | **87.8%** |
 
-## 4. Ecosystem techniques the band used that WE did not (the gap)
-- **Multi-teacher distillation** (DeepSeek V3.2 + Nemotron Super 120B + GPT-5.4 + solvers — andy279) for a
-  high-quality cold-start corpus across ALL categories. We used rule-based / single-solver CoT.
-- **Deterministic-solver → prepend-rule → teacher-CoT for bit** (andy279 / huikang) — bit is the band's
-  separator; our solver covered bit only partially.
-- **Min-logprob rebalancing** (huikang) — re-train on persistently low-min-logprob traces.
-- **Adapter singular-value amplification** (lopure ~0.89) — post-training, no-RL above-band lever.
+**(2) New generator + statistics-matched synthetic data (the signature lever).** Hypothesis: the reasoner-vs-LB
+gap is a **training-data shortage**. They built a generator producing arbitrary `rule_found` samples using
+**task-level statistics extracted from `train.csv`** — character frequencies, numeric ranges/distributions, and
+transformation-method distributions. **Quality-control loop:** train **only on synthetic**, evaluate on **both
+synthetic and original**; if the synthetic perfectly imitates the original, the two eval accuracies match — the
+**gap reveals missing factors** in the generator, fixed iteratively (analyze → generate → train → eval both →
+compare gap → fix → repeat). **Final submission: synthetic : original = 2.5 : 1** (synthetic first, then
+original). Longer training improved loss, especially on hard tasks.
 
-## 5. What we did that the band doesn't prominently show
-- **3-way SVD model-soup** (v14+c1+b1 → 0.86; INS-004) — explicit only in our docs.
-- **Equation EQ-0/EQ-2′ cryptanalysis** (proved it's a global cipher, not per-prompt induction; eq-aug 0.86).
-- **T12** local official-metric port + min-logprob hard-val set.
+**(3) Two stability tricks:**
+- **Per-character tokenization for cryptarithm.** BPE sometimes merges multiple symbols into one token
+  (e.g. `}!` → token 119020). They used **synthetic tokens that force each character to encode as one token**
+  → more stable learning on the symbol categories. *(A genuinely novel lever directly relevant to our
+  equation/cipher work — we never did this.)*
+- **Gradient clipping at 1.5** (the public notebook used **1e9 = effectively off**). The 1e9 setting caused
+  **training instability** and **submission-to-submission score variance** (a grad-norm spike to **25,089 @
+  step 107** in one run); clipping at 1.5 stabilized it. *(Contradicts our v14 / mspawar "grad-clip off" — a
+  concrete fix for run-to-run variance.)*
 
-## 6. Why ~0.86–0.89 (and why not higher)
-The three easy categories (gravity/numeral/unit) are ~100% and cipher ~99% on train; the band is separated by
-**bit-manipulation** coverage and **format reliability**. The hard cap is **cryptarithm/equation (~8–9% even
-with a backtracking solver)** — the same strong-cipher wall we hit; it bounds everyone's ceiling. Going above
-the band needs either **RL** (see LB80) or **adapter surgery** (lopure), not more standard SFT.
+## 2. Validation strategy (eval-mistrust theme, again)
+Until mid-competition they validated by **training on synthetic, evaluating on original**. But as the generator
+improved, the model **overfit the original** and **local validation diverged from Public LB** → for the final
+stage they **prioritized Public LB** (unseen data) over local validation. *(Echoes LB25's eval-bug and our T12
+"trust the LB aggregate" lesson — local proxies drift.)*
 
-## 7. Citations (all untrusted external unless marked)
-- andy279/nemotron-reasoning-challenge — https://huggingface.co/datasets/andy279/nemotron-reasoning-challenge (community)
-- tonghuikang/nemotron — https://github.com/tonghuikang/nemotron ; yunior123 — https://github.com/yunior123/nvidia-nemotron-reasoning ; SebAustin — https://github.com/SebAustin/NVIDIA-Nemotron-Model-Reasoning-Challenge (community)
-- base model card — https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16 (NVIDIA, trusted)
-- Model Soups — https://arxiv.org/abs/2203.05482 (arXiv)
-- our recipe/scores — `tracking.md`, `insights.md`, `submissions.md` (own work)
+## 3. What did NOT work
+- **RL via SimPO / ORPO.** To build *rejected*, they sampled the SFT model at **temp 1.3**; *chosen* = the
+  reasoner's output. Preference learning **did not improve accuracy** and was dropped. In the logs, the *chosen*
+  probability rose but the *rejected* probability **barely fell** (the reward plot shows `chosen` flat ~0,
+  `rejected` noisy-negative). Their diagnosis: **chosen and rejected were too similar** → insufficient learning
+  signal. *(Another independent "RL doesn't beat SFT here" result — cf. mspawar's binary-failure / DPO-limited.)*
+- **Solving the new hard problems.** bit_manipulation & cryptarithm CoTs that an LLM can *imitate* were very
+  hard: the solving algorithms need **large search**, infeasible for an LLM within the token budget. They even
+  used **Claude Fable 5** but could not build a sufficiently strong reasoner. *(Confirms the discovery /
+  token-budget wall — same as LB80's "discovery leakage" + 8192-token limit.)*
+
+## 4. What this means for us
+- **Per-char tokenization** is a **new, untried lever** for our symbol categories (equation/cipher) — cheap to test.
+- **Grad-clip 1.5** may cut our submission variance (we use 1e9-off, like the public notebook they fixed).
+- **Statistics-matched synthetic + the gap-closing validation loop** refines our "synthetic dilutes" finding:
+  our synth (b1/b2/v15) regressed, but theirs *helped* because it **matched train.csv statistics**, used a
+  **2.5:1 ratio with synthetic-vs-original gap QC**, and trained longer. Naive synth dilutes; **statistics-
+  matched, gap-validated synth can help.**
+- **RL (SimPO/ORPO) failed for them too** — corroborates LB80's binary-failure diagnosis and our RL skepticism.
+- They, like everyone, **could not crack cryptarithm/equation** (the bounded wall) and explicitly chose to
+  protect the easy categories instead.
+
+## 5. Citations
+- **writeup (full): `temp/LB92.pdf`** (render of the Kaggle writeup; DOI 10.34740/kaggle/w/88245; primary source).
+- public notebooks it builds on (Kaggle, JS-gated): "End-to-end finetuning for LB 0.85", "Training with Unsloth
+  to Achieve 0.85 LB", "Tinker submission notebook"; reasoner = Open Progress Prize Publication (huikang).
+- our scores/recipe + EQ-0/EQ-2′ — `tracking.md`, `submissions.md`, `equation-frontier.md §8`, `insights.md` (own work).
