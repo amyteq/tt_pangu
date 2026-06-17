@@ -38,6 +38,16 @@
   ✅ FlightOracle gate now WIRED into `agent/main.py` emission (prompt 02 — `core/action_sanitizer.py`
   + `_emit_gate`, import-guarded; verified active, 0 false-positives on v3.2, no regression; activate on
   ladder via `main.py+core/` tar.gz). Next: model training (05) → hybrid (06) → ladder loop (07) toward μ≥1200.
+- 🟡 **Model training + hybrid (2026-06-17, prompts 05/06) — infra GO, model REJECTED.** Rebuilt the corpus
+  from **310 REAL ladder episodes** (subs 53582503/53730511, fetched read-only; 2.48M candidates) and trained the
+  candidate scorer (MLP, valid **AUC 0.882**; `agent/hybrid_weights.json`, pure-Python online, p99 44ms). Wired as
+  an additive re-ranker in `agent/main.py` (`OW_HYBRID`; β=0 byte-identical to v3.2; `agent/versions/hybrid_v0.py`).
+  **Arena A/B (240g/cell): strong-tier FLAT** — vs evogen1093 13.8%→13.8–14.6%, vs kuni05 0.8%→0.8% (crushed,
+  avg 17 vs 2315); weak/4p non-regressive; crash-safe. **VALIDATION #3 (+7pt) NOT met → not submitted**
+  (`live/last_eval.json` submit_ready=false). 3rd confirmation that offline AUC ≠ ladder strength (INS-003); the
+  cliff is candidate-GENERATION/strategy, not ranking (INS-008). Compute: local HARRY-ARCH (snorlax off + GPU-useless
+  for a CPU MLP). Postmortem `2026-06-17-hybrid-v0.md`; card `models/reports/model_card_20260617-cs-ladder310.md`.
+  Next: strong-tier-teacher corpus (μ>1240 episodes) and/or past-imitation generation.
 - **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
   (evogen 1093 / multifocus / kuni05 1240).
 

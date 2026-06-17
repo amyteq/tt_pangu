@@ -59,10 +59,13 @@
 
 ### INS-003: imitation/BC ≠ playing for integrated-system opponents
 - type: anti-pattern
-- confidence: medium
-- evidence: issue #87 (T12 high imitation, 0% arena — distribution shift)
+- confidence: high
+- evidence: **triple-confirmed.** (1) T12 BC: recall@k 0.387 / 0% arena. (2) prompt-05 local-data
+  scorer: AUC 0.92 offline / untested. (3) prompt-06 REAL-ladder scorer: AUC 0.882 offline, wired as
+  a candidate re-ranker → strong-tier arena FLAT (vs evogen 13.8%→13.8–14.6%, vs kuni05 0.8%→0.8% over
+  240g/cell). Offline imitation fidelity does not predict ladder strength.
 - transfer scope: imitation-learning on planning/agent tasks
-- status: candidate
+- status: validated — gate every model on arena A/B (VALIDATION #3), never on AUC/recall@k
 
 ### INS-004: parallel arena — engine is CPU-bound, GPU useless
 - type: fact
@@ -82,3 +85,14 @@
   let the model only rank/score candidates (never own raw angle/landing). This is the foundation the
   strong-tier cliff attack needs; bolt-on single levers failed (13×, INS-005/strategy.md H2) precisely
   because there was no integrated state+execution layer for an integrated policy to sit on.
+
+### INS-008: a re-ranker over your own candidates can't add strategy you don't generate
+- type: rule
+- confidence: high
+- evidence: prompt-06 hybrid_v0 — a model scorer blended into v3.2's greedy commit order changed
+  ~6.5% of decisions yet moved strong-tier win% by ~0 (vs evogen/kuni05, 240g/cell). kuni05 beats
+  v3.2 0.8% with a ~135× score margin — a different strategy, not a better ordering of v3.2's moves.
+  The strong-tier cliff (B6) is a candidate-GENERATION / strategy gap, not a candidate-RANKING gap.
+- transfer scope: hybrid model+rules agents — if the rule base can't propose the winning move, no
+  scorer can pick it. Put model capacity where the gap is (generation/search/value), not just ranking.
+- status: validated

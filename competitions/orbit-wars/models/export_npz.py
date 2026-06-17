@@ -1,16 +1,22 @@
-"""Export a trained model.pt (+ meta.json) to a single .npz the ladder agent loads with numpy only.
+"""Export a trained model.pt (+ meta.json) to runtime artifacts.
 
-The ladder agent stays stdlib+numpy (no torch import on Kaggle). This dumps the MLP weights,
-the standardization mean/std, and the FEATURES contract into one .npz; forward() here is the
-reference pure-numpy scorer the runtime mirrors.
+Two outputs from one run:
+  * scorer.npz  — numpy weights for fast OFFLINE eval (models/evaluate_offline.py). forward() here
+    is the reference numpy scorer.
+  * scorer.json — pure-Python-loadable weights (features, mean/std, per-layer W/b) for the ONLINE
+    ladder agent, which stays stdlib-only (no numpy/torch import on Kaggle). agent/hybrid_model.py
+    loads this with the json module and runs a pure-Python forward.
 
-  python export_npz.py --run-root models/artifacts/<run_id> [--out models/artifacts/<run_id>/scorer.npz]
+Both are self-checked against torch (max_err < 1e-5).
+
+  python export_npz.py --run-root models/artifacts/<run_id>
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 
@@ -58,6 +64,24 @@ def main():
     out = args.out or os.path.join(args.run_root, "scorer.npz")
     np.savez(out, features=np.array(FEATURES), **arrs)
 
+    # pure-Python-loadable JSON (stdlib-only online runtime). Layers ordered input->output.
+    n_layers = len([k for k in arrs if k.startswith("W")])
+    layers = [
+        {"W": arrs[f"W{i}"].tolist(), "b": arrs[f"b{i}"].tolist()}
+        for i in range(n_layers)
+    ]
+    jdoc = {
+        "features": list(FEATURES),
+        "mean": arrs["mean"].tolist(),
+        "std": arrs["std"].tolist(),
+        "layers": layers,
+        "activation": "relu",
+        "output": "sigmoid",
+    }
+    json_out = os.path.join(args.run_root, "scorer.json")
+    with open(json_out, "w") as f:
+        json.dump(jdoc, f)
+
     # self-check: exported numpy forward must reproduce torch within tolerance
     npz = np.load(out, allow_pickle=True)
     rng = np.random.default_rng(0)
@@ -73,13 +97,33 @@ def main():
         ref = torch.sigmoid(h).numpy().ravel()
     got = forward(npz, xs)
     max_err = float(np.max(np.abs(ref - got)))
+
+    # pure-Python forward (mirrors agent/hybrid_model.py) on the standardized rows
+    def _pyfwd(row):
+        h = list(row)
+        for li2, lyr in enumerate(jdoc["layers"]):
+            out_v = []
+            for wj, bj in zip(lyr["W"], lyr["b"]):
+                acc = bj + sum(wj[k] * h[k] for k in range(len(wj)))
+                out_v.append(acc)
+            if li2 < len(jdoc["layers"]) - 1:
+                out_v = [v if v > 0 else 0.0 for v in out_v]
+            h = out_v
+        z = max(-60.0, min(60.0, h[0]))
+        return 1.0 / (1.0 + math.exp(-z))
+
+    std_rows = ((xs - arrs["mean"]) / arrs["std"]).tolist()
+    py = np.array([_pyfwd(r) for r in std_rows])
+    py_err = float(np.max(np.abs(ref - py)))
     print(
         json.dumps(
             {
                 "npz": out,
+                "json": json_out,
                 "n_features": len(FEATURES),
-                "selfcheck_max_err": round(max_err, 8),
-                "ok": max_err < 1e-5,
+                "npz_selfcheck_max_err": round(max_err, 8),
+                "json_selfcheck_max_err": round(py_err, 8),
+                "ok": max_err < 1e-5 and py_err < 1e-5,
             }
         )
     )
