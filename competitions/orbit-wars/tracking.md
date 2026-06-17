@@ -68,6 +68,17 @@
   Both `neutral`, awaiting episodes — the goal is real-ladder data on the model-integrated agent (orbit5
   thesis: local under-discriminates). Next: after 10/20 eps, track 53767016/53767026 → early-stop; in
   parallel, fetch the strong-corpus → retrain a stronger scorer.
+- 🟢🔑 **CRITICAL BUG FIX (2026-06-17, user-reported): planet-rotation off-by-one (B11).** Harry flagged a
+  fleet flying into the sun (ep 80276901, sub 53767016, ~step 20). Traced to a 1-tick phase error: the
+  engine observes orbiting planets at `rotate(init, ang_vel*max(0,step-1))` but ALL our predictors used
+  `ang_vel*step` (one tick ahead). This mis-aimed every intercept (~1.6u, into the sun for sun-line
+  targets) AND made `FlightOracle.first_hit` phantom-hit planets, masking sun/OOB so the sanitizer
+  didn't block. **Fixed** in `core/geometry.planet_pos` + `agent/main.py._planet_pos`/`._predict_pos`
+  (`_predict_pos(t-1)==obs(t)` verified). **Impact: fixed-v3.2 beats buggy-v3.2 95% (200g); vs evogen
+  13.8%→45.0% (+31pt); sun launches 0%, oob 0.5% (was ~9%); 4p avg_rank 1.72.** tests 4/4. **The
+  evogen cliff was largely THIS BUG, not strategy** (INS-009; revises the 13-levers-refuted narrative).
+  kuni05 still ~1% (separate gap). Fixed tarball `v3_2_rotfix_submission.tar.gz` built + validated;
+  **submit to ladder PENDING Harry's go-ahead** (the live probes 53767016/53767026 carry the bug).
 - **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
   (evogen 1093 / multifocus / kuni05 1240).
 
