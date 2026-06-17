@@ -231,98 +231,61 @@ flowchart TD
 ## LB25 Progress Prize 改进:我们的学习与启发
 
 > 赛后研究 Kaggle writeup **「[LB25] Improvements to the progress prize submission」**,作者 **Tong Hui Kang**
-> (`huikang`/`tonghuikang`,Progress-Prize 冠军),**~0.872 公榜(218/250)**。完整重建 + 来源见 `external/lb25/`。
-> Kaggle writeup 正文为 JS 渲染、本任务不登录故不可抓取;由讨论 #703896 摘要 + 公开仓库 `tonghuikang/nemotron`
-> 重建。外部声明为不可信数据;我方分数见 `tracking.md`。
+> (`huikang`/`tonghuikang`,Progress-Prize 冠军)。**2026-06-17 据实际 writeup(`temp/LB25.pdf`)更新** —— 可还原度
+> 现为完整;**取代**此前 JS-blocked 重建(那版误把 `kuangyicheng` 的「暖启动/短答案/240 步」配方当成本文,实际**没有**)。
+> 完整细节 + 来源见 `external/lb25/`。外部声明为不可信数据;我方分数见 `tracking.md`。
 
-**LB25 方法(纯 SFT,无 RL)。** 基模型 `Nemotron-3-Nano-30B-A3B`、LoRA r32(MLP+attn+lm_head)、seq 8192、
-1 epoch、仅 response 计 loss。核心创新是**确定性 solver 生成 CoT**:为每类题写规则发现算法
-(`reasoners/`:cipher、bit_manipulation、equation_numeric、cryptarithm 回溯)输出固定逐步轨迹,训练模型
-**逐字执行**;外加 **min-logprob 选择性重放**(只重放最小 per-token 对数概率未收敛的难行 —— 最难 bit/cipher)
-与**类别分层 batch**。「LB25 改进」再从 v27(Progress-Prize)adapter 暖启动,跑一个短的**格式对齐**微调
-(约 240 步、batch ×2)。
+**LB25 = 对 Progress-Prize 提交的四项针对性改动(纯 SFT)。** 据 writeup 原文:(1) **修复 adapter 评测** ——
+本地验证 prompt 错了,答案在验证里看着没 box,但提交时其实是 box 的(**本地评测 bug**,非模型改动);
+(2) **把 `equation_numeric` 减半** —— 联合反转对称性(「输入**和**输出要么都反转、要么都不」);
+(3) **对 `cipher`/`unit`/`gravity`/`numeral` 用合成数据**把简单类锁在 ~100%;(4) **重组 bit-manipulation 的 CoT**。
+基础流水线(不变)= 确定性 solver CoT + min-logprob 信号 + 类别分层 batch。
 
-**为何 ~0.872。** 简单类(gravity/numeral/unit)训练集已 ~100%、cipher ~99%;杠杆在 (1) **修复输出格式/长度
-bug** —— 长 CoT 可能在 7680 token 上限内还没到 `\boxed{}` 就被截断、产生空答案,短答案让好推理真正得分;
-(2) **min-logprob 重放**残余难 bit 行;(3) 确定性 CoT = 可靠执行算法,优于带噪的 LLM 轨迹。值得注意:其
-**`cryptarithm_deduce`(≈ 我方 `equation` base-36 密码)即便有回溯 CSP solver,训练集也仅 ~8.95%** ——
-独立印证我方 EQ-2′「强密码,不可从样本闭式还原」的结论。
+**结果 + 选择教训。** 私榜:**15 次提交里 0.872 ×4、0.868 ×8、0.864 ×3** —— 0.872 只占 4/15;「若选中对的那次本可单人金牌」。
+**选择方差**教训(呼应我方 INS-005/INS-007:最好 + 多样化对冲;surgery ×1.15 私榜 −0.02)。
 
-**我方差异。** 我们也是纯 SFT replay(v14,0.85),但我方杀手锏是 huikang 没用的 **SVD 模型汤**
-(v14+c1+b1 → 0.86;INS-004)。我们把 huikang 语料当数据用,他是用 solver **生成**的。我们没用过
-**min-logprob 自适应重放**(用的是固定 replay-math 剂量),也没做**全类别确定性 solver CoT**(我方 solver
-只部分覆盖 bit/cipher,equation 仅 0.4%)。我方 equation 杠杆是**覆盖式记忆**(eq-aug,私榜 0.86)而非回溯
-solver —— 在未见尾部同样是 ~8–9% 的墙。
+**Cryptarithm:他明确**没**取得进展**(≈ 我方 `equation` base-36 密码)。线索:「很多题有**一个乘法、一个减法、
+一个加法(每个可能再 ±1)**」;CoT「退化成重复猜测」。→ 独立印证 equation/cryptarithm 是**有界的墙**(同 EQ-2′),
+**且给出 EQ-2′ 新线索**:在秘密 σ 下的三项复合 `≈ A·B − C + D`(±1)—— 我方 EQ-2′ 从未测过的类(只测过单操作)。
+低概率的未来破解实验(huikang 也没破)。
 
-**学到什么。** (1) 通往 ~0.872 的路是 **bit + 格式可靠性,不是 equation** —— 双方都确认 equation/cryptarithm
-是 ~8–9% 的有界密码墙。(2) **min-logprob 选择性重放**是低成本、抗稀释地针对 SFT 欠拟合行的办法(对比我方
-均匀高剂量合成反而**回归** —— b2/v15/c2)。(3) **输出长度/格式是白捡的分** —— 要核查没有答案在 `\boxed{}`
-前被截断。(4) 确定性 solver CoT 在可靠性上优于 LLM 生成轨迹。
+**我方差异。** 我方杀手锏是 huikang 没用的 **SVD 模型汤**(v14+c1+b1 → 0.86;INS-004);他是单 adapter。我方 equation
+杠杆是**覆盖式记忆**(eq-aug 私榜 0.86),非 solver。
 
-**周六后可试。** `v16-mlp`(方案见 `external/lb25/analysis/next_version_plan.md`):v14 骨架 + 对最难 bit/cipher
-行的 **min-logprob 选择性重放**(剂量 ≤15%)+ 从 0.86 soup 暖启动的短**格式对齐**;提交前以 **T12 hard-val
-≥ 0.764** + 截断审计把关;再 soup-grow 进 v14+c1+b1。eq-aug 保持独立(不可入汤)。约 1 个 GPU session。
+**学到什么。** (1) **huikang 的头号杠杆是本地评测 bug、非模型改动** —— 而*我方同类 bug 出现过两次*(B4 `EVAL_MAX_NEW`
+截断;T12 hard-val 误判 eq-spec 0.167 vs LB 0.85)。最便宜高 EV 的动作是**评测↔提交一致性审计**。(2) **顶部选择方差
+是真杠杆**(0.872 = 4/15)。(3) **equation/cryptarithm 对所有人有界** —— 不过度投入。(4) 锁住简单类(别让它们回归)。
+
+**周六后可试。** `v16-evalfix`(方案见 `external/lb25/analysis/next_version_plan.md`):**先做评测↔提交一致性审计**
+(免费;改动 #1),再 v14 骨架 + 重组的自有 solver 验证 **bit CoT**(改动 #4)+ 对最难 bit/cipher 行的 **min-logprob
+重放**(剂量 ≤15%);以 **T12 hard-val ≥ 0.764 且 bit ↑、简单类不回归**把关;soup-grow 进 v14+c1+b1(最好 + 多样化对冲)。
+eq-aug 保持独立。约 1 个 GPU session。
 
 ## LB80 Progress Prize 改进:我们的学习与启发
 
-> 赛后研究 Kaggle writeup **「Breaking the SFT Ceiling on Nemotron-3-Nano-30B」**。完整重建 + 来源见
-> `external/LB80/`。**可还原度部分** —— Kaggle writeup 正文 JS 渲染 + 赛后未索引(不登录不可抓取);
-> **作者与确切分数未知**(任务模板「~0.872」是占位符)。由竞赛**讨论 #688461**(详细 per-bit GRPO 奖励方案)
-> + 公开 RL 生态(NeMo-RL、Logic-RL、ProRL、Tina)重建。外部声明为不可信数据。
+> 赛后研究 Kaggle writeup **「Breaking the SFT Ceiling on Nemotron-3-Nano-30B」**,作者 **Mayur Pawar**
+> (`mspawar`),80/4190,最终私榜 **0.86**。**直接读自 `temp/LB80.pdf`**(可还原度完整)—— 取代此前重建(那版据讨论
+> #688461 误把**另一人**的「per-bit GRPO」当成本文)。完整细节 + 来源见 `external/LB80/`。外部声明为不可信数据;我方分数见 `tracking.md`。
 
-**LB80 方法(杠杆 = 超越 SFT)。** 两阶段:**(1) SFT 冷启动**到已知 0.85–0.86 基线,然后 **(2) GRPO / RLVR +
-稠密逐步可验证奖励** —— 轨迹每一步给部分分(输出列排版、选算子、per-bit 门计算、VER 校验、每个答案 bit),
-外加**超线性「香槟」奖励**(8/8 全对 → +5 平铺)让全对远比接近值钱。把奖励地形从稀疏悬崖变成稠密梯度爬坡,
-目标 **bit-manipulation**(验证最干净)与 equation/symbol。生态里另一条非 RL 越顶路径是 **adapter 手术**
-(lopure ~0.89:放大 LoRA 前 50% 奇异值)。
+**LB80 方法(诚实的标题)。** 30+ 实验的研究,**证明了 SFT 天花板 = 0.86** —— STaR、GRPO、DPO、权重平均全都**没突破**。
+与我方同源(huikang 确定性 solver SFT;V2 0.86,从未被超)。有效杠杆:**seq 4096→8192 = 0.46→0.77**(4096 时 43% 数据被静默截断)、
+**全线性 LoRA 含 lm_head、排除 gate_proj**、确定性 solver CoT ≫ 模型/外部 CoT(DeepSeek-R1 长 CoT → 灾难 0.27)。
+「+397 名」来自**提交对冲**(V2 + V8-ckpt400)在公私榜双峰失配下 —— 不是更高分。
 
-**为何越顶。** SFT 答案级信号**稀疏** —— 差一位的 8-bit 答案与随机同得 0,最难行梯度消失(我方 T12:全员
-equation ≤2/16、bit 上限 ~14/16,且增补**回归**难尾)。稠密逐步奖励对**部分**正确给梯度,香槟奖励塑形收尾
-—— 即 Logic-RL/RLVR「规则 RL 在谜题上越过 SFT」的结论。
+**改变我方认知的三点:**
+1. **equation 密码离线**可破**(97.6%)—— 我方 EQ-0/EQ-2′ 框定错了。** 真实结构是 **`A1A2 OP B1B2`**(两个 2 字符操作数 +
+   1 字符运算符、**逐题**符号→数字双射、有限运算符族),**答案引导排列搜索**破 569/583(14 个失败的有 >10 个不同数字符号)。
+   我们找的是 5 字符→1-4 字符映射的一个*全局* σ 并「证明」不可破 —— 解错了问题。**→ 重审 EQ-2′ / equation-frontier(PR #113)。**
+2. **「发现泄漏」解释了我方 eq-aug 为何封顶。** 答案引导 solver CoT 把映射*作为已知*给出 → 教**核验而非发现**;93–97% 此类轨迹
+   *内部不一致*(映射产不出 boxed 答案)。推理时无答案,需要发现。**杠杆是前向可执行、可由 prompt 推导的密码发现 CoT**(长度允许下;榜首 0.90 说明存在)。
+3. **标准 RL 是错工具;DPO-with-oracle 才对。** 二值失败(3157 难题全 0/8、~6343 易题全 8/8、**0 边界**)→ STaR 产出 0%、
+   GRPO 优势=0(无方差)。我方此前设计的二值奖励 GRPO 会同样失败。DPO 用 solver-CoT(chosen)vs **greedy 失败**(rejected)——
+   但 mspawar 的 DPO(V12/V13)也只停在 0.84–0.86。
 
-**我方差异。** **我方从未跑 RL** —— 最大方法缺口。`research.md §4` *设计*了 GRPO 但用**二值终端奖励**(0/1)
-且被推迟(GPU/时间)。我们正卡在它描述的 0.86 SFT 天花板(一切增补都稀释;soup = 0.86)。我方杠杆(SVD soup、
-eq-aug 覆盖)是 SFT/合并技巧,与 RL 正交。
+**待解张力。** mspawar 报「**Model Soup 在 Mamba-2 SSM 上失效**」,而我方 **SVD 汤 +0.01**。多半因*平均的对象*不同(他:完整
+SSM A/B/C/D 递推;我们:冻结基座上的 LoRA *delta* + SVD rank-cap,更温和的同 basin 合并)。**值得做一次消融**再下结论。
 
-**学到什么。** (1) 越过 0.86 的成文路径是**在强 SFT 先验上做稠密奖励 GRPO**,不是更多 SFT 数据。(2) 奖励必须
-**稠密 + 逐步**(我方设计的二值奖励形状错了),且**最终答案 verify 必须占主导**(防奖励作弊)。(3) 30B 的 RL
-需**外部 GPU**(在线 rollout 超出 Kaggle kernel)+ 强冷启动(base 直接 GRPO 不稳)。(4) 有**便宜的非 RL 替代** ——
-adapter 奇异值放大(lopure)—— 值得先试。(5) equation 仍有界(强密码无可用逐步验证器)。
-
-**周六后可试。** `v17-grpo`(方案见 `external/LB80/analysis/next_version_plan.md`):在 **bit** 上做稠密逐步奖励
-(+香槟)的 GRPO,从 v14/soup 暖启动、`verify` 占主导;以 **bit hard-val ↑ 且简单类不回归**把关;survivor
-soup-grow 进 v14+c1+b1。先试 **adapter 奇异值放大**兜底(≈0 GPU)。正经 RL 大概率需外部算力(#83),非单台 RTX PRO 6000。
-
-## LB92 Progress Prize 改进:我们的学习与启发
-
-> 赛后研究 Kaggle writeup **「92th PLACE SOLUTION — NVIDIA Nemotron Model Reasoning Challenge」**。完整重建 +
-> 来源见 `external/LB92/`。**可还原度:无(直接)/ 部分(生态)** —— Kaggle writeup 正文 JS 渲染 + 赛后 48h 内发布
-> (未索引);**作者、确切分数、具体方法均未知**(模板「~0.872」是占位符)。以下是对公开中段(~0.86–0.89)配方带的
-> 重建。不可信数据。
-
-**LB92 方法(配方带重建)。** 4354 队第 92 名几乎必然用**标准公开 replay-SFT 配方**:`Nemotron-3-Nano-30B-A3B`
-上 rank-32 LoRA、seq 8192、仅 response masking 的 CoT SFT;分数由配方保真度 + 好的 bit CoT + 难类合成/teacher 数据
-+ 可能的 model merge 驱动。公开的 **andy279 语料**(49,290 条多 teacher 轨迹:DeepSeek V3.2 + Nemotron Super 120B
-+ GPT-5.4 + 确定性 solver)是该带任何队都可能用的数据。
-
-**为何 ~0.86–0.89(为何不更高)。** 简单类(gravity/numeral/unit)训练集 ~100%、cipher ~99%;该带靠 **bit 覆盖**
-+ 格式可靠性分界。硬上限是 **cryptarithm/equation(即便回溯 solver 也 ~8–9%)** —— 与我方同一堵强密码墙。越带需
-RL(LB80)或 adapter 手术(lopure),而非更多标准 SFT。
-
-**我方差异。** 我们**已在此带内**(0.86 soup),故 92 名并非范式上高于我们。差异在**语料质量**(我方用 huikang
-语料 + 自有 synth/solver-CoT,而非更广的多 teacher andy279 集)与**难行针对**(我方固定 replay 剂量,而非
-min-logprob 再平衡)。我方在三路 model-soup(该带常是单 adapter)与 equation EQ-0/EQ-2′ 密码分析 + eq-aug 覆盖上**领先**。
-
-**学到什么。** (1) 我方 0.86 正落在中段带 —— 可恢复的边际是 **bit 的语料质量**(solver-prepend bit CoT)+
-**min-logprob 再平衡**,而非新范式。(2) **bit 是分界类**、也是我方最大训练集余量。(3) **外部 teacher 数据须低剂量**
-—— 我方此前高剂量外部 teacher 跑回归到 0.81;优先**自有 solver 验证 CoT**。(4) equation 是共有的有界墙 —— 不追。
-
-**周六后可试。** `v18-corpus`(方案见 `external/LB92/analysis/next_version_plan.md`):扩 `lib/nemo_solver.py`
-bit 覆盖 → **验证过的 solver-prepend bit CoT**(answer == gold)+ **min-logprob 再平衡**,以 **≤15% 剂量**织入 v14
-骨架;以 **T12 hard-val ≥ 0.764 且 bit ↑、简单类不回归**把关;soup-grow 进 v14+c1+b1。约 1 个 GPU session(数据侧,比 RL 便宜)。
-
-> **三篇 writeup 的共识。** 三项研究指向同一方向:越过我方 0.86 的路是 **(a) 稠密奖励 GRPO**(LB80,最大但最贵)、
-> **(b) min-logprob 选择性重放/再平衡**(LB25 + LB92,便宜且抗稀释)、**(c) 更好的 bit 数据 + 输出格式可靠性**
-> (LB25 + LB92)、**(d) adapter 奇异值放大**(LB80 备选,≈0 GPU)。**equation 对所有人都是 ~8–9% 的有界强密码墙**
-> —— huikang 的 `cryptarithm_deduce` 上限与我方 EQ-2′ 独立印证。周六后建议顺序:先做便宜的免 GPU/数据侧杠杆
-> (手术、min-logprob、bit CoT),再上外部 GPU 的 bit-only GRPO 试点。
+**周六后可试。** `v17-discovery` + `v17-dpo`(方案见 `external/LB80/analysis/next_version_plan.md`):**(A)** 把 equation 重建为
+`A1A2 OP B1B2`、做答案引导 solver,再做**前向可执行的发现 CoT**(经内部一致性审计)≤15% 织入 —— 越过 eq-aug 记忆的真正路径;
+**(B)** 可选 **DPO-with-oracle**(greedy 失败作 rejected、solver-CoT 作 chosen、简单类混 SFT)针对 bit。外加 **Mamba-2 合并消融**。
+equation 工作回馈 PR #113。RL 需外部 GPU(#83);预期保守。
