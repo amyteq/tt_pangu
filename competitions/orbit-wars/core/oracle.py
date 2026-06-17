@@ -54,6 +54,7 @@ class FlightOracle:
     """Stateless per-observation flight oracle (cheap to re-instantiate per turn)."""
 
     def first_hit(self, obs, source_planet_id, angle, ships, horizon=120) -> FlightResult:
+        """Trace a NEW launch from `source_planet_id` (engine launch point = radius + 0.1 outward)."""
         planets, fleets, init_by_id, ang_vel, step, comet_ids, me = _parse(obs)
         by_id = {p[0]: p for p in planets}
         src = by_id.get(source_planet_id)
@@ -71,12 +72,60 @@ class FlightOracle:
                 float(angle),
                 "source planet not found",
             )
-        ships = int(ships)
-        spd = G.fleet_speed(ships)
         dx, dy = math.cos(angle), math.sin(angle)
         # engine launches the fleet just OUTSIDE the source (radius + 0.1)
         ax = src[2] + dx * (src[4] + 0.1)
         ay = src[3] + dy * (src[4] + 0.1)
+        return self._trace_from(
+            (planets, by_id, init_by_id, ang_vel, step, comet_ids, me),
+            ax,
+            ay,
+            angle,
+            ships,
+            source_planet_id,
+            None,
+            horizon,
+        )
+
+    def trace_from_position(self, obs, x, y, angle, ships, owner=None, horizon=120) -> FlightResult:
+        """Trace from an ARBITRARY current position (e.g. an in-flight fleet's (x, y)) — does NOT
+        relaunch from a source planet. `owner` is accepted for API symmetry (tracing is owner-agnostic)."""
+        planets, fleets, init_by_id, ang_vel, step, comet_ids, me = _parse(obs)
+        by_id = {p[0]: p for p in planets}
+        return self._trace_from(
+            (planets, by_id, init_by_id, ang_vel, step, comet_ids, me),
+            float(x),
+            float(y),
+            angle,
+            ships,
+            -1,
+            None,
+            horizon,
+        )
+
+    def decode_existing_fleet(self, obs, fleet_row, horizon=120) -> FlightResult:
+        """Decode an in-flight fleet to its first-hit target by tracing from its CURRENT position.
+        fleet_row = (id, owner, x, y, angle, from_planet_id, ships) — engine fleet tuple."""
+        _fid, fowner, fx, fy, fang, ffrom, fships = (
+            fleet_row[0],
+            fleet_row[1],
+            fleet_row[2],
+            fleet_row[3],
+            fleet_row[4],
+            fleet_row[5],
+            fleet_row[6],
+        )
+        res = self.trace_from_position(obs, fx, fy, fang, int(fships), fowner, horizon)
+        res.source_planet_id = ffrom  # informational: which planet it launched from
+        return res
+
+    def _trace_from(self, parsed, ax, ay, angle, ships, source_planet_id, intended_target_id, horizon) -> FlightResult:
+        """Shared tick-by-tick swept trace from start point (ax, ay). Used by first_hit (launch
+        point) and trace_from_position (in-flight current position) — single source of trace logic."""
+        planets, by_id, init_by_id, ang_vel, step, comet_ids, me = parsed
+        ships = int(ships)
+        spd = G.fleet_speed(ships)
+        dx, dy = math.cos(angle), math.sin(angle)
         min_sun = float("inf")
         for k in range(1, horizon + 1):
             bx, by = ax + dx * spd, ay + dy * spd

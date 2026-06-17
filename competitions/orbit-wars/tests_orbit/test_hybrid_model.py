@@ -1,4 +1,9 @@
-"""Hybrid model scorer + train/serve feature-contract smokes (prompt 06 integration)."""
+"""Hybrid model scorer compat-guard smokes (OW-ARCH-001).
+
+The feature contract grew to 25 (added tgt_owner_is_own). The deployed hybrid_weights.json was trained
+on the old 24-feature contract, so it MUST now disable cleanly (load_default -> None -> rules-only),
+never silently mis-score. Feature-contract correctness is covered in test_features_contract.py.
+"""
 
 import os
 import sys
@@ -9,53 +14,45 @@ for _p in (COMP, os.path.join(COMP, "agent")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from core.features import FEATURE_NAMES, feature_vector, ship_bucket_of  # noqa: E402
+from core.features import FEATURE_NAMES  # noqa: E402
 
 
-def test_feature_vector_shape_and_order():
-    cf = {
-        "ships": 30,
-        "remaining_steps": 400,
-        "phase": "midgame",
-        "src_ships": 50,
-        "tgt_owner": -1,
-        "tgt_strategic_value": 42,
-        "path_valid": 1,
-        "path_eta": 7,
-        "path_first_hit_type": "target",
-    }
-    vec = feature_vector(cf, ship_bucket=ship_bucket_of(30))
-    assert len(vec) == len(FEATURE_NAMES) == 24
-    assert all(isinstance(v, float) for v in vec)
-    # neutral target -> owner_is_neutral=1, owner_is_enemy=0 (positions 8,9)
-    assert vec[8] == 0.0 and vec[9] == 1.0
-    # first-hit-is-target flag (last feature)
-    assert vec[-1] == 1.0
-
-
-def test_scorer_loads_and_scores_in_range():
+def test_incompatible_weights_disable_cleanly():
+    """The deployed 24-feature weights are incompatible with the 25-feature contract -> None."""
     from hybrid_model import load_default
 
     sc = load_default(os.path.join(COMP, "agent", "hybrid_weights.json"))
-    assert sc is not None, "deployed weights agent/hybrid_weights.json failed to load"
-    # weights' first layer input dim must equal the feature contract
-    assert len(sc.layers[0]["W"][0]) == len(FEATURE_NAMES)
-    cf = {
-        "ships": 20,
-        "phase": "opening",
-        "tgt_strategic_value": 80,
-        "path_valid": 1,
-        "path_first_hit_type": "target",
-        "tgt_owner": 1,
-    }
-    s = sc.score_cf(cf, ship_bucket_of(20))
-    assert 0.0 <= s <= 1.0
+    assert sc is None, "stale-contract weights must disable (rules-only), not silently mis-score"
 
 
 def test_missing_weights_returns_none_not_raise():
     from hybrid_model import load_default
 
     assert load_default(os.path.join(COMP, "agent", "does_not_exist.json")) is None
+
+
+def test_compatible_weights_load_and_score():
+    """A synthetic weights doc that MATCHES the current contract loads and scores in [0, 1]."""
+    import json
+    import tempfile
+
+    from hybrid_model import load_default
+
+    n = len(FEATURE_NAMES)
+    doc = {
+        "features": list(FEATURE_NAMES),
+        "mean": [0.0] * n,
+        "std": [1.0] * n,
+        "layers": [{"W": [[0.0] * n], "b": [0.0]}],  # 1-layer identity-ish -> sigmoid(0)=0.5
+    }
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+        json.dump(doc, f)
+        path = f.name
+    sc = load_default(path)
+    os.unlink(path)
+    assert sc is not None, "contract-matching weights should load"
+    s = sc.score_cf({"tgt_owner": 1, "my_id": 0, "ships": 20})
+    assert 0.0 <= s <= 1.0
 
 
 if __name__ == "__main__":
