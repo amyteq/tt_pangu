@@ -58,8 +58,16 @@
   (`datasets/strong_corpus/`, 1272 strong-vs-strong episodes μ≥1200) via `ops/discover_strong_corpus.py`;
   fetch/build/train queued (`live/parallel_work_queue.md`). (e) fresh ListEpisodes refresh **blocked by
   HTTP 429** (added backoff to `ops/episode_discover.py`); μ from this session's earlier queries.
-  Distance to target: **kuni05 ~1077, ≈123 below μ1200**. Next cycle: retry refresh after cooldown,
-  then fetch corpus → retrain → A/B.
+  Distance to target: **kuni05 ~1077, ≈123 below μ1200**.
+- 🟢 **Submit override (2026-06-17, Harry-directed): hybrid_v0 ladder-probe ×2.** Harry: *"any agents
+  <1200 can be replaced; submit to both accounts to collect more episodes."* So the cycle's NO_SUBMIT was
+  superseded: built + validated the `hybrid_v0_submission.tar.gz` (v3.2 + model re-ranker, OW_HYBRID baked,
+  core/+weights bundled; clean-extract validated: hybrid active, crash-free, p99 59 ms) and submitted it as
+  a **ladder-probe** (failed local +7pt gate but qualifies for the exception) to **harry `53767016`**
+  (latest-2 [hybrid_v0, v4]; kuni05 evicted) + **may `53767026`** (latest-2 [hybrid_v0, v3]; coarr evicted).
+  Both `neutral`, awaiting episodes — the goal is real-ladder data on the model-integrated agent (orbit5
+  thesis: local under-discriminates). Next: after 10/20 eps, track 53767016/53767026 → early-stop; in
+  parallel, fetch the strong-corpus → retrain a stronger scorer.
 - **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
   (evogen 1093 / multifocus / kuni05 1240).
 
