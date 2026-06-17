@@ -11,3 +11,21 @@
 - **harry**: latest1=`submission_kuni.tar.gz`(μ1086.5), latest2=`main.py`(μ649.5)
 - **may**: latest1=`v3_2_coarr.py`(μ644.0), latest2=`main.py`(μ630.1)
 
+---
+
+## Cycle 2026-06-17 (OW-LADDER-LOOP-001, prompt 07) — Decision: **NO_SUBMIT**
+
+- **No submit-ready candidate exists.** The only new integrated candidate, `hybrid_v0` (v3.2 + model
+  re-ranker), was **rejected at the promotion gate** (prompt 06): strong-tier arena FLAT — vs
+  evogen1093 13.8%→13.8–14.6%, vs kuni05 0.8%→0.8% (240g/cell); `live/last_eval.json`
+  `submit_ready=false`. It beats no active slot and would only churn the latest-2 budget.
+- **Ladder-probe exception NOT taken:** hybrid_v0 is a qualitatively new integrated direction, but it
+  is arena-flat AND submitting it would evict either the kuni05 anchor (μ~1077, our best) or v4 (best
+  own-agent) — both worse than keeping them. A probe is only justified when it frees a weak slot with a
+  candidate that might climb; this one won't. Preserve budget.
+- **Quota/budget consumed:** 0 submits, 0 kernel pushes. Daily quota untouched.
+- **Active slots unchanged.** kuni05 anchor (53582503) + v4 (53730511) on harry; v3 + coarr on may.
+- **Next submit gate:** retrain on the new **strong-tier-teacher corpus** (manifest built this cycle —
+  1272 strong-vs-strong episodes) → re-run the `OW_HYBRID` arena A/B → submit only if it clears
+  VALIDATION #3 (≥+7pt vs evogen/kuni05).
+
