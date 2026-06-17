@@ -95,11 +95,15 @@ def _resolve_combat(garrison_owner, garrison_ships, arrivals):
 
 
 def _planet_pos(ix, iy, radius, ang_vel, step):
-    """Engine rotation: orbiting (orbital_r + radius < 50) rotate; else static."""
+    """Engine rotation: orbiting (orbital_r + radius < 50) rotate; else static.
+
+    Phase fix (2026-06-17): obs(step) = rotate(init, ang_vel*(step-1)) per the engine interpreter
+    (verified vs replay 80276901). The prior `ang_vel*step` was one tick ahead, mis-aiming intercepts
+    by ~orbit_r*ang_vel and sending fleets past rotating targets (into the sun)."""
     dx, dy = ix - CENTER, iy - CENTER
     orb = math.hypot(dx, dy)
     if orb + radius < ROT_LIMIT:
-        a = math.atan2(dy, dx) + ang_vel * step
+        a = math.atan2(dy, dx) + ang_vel * max(0, step - 1)
         return CENTER + orb * math.cos(a), CENTER + orb * math.sin(a)
     return ix, iy
 
@@ -384,10 +388,14 @@ def _point_to_segment(px, py, ax, ay, bx, by):
 
 
 def _predict_pos(pid, future_step, init_by_id, ang_vel):
-    """Exact predicted (x, y) of a planet at an absolute game step.
+    """Exact predicted (x, y) of a planet AS OBSERVED at an absolute game step.
 
     Static planets never move (return initial == current position). Orbiting
     planets rotate at constant angular velocity about the center.
+
+    Phase fix (2026-06-17): obs(step) = rotate(init, ang_vel*(step-1)) per the engine interpreter
+    (verified vs replay 80276901: _predict_pos(t-1) == obs(t) exactly). The prior `ang_vel*future_step`
+    aimed intercepts one tick ahead, so fleets missed rotating targets and could sail into the sun.
     """
     ip = init_by_id.get(pid)
     if ip is None:
@@ -396,7 +404,7 @@ def _predict_pos(pid, future_step, init_by_id, ang_vel):
     dx, dy = ix - CENTER, iy - CENTER
     orb = math.hypot(dx, dy)
     if orb + r_planet < ROTATION_RADIUS_LIMIT:
-        a = math.atan2(dy, dx) + ang_vel * future_step
+        a = math.atan2(dy, dx) + ang_vel * max(0, future_step - 1)
         return (CENTER + orb * math.cos(a), CENTER + orb * math.sin(a))
     return (ix, iy)
 

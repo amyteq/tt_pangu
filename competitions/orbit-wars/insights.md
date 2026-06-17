@@ -96,3 +96,20 @@
 - transfer scope: hybrid model+rules agents — if the rule base can't propose the winning move, no
   scorer can pick it. Put model capacity where the gap is (generation/search/value), not just ranking.
 - status: validated
+
+### INS-009: the strong-tier cliff vs evogen was substantially a FUNDAMENTAL SIM BUG, not only strategy
+- type: fact
+- confidence: high
+- evidence: user-reported fleet-into-sun (ep 80276901) traced to an off-by-one planet-rotation phase
+  (B11): the engine observes orbiting planets at `rotate(init, ang_vel*max(0,step-1))` but all our
+  predictors used `ang_vel*step` (one tick ahead). Fixing it (`core/geometry.planet_pos` +
+  `agent/main.py._planet_pos`/`._predict_pos`): fixed-v3.2 beats frozen-buggy-v3.2 **95%** (200g) and
+  jumps **vs evogen1093 13.8% → 45.0%** (+31pt, 200g); fixed agent sun launches 0%, oob 0.5% (was ~9%).
+  4p avg_rank 1.72/4. (kuni05 still ~1% — a separate gap.)
+- transfer scope: simulation-based agents — BEFORE attributing a plateau to "strategy", verify the
+  forward model is BIT-EXACT vs the engine on multi-step rotation/phase (13 strategy levers + a model
+  were refuted chasing this cliff; the real cause was a 1-tick phase error masked because the error
+  (~orbit_r*ang_vel≈1.6u) is < planet radius so most captures still worked). Validate predictors
+  against real replays (`_predict_pos(t-1)==obs(t)`), not just unit cases.
+- status: validated — partially revises INS-008 (ranking wasn't the only gap; the candidate GENERATOR
+  was mis-aiming). Re-evaluate the model/hybrid on FIXED-sim data.

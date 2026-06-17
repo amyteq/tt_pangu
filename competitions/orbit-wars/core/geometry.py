@@ -30,11 +30,19 @@ def fleet_speed(ships):
 
 
 def planet_pos(init_x, init_y, radius, ang_vel, step):
-    """Exact planet position at absolute game step (orbiting iff orbit_r+radius<50)."""
+    """Exact planet position as OBSERVED at absolute game `step` (orbiting iff orbit_r+radius<50).
+
+    Engine phase (orbit_wars.py interpreter): the observation at step t shows orbiting planets at
+    rotate(init_angle, ang_vel*(t-1)) — verified vs replay 80276901 and the engine source
+    (`game_step = spawn_step - 1 + k`). The earlier `ang_vel*step` was one tick AHEAD (it returned
+    obs(step+1)), which mis-aimed intercepts by ~orbit_r*ang_vel and made FlightOracle phantom-hit
+    planets (masking real sun/OOB danger → fleets flew into the sun). The (step-1) below is that fix.
+    """
     dx, dy = init_x - CENTER, init_y - CENTER
     orb = math.hypot(dx, dy)
     if orb + radius < ROT_LIMIT:
-        a = math.atan2(dy, dx) + ang_vel * step
+        # obs(0)==obs(1)==init, then obs(t)=rotate(init, ang_vel*(t-1)) — verified on replay 80276901
+        a = math.atan2(dy, dx) + ang_vel * max(0, step - 1)
         return CENTER + orb * math.cos(a), CENTER + orb * math.sin(a)
     return init_x, init_y
 
