@@ -767,9 +767,9 @@ def run(
         else:
             outcome.total_error += 1
 
-    # Audit-grep over the on-disk audit log (the agent's audit.jsonl).
+    # Audit-grep over the KCA on-disk audit log (ADR-0021): .agent/kca/audit.jsonl.
     if audit_path is None:
-        audit_path = _REPO_ROOT / ".agent" / "audit.jsonl"
+        audit_path = _REPO_ROOT / ".agent" / "kca" / "audit.jsonl"
     disk_violations, disk_lines = _audit_grep_disk(audit_path)
     outcome.audit_grep_violations = disk_violations
     outcome.audit_grep_lines = disk_lines

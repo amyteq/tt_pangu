@@ -518,7 +518,9 @@ def run(
             budget_remaining -= float(result.metrics.get("cost_usd", 0.0) or 0.0)
 
     if audit_path is None:
-        audit_path = _REPO_ROOT / ".agent" / "audit.jsonl"
+        # KCA audit log (ADR-0021): .agent/kca/audit.jsonl. Mirrors
+        # tools/kca/agent/audit.py:_default_audit_path().
+        audit_path = _REPO_ROOT / ".agent" / "kca" / "audit.jsonl"
     v_count, v_lines = _audit_grep(audit_path)
     outcome.audit_grep_violations = v_count
     outcome.audit_grep_lines = v_lines
