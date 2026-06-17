@@ -1,6 +1,6 @@
 # LB25 — "Improvements to the progress prize submission" (from the writeup itself)
 
-> **Source:** the Kaggle writeup `lb25-progress-prize-improvements` by **Tong Hui Kang** (`huikang` /
+> **Source:** the Kaggle writeup `LB25-progress-prize-improvements` by **Tong Hui Kang** (`huikang` /
 > `tonghuikang`, the Progress-Prize winner), **read directly from `temp/LB25.pdf`** (a render of the page).
 > **Recoverability: FULL** (writeup body now in hand — supersedes the earlier JS-blocked reconstruction, which
 > wrongly conflated `kuangyicheng`'s "warmstart / short-response / 240-step" recipe; that is NOT in this

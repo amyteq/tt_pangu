@@ -2,21 +2,16 @@
 Faithful conversion of `temp/LB25.pdf` (a Chrome print-to-PDF render of the Kaggle writeup
 "[LB25] Improvements to the progress prize submission" by Tong Hui Kang / huikang).
 Content and links are reproduced verbatim from the PDF (text via `pdftotext -layout`; hyperlink
-targets via the PDF's embedded URI annotations). Images extracted with `pdfimages` are under
-`images/`. This is the raw source; the analytical summary is in `lb25-progress-prize-improvements.md`.
-Source page: https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/writeups/lb25-progress-prize-improvements
+targets via the PDF's embedded URI annotations). This is the raw source; the analytical summary is
+in `LB25-progress-prize-improvements.md`. (The PDF's only embedded raster images were two thin
+grayscale header strips — omitted as non-content.)
 -->
 
 # [LB25] Improvements to the progress prize submission
 
+> **Source writeup:** https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/writeups/LB25-progress-prize-improvements
+>
 > Kaggle · Solution Writeup · by [Tong Hui Kang (`huikang`)](https://www.kaggle.com/huikang)
-
-![page header strip](images/lb25-000.png)
-![page header strip](images/lb25-001.png)
-
-<!-- Note: the two images above are the only raster images embedded in the PDF (thin grayscale
-header strips, 2311×69 and 2261×21). The page's "Project Links" card thumbnails were unloaded
-placeholder spinners at print time, so no thumbnail images exist in the PDF. -->
 
 You may have read my [progress prize winning submission](https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/689915).
 
@@ -54,4 +49,4 @@ I did not manage to make progress on cryptarithm.
 
 ---
 
-<sub>Source: https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/writeups/lb25-progress-prize-improvements (page 1/1, printed 17/06/2026 17:21). Links below are the PDF's embedded URI annotations, reproduced unchanged.</sub>
+<sub>Source: https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/writeups/LB25-progress-prize-improvements (page 1/1, printed 17/06/2026 17:21). Links below are the PDF's embedded URI annotations, reproduced unchanged.</sub>
