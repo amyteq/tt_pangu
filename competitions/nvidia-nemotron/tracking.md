@@ -92,6 +92,67 @@
 | 0.84 | b2 | v14 backbone + cryptarithm+bit synth (~11%) |
 | **0.86** | **soup** | **SVD rank32 of v14(0.4)+c1(0.3)+b1(0.3) — comparable+complementary own-work model soup (BEST; hard-val 0.764)** |
 
+## T12 hard-val per version (post-comp consolidation, 2026-06-16)
+
+> The T12 official-metric + min-logprob hard-val harness (`harrysun2006/nemo-t12-hardval`) was **built
+> 2026-06-15**, so it only ran on the *final-candidate* adapters; everything earlier is **not run** (the
+> harness postdates them). Hard-val = hardest-72 (16 each bit/equation/cipher, 8 each numeral/gravity/unit),
+> greedy decode `max_tokens=7680, temp=0`, `\boxed{}` extractor, exact-or-1e-2. `not run` ≠ a bad score.
+> **The hard-val is a hard-TAIL proxy, not the LB** — it understates adapters weak only on the hardest slice
+> (eq-spec 0.167 hard-val vs 0.85 LB). Trust the LB aggregate; treat hard-val as a hard-tail hint (INS-002).
+
+| version | public LB | private LB | T12 hard-val | hard-val evidence |
+|---|---:|---:|---|---|
+| identity | 0.47 | 0.52 | not run | harness postdates |
+| v5 | 0.61 | 0.66 | not run | harness postdates |
+| v6 | 0.44 | 0.45 | not run | harness postdates |
+| v6′ | 0.47 | 0.46 | not run | harness postdates |
+| v7 | 0.65 | 0.66 | not run | harness postdates |
+| ctx4k (T1) | 0.67 | 0.66 | not run | harness postdates |
+| ctx2k (T2) | 0.42 | 0.46 | not run | harness postdates |
+| v10 (T4) | 0.59 | 0.64 | not run | harness postdates |
+| **v14 (T10)** | 0.85 | 0.84 | **0.764** | T12 v2 (bit 14/16, eq 2/16, cipher 15/16, n/g/u 8/8) |
+| t7 merge | 0.82 | 0.80 | not run | route closed before T12 |
+| v15 (T11) | 0.84 | 0.84 | **0.333** | T12 v2 (regresses hard cipher/bit to ≤ base) |
+| c1 | 0.85 | 0.85 | **0.389** | T12 v2 (cipher 3/16 < base 8/16 — augmentation dilutes hard tail) |
+| c2 | 0.83 | 0.83 | **0.278** | T12 v2 (hard-cat-weighted → worst hard-val) |
+| b1 | 0.85 | 0.84 | not run | not in T12 v2 ranking |
+| b2 | 0.84 | **0.85** | not run | not in T12 v2 ranking (the may hedge that aged +0.01) |
+| **soup** | **0.86** | 0.85 | **0.764** | T12 v2 (tied v14, best+robust; SELECTED) |
+| surgery A | 0.86 | 0.84 | unknown | a surgery-run note reported hard-val 0.744 vs soup 0.731 on a *separate* comparison set; not in the canonical T12 v2 ranking |
+| andy279 | 0.81 | 0.81 | not run | external-teacher CoT; regressed on LB |
+| v11 self-distill | 0.80 | 0.82 | not run | rejection-sampled CoT; regressed on LB |
+| base (no adapter) | — | — | **0.389** | T12 v2 anchor (bit 0/16, eq 0/16, cipher 8/16) |
+| **EQ1 = eq-spec** | 0.85 | 0.85 | **0.167** | EQ §8.4 (answer-shortcuts under hard-tail uncertainty; LB 0.85 ≫ hard-val — INS-002 lesson) |
+| **EQ2 = eq-aug** | **0.86** | **0.86** | **0.194** | EQ §8.4 (best own private; still hard-tail-weak → can't soup) |
+| **EQ3 = eq-hidose** | 0.84 | 0.84 | unknown | not separately hard-val'd |
+| **EQ4 = eq-aug-hidose** | 0.85 | 0.82 | unknown | not separately hard-val'd |
+| soup_v2 (eq-aug merge) | 0.85 | 0.85 | unknown | SVD(0.86-soup×0.6 + eq-aug×0.4); dilutes < both parents |
+
+## EQ1..EQ4 analysis (post-deadline equation-frontier grid, late window 100/team/day)
+
+> The equation category was the only unsolved one (≤2/16 hard-val for *every* competition adapter incl. the
+> 0.86 soup). EQ-0 proved `equation` is a single **global 5-char→1–4-char base-36 cipher**; 3 crack rounds
+> (EQ-2′) eliminated the entire simple-algebraic space → **strong cipher, not closed-form-recoverable** from
+> the 7,748 known pairs. So the empirical bet (EQ-3) was: SFT the v14 backbone on the *real* equation pairs and
+> see how far coverage-memorisation goes. "EQ1..EQ4" below = the 4 SFT grid runs (coverage × dose). Best-own
+> baseline for the delta column = the **0.86 / 0.85 soup** (selected competition best). Full: `equation-frontier.md §8`.
+
+| run | hypothesis | change vs baseline (v14 replay) | hard-val | public LB | priv LB | Δ vs best own (soup 0.86/0.85) | likely reason LB didn't jump | lesson |
+|---|---|---|---:|---:|---:|---|---|---|
+| **EQ1 eq-spec** | SFT the 1,555 real equation *query answers* (~16% dose) teaches the global cipher | + 1,555 query→`\boxed{}` woven into v14 | 0.167 | 0.85 | 0.85 | pub −0.01 / priv 0.00 | only the *query answer* of each prompt is supervised (4 in-context examples are masked context); equation ≈ 1/9 of the test, and only the seen-input fraction is learnable | query-only coverage = no aggregate gain; equation stays at its cipher-bounded floor |
+| **EQ2 eq-aug** | *Rotate* every in-context example into a supervised query → ~5× more real pairs (7,814) | + 7,814 rotated real input→output pairs (×1) | 0.194 | **0.86** | **0.86** | pub 0.00 / priv **+0.01** | coverage captures the ~38% of hidden equation queries whose symbols are all-seen; the unseen-input majority is a strong cipher (uninferable) → ceiling is partial, not full | **coverage is the lever** for a global-function/lookup category: SFT on *all* real pairs (rotate examples→targets), single epoch → best own private |
+| **EQ3 eq-hidose** | More *dose* of the same 1,555 (×3) drills the cipher harder | 1,555 query answers repeated ×3 (~40%) | unknown | 0.84 | 0.84 | pub −0.02 / priv −0.01 | no new information (same 1,555 pairs reweighted); over-weighting equation crowds out the replay backbone → mild regression | **dose without coverage hurts** — repetition adds no signal, dilutes the recipe |
+| **EQ4 eq-aug-hidose** | Max coverage **and** max dose (7,814 ×2) | 7,814 rotated pairs repeated ×2 | unknown | 0.85 | **0.82** | pub −0.01 / priv **−0.03** | over-dosing even the *good* coverage data overfits — private drops far more than public (classic overfit signature) | the **sweet spot = full coverage at a single epoch**; ×2 is past it |
+| soup_v2 (eq-aug merge) | Soup eq-aug into the 0.86 soup to keep its robustness + add coverage | SVD(0.86-soup ×0.6 + eq-aug ×0.4) → rank32 | unknown | 0.85 | 0.85 | pub −0.01 / priv 0.00 | the soup lever needs **hard-tail-robust** members; eq-aug is hard-tail-weak (hard-val 0.194), so merging imports its shortcutting and averages out the equation coverage | **eq-aug does not soup** — the coverage gain lives only standalone |
+
+**Verdict:** `equation` is **partially addressable, not solved**. The best lever — `eq-aug` (full real-pair
+coverage, single epoch) — reaches **0.86 / 0.86** (best own private of the whole campaign) by memorising the
+seen-input fraction, but the unseen-input majority is a strong cipher and stays uninferable. The frontier is
+**bounded**, not open; nothing reaches the cipher's unseen tail without cracking the rule (proven intractable
+from samples, EQ-2′). Why LB didn't jump: equation is ≈ 1/9 of the test and only a fraction of it is learnable,
+so the maximum aggregate headroom from a perfect equation memoriser is small, and even that only covers seen inputs.
+
 ## Evidence links
 - GitHub issue #86 (body + comments 0–4) — original hub.
 - `tracking_zh.md` — original Chinese tables verbatim.
