@@ -143,9 +143,7 @@ def _process_file(args):
             for mv in moves:
                 dec = _decode_target(mv, obs)
                 if dec is not None:
-                    launched[(int(mv[0]), dec[0])] = launched.get(
-                        (int(mv[0]), dec[0]), 0
-                    ) + int(mv[2])
+                    launched[(int(mv[0]), dec[0])] = launched.get((int(mv[0]), dec[0]), 0) + int(mv[2])
             my_tot = sum(p[5] for p in mine) or 1.0
             opp_tot = sum(p[5] for p in planets if p[1] not in (-1, player)) or 1.0
             n_my = len(mine)
@@ -175,19 +173,11 @@ def _process_file(args):
                     if tt is not None:
                         def_eta = tt["ships"][k]
                         o_eta = tt["owner"][k]
-                        flips = (
-                            1.0
-                            if any(
-                                tt["owner"][i] != tgt[1] for i in range(1, PROJ_H + 1)
-                            )
-                            else 0.0
-                        )
+                        flips = 1.0 if any(tt["owner"][i] != tgt[1] for i in range(1, PROJ_H + 1)) else 0.0
                     else:
                         def_eta, o_eta, flips = tgt[5], tgt[1], 0.0
                     fr_arr = sum(s for _k, o, s in sched.get(tgt[0], []) if o == player)
-                    en_arr = sum(
-                        s for _k, o, s in sched.get(tgt[0], []) if o not in (player, -1)
-                    )
+                    en_arr = sum(s for _k, o, s in sched.get(tgt[0], []) if o not in (player, -1))
                     rows_X.append(
                         [
                             src[5],

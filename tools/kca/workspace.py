@@ -69,15 +69,11 @@ def cmd_init(args: argparse.Namespace) -> int:
                 capture_output=True,
                 text=True,
             )
-        rc, out, err = _git(
-            ["worktree", "add", str(workspace_dir), args.branch], cwd=git_cwd
-        )
+        rc, out, err = _git(["worktree", "add", str(workspace_dir), args.branch], cwd=git_cwd)
     else:
         # Default: detached HEAD at current HEAD — never conflicts with the
         # primary worktree and gives the job an isolated snapshot.
-        rc, out, err = _git(
-            ["worktree", "add", "--detach", str(workspace_dir)], cwd=git_cwd
-        )
+        rc, out, err = _git(["worktree", "add", "--detach", str(workspace_dir)], cwd=git_cwd)
         branch = "(detached)"
     if rc != 0:
         return _emit(False, {"error": err or out}, 1)
@@ -204,9 +200,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     ws = sub.add_parser("workspace", help="Manage per-job git worktree workspaces")
     ws_sub = ws.add_subparsers(dest="workspace_cmd", required=True)
 
-    p_init = ws_sub.add_parser(
-        "init", help="Create a workspace for a job (LOCAL_WRITE)"
-    )
+    p_init = ws_sub.add_parser("init", help="Create a workspace for a job (LOCAL_WRITE)")
     p_init.add_argument("--job-id", required=True)
     p_init.add_argument("--branch", default=None)
     p_init.add_argument("--root", default=_DEFAULT_ROOT)

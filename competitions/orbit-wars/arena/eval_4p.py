@@ -54,18 +54,9 @@ def _play(task):
     hr = rewards[seat]
     rank = 1 + sum(1 for r in rewards if r is not None and hr is not None and r > hr)
     # elimination + planets-at-t50 for the hero seat
-    elim_t50 = (
-        1
-        if (
-            len(env.steps) > 50
-            and _planets_owned(env.steps[50][0]["observation"], seat) == 0
-        )
-        else 0
-    )
+    elim_t50 = 1 if (len(env.steps) > 50 and _planets_owned(env.steps[50][0]["observation"], seat) == 0) else 0
     planets_t50 = (
-        _planets_owned(env.steps[50][0]["observation"], seat)
-        if len(env.steps) > 50
-        else _planets_owned(last, seat)
+        _planets_owned(env.steps[50][0]["observation"], seat) if len(env.steps) > 50 else _planets_owned(last, seat)
     )
     final_planets = _planets_owned(last, seat)
     return rank, (1 if rank == 1 else 0), elim_t50, planets_t50, final_planets
@@ -96,22 +87,14 @@ def main():
     ap.add_argument("--games", type=int, default=30)
     ap.add_argument("--seed0", type=int, default=60000)
     ap.add_argument("--procs", type=int, default=4)
-    ap.add_argument(
-        "--hero-env", action="append", default=[], help="K=V applied to hero"
-    )
+    ap.add_argument("--hero-env", action="append", default=[], help="K=V applied to hero")
     args = ap.parse_args()
     hero_env = dict(kv.split("=", 1) for kv in args.hero_env)
     field3 = [args.field, args.field, args.field]
     t0 = time.perf_counter()
     r = evaluate(args.hero, field3, args.games, args.seed0, args.procs, hero_env)
-    env_tag = (
-        (" env=" + ",".join(f"{k}={v}" for k, v in hero_env.items()))
-        if hero_env
-        else ""
-    )
-    print(
-        f"4p: {os.path.relpath(args.hero, COMP)} vs 3x {os.path.relpath(args.field, COMP)}{env_tag}"
-    )
+    env_tag = (" env=" + ",".join(f"{k}={v}" for k, v in hero_env.items())) if hero_env else ""
+    print(f"4p: {os.path.relpath(args.hero, COMP)} vs 3x {os.path.relpath(args.field, COMP)}{env_tag}")
     print(
         f"  avg_rank={r['avg_rank']}/4  1st={r['first_rate']}%  "
         f"elim_by_t50={r['elim_t50_rate']}%  planets@t50={r['planets_t50']}  "

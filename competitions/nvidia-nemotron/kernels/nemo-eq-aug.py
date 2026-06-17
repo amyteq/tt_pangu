@@ -154,10 +154,7 @@ def solve_numeral(p):
 # gravity:  d = 0.5 * g * t^2  ->  g = 2d/t^2 from examples, apply to query t
 # --------------------------------------------------------------------------- #
 def solve_gravity(p):
-    pairs = [
-        (float(t), float(d))
-        for t, d in re.findall(r"t\s*=\s*([0-9.]+)s,\s*distance\s*=\s*([0-9.]+)", p)
-    ]
+    pairs = [(float(t), float(d)) for t, d in re.findall(r"t\s*=\s*([0-9.]+)s,\s*distance\s*=\s*([0-9.]+)", p)]
     m = re.search(r"falling distance for t\s*=\s*([0-9.]+)s", p)
     if not pairs or not m:
         return None
@@ -182,10 +179,7 @@ def solve_gravity(p):
 # unit conversion:  out = ratio * in  ->  fit ratio, apply to query
 # --------------------------------------------------------------------------- #
 def solve_unit(p):
-    pairs = [
-        (float(a), float(b))
-        for a, b in re.findall(r"([0-9.]+)\s*m becomes\s*([0-9.]+)", p)
-    ]
+    pairs = [(float(a), float(b)) for a, b in re.findall(r"([0-9.]+)\s*m becomes\s*([0-9.]+)", p)]
     m = re.search(r"convert the following measurement:\s*([0-9.]+)\s*m", p)
     if not pairs or not m:
         return None
@@ -327,9 +321,7 @@ def solve_bit(p):
             candidates.append(
                 (
                     f"{kind} 0x{c:02X}",
-                    lambda x, k=kind, cc=c: (
-                        {"XOR": x ^ cc, "AND": x & cc, "OR": x | cc}[k] & 0xFF
-                    ),
+                    lambda x, k=kind, cc=c: {"XOR": x ^ cc, "AND": x & cc, "OR": x | cc}[k] & 0xFF,
                 )
             )
     # 2-op: structural then solved mask
@@ -343,8 +335,7 @@ def solve_bit(p):
                     (
                         f"{sname} -> {kind} 0x{c:02X}",
                         lambda x, sf=sfn, k=kind, cc=c: (
-                            {"XOR": sf(x) ^ cc, "AND": sf(x) & cc, "OR": sf(x) | cc}[k]
-                            & 0xFF
+                            {"XOR": sf(x) ^ cc, "AND": sf(x) & cc, "OR": sf(x) | cc}[k] & 0xFF
                         ),
                     )
                 )
@@ -371,12 +362,8 @@ _REWRITES = {
     "concat_ba": lambda a, b: b + a,
     "rev_a_b": lambda a, b: a[::-1] + b,
     "a_rev_b": lambda a, b: a + b[::-1],
-    "interleave": lambda a, b: "".join(
-        x + y for x, y in zip(a.ljust(len(b)), b.ljust(len(a)))
-    ),
-    "swap_inner": lambda a, b: (
-        (a[0] + b[0] + b[1] + a[1]) if len(a) == 2 and len(b) == 2 else None
-    ),
+    "interleave": lambda a, b: "".join(x + y for x, y in zip(a.ljust(len(b)), b.ljust(len(a)))),
+    "swap_inner": lambda a, b: (a[0] + b[0] + b[1] + a[1]) if len(a) == 2 and len(b) == 2 else None,
     "left_dup": lambda a, b: a + a,
     "right_dup": lambda a, b: b + b,
     "rev_concat": lambda a, b: (a + b)[::-1],
@@ -440,9 +427,7 @@ SOLVERS = {
     "equation": solve_equation,
 }
 
-SUFFIX = (
-    "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
-)
+SUFFIX = "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
 
 
 def solve_dataset(rows, categories=None):
@@ -484,9 +469,7 @@ def solve_dataset(rows, categories=None):
 # %%
 import os
 
-assert os.path.isdir("/kaggle/input"), (
-    "This final notebook is Kaggle-only and must run inside a Kaggle session."
-)
+assert os.path.isdir("/kaggle/input"), "This final notebook is Kaggle-only and must run inside a Kaggle session."
 print("Kaggle runtime detected.")
 
 
@@ -569,8 +552,7 @@ def find_path(label, candidates, predicate=lambda path: True, required=True):
             )
             matches = [matches[0]]
         assert len(matches) == 1, (
-            f"{label} is ambiguous for candidate {raw_candidate}: "
-            f"{[str(path) for path in matches]}"
+            f"{label} is ambiguous for candidate {raw_candidate}: {[str(path) for path in matches]}"
         )
         return matches[0]
 
@@ -628,10 +610,7 @@ MODEL_CONFIG = find_unique(
     ],
     lambda path: (
         path.is_file()
-        and (
-            (path.parent / "model.safetensors.index.json").is_file()
-            or any(path.parent.glob("*.safetensors"))
-        )
+        and ((path.parent / "model.safetensors.index.json").is_file() or any(path.parent.glob("*.safetensors")))
     ),
 )
 MODEL_PATH = str(MODEL_CONFIG.parent)
@@ -666,11 +645,7 @@ HUIKANG_SFT_DIR = find_unique(
         "/kaggle/input/datasets/huikang/*/*/nemotron-master/training/sft/04-08-16-14",
         "/kaggle/input/datasets/huikang/**/nemotron-master/training/sft/04-08-16-14",
     ],
-    lambda path: (
-        path.is_dir()
-        and (path / "tokens").is_dir()
-        and (path / "logprobs/index.jsonl").is_file()
-    ),
+    lambda path: path.is_dir() and (path / "tokens").is_dir() and (path / "logprobs/index.jsonl").is_file(),
 )
 CORPUS_PATH = str(HUIKANG_SFT_DIR / "tokens")
 TRAIN_ORDER_PATH = str(HUIKANG_SFT_DIR / "logprobs/index.jsonl")
@@ -759,9 +734,7 @@ def run_training() -> None:
     cc = torch.cuda.get_device_capability(0)
     print(f"GPU: {torch.cuda.get_device_name(0)}, sm_{cc[0] * 10 + cc[1]}")
     print(f"torch={torch.__version__}, cuda={torch.version.cuda}")
-    print(
-        f"mamba_ssm={mamba_ssm.__version__}, causal_conv1d={causal_conv1d.__version__}"
-    )
+    print(f"mamba_ssm={mamba_ssm.__version__}, causal_conv1d={causal_conv1d.__version__}")
     print(f"VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
     assert cc == (12, 0), f"Expected sm_120 (RTX PRO 6000), got sm_{cc[0] * 10 + cc[1]}"
     from causal_conv1d import causal_conv1d_fn
@@ -789,16 +762,11 @@ def run_training() -> None:
                 continue
             seen.add(pid)
             ordered_ids.append(pid)
-    print(
-        f"Loaded {len(ordered_ids)} problem_ids in training order from "
-        f"{TRAIN_ORDER_PATH}"
-    )
+    print(f"Loaded {len(ordered_ids)} problem_ids in training order from {TRAIN_ORDER_PATH}")
 
     for sid in ordered_ids:
         seg_path = os.path.join(CORPUS_PATH, sid, "synthetic.json")
-        assert os.path.isfile(seg_path), (
-            f"problem_id {sid} from training order missing in corpus: {seg_path}"
-        )
+        assert os.path.isfile(seg_path), f"problem_id {sid} from training order missing in corpus: {seg_path}"
         with open(seg_path) as f:
             rec = json.load(f)
         tokens = rec["tokens"]
@@ -820,18 +788,13 @@ def run_training() -> None:
         )
     total_unmasked = sum(sum(e["weights"]) for e in examples)
     total_tokens = sum(len(e["tokens"]) for e in examples)
-    print(
-        f"Loaded {len(examples)} examples, {total_tokens:,} tokens "
-        f"(unmasked={total_unmasked:,.0f})"
-    )
+    print(f"Loaded {len(examples)} examples, {total_tokens:,} tokens (unmasked={total_unmasked:,.0f})")
 
     assert len(ordered_ids) >= MIN_CORPUS_EXAMPLES, (
-        f"Corpus order is unexpectedly small: {len(ordered_ids)} ids; "
-        f"expected at least {MIN_CORPUS_EXAMPLES}."
+        f"Corpus order is unexpectedly small: {len(ordered_ids)} ids; expected at least {MIN_CORPUS_EXAMPLES}."
     )
     assert len(examples) >= MIN_CORPUS_EXAMPLES, (
-        f"Corpus produced only {len(examples)} examples; "
-        f"expected at least {MIN_CORPUS_EXAMPLES}."
+        f"Corpus produced only {len(examples)} examples; expected at least {MIN_CORPUS_EXAMPLES}."
     )
 
     # -- Load base model ----------------------------------------------
@@ -859,9 +822,7 @@ def run_training() -> None:
         # apply_chat_template(tokenize=True) returns a BatchEncoding, so
         # len(full_ids) <= len(prompt_ids) compared DICT KEY COUNTS (2 <= 2)
         # and silently skipped every row. Unwrap to a flat token list.
-        out = tokenizer.apply_chat_template(
-            msgs, tokenize=True, add_generation_prompt=add_gen
-        )
+        out = tokenizer.apply_chat_template(msgs, tokenize=True, add_generation_prompt=add_gen)
         if hasattr(out, "keys"):
             out = out["input_ids"]
         if out and isinstance(out[0], (list, tuple)):
@@ -882,8 +843,7 @@ def run_training() -> None:
             if not _first_row_logged:
                 _first_row_logged = True
                 print(
-                    f"replay row 0: keys={sorted(row.keys())}, "
-                    f"prompt_ids={len(prompt_ids)}, full_ids={len(full_ids)}"
+                    f"replay row 0: keys={sorted(row.keys())}, prompt_ids={len(prompt_ids)}, full_ids={len(full_ids)}"
                 )
             if len(full_ids) <= len(prompt_ids):
                 replay_skipped += 1
@@ -910,9 +870,7 @@ def run_training() -> None:
             if replay_answer_tokens >= TARGET_REPLAY_ANSWER_TOKENS:
                 break
 
-    assert len(replay_examples) >= MIN_REPLAY_EXAMPLES, (
-        f"Only {len(replay_examples)} replay examples were tokenized."
-    )
+    assert len(replay_examples) >= MIN_REPLAY_EXAMPLES, f"Only {len(replay_examples)} replay examples were tokenized."
     assert replay_answer_tokens >= MIN_REPLAY_ANSWER_TOKENS, (
         f"Only {replay_answer_tokens:,} supervised replay answer tokens; "
         f"expected at least {MIN_REPLAY_ANSWER_TOKENS:,}."
@@ -934,10 +892,7 @@ def run_training() -> None:
         f"{replay_answer_tokens:,} supervised answer tokens, "
         f"skipped={replay_skipped}, truncated={replay_truncated}"
     )
-    print(
-        f"Replay inserted every ~{replay_every} Huikang examples; "
-        f"mixed total={len(examples)}"
-    )
+    print(f"Replay inserted every ~{replay_every} Huikang examples; mixed total={len(examples)}")
 
     # ---- equation specialist: REAL equation prompts → \boxed{answer} ------------
     # EQ-0 found `equation` is one GLOBAL deterministic function (5-char→1-4-char, secret
@@ -967,8 +922,7 @@ def run_training() -> None:
     import re as _re
 
     _PRE = (
-        "In Alice's Wonderland, a secret set of transformation rules is applied "
-        "to equations. Below are a few examples:"
+        "In Alice's Wonderland, a secret set of transformation rules is applied to equations. Below are a few examples:"
     )
     _QRE = _re.compile(r"determine the result for:\s*(.+?)\s*$", _re.I)
 
@@ -999,16 +953,11 @@ def run_training() -> None:
     print(f"eq-aug: {len(_aug)} rotated supervised targets from {len(_eqrows)} prompts")
 
     _eos = tokenizer.eos_token_id
-    SUFFIX = (
-        "\nPlease put your final answer inside \\boxed{}. "
-        "For example: \\boxed{your answer}"
-    )
+    SUFFIX = "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
 
     def _ptoks(problem):
         msgs = [{"role": "user", "content": problem + SUFFIX}]
-        out = tokenizer.apply_chat_template(
-            msgs, tokenize=True, add_generation_prompt=True
-        )
+        out = tokenizer.apply_chat_template(msgs, tokenize=True, add_generation_prompt=True)
         if hasattr(out, "keys"):
             out = out["input_ids"]
         if out and isinstance(out[0], (list, tuple)):
@@ -1037,10 +986,7 @@ def run_training() -> None:
             continue
         if not _sv_first:
             _sv_first = True
-            print(
-                f"eq row 0: prompt_ids={len(prompt_ids)}, full_ids={len(full_ids)}, "
-                f"resp={resp!r}"
-            )
+            print(f"eq row 0: prompt_ids={len(prompt_ids)}, full_ids={len(full_ids)}, resp={resp!r}")
         solver_examples.append(
             {
                 "problem_id": "eq",
@@ -1117,14 +1063,10 @@ def run_training() -> None:
 
     for name, param in model.named_parameters():
         if ".lora_" in name:
-            assert param.dtype == torch.float32, (
-                f"LoRA param {name} expected fp32, got {param.dtype}"
-            )
+            assert param.dtype == torch.float32, f"LoRA param {name} expected fp32, got {param.dtype}"
             continue
 
-        is_router = (
-            ".mixer.gate." in name
-        )  # NemotronHTopkRouter.weight + e_score_correction_bias
+        is_router = ".mixer.gate." in name  # NemotronHTopkRouter.weight + e_score_correction_bias
         # Nemotron-H loads the MoE router (`mixer.gate`) in fp32 on purpose.
         # Ref: transformers/src/transformers/models/nemotron_h/modeling_nemotron_h.py
         #
@@ -1145,14 +1087,10 @@ def run_training() -> None:
         # The per-forward fp32 cast on `self.weight` plus the strict list entry
         # mean the gate weight is promoted to fp32 at load time.
         if is_router:
-            assert param.dtype == torch.float32, (
-                f"param {name} expected fp32, got {param.dtype}"
-            )
+            assert param.dtype == torch.float32, f"param {name} expected fp32, got {param.dtype}"
             continue
 
-        assert param.dtype == torch.bfloat16, (
-            f"param {name} expected bf16, got {param.dtype}"
-        )
+        assert param.dtype == torch.bfloat16, f"param {name} expected bf16, got {param.dtype}"
         continue
 
     print("Verified: LoRA params fp32, base params bf16 (MoE router fp32)")
@@ -1166,17 +1104,11 @@ def run_training() -> None:
     while hasattr(_base, "model"):
         _base = _base.model
 
-    def _patched_causal_forward(
-        input_ids=None, attention_mask=None, labels=None, **kwargs
-    ):
+    def _patched_causal_forward(input_ids=None, attention_mask=None, labels=None, **kwargs):
         backbone_out = _base.backbone(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k in ("position_ids", "past_key_values", "use_cache")
-            },
+            **{k: v for k, v in kwargs.items() if k in ("position_ids", "past_key_values", "use_cache")},
         )
         hidden_states = backbone_out[0]
         lm_head = _base.lm_head
@@ -1186,9 +1118,7 @@ def run_training() -> None:
         scaling = lm_head.scaling["default"]
         lm_weight = base_w + scaling * lora_B @ lora_A
         if labels is not None:
-            per_token_ce = linear_cross_entropy(
-                hidden_states, lm_weight, labels, reduction="none"
-            )
+            per_token_ce = linear_cross_entropy(hidden_states, lm_weight, labels, reduction="none")
             loss = per_token_ce.mean()
         else:
             per_token_ce = None
@@ -1202,13 +1132,10 @@ def run_training() -> None:
     # Fresh initialization is intentional; no adapter is loaded here.
     print("Fresh rank-32 LoRA initialization confirmed")
 
-    trainable_names = [
-        name for name, param in model.named_parameters() if param.requires_grad
-    ]
+    trainable_names = [name for name, param in model.named_parameters() if param.requires_grad]
     assert trainable_names, "No trainable LoRA parameters found"
     assert all(".lora_" in name for name in trainable_names), (
-        "Unexpected non-LoRA trainable tensors: "
-        f"{[name for name in trainable_names if '.lora_' not in name][:20]}"
+        f"Unexpected non-LoRA trainable tensors: {[name for name in trainable_names if '.lora_' not in name][:20]}"
     )
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     frozen_params = sum(p.numel() for p in model.parameters() if not p.requires_grad)
@@ -1281,9 +1208,7 @@ def run_training() -> None:
     device = next(model.parameters()).device
     optimizer: torch.optim.AdamW | None = None
 
-    assert examples, (
-        "No Huikang training examples loaded from the required token corpus."
-    )
+    assert examples, "No Huikang training examples loaded from the required token corpus."
     indices = list(range(len(examples)))
     if SHUFFLE_DATASET:
         rng = random.Random(0)
@@ -1309,8 +1234,7 @@ def run_training() -> None:
         num_steps = max_steps
 
     _log(
-        f"Training: {num_steps} steps, batch_size={BATCH_SIZE}, "
-        f"micro_batch_size={MICRO_BATCH_SIZE}, lr={LEARNING_RATE}"
+        f"Training: {num_steps} steps, batch_size={BATCH_SIZE}, micro_batch_size={MICRO_BATCH_SIZE}, lr={LEARNING_RATE}"
     )
 
     step = 0
@@ -1347,25 +1271,15 @@ def run_training() -> None:
             max_len = max(len(t) for t in mb_toks)
             total_len = sum(len(t) for t in mb_toks)
 
-            padded_input = torch.zeros(
-                n_micro, max_len, dtype=torch.long, device=device
-            )
-            padded_targets = torch.zeros(
-                n_micro, max_len, dtype=torch.long, device=device
-            )
-            padded_weights = torch.zeros(
-                n_micro, max_len, dtype=torch.float32, device=device
-            )
-            attention_mask = torch.zeros(
-                n_micro, max_len, dtype=torch.long, device=device
-            )
+            padded_input = torch.zeros(n_micro, max_len, dtype=torch.long, device=device)
+            padded_targets = torch.zeros(n_micro, max_len, dtype=torch.long, device=device)
+            padded_weights = torch.zeros(n_micro, max_len, dtype=torch.float32, device=device)
+            attention_mask = torch.zeros(n_micro, max_len, dtype=torch.long, device=device)
             for i in range(n_micro):
                 seq_len = len(mb_toks[i])
                 padded_input[i, :seq_len] = torch.tensor(mb_toks[i], dtype=torch.long)
                 padded_targets[i, :seq_len] = torch.tensor(mb_tgts[i], dtype=torch.long)
-                padded_weights[i, :seq_len] = torch.tensor(
-                    mb_wts[i], dtype=torch.float32
-                )
+                padded_weights[i, :seq_len] = torch.tensor(mb_wts[i], dtype=torch.float32)
                 attention_mask[i, :seq_len] = 1
 
             t0 = time.time()
@@ -1380,9 +1294,7 @@ def run_training() -> None:
                 weighted_loss = per_token_ce * padded_weights
                 weight_sum_t = padded_weights.sum()
                 loss_sum_t = weighted_loss.sum()
-                loss = (
-                    loss_sum_t / weight_sum_t if weight_sum_t > 0 else loss_sum_t * 0.0
-                )
+                loss = loss_sum_t / weight_sum_t if weight_sum_t > 0 else loss_sum_t * 0.0
                 assert torch.isfinite(loss), f"Non-finite loss at step {step}"
 
             (loss / n_accum).backward()
@@ -1425,14 +1337,9 @@ def run_training() -> None:
         optimizer.zero_grad()
         loss_mean = total_loss_sum / total_weight_sum if total_weight_sum > 0 else 0
         step += 1
-        _log(
-            f"  step {step}/{num_steps}: "
-            f"loss:mean={loss_mean:.6f}, grad_norm={grad_norm:.4f}, lr={lr:.2e}"
-        )
+        _log(f"  step {step}/{num_steps}: loss:mean={loss_mean:.6f}, grad_norm={grad_norm:.4f}, lr={lr:.2e}")
 
-    print(
-        f"\nTraining complete. Peak VRAM: {torch.cuda.max_memory_allocated() / 1e9:.1f} GB"
-    )
+    print(f"\nTraining complete. Peak VRAM: {torch.cuda.max_memory_allocated() / 1e9:.1f} GB")
 
     # -- Save adapter + rename lm_head keys (identical on both sides) --
     from safetensors.torch import load_file, save_file
@@ -1446,8 +1353,7 @@ def run_training() -> None:
     st_path = os.path.join(save_dir, "adapter_model.safetensors")
     tensors = load_file(st_path)
     renamed = {
-        k.replace("base_model.model.lm_head.", "base_model.model.backbone.lm_head."): v
-        for k, v in tensors.items()
+        k.replace("base_model.model.lm_head.", "base_model.model.backbone.lm_head."): v for k, v in tensors.items()
     }
     save_file(renamed, st_path)
 
@@ -1493,10 +1399,7 @@ def run_training() -> None:
         os.remove(os.path.join(save_dir, filename))
 
     print(f"Wrote {submission_zip}")
-    print(
-        "Submission validation OK: root files only, "
-        f"rank={LORA_RANK}, alpha={LORA_ALPHA}"
-    )
+    print(f"Submission validation OK: root files only, rank={LORA_RANK}, alpha={LORA_ALPHA}")
     print(f"submission.zip sha256={digest.hexdigest()}")
     print("Training complete.")
 

@@ -108,8 +108,7 @@ def register_all(db_module: object | None = None) -> list[dict[str, Any]]:
             continue
         if not isinstance(spec, dict):
             print(
-                f"[kca eval] suite '{mod_info.name}' register() returned "
-                f"{type(spec).__name__}; expected dict",
+                f"[kca eval] suite '{mod_info.name}' register() returned {type(spec).__name__}; expected dict",
                 file=sys.stderr,
             )
             continue
@@ -483,9 +482,7 @@ def cmd_report(args: argparse.Namespace) -> int:
     try:
         payload = _report.summarize_run(run_id, db_module=db_mod)
     except LookupError as exc:
-        _emit(
-            {"ok": False, "error": "NOT_FOUND", "run_id": run_id, "message": str(exc)}
-        )
+        _emit({"ok": False, "error": "NOT_FOUND", "run_id": run_id, "message": str(exc)})
         return EXIT_RUNTIME
     except Exception as exc:
         _emit(
@@ -605,9 +602,7 @@ def _cmd_route_compare(args: argparse.Namespace) -> int:
     except (TypeError, ValueError):
         _emit({"ok": False, "error": "INVALID_BUDGET", "value": budget})
         return EXIT_RUNTIME
-    time_cap_s = float(
-        os.environ.get("KCA_EVAL_TIME_CAP_S", ROUTE_COMPARE_DEFAULT_TIME_S)
-    )
+    time_cap_s = float(os.environ.get("KCA_EVAL_TIME_CAP_S", ROUTE_COMPARE_DEFAULT_TIME_S))
 
     # If a single explicit --route was supplied alongside --route-compare,
     # restrict to that route (used by the explicit-refusal test).
@@ -700,9 +695,7 @@ def _cmd_route_compare(args: argparse.Namespace) -> int:
             suite_results_cache[key] = {r.case_name: r for r in outcome.results}
             # Track audit-grep violations across all (suite, route) runs.
             if outcome.audit_grep_violations:
-                suite_results_cache.setdefault("__audit__", []).extend(
-                    outcome.audit_grep_lines
-                )
+                suite_results_cache.setdefault("__audit__", []).extend(outcome.audit_grep_lines)
         cache = suite_results_cache[key]
         if "__error__" in cache:
             return cache["__error__"]
@@ -752,9 +745,7 @@ def _cmd_route_compare(args: argparse.Namespace) -> int:
                 continue
 
             if route_refused or route in aborted_routes:
-                err = route_refused or (
-                    "BUDGET_EXCEEDED" if route in aborted_routes else "REFUSED"
-                )
+                err = route_refused or ("BUDGET_EXCEEDED" if route in aborted_routes else "REFUSED")
                 rows.append(
                     {
                         "case_name": case_name,
@@ -767,9 +758,7 @@ def _cmd_route_compare(args: argparse.Namespace) -> int:
                             "route": route,
                             "route_no_op": True,
                             "reason": err,
-                            "refusal_layer": "resolver"
-                            if route_refused
-                            else "budget_ledger",
+                            "refusal_layer": "resolver" if route_refused else "budget_ledger",
                         },
                         "error_text": err,
                     }
@@ -937,9 +926,7 @@ def _cmd_route_compare(args: argparse.Namespace) -> int:
         "rows_persisted": persisted,
         "audit_grep_violations": len(audit_lines),
         "audit_grep_sample": audit_lines[:20],
-        "refusal_summary": {
-            r: (resolved[r].error if not resolved[r].ok else "ok") for r in route_list
-        },
+        "refusal_summary": {r: (resolved[r].error if not resolved[r].ok else "ok") for r in route_list},
     }
     _emit(payload, SideEffect.LOCAL_WRITE)
     return EXIT_OK
@@ -1048,10 +1035,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
         "run_id",
         nargs="?",
         default=None,
-        help=(
-            "UUID of the eval_runs row. If omitted, defaults to the "
-            "latest run by started_at."
-        ),
+        help=("UUID of the eval_runs row. If omitted, defaults to the latest run by started_at."),
     )
     grp = p_report.add_mutually_exclusive_group()
     grp.add_argument("--json", action="store_true")

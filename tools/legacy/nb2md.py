@@ -41,9 +41,7 @@ def convert_ipynb_to_md(input_path):
                         html_table = data["text/html"]
                         try:
                             # 明确告诉 Pandoc：输入是 html，输出是 gfm
-                            md_table = pypandoc.convert_text(
-                                html_table, "gfm", format="html"
-                            )
+                            md_table = pypandoc.convert_text(html_table, "gfm", format="html")
                             md_content.append(md_table.strip())
                         except Exception as e:
                             print(f"表格转换失败，保留原 HTML。错误: {e}")
@@ -73,9 +71,7 @@ def convert_ipynb_to_md(input_path):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="将 ipynb 转换为 md，确保 HTML 表格转为 Markdown 表格。"
-    )
+    parser = argparse.ArgumentParser(description="将 ipynb 转换为 md，确保 HTML 表格转为 Markdown 表格。")
     parser.add_argument("input", help="输入的 .ipynb 文件路径")
 
     args = parser.parse_args()

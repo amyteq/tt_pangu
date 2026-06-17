@@ -43,9 +43,7 @@ def check_lint() -> bool:
         text=True,
     )
     ok = proc.returncode == 0
-    print(
-        "[1] lint check (E9,F821,F811,F841):", "PASS" if ok else "FAIL\n" + proc.stdout
-    )
+    print("[1] lint check (E9,F821,F811,F841):", "PASS" if ok else "FAIL\n" + proc.stdout)
     return ok
 
 
@@ -56,9 +54,7 @@ def check_masking(csv_path: str) -> bool:
     SUFFIX = "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
 
     class StubTok:
-        def apply_chat_template(
-            self, msgs, tokenize=False, add_generation_prompt=False, **k
-        ):
+        def apply_chat_template(self, msgs, tokenize=False, add_generation_prompt=False, **k):
             s = "".join(f"<|{m['role']}|>{m['content']}" for m in msgs)
             if add_generation_prompt:
                 s += "<|assistant|>"
@@ -66,18 +62,14 @@ def check_masking(csv_path: str) -> bool:
 
         def __call__(self, text, truncation=False, max_length=None):
             ids = text.split()
-            return {
-                "input_ids": ids[:max_length] if (truncation and max_length) else ids
-            }
+            return {"input_ids": ids[:max_length] if (truncation and max_length) else ids}
 
     tok, MAX_LEN, ok = StubTok(), 4096, True
     for r in df.itertuples():
         cot = re.sub(r"\\boxed\{[^}]*\}", "", str(r.generated_cot)).rstrip()
         assistant = f"{cot}\n</think>\n\\boxed{{{r.answer}}}"
         user = [{"role": "user", "content": f"{r.prompt}{SUFFIX}"}]
-        full = tok.apply_chat_template(
-            user + [{"role": "assistant", "content": assistant}]
-        )
+        full = tok.apply_chat_template(user + [{"role": "assistant", "content": assistant}])
         prompt_only = tok.apply_chat_template(user, add_generation_prompt=True)
         ids = tok(full, truncation=True, max_length=MAX_LEN)["input_ids"]
         plen = min(
@@ -91,11 +83,7 @@ def check_masking(csv_path: str) -> bool:
 
 
 def main() -> int:
-    csv = (
-        sys.argv[1]
-        if len(sys.argv) > 1
-        else str(HERE.parent.parent / "data" / "problem_ids_matched.csv")
-    )
+    csv = sys.argv[1] if len(sys.argv) > 1 else str(HERE.parent.parent / "data" / "problem_ids_matched.csv")
     ok = check_lint()
     if Path(csv).exists():
         ok = check_masking(csv) and ok

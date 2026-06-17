@@ -12,9 +12,7 @@
 import glob
 import site
 
-_cutlass = glob.glob(
-    "/kaggle/usr/lib/notebooks/ryanholbrook/*nvidia*util*/nvidia_cutlass_dsl/python_packages"
-)
+_cutlass = glob.glob("/kaggle/usr/lib/notebooks/ryanholbrook/*nvidia*util*/nvidia_cutlass_dsl/python_packages")
 for _p in _cutlass:
     site.addsitedir(_p)
 
@@ -22,16 +20,12 @@ import os
 import shutil
 import stat as _stat
 
-_ptxas = glob.glob(
-    "/kaggle/usr/lib/notebooks/ryanholbrook/*/triton/backends/nvidia/bin/ptxas-blackwell"
-)
+_ptxas = glob.glob("/kaggle/usr/lib/notebooks/ryanholbrook/*/triton/backends/nvidia/bin/ptxas-blackwell")
 if _ptxas:
     _dst = "/tmp/ptxas-blackwell"
     try:
         shutil.copy2(_ptxas[0], _dst)
-        os.chmod(
-            _dst, os.stat(_dst).st_mode | _stat.S_IEXEC | _stat.S_IXGRP | _stat.S_IXOTH
-        )
+        os.chmod(_dst, os.stat(_dst).st_mode | _stat.S_IEXEC | _stat.S_IXGRP | _stat.S_IXOTH)
         os.environ["TRITON_PTXAS_BLACKWELL_PATH"] = _dst
         os.environ["TRITON_PTXAS_PATH"] = _dst
         print("ptxas-blackwell ->", _dst)
@@ -73,17 +67,13 @@ except Exception:  # noqa: BLE001
     import vllm  # noqa: F401
 print("vllm", vllm.__version__)
 
-MODEL_PATH = kagglehub.model_download(
-    "metric/nemotron-3-nano-30b-a3b-bf16/transformers/default"
-)
+MODEL_PATH = kagglehub.model_download("metric/nemotron-3-nano-30b-a3b-bf16/transformers/default")
 SOUP_PATH = None
 if USE_SOUP:
     _cfg = glob.glob("/kaggle/input/**/adapter_config.json", recursive=True)
     assert _cfg, "USE_SOUP but soup adapter not found under /kaggle/input"
     SOUP_PATH = os.path.dirname(_cfg[0])
-_train = glob.glob("/kaggle/input/competitions/*/train.csv") or glob.glob(
-    "/kaggle/input/**/train.csv", recursive=True
-)
+_train = glob.glob("/kaggle/input/competitions/*/train.csv") or glob.glob("/kaggle/input/**/train.csv", recursive=True)
 assert _train, "train.csv not found"
 print("model:", MODEL_PATH, "| soup:", SOUP_PATH, "| train:", _train[0])
 
@@ -134,11 +124,7 @@ def classify(p):
 # %%
 import csv
 
-rows = [
-    r
-    for r in csv.DictReader(open(_train[0], encoding="utf-8"))
-    if classify(r["prompt"]) in CATEGORIES
-]
+rows = [r for r in csv.DictReader(open(_train[0], encoding="utf-8")) if classify(r["prompt"]) in CATEGORIES]
 rows = [r for i, r in enumerate(rows) if i % 2 == SHARD][:N_PROMPTS]  # shard split
 print(f"shard {SHARD}: {len(rows)} prompts over {CATEGORIES}")
 
@@ -157,9 +143,7 @@ llm = LLM(
     max_lora_rank=32,
 )
 tok = llm.get_tokenizer()
-SUFFIX = (
-    "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
-)
+SUFFIX = "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
 lora = LoRARequest("soup", 1, SOUP_PATH) if USE_SOUP else None
 
 
@@ -179,9 +163,7 @@ assert _o and _o[0].outputs, "fail-fast: vLLM+LoRA produced no output"
 print("preflight OK; sample text:", _o[0].outputs[0].text[:120].replace("\n", " "))
 
 # %%
-sp = SamplingParams(
-    temperature=TEMPERATURE, top_p=0.95, max_tokens=SAMPLE_MAX_TOKENS, n=N_SAMPLES
-)
+sp = SamplingParams(temperature=TEMPERATURE, top_p=0.95, max_tokens=SAMPLE_MAX_TOKENS, n=N_SAMPLES)
 kept = []
 BATCH = 64
 for i in range(0, len(rows), BATCH):
@@ -189,9 +171,7 @@ for i in range(0, len(rows), BATCH):
         print("wall-clock budget hit; stopping sampling")
         break
     batch = rows[i : i + BATCH]
-    outs = llm.generate(
-        [build_prompt(r["prompt"]) for r in batch], sp, lora_request=lora
-    )
+    outs = llm.generate([build_prompt(r["prompt"]) for r in batch], sp, lora_request=lora)
     for r, out in zip(batch, outs):
         for cand in out.outputs:
             if verify(r["answer"], extract_final_answer(cand.text)):
@@ -215,7 +195,5 @@ with open(out_path, "w") as f:
 by_cat = {}
 for rec in kept:
     by_cat[rec["category"]] = by_cat.get(rec["category"], 0) + 1
-print(
-    f"VERIFIED_COT: kept {len(kept)} / {len(rows)} prompts ({by_cat}); wrote {out_path}"
-)
+print(f"VERIFIED_COT: kept {len(kept)} / {len(rows)} prompts ({by_cat}); wrote {out_path}")
 print("Done.")

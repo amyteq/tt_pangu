@@ -72,9 +72,7 @@ for _ in range(12):
 print("tries", tries, "gcd-of-dets G =", G, "(digits %d)" % len(str(G)))
 
 if G == 0:
-    print(
-        "G==0: submatrices are singular over Q -> residue-preserving structure UNLIKELY (or rank<36). STOP."
-    )
+    print("G==0: submatrices are singular over Q -> residue-preserving structure UNLIKELY (or rank<36). STOP.")
 else:
     # candidate moduli = divisors of G that are large enough (> max output value plausibly)
     # factor G

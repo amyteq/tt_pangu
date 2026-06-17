@@ -42,8 +42,7 @@ SUITE_NAME = "tool-smoke"
 SUITE_VERSION = "0.1.0"
 SUITE_CATEGORY = "tool_smoke"
 SUITE_DESCRIPTION = (
-    "Deterministic per-tool smoke suite exercising src/worker/tools.py. "
-    "≥10 cases, no LLM, no Kaggle network."
+    "Deterministic per-tool smoke suite exercising src/worker/tools.py. ≥10 cases, no LLM, no Kaggle network."
 )
 
 _SUITE_DIR = Path(__file__).resolve().parent
@@ -226,8 +225,7 @@ def _run_case(case: Case, fixture_dir: Path, tmpdir: Path) -> CaseResult:
         if status == "pass":
             status = "fail"
             error_text = error_text or (
-                f"expected_keys mismatch: got={output_keys} "
-                f"expected={list(case.expected_keys)}"
+                f"expected_keys mismatch: got={output_keys} expected={list(case.expected_keys)}"
             )
 
     metrics = {
@@ -293,9 +291,7 @@ def run(
 
     fixture_dir = _FIXTURE_DIR
     if not fixture_dir.exists():
-        raise FileNotFoundError(
-            f"tool_smoke fixture missing: {fixture_dir} — checked-in fixture required"
-        )
+        raise FileNotFoundError(f"tool_smoke fixture missing: {fixture_dir} — checked-in fixture required")
 
     # tool-smoke has no LLM-relevant cases; non-mocked routes are a
     # no-op for the model-call portion (the case still runs, but
@@ -309,8 +305,7 @@ def run(
         "gpt_4o",
     }:
         raise ValueError(
-            f"unknown route {route!r}; expected one of mocked, local_vllm, "
-            "claude_haiku_4_5, claude_sonnet_4_6, gpt_4o"
+            f"unknown route {route!r}; expected one of mocked, local_vllm, claude_haiku_4_5, claude_sonnet_4_6, gpt_4o"
         )
 
     outcome = RunOutcome()

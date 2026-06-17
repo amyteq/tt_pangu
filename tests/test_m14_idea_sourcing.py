@@ -222,9 +222,7 @@ def test_no_kaggle_push_lines_in_modules():
         assert "competitions_submit(" not in src
         assert "competition_submit(" not in src
     # explore.py specifically must not embed the bare CLI invocation strings.
-    explore_src = (REPO_ROOT / "tools" / "kca" / "explore.py").read_text(
-        encoding="utf-8"
-    )
+    explore_src = (REPO_ROOT / "tools" / "kca" / "explore.py").read_text(encoding="utf-8")
     assert "kaggle kernels push" not in explore_src
     assert "kaggle competitions submit" not in explore_src
 
@@ -305,14 +303,12 @@ def comp_with_prior_batch(pg_url, monkeypatch, capsys):
     with psycopg.connect(pg_url, autocommit=True) as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO competitions (slug, title) VALUES (%s, %s) "
-                "RETURNING id::text",
+                "INSERT INTO competitions (slug, title) VALUES (%s, %s) RETURNING id::text",
                 (slug, "idea test"),
             )
             comp_id = cur.fetchone()[0]
             cur.execute(
-                "INSERT INTO experiments (competition_id, name) VALUES (%s::uuid, %s) "
-                "RETURNING id::text",
+                "INSERT INTO experiments (competition_id, name) VALUES (%s::uuid, %s) RETURNING id::text",
                 (comp_id, "prior batch"),
             )
             exp_id = cur.fetchone()[0]
@@ -412,9 +408,7 @@ def test_propose_next_injection_is_quoted_not_executed(comp_with_prior_batch, ca
                 # Must be a value on rationale/quote line, double-quoted.
                 assert '"' in stripped
                 assert (
-                    stripped.startswith("rationale:")
-                    or stripped.startswith("- rationale:")
-                    or "rationale:" in stripped
+                    stripped.startswith("rationale:") or stripped.startswith("- rationale:") or "rationale:" in stripped
                 )
     # At least one candidate must carry the untrusted label or flagged markers
     # if the adversarial source was selected.

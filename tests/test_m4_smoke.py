@@ -167,9 +167,7 @@ def test_run_record_metric(tmp_path, monkeypatch):
 
 def test_run_list_no_runs(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    proc = _run(
-        [*KCA, "run", "list", "--competition", "titanic", "--json"], cwd=tmp_path
-    )
+    proc = _run([*KCA, "run", "list", "--competition", "titanic", "--json"], cwd=tmp_path)
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout.strip())
     assert payload["ok"] is True
@@ -190,9 +188,7 @@ def test_kaggle_push_dry_run(tmp_path):
         )
     )
     (tmp_path / "k.py").write_text("print('hi')\n")
-    proc = _run(
-        [*KCA, "kaggle", "push", "--kernel-dir", str(tmp_path), "--dry-run", "--json"]
-    )
+    proc = _run([*KCA, "kaggle", "push", "--kernel-dir", str(tmp_path), "--dry-run", "--json"])
     assert proc.returncode == 0, proc.stderr
     payload = json.loads(proc.stdout.strip())
     assert payload["ok"] is True
@@ -226,9 +222,7 @@ def test_approval_gate_blocks_by_policy():
 
     os.environ.pop("KCA_ALLOW_REMOTE", None)
     with pytest.raises(ApprovalRequired):
-        _check_approval_gate(
-            "kaggle_submit", {"approval_gates": {"kaggle_submit": True}}
-        )
+        _check_approval_gate("kaggle_submit", {"approval_gates": {"kaggle_submit": True}})
 
 
 def test_approval_gate_allows_by_default():

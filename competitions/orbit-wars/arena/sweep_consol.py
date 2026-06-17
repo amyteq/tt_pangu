@@ -2,6 +2,7 @@
 
 If no setting beats ~50%, consolidation is a dead lever and should default OFF.
 """
+
 import argparse, os, time
 import pool as P
 
@@ -10,11 +11,11 @@ MAIN = os.path.normpath(os.path.join(HERE, "..", "agent", "main.py"))
 V21 = os.path.normpath(os.path.join(HERE, "..", "agent", "versions", "v2_1.py"))
 
 CONFIGS = {
-    "OFF (sanity ~50%)":      {"OW_CONSOLIDATE": 0},
-    "min=12 (default)":       {"OW_CONSOLIDATE": 1, "OW_CONSOLIDATE_MIN": 12},
-    "min=30":                 {"OW_CONSOLIDATE": 1, "OW_CONSOLIDATE_MIN": 30},
-    "min=60":                 {"OW_CONSOLIDATE": 1, "OW_CONSOLIDATE_MIN": 60},
-    "min=100":                {"OW_CONSOLIDATE": 1, "OW_CONSOLIDATE_MIN": 100},
+    "OFF (sanity ~50%)": {"OW_CONSOLIDATE": 0},
+    "min=12 (default)": {"OW_CONSOLIDATE": 1, "OW_CONSOLIDATE_MIN": 12},
+    "min=30": {"OW_CONSOLIDATE": 1, "OW_CONSOLIDATE_MIN": 30},
+    "min=60": {"OW_CONSOLIDATE": 1, "OW_CONSOLIDATE_MIN": 60},
+    "min=100": {"OW_CONSOLIDATE": 1, "OW_CONSOLIDATE_MIN": 100},
 }
 
 

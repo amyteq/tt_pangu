@@ -121,16 +121,12 @@ def main():
         out[ak] = newA.to(f14.get_tensor(ak).dtype)
         out[bk] = newB.to(f14.get_tensor(bk).dtype)
         merged_n += 1
-    print(
-        f"merged {merged_n} overlap modules; copied {len(out) - 2 * merged_n} v14 tensors"
-    )
+    print(f"merged {merged_n} overlap modules; copied {len(out) - 2 * merged_n} v14 tensors")
 
     # 3) validate before writing: key set + shapes identical to v14, all finite.
     assert set(out.keys()) == k14, "merged key set drifted from v14"
     for k in out:
-        assert tuple(out[k].shape) == tuple(f14.get_slice(k).get_shape()), (
-            f"shape drift at {k}"
-        )
+        assert tuple(out[k].shape) == tuple(f14.get_slice(k).get_shape()), f"shape drift at {k}"
     for b in sorted(overlap):
         a = out[f"{b}.lora_A.weight"]
         assert a.shape[0] == 32, f"rank drift at {b}: {a.shape}"
@@ -152,10 +148,7 @@ def main():
         zf.write(os.path.join(args.out, "adapter_config.json"), "adapter_config.json")
         zf.write(os.path.join(args.out, st), st)
     print(f"wrote {zip_path} ({os.path.getsize(zip_path) / 1e9:.2f} GB)")
-    print(
-        "config r=%s alpha=%s tm=%s"
-        % (cfg.get("r"), cfg.get("lora_alpha"), cfg.get("target_modules"))
-    )
+    print("config r=%s alpha=%s tm=%s" % (cfg.get("r"), cfg.get("lora_alpha"), cfg.get("target_modules")))
 
 
 if __name__ == "__main__":

@@ -32,9 +32,7 @@ try:
         _tok = UserSecretsClient().get_secret("HF_TOKEN")
 except Exception:  # noqa: BLE001
     pass
-assert _tok, (
-    "no HF token (set Kaggle Secret HF_TOKEN, env HF_TOKEN, or inject _HF_TOKEN)"
-)
+assert _tok, "no HF token (set Kaggle Secret HF_TOKEN, env HF_TOKEN, or inject _HF_TOKEN)"
 login(token=_tok)
 print("HF login: ok")
 

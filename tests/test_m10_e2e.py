@@ -112,9 +112,7 @@ def test_baseline_stub_executes_and_writes_submission_shape(tmp_path):
     """
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location(
-        "petals_stub", FIXTURE_DIR / "baseline_stub.py"
-    )
+    spec = importlib.util.spec_from_file_location("petals_stub", FIXTURE_DIR / "baseline_stub.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)  # exercises the stub top-to-bottom
 
@@ -216,9 +214,7 @@ def test_decision_api_approve_flow_dry_run_in_memory():
             self.decisions[did]["notes"] = notes
 
         def append_job_event(self, job_id, event_type, event_data=None, **_):
-            self.events.append(
-                {"job_id": job_id, "event_type": event_type, "event_data": event_data}
-            )
+            self.events.append({"job_id": job_id, "event_type": event_type, "event_data": event_data})
             return len(self.events)
 
     fake = _FakeDB()
@@ -309,8 +305,7 @@ def test_kca_kaggle_push_refuses_before_cli(tmp_path):
         },
     )
     assert proc.returncode != 0, (
-        f"expected non-zero exit on gated kernel_push; "
-        f"stdout={proc.stdout!r} stderr={proc.stderr!r}"
+        f"expected non-zero exit on gated kernel_push; stdout={proc.stdout!r} stderr={proc.stderr!r}"
     )
     stdout = (proc.stdout or "").strip()
     assert stdout, f"empty stdout; stderr={proc.stderr!r}"
@@ -355,9 +350,7 @@ def test_audit_grep_no_real_push_leaked(tmp_path):
     combined = (proc.stdout or "") + (proc.stderr or "")
     for line in combined.splitlines():
         stripped = line.strip().strip('"').lstrip("$ ").strip()
-        assert not stripped.startswith(_REAL_PUSH_PREFIXES), (
-            f"a real push command leaked to the CLI: {line!r}"
-        )
+        assert not stripped.startswith(_REAL_PUSH_PREFIXES), f"a real push command leaked to the CLI: {line!r}"
     assert "authenticate before you can call the Kaggle API" not in combined, (
         "kaggle CLI was reached — the gate did not refuse first"
     )
@@ -402,9 +395,7 @@ def test_kernel_metadata_schema_is_valid():
     }
     for key, typ in required.items():
         assert key in meta, f"missing kernel-metadata key: {key}"
-        assert isinstance(meta[key], typ), (
-            f"{key} should be {typ.__name__}, got {type(meta[key]).__name__}"
-        )
+        assert isinstance(meta[key], typ), f"{key} should be {typ.__name__}, got {type(meta[key]).__name__}"
 
     assert meta["language"] == "python"
     assert meta["kernel_type"] in {"notebook", "script"}

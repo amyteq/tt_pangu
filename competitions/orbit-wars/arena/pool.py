@@ -10,7 +10,10 @@ process produced config-dependent results), so per-task config is honored. The
 overrides apply process-wide for that game, so the OPPONENT must ignore the swept
 keys (e.g. the v1 snapshot reads no env; the v2 snapshot predates the CAP_* knobs).
 """
-import logging; logging.disable(logging.INFO)
+
+import logging
+
+logging.disable(logging.INFO)
 import os
 from multiprocessing import Pool
 
@@ -88,7 +91,10 @@ def h2h(agent_a, agent_b, seeds, overrides=None, procs=None):
             t += 1
     n = w + l + t
     return dict(
-        w=w, l=l, t=t, n=n,
+        w=w,
+        l=l,
+        t=t,
+        n=n,
         winpct=100.0 * w / n if n else 0.0,
         score_for=sf / n if n else 0.0,
         score_against=sa / n if n else 0.0,
@@ -96,8 +102,10 @@ def h2h(agent_a, agent_b, seeds, overrides=None, procs=None):
 
 
 def fmt(label, r):
-    return (f"{label:26s}: {r['w']:>3}W {r['l']:>3}L {r['t']:>3}T  "
-            f"win%={r['winpct']:5.1f}  avg {r['score_for']:6.0f} vs {r['score_against']:6.0f}  ({r['n']}g)")
+    return (
+        f"{label:26s}: {r['w']:>3}W {r['l']:>3}L {r['t']:>3}T  "
+        f"win%={r['winpct']:5.1f}  avg {r['score_for']:6.0f} vs {r['score_against']:6.0f}  ({r['n']}g)"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -146,7 +154,8 @@ def ffa(hero, field, seeds, overrides=None, procs=None):
         rank_sum += 1 + sum(1 for s in scores if s > hs)  # 1 = best
         score_sum += hs
     return dict(
-        w=wins, n=n,
+        w=wins,
+        n=n,
         winpct=100.0 * wins / n if n else 0.0,
         avg_rank=rank_sum / n if n else 0.0,
         avg_score=score_sum / n if n else 0.0,
@@ -154,5 +163,7 @@ def ffa(hero, field, seeds, overrides=None, procs=None):
 
 
 def fmt4(label, r):
-    return (f"{label:30s}: win%={r['winpct']:5.1f}  avg_rank={r['avg_rank']:.2f}/4  "
-            f"avg_score={r['avg_score']:6.0f}  ({r['n']}g)  [random≈25%, rank 2.5]")
+    return (
+        f"{label:30s}: win%={r['winpct']:5.1f}  avg_rank={r['avg_rank']:.2f}/4  "
+        f"avg_score={r['avg_score']:6.0f}  ({r['n']}g)  [random≈25%, rank 2.5]"
+    )

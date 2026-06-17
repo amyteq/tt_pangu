@@ -262,9 +262,7 @@ def get_tool(name: str) -> ToolSpec | None:
     return TOOL_REGISTRY.get(name)
 
 
-def list_tools(
-    *, side_effect: str | None = None, tag: str | None = None
-) -> list[ToolSpec]:
+def list_tools(*, side_effect: str | None = None, tag: str | None = None) -> list[ToolSpec]:
     items = list(TOOL_REGISTRY.values())
     if side_effect is not None:
         items = [t for t in items if t.side_effect == side_effect]

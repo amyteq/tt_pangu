@@ -34,9 +34,7 @@ def _scan(path):
                 ships[f[1]] += f[6]
         win = -1
         if rewards[0] is not None and rewards[1] is not None:
-            win = (
-                0 if rewards[0] > rewards[1] else (1 if rewards[1] > rewards[0] else -1)
-            )
+            win = 0 if rewards[0] > rewards[1] else (1 if rewards[1] > rewards[0] else -1)
         return [
             os.path.basename(path).split(".")[0],
             agents[0],

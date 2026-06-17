@@ -85,9 +85,7 @@ def cmd_fetch(args: argparse.Namespace) -> int:
     url = args.url
     trust = args.trust or "untrusted"
     if trust not in VALID_TRUSTS:
-        return _emit(
-            {"ok": False, "error": f"invalid trust: {trust}", "side_effect": se.value}
-        )
+        return _emit({"ok": False, "error": f"invalid trust: {trust}", "side_effect": se.value})
 
     # SSRF / scheme check first (independent of approval gate).
     from research_fetch import _check_policy
@@ -207,9 +205,7 @@ def cmd_add(args: argparse.Namespace) -> int:
     se = SideEffect.LOCAL_WRITE
     trust = args.trust or "unknown"
     if trust not in VALID_TRUSTS:
-        return _emit(
-            {"ok": False, "error": f"invalid trust: {trust}", "side_effect": se.value}
-        )
+        return _emit({"ok": False, "error": f"invalid trust: {trust}", "side_effect": se.value})
 
     _db, warn_msg = _db_or_warn()
     payload: dict[str, Any] = {
@@ -266,34 +262,26 @@ def cmd_list(args: argparse.Namespace) -> int:
             }
         )
     except Exception as e:
-        return _emit(
-            {"ok": False, "error": f"{type(e).__name__}: {e}", "side_effect": se.value}
-        )
+        return _emit({"ok": False, "error": f"{type(e).__name__}: {e}", "side_effect": se.value})
 
 
 def cmd_show(args: argparse.Namespace) -> int:
     se = SideEffect.READ_ONLY
     _db, warn_msg = _db_or_warn()
     if _db is None or warn_msg:
-        return _emit(
-            {"ok": False, "error": warn_msg or "no db", "side_effect": se.value}
-        )
+        return _emit({"ok": False, "error": warn_msg or "no db", "side_effect": se.value})
     try:
         item = _db.get_research_item(args.id)
         return _emit({"ok": True, "item": _jsonable(item), "side_effect": se.value})
     except Exception as e:
-        return _emit(
-            {"ok": False, "error": f"{type(e).__name__}: {e}", "side_effect": se.value}
-        )
+        return _emit({"ok": False, "error": f"{type(e).__name__}: {e}", "side_effect": se.value})
 
 
 def cmd_cite(args: argparse.Namespace) -> int:
     se = SideEffect.LOCAL_WRITE
     _db, warn_msg = _db_or_warn()
     if _db is None or warn_msg:
-        return _emit(
-            {"ok": False, "error": warn_msg or "no db", "side_effect": se.value}
-        )
+        return _emit({"ok": False, "error": warn_msg or "no db", "side_effect": se.value})
     try:
         cid = _db.cite_research(
             args.id,
@@ -303,9 +291,7 @@ def cmd_cite(args: argparse.Namespace) -> int:
         )
         return _emit({"ok": True, "citation_id": cid, "side_effect": se.value})
     except Exception as e:
-        return _emit(
-            {"ok": False, "error": f"{type(e).__name__}: {e}", "side_effect": se.value}
-        )
+        return _emit({"ok": False, "error": f"{type(e).__name__}: {e}", "side_effect": se.value})
 
 
 def _jsonable(v):
@@ -388,11 +374,7 @@ def sanitize_untrusted(text: str, *, max_len: int = 280) -> str:
     if not text:
         return ""
     flat = " ".join(str(text).split())
-    flat = "".join(
-        ch
-        for ch in flat
-        if ch == " " or (32 <= ord(ch) < 0x110000 and ch.isprintable())
-    )
+    flat = "".join(ch for ch in flat if ch == " " or (32 <= ord(ch) < 0x110000 and ch.isprintable()))
     if len(flat) > max_len:
         flat = flat[: max_len - 1].rstrip() + "…"
     return flat
@@ -517,9 +499,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     rs = sub.add_parser("research", help="Cited, trust-labeled web research items")
     rs_sub = rs.add_subparsers(dest="research_cmd", required=True)
 
-    p_fetch = rs_sub.add_parser(
-        "fetch", help="Fetch a URL and record a research_items row"
-    )
+    p_fetch = rs_sub.add_parser("fetch", help="Fetch a URL and record a research_items row")
     p_fetch.add_argument("--url", required=True)
     p_fetch.add_argument("--competition", default=None)
     p_fetch.add_argument("--fetcher", choices=("http", "playwright"), default="http")

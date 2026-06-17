@@ -27,9 +27,7 @@ class CommandRegistry:
 
     def register(self, spec: CommandSpec) -> None:
         if spec.side_effect not in SIDE_EFFECT_LEVELS:
-            raise ValueError(
-                f"unknown side_effect {spec.side_effect!r} for command {spec.name!r}"
-            )
+            raise ValueError(f"unknown side_effect {spec.side_effect!r} for command {spec.name!r}")
         self._specs[spec.name] = spec
 
     def get(self, name: str) -> CommandSpec | None:
@@ -68,11 +66,7 @@ def _seed_registry() -> None:
             nb_mod.add_parsers,
         )
     )
-    REGISTRY.register(
-        CommandSpec(
-            "run", "Experiment run lifecycle.", "LOCAL_WRITE", True, run_mod.add_parsers
-        )
-    )
+    REGISTRY.register(CommandSpec("run", "Experiment run lifecycle.", "LOCAL_WRITE", True, run_mod.add_parsers))
     REGISTRY.register(
         CommandSpec(
             "kaggle",
@@ -82,11 +76,7 @@ def _seed_registry() -> None:
             kg_mod.add_parsers,
         )
     )
-    REGISTRY.register(
-        CommandSpec(
-            "eval", "Evaluation harness.", "READ_ONLY", False, eval_mod.add_parsers
-        )
-    )
+    REGISTRY.register(CommandSpec("eval", "Evaluation harness.", "READ_ONLY", False, eval_mod.add_parsers))
     REGISTRY.register(
         CommandSpec(
             "workspace",

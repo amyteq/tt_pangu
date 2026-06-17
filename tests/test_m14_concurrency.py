@@ -110,9 +110,7 @@ def _no_real_kaggle(monkeypatch):
             head = list(argv)[:3]
             for prefix in _REAL_KAGGLE_PREFIXES:
                 if head[: len(prefix)] == prefix:
-                    raise AssertionError(
-                        f"a real Kaggle command leaked past the gate: {head}"
-                    )
+                    raise AssertionError(f"a real Kaggle command leaked past the gate: {head}")
         return real_run(argv, *a, **kw)
 
     monkeypatch.setattr(kg.subprocess, "run", _guard)
@@ -159,9 +157,7 @@ def test_push_creds_precheck_matches_submit_envelope(monkeypatch):
 
     # Force the approval gate ON so we can prove the creds check fires FIRST:
     # if the approval gate ran first, the error would be "ApprovalRequired".
-    monkeypatch.setenv(
-        "KCA_POLICY", json.dumps({"approval_gates": {"kernel_push": True}})
-    )
+    monkeypatch.setenv("KCA_POLICY", json.dumps({"approval_gates": {"kernel_push": True}}))
     monkeypatch.delenv("KCA_ALLOW_REMOTE", raising=False)
 
     # (a) username missing
@@ -276,9 +272,7 @@ def kg_db(pg_url, monkeypatch):
     monkeypatch.setenv("KAGGLE_KEY", "stub-key")
     # Approval gate ON so a passed gate would still be blocked downstream
     # (proves the budget gate fired BEFORE the approval gate when it refuses).
-    monkeypatch.setenv(
-        "KCA_POLICY", json.dumps({"approval_gates": {"kernel_push": True}})
-    )
+    monkeypatch.setenv("KCA_POLICY", json.dumps({"approval_gates": {"kernel_push": True}}))
     monkeypatch.delenv("KCA_ALLOW_REMOTE", raising=False)
     import kg
 
@@ -502,6 +496,5 @@ def test_no_real_kaggle_invocation_in_this_module():
     gate_at = push_body.index("_check_budget_gates(")
     approval_at = push_body.index('_check_approval_gate("kernel_push"')
     assert creds_at < gate_at < approval_at < real_push_at, (
-        "gate ordering regressed: creds → budget → approval must precede the "
-        "real `kaggle kernels push` subprocess"
+        "gate ordering regressed: creds → budget → approval must precede the real `kaggle kernels push` subprocess"
     )

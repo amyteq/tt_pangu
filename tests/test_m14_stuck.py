@@ -163,9 +163,7 @@ def test_redaction_masks_secrets_in_payload():
     # The value-shaped DSN/flag inside the source summary were masked in place.
     assert "[REDACTED]" in payload["sources_consulted"][0]["summary"]
     # Secret-named keys are wholesale-redacted by the recursive filter.
-    scrubbed = stuck.redact_escalation_payload(
-        {"current": {"dsn": SECRET_DSN, "kaggle_key": "AKIAIOSFODNN7EXAMPLE"}}
-    )
+    scrubbed = stuck.redact_escalation_payload({"current": {"dsn": SECRET_DSN, "kaggle_key": "AKIAIOSFODNN7EXAMPLE"}})
     assert scrubbed["current"]["dsn"] == "[REDACTED]"
     assert scrubbed["current"]["kaggle_key"] == "[REDACTED]"
 
@@ -209,9 +207,7 @@ def test_escalation_filename_is_injectable_and_deterministic():
 
 def test_write_escalation_doc_uses_injected_dir_and_ts(tmp_path):
     payload = _payload_with_secrets(ts="20260610T130000Z")
-    path = stuck.write_escalation_doc(
-        payload, ts="20260610T130000Z", escalations_dir=tmp_path
-    )
+    path = stuck.write_escalation_doc(payload, ts="20260610T130000Z", escalations_dir=tmp_path)
     assert path.name == "tpu-getting-started-20260610T130000Z.md"
     text = path.read_text(encoding="utf-8")
     for sentinel in (SECRET_DSN, SECRET_FLAG, SECRET_KEY):
@@ -224,9 +220,7 @@ def test_write_escalation_doc_uses_injected_dir_and_ts(tmp_path):
 
 
 def test_resume_seed_structured_options():
-    seed = stuck.resume_seed_from_notes(
-        "backbone=convnext_tiny image_size=331 epochs=9"
-    )
+    seed = stuck.resume_seed_from_notes("backbone=convnext_tiny image_size=331 epochs=9")
     assert seed["kind"] == "structured"
     assert seed["options"] == {
         "backbone": "convnext_tiny",
@@ -362,9 +356,7 @@ CREATE TABLE human_decisions (
 """
 
 # The #60 variant adds the FK-ready column the audit task will harden.
-_PREREQ_SQL_WITH_60 = _PREREQ_SQL + (
-    "ALTER TABLE human_decisions ADD COLUMN approved_by_user_id uuid;\n"
-)
+_PREREQ_SQL_WITH_60 = _PREREQ_SQL + ("ALTER TABLE human_decisions ADD COLUMN approved_by_user_id uuid;\n")
 
 
 def _boot_pg(prereq_sql):
@@ -446,14 +438,12 @@ def _seed_comp_goal(url, db):
     with psycopg.connect(url, autocommit=True) as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO competitions (project_id, slug, title) "
-                "VALUES (%s::uuid, %s, %s) RETURNING id::text",
+                "INSERT INTO competitions (project_id, slug, title) VALUES (%s::uuid, %s, %s) RETURNING id::text",
                 (db.DEFAULT_PROJECT_ID, slug, "stuck test"),
             )
             comp_id = cur.fetchone()[0]
             cur.execute(
-                "INSERT INTO goals (competition_id, target_lb_score, stuck_threshold) "
-                "VALUES (%s::uuid, 0.85, 3)",
+                "INSERT INTO goals (competition_id, target_lb_score, stuck_threshold) VALUES (%s::uuid, 0.85, 3)",
                 (comp_id,),
             )
     return slug, comp_id
@@ -525,10 +515,7 @@ def test_escalation_id_lands_on_resumed_run_analysis_jsonb(db_env):
     # we exercise the real set/get helpers (the full schema is in 0011).
     with psycopg.connect(url, autocommit=True) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                "CREATE TABLE IF NOT EXISTS experiments "
-                "(id uuid PRIMARY KEY DEFAULT gen_random_uuid())"
-            )
+            cur.execute("CREATE TABLE IF NOT EXISTS experiments (id uuid PRIMARY KEY DEFAULT gen_random_uuid())")
             cur.execute(
                 "CREATE TABLE IF NOT EXISTS experiment_runs ("
                 "id uuid PRIMARY KEY DEFAULT gen_random_uuid(), "
@@ -538,8 +525,7 @@ def test_escalation_id_lands_on_resumed_run_analysis_jsonb(db_env):
             cur.execute("INSERT INTO experiments DEFAULT VALUES RETURNING id::text")
             exp_id = cur.fetchone()[0]
             cur.execute(
-                "INSERT INTO experiment_runs (experiment_id) VALUES (%s::uuid) "
-                "RETURNING id::text",
+                "INSERT INTO experiment_runs (experiment_id) VALUES (%s::uuid) RETURNING id::text",
                 (exp_id,),
             )
             run_id = cur.fetchone()[0]
@@ -573,14 +559,11 @@ def test_insert_stuck_decision_writes_approved_by_user_id_when_present(monkeypat
         slug, comp_id = _seed_comp_goal(url, db)
         user_id = str(uuid.uuid4())
         assert stuck._human_decisions_has_column(db, "approved_by_user_id") is True
-        decision_id = stuck.insert_stuck_decision(
-            db, payload=_payload_with_secrets(), approved_by_user_id=user_id
-        )
+        decision_id = stuck.insert_stuck_decision(db, payload=_payload_with_secrets(), approved_by_user_id=user_id)
         with psycopg.connect(url, autocommit=True) as conn:
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT approved_by_user_id::text FROM human_decisions "
-                    "WHERE id = %s::uuid",
+                    "SELECT approved_by_user_id::text FROM human_decisions WHERE id = %s::uuid",
                     (decision_id,),
                 )
                 got = cur.fetchone()[0]

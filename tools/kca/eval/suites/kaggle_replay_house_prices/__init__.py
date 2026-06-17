@@ -120,9 +120,7 @@ def _run_case() -> dict[str, Any]:
     cv_mean = float(cv_arr.mean())
     cv_std = float(cv_arr.std())
 
-    X_tr, X_ho, y_tr, y_ho = train_test_split(
-        X, y, test_size=_HOLDOUT_FRAC, random_state=_SEED
-    )
+    X_tr, X_ho, y_tr, y_ho = train_test_split(X, y, test_size=_HOLDOUT_FRAC, random_state=_SEED)
     t0 = time.perf_counter()
     pipe.fit(X_tr, y_tr)
     fit_time_ms = int((time.perf_counter() - t0) * 1000)

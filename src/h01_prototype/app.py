@@ -87,8 +87,7 @@ def create_app() -> Any:
             mid = str(uuid.uuid4())
             with conn.cursor() as cur:
                 cur.execute(
-                    "insert into h01_messages (id, thread_id, role, content)"
-                    " values (%s::uuid, %s, %s, %s)",
+                    "insert into h01_messages (id, thread_id, role, content) values (%s::uuid, %s, %s, %s)",
                     (mid, msg.thread_id, msg.role, msg.content),
                 )
             conn.commit()

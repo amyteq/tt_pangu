@@ -38,14 +38,14 @@ BOARD_SIZE = 100.0
 CENTER = BOARD_SIZE / 2.0
 SUN_RADIUS = 10.0
 ROTATION_RADIUS_LIMIT = 50.0
-MAX_SPEED = 6.0          # configuration.shipSpeed default
+MAX_SPEED = 6.0  # configuration.shipSpeed default
 EPISODE_STEPS = 500
 
 # Tunables.
-ENEMY_BUFFER = 2         # extra ships over the exact capture threshold for enemy planets
-PATH_CLEARANCE = 1.0     # extra margin when testing whether a path clips a planet
-DEFENSE_HORIZON = 18     # ticks ahead we consider an inbound enemy fleet a threat
-TIME_DISCOUNT = 0.04     # how strongly to prefer near targets in the value score
+ENEMY_BUFFER = 2  # extra ships over the exact capture threshold for enemy planets
+PATH_CLEARANCE = 1.0  # extra margin when testing whether a path clips a planet
+DEFENSE_HORIZON = 18  # ticks ahead we consider an inbound enemy fleet a threat
+TIME_DISCOUNT = 0.04  # how strongly to prefer near targets in the value score
 
 
 def _hypot(ax, ay, bx, by):
@@ -193,7 +193,7 @@ def _agent(obs):
                 _, t_ticks, _ = sol
                 if tgt.owner == -1:  # neutral: static garrison
                     needed = tgt.ships + 1
-                else:                # enemy: grows by production while in flight
+                else:  # enemy: grows by production while in flight
                     needed = tgt.ships + tgt.production * t_ticks + 1 + ENEMY_BUFFER
                 if needed == ships_guess:
                     break

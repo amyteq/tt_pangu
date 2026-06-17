@@ -26,8 +26,7 @@ app = Flask(__name__)
 FLAG = os.environ.get("FLAG", "").strip()
 if not FLAG:
     print(
-        "FATAL: FLAG env var is empty. Refusing to start — see "
-        "docker-compose.yml for the contract.",
+        "FATAL: FLAG env var is empty. Refusing to start — see docker-compose.yml for the contract.",
         file=sys.stderr,
     )
     sys.exit(2)
@@ -54,8 +53,7 @@ def _decode_cookie(token: str) -> dict | None:
 @app.route("/")
 def root() -> str:
     return (
-        "<h1>Cookie Monster's Stash</h1>"
-        "<p>Welcome. <a href='/login'>Log in</a> first; admins get the good stuff.</p>"
+        "<h1>Cookie Monster's Stash</h1><p>Welcome. <a href='/login'>Log in</a> first; admins get the good stuff.</p>"
     )
 
 

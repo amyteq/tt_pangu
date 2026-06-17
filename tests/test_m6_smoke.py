@@ -132,11 +132,7 @@ def test_probe_unreachable_returns_ok_false():
     r = probe(ep, timeout_s=1.0)
     assert r["ok"] is False
     assert r["error"]
-    assert (
-        "connect" in r["error"].lower()
-        or "refused" in r["error"].lower()
-        or "timed out" in r["error"].lower()
-    )
+    assert "connect" in r["error"].lower() or "refused" in r["error"].lower() or "timed out" in r["error"].lower()
 
 
 # ---------------------------------------------------------------------------
@@ -229,9 +225,7 @@ def test_reviewer_prompt_truncates_long_trace(monkeypatch):
     assert "REVIEW REQUEST" in rendered
     assert "Return STRICT JSON only" in rendered
     # Trail trimmed to last 20 events
-    parsed = json.loads(
-        rendered.split("REVIEW REQUEST:\n", 1)[1].split("\n\nReturn", 1)[0]
-    )
+    parsed = json.loads(rendered.split("REVIEW REQUEST:\n", 1)[1].split("\n\nReturn", 1)[0])
     assert len(parsed["event_trail"]) == 20
 
 

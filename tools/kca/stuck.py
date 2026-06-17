@@ -274,17 +274,9 @@ def render_escalation_md(payload: dict) -> str:
     lines.append("")
     lines.append("| | Goal | Current |")
     lines.append("|---|---|---|")
-    lines.append(
-        f"| LB score | {goal.get('target_lb_score')} | "
-        f"{current.get('best_public_lb_score')} |"
-    )
-    lines.append(
-        f"| LB rank | {goal.get('target_lb_rank')} | {current.get('best_rank')} |"
-    )
-    lines.append(
-        f"| Pushes | {current.get('max_total_pushes')} (budget) | "
-        f"{current.get('pushes_used')} (used) |"
-    )
+    lines.append(f"| LB score | {goal.get('target_lb_score')} | {current.get('best_public_lb_score')} |")
+    lines.append(f"| LB rank | {goal.get('target_lb_rank')} | {current.get('best_rank')} |")
+    lines.append(f"| Pushes | {current.get('max_total_pushes')} (budget) | {current.get('pushes_used')} (used) |")
     lines.append(f"| Exit strategy | {goal.get('exit_strategy')} | — |")
     lines.append("")
 
@@ -294,9 +286,7 @@ def render_escalation_md(payload: dict) -> str:
     lines.append("|---|---|---|")
     for s in payload.get("tried_strategies") or []:
         axes = json.dumps(s.get("axes") or {}, sort_keys=True)
-        lines.append(
-            f"| `{axes}` | {s.get('holdout_accuracy')} | {s.get('public_lb_score')} |"
-        )
+        lines.append(f"| `{axes}` | {s.get('holdout_accuracy')} | {s.get('public_lb_score')} |")
     if not (payload.get("tried_strategies") or []):
         lines.append("| _none recorded_ | — | — |")
     lines.append("")
@@ -306,9 +296,7 @@ def render_escalation_md(payload: dict) -> str:
     srcs = payload.get("sources_consulted") or []
     if srcs:
         for s in srcs:
-            lines.append(
-                f"- [{s.get('trust_label')}] {s.get('source_url')} — {s.get('summary')}"
-            )
+            lines.append(f"- [{s.get('trust_label')}] {s.get('source_url')} — {s.get('summary')}")
     else:
         lines.append("- _none recorded_")
     lines.append("")
@@ -349,9 +337,7 @@ def _escalations_dir() -> Path:
     return Path(__file__).resolve().parent.parent.parent / "docs" / "escalations"
 
 
-def write_escalation_doc(
-    payload: dict, *, ts: str, escalations_dir: Path | None = None
-) -> Path:
+def write_escalation_doc(payload: dict, *, ts: str, escalations_dir: Path | None = None) -> Path:
     """Write ``docs/escalations/<comp>-<ts>.md`` from a redacted payload.
 
     Returns the written path. ``ts`` is injected so the filename is
@@ -428,16 +414,13 @@ def insert_stuck_decision(
         options=safe_payload,
         job_id=job_id,
     )
-    if approved_by_user_id is not None and _human_decisions_has_column(
-        _db, "approved_by_user_id"
-    ):
+    if approved_by_user_id is not None and _human_decisions_has_column(_db, "approved_by_user_id"):
         try:
             conn = _db.get_conn()
             try:
                 with conn.cursor() as cur:
                     cur.execute(
-                        "UPDATE human_decisions SET approved_by_user_id = %s::uuid "
-                        "WHERE id = %s::uuid",
+                        "UPDATE human_decisions SET approved_by_user_id = %s::uuid WHERE id = %s::uuid",
                         (approved_by_user_id, decision_id),
                     )
                 conn.commit()

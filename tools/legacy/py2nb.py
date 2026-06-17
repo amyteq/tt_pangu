@@ -22,9 +22,7 @@ EXIT_INPUT = 2
 EXIT_FORMAT = 3
 
 
-def _emit(
-    args: argparse.Namespace, ok: bool, payload: dict[str, Any], exit_code: int
-) -> int:
+def _emit(args: argparse.Namespace, ok: bool, payload: dict[str, Any], exit_code: int) -> int:
     if args.json:
         print(json.dumps({"ok": ok, **payload}, ensure_ascii=False))
     elif ok:
@@ -42,10 +40,7 @@ def build_notebook(src: Path, *, keep_markdown: bool) -> tuple[Any, dict[str, An
     cells = parse_percent_script(text)
     nb = nbformat.v4.new_notebook()
     nb.cells = [
-        nbformat.from_dict(cell)
-        for cell in percent_cells_to_notebook_cells(
-            cells, delete_markdown=not keep_markdown
-        )
+        nbformat.from_dict(cell) for cell in percent_cells_to_notebook_cells(cells, delete_markdown=not keep_markdown)
     ]
     nb.metadata.setdefault("language_info", {"name": "python"})
     nb.metadata.setdefault(
@@ -78,9 +73,7 @@ def main(argv: list[str] | None = None) -> int:
         description="Convert a percent-v1 Python script into a Jupyter notebook.",
     )
     parser.add_argument("src", help="source python file")
-    parser.add_argument(
-        "dst", nargs="?", help="destination notebook path; default: <src>.ipynb"
-    )
+    parser.add_argument("dst", nargs="?", help="destination notebook path; default: <src>.ipynb")
     parser.add_argument(
         "--keep-markdown",
         type=_parse_bool_arg,
@@ -93,9 +86,7 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="do not write, only report whether output would change",
     )
-    parser.add_argument(
-        "--json", action="store_true", help="print machine-readable JSON to stdout"
-    )
+    parser.add_argument("--json", action="store_true", help="print machine-readable JSON to stdout")
     args = parser.parse_args(argv)
 
     try:
@@ -110,11 +101,7 @@ def main(argv: list[str] | None = None) -> int:
                 },
                 EXIT_INPUT,
             )
-        dst = (
-            Path(args.dst).expanduser().resolve()
-            if args.dst
-            else src.with_suffix(".ipynb")
-        )
+        dst = Path(args.dst).expanduser().resolve() if args.dst else src.with_suffix(".ipynb")
         nb, summary = build_notebook(src, keep_markdown=bool(args.keep_markdown))
         changed = True
         if dst.exists():
@@ -137,13 +124,9 @@ def main(argv: list[str] | None = None) -> int:
         }
         return _emit(args, True, result, EXIT_OK)
     except (PercentFormatError, MagicFormatError) as exc:
-        return _emit(
-            args, False, {"error": "format_error", "message": str(exc)}, EXIT_FORMAT
-        )
+        return _emit(args, False, {"error": "format_error", "message": str(exc)}, EXIT_FORMAT)
     except Exception as exc:
-        return _emit(
-            args, False, {"error": "runtime_error", "message": str(exc)}, EXIT_RUNTIME
-        )
+        return _emit(args, False, {"error": "runtime_error", "message": str(exc)}, EXIT_RUNTIME)
 
 
 if __name__ == "__main__":

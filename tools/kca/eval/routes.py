@@ -188,9 +188,7 @@ def resolve(
     before each case.
     """
     if route not in ROUTE_TABLE:
-        raise UnknownRouteError(
-            f"unknown route {route!r}; expected one of {ROUTE_KEYS}"
-        )
+        raise UnknownRouteError(f"unknown route {route!r}; expected one of {ROUTE_KEYS}")
     if env is None:
         env = dict(os.environ)
     if allow_remote is None:
@@ -214,9 +212,7 @@ def resolve(
     if meta["requires_remote"] and meta["api_key_env"]:
         key_name = meta["api_key_env"]
         if not env.get(key_name):
-            return RouteSpec(
-                ok=False, error=f"MISSING_API_KEY:{key_name}", **spec_kwargs
-            )
+            return RouteSpec(ok=False, error=f"MISSING_API_KEY:{key_name}", **spec_kwargs)
 
     return RouteSpec(ok=True, error=None, **spec_kwargs)
 

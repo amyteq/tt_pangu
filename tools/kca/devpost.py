@@ -258,9 +258,7 @@ def _fetch_html(
     policy_err = _check_policy(url)
     if policy_err is not None:
         warnings = policy_err.get("policy_warnings", [])
-        raise RuntimeError(
-            f"policy_blocked: {', '.join(warnings) or 'unknown'} (url={url})"
-        )
+        raise RuntimeError(f"policy_blocked: {', '.join(warnings) or 'unknown'} (url={url})")
 
     if playwright:
         return _fetch_html_playwright(url, timeout_s=timeout_s)
@@ -369,9 +367,7 @@ def register_competition(
         COMPETITION_TYPE_DEVPOST,
         COMPETITION_TYPE_HACKATHON_DEVPOST,
     }:
-        raise ValueError(
-            f"competition_type must be 'devpost' or 'hackathon_devpost', got {competition_type!r}"
-        )
+        raise ValueError(f"competition_type must be 'devpost' or 'hackathon_devpost', got {competition_type!r}")
     meta = fetch_metadata(slug, playwright=playwright)
     title = name or meta.get("title") or slug
     deadline = meta.get("deadline_utc")
@@ -450,8 +446,7 @@ def _have_devpost_creds() -> bool:
     import os as _os
 
     return bool(
-        (_os.environ.get(DEVPOST_USERNAME_ENV) or "").strip()
-        and (_os.environ.get(DEVPOST_TOKEN_ENV) or "").strip()
+        (_os.environ.get(DEVPOST_USERNAME_ENV) or "").strip() and (_os.environ.get(DEVPOST_TOKEN_ENV) or "").strip()
     )
 
 
@@ -467,9 +462,7 @@ def _load_submission_pack(slug: str, run_id: str) -> dict[str, Any]:
 
     pack = (Path("runs") / slug / run_id / "submission_pack").resolve()
     if not pack.is_dir():
-        raise FileNotFoundError(
-            f"submission_pack not found at {pack}; run M12-T006 first"
-        )
+        raise FileNotFoundError(f"submission_pack not found at {pack}; run M12-T006 first")
     readme = pack / "README.md"
     demo_plan = pack / "demo-plan.md"
     checklist = pack / "submission-checklist.json"
@@ -589,15 +582,9 @@ def cmd_submit(
         "Authorization": f"Bearer {_os.environ[DEVPOST_TOKEN_ENV]}",
     }
     try:
-        resp = requests.post(
-            endpoint, data=form, headers=headers, timeout=DEFAULT_TIMEOUT_S
-        )
+        resp = requests.post(endpoint, data=form, headers=headers, timeout=DEFAULT_TIMEOUT_S)
         resp.raise_for_status()
-        body = (
-            resp.json()
-            if "application/json" in resp.headers.get("Content-Type", "")
-            else {}
-        )
+        body = resp.json() if "application/json" in resp.headers.get("Content-Type", "") else {}
     except Exception as exc:
         return {
             "ok": False,
@@ -608,9 +595,7 @@ def cmd_submit(
             "side_effect": SideEffect.SUBMISSION.value,
         }
 
-    external_id = str(
-        body.get("id") or body.get("external_submission_id") or ""
-    ).strip()
+    external_id = str(body.get("id") or body.get("external_submission_id") or "").strip()
     submission_url = str(body.get("submission_url") or body.get("url") or "").strip()
     return {
         "ok": bool(external_id and submission_url),

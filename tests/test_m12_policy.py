@@ -108,9 +108,7 @@ def skill() -> SkillMeta:
 # ---------------------------------------------------------------------------
 
 
-def test_kaggle_row_routes_to_competition_runner(
-    perms_root: Path, skill: SkillMeta
-) -> None:
+def test_kaggle_row_routes_to_competition_runner(perms_root: Path, skill: SkillMeta) -> None:
     """competition_type='kaggle' -> competition-runner profile.
 
     competition-runner allows kaggle_submit only in finalization mode;
@@ -134,9 +132,7 @@ def test_kaggle_row_routes_to_competition_runner(
     assert decision_final == "allow"
 
 
-def test_devpost_row_routes_to_hackathon_runner(
-    perms_root: Path, skill: SkillMeta
-) -> None:
+def test_devpost_row_routes_to_hackathon_runner(perms_root: Path, skill: SkillMeta) -> None:
     """competition_type='devpost' -> hackathon-runner profile.
 
     hackathon-runner declares devpost_submit -> ask + allowed_in_modes,
@@ -162,21 +158,14 @@ def test_devpost_row_routes_to_hackathon_runner(
     assert decision_final == "allow"
 
 
-def test_unknown_competition_type_falls_back_to_default(
-    perms_root: Path, skill: SkillMeta
-) -> None:
+def test_unknown_competition_type_falls_back_to_default(perms_root: Path, skill: SkillMeta) -> None:
     """Unknown competition_type -> resolver uses skill's default profile.
 
     'wildcard-platform' is not in COMPETITION_TYPE_PROFILES. The resolver
     must return what the default profile says for kaggle_submit ('ask'),
     not raise.
     """
-    assert (
-        _resolve_profile_for_competition_type(
-            "wildcard-platform", permissions_root=perms_root
-        )
-        is None
-    )
+    assert _resolve_profile_for_competition_type("wildcard-platform", permissions_root=perms_root) is None
     decision = resolve_for_skill(
         skill,
         "kaggle_submit",
@@ -187,9 +176,7 @@ def test_unknown_competition_type_falls_back_to_default(
     assert decision == "ask"
 
 
-def test_missing_type_profile_falls_back_to_default(
-    tmp_path: Path, skill: SkillMeta
-) -> None:
+def test_missing_type_profile_falls_back_to_default(tmp_path: Path, skill: SkillMeta) -> None:
     """Type-specific profile is registered but file missing -> fallback.
 
     Guarantees M12-T002 ships green even though hackathon-runner.yaml
@@ -208,9 +195,7 @@ def test_missing_type_profile_falls_back_to_default(
     # Sanity: hackathon-runner is registered in the map...
     assert COMPETITION_TYPE_PROFILES.get("devpost") == "hackathon-runner"
     # ...but the file doesn't exist in this perms root.
-    assert (
-        _resolve_profile_for_competition_type("devpost", permissions_root=root) is None
-    )
+    assert _resolve_profile_for_competition_type("devpost", permissions_root=root) is None
     decision = resolve_for_skill(
         skill,
         "devpost_submit",
