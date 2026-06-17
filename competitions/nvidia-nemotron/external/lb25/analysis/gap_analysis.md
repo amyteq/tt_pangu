@@ -1,49 +1,47 @@
-# LB25 gap analysis — huikang's ~0.872 vs our 0.86
+# LB25 gap analysis — huikang's 0.872 vs our 0.86 (updated from the writeup PDF)
 
-> What LB25 (Tong Hui Kang's Progress-Prize + improvements, ~0.872 public) did that our best own-work
-> (0.86 soup / 0.85 private; eq-aug 0.86 private post-deadline) did not — and what is worth borrowing.
-> External claims are untrusted (see `../source_index.md`); our numbers are from `tracking.md`/`submissions.md`.
+> Updated 2026-06-17 from the actual writeup (`temp/LB25.pdf`). The earlier version over-indexed on a
+> "short-response format fix" that was a `kuangyicheng` conflation — **corrected here** to huikang's four real
+> changes. External claims untrusted; our numbers from `tracking.md`/`submissions.md`.
 
-## Side-by-side
+## The four real LB25 changes vs us
 
-| dimension | LB25 (huikang) | us | gap / verdict |
-|---|---|---|---|
-| base / adapter | Nemotron-3-Nano-30B, LoRA r32 (MLP+attn+lm_head) | same, r32 (MoE-tied + lm_head + Mamba in/out_proj) | parity |
-| paradigm | **pure SFT**, deterministic-solver CoT | pure SFT (replay recipe) + SVD model-soup | parity on SFT; **soup is ours, not theirs** |
-| reasoning traces | **deterministic algorithm traces** (solver emits the steps; model executes verbatim) | replay corpus (huikang corpus) + some verified-solver-CoT (c1/c2) + synth (b1/b2/v15) | **GAP: we never made the solver *itself* the CoT author across all categories** |
-| underfit handling | **min-logprob selective replay** (replay only still-underfit/hard sequences) | fixed replay-math dose; no adaptive per-row replay | **GAP: adaptive replay is untried and cheap** |
-| batching | **category-stratified** mini-batches | not explicitly stratified | minor gap |
-| output format | **short responses** (LB25 fix) to dodge `max_new_tokens`→blank-`\boxed{}` | long CoT at seq8192; we hit 0.85/0.86 so likely OK, but unverified | **GAP to verify: is any of our score lost to truncated CoT?** |
-| warmstart | fine-tune **from the v27 adapter**, not base | each run from base | technique difference (cheap) |
-| equation/cryptarithm | `cryptarithm_deduce` ~8.95% train **even with backtracking solver** | `equation` strong-cipher, eq-aug 0.86 via coverage-memorisation | **agreement: a hard wall; do not over-invest** |
-| score | ~0.872 public | 0.86 public / 0.85 priv (eq-aug 0.86 priv) | **−0.012 gap, and it is NOT equation-driven** |
+| # | LB25 change | what it is | our status | gap / borrow |
+|---|---|---|---|---|
+| 1 | **Fix the adapter *evaluation*** | local validation used a *wrong prompt* → answers looked un-boxed in validation though boxed on submission; he aligned the eval prompt to submission | **WE HIT THE SAME CLASS OF BUG**: B4 (`EVAL_MAX_NEW 512` truncated CoT → 0/8) and T12 hard-val mispredicting eq-spec (0.167 hard-val vs 0.85 LB) | **HIGH-EV, ~free: audit that our local eval prompt == the submission prompt, exactly** |
+| 2 | **Halve `equation_numeric`** | joint reversal symmetry — "inputs **and** outputs both reversed, or both not" → half the cases redundant | we didn't model `equation_numeric` separately (our equation slice was the base-36 cipher) | LOW direct EV (different sub-type); a data-efficiency idea |
+| 3 | **Synthetic data → 100% on `cipher`/`unit`/`gravity`/`numeral`** | lock the easy/structured categories at ceiling | our easy cats are already strong (T12 numeral/gravity/unit 8/8, cipher 15–16/16 on v14/soup) | LOW-MEDIUM EV (we're near ceiling there); confirms "don't regress the easy cats" |
+| 4 | **Reorganize bit-manipulation CoT** | better bit reasoning trace | our bit is strong (v14 14/16, soup 13/16 hard-val) but bit *train* ceiling ~86% | **MEDIUM EV: bit CoT quality is the shared headroom (also LB92's lever)** |
+| — | **cryptarithm: NO progress** | "one mult, one sub, one add (each ±1)"; CoT devolves to repeating guesses | our EQ-2′: strong cipher, simple algebra eliminated; eq-aug 0.86 via coverage | **agreement: bounded wall; + a new composite-op lead (below)** |
 
-## Where the ~0.012 likely comes from (and where it does NOT)
-- **NOT equation.** Both sides confirm the cryptarithm/equation cipher ceilings at ~8–9% and contributes
-  little. Our eq-aug coverage lever and their backtracking solver hit the same wall. Equation is *bounded*.
-- **Most likely: bit_manipulation + format reliability.** huikang's bit is 86.3% on *train* with a
-  brute-force-solver CoT; the LB25 jump is credited to the **short-response format fix** (good reasoning that
-  actually reaches a parseable answer) + min-logprob replay of the hardest bit rows. Our bit hard-val is
-  strong (v14 14/16, soup 13/16), so our marginal headroom is the **format/length reliability** and the
-  **adaptive replay of the residual hard bit/cipher rows**, not equation.
+## The biggest takeaways (corrected)
+1. **The #1 LB25 lever was a LOCAL-EVALUATION BUG, not a model change.** His validation under-counted because the
+   eval prompt differed from the submission prompt. **We have the identical failure mode twice** (B4 truncation;
+   T12 hard-val mispredicting eq-spec). → The cheapest, highest-EV action for us is an **eval/submission parity
+   audit**: assert our local validation uses byte-identical prompt + decode settings as the grader. "Free"
+   accuracy that the metric was silently hiding.
+2. **Selection variance is real at the top.** 0.872 was only **4 of 15** submissions (0.868 ×8, 0.864 ×3); he
+   notes he "could have won solo gold if I selected the correct submission." This re-confirms our INS-005/INS-007
+   (best + a *diverse* hedge; avoid near-duplicates — our surgery ×1.15 aged −0.02). Selection discipline ≈ a
+   recipe lever at the top of the board.
+3. **Equation/cryptarithm is a bounded wall for everyone** — the Progress-Prize winner explicitly failed on it,
+   matching our EQ-2′ verdict. Do not over-invest.
 
-## Borrowable (ranked by EV, all SFT — no GPU-quota gamble beyond one run)
-1. **Min-logprob selective replay** (HIGH EV, cheap). Score each training trace's min per-token log-prob after
-   epoch 1; replay only the rows that stayed far from 0 (hardest bit/cipher). Adds signal exactly where SFT
-   plateaus, without the dilution that uniform high-dose caused us (b2/v15/c2 regressions).
-2. **Verify + fix output-length/format** (HIGH EV, ~free). Audit our submission's CoT length vs the 7,680
-   `max_new_tokens` cap on the hardest rows; if any answers are getting truncated before `\boxed{}`, adopt a
-   short-/bounded-response alignment pass (huikang's LB25 lever). This is "free accuracy" the metric rewards.
-3. **Deterministic-solver CoT for bit** (MEDIUM EV). Expand our solver to emit huikang-style column-match
-   diagnostic traces for bit; train the model to execute them. (Our `lib/nemo_solver.py` covered cipher/bit
-   only partially; bit is the category with the most train-set headroom at 86.3%.)
-4. **Category-stratified batching** (LOW-MEDIUM EV, ~free): even category coverage per step.
-5. **Warmstart from our 0.86 soup** for any alignment fine-tune (cheap; preserves the banked recipe).
+## New, actionable EQ-2′ lead (from the cryptarithm note)
+huikang: "many problems there is **one multiplication, one subtraction and one addition (each possibly ±1)**."
+Our EQ-2′ eliminated *single* ops (`in mod M`, `floor(in/D)`, `A±B`, `A÷B`, `A·B`, `K·in mod M`) and one
+positional split — but **never a 3-term composition `≈ A·B − C + D` with ±1 slack** under the secret σ. This is
+a concrete, untested hypothesis class for a future crack round (a constraint/SAT solve over σ + the composite
+form). ⚠ huikang **also failed** to crack it and our prompts are a single 5-char string (operand split unclear),
+so it is a lead, not a likely win.
 
-## NOT worth borrowing / already have
-- Their single-adapter approach — **we already beat it with the model soup** (INS-004). Keep souping.
-- Heavy investment in cryptarithm/equation — **confirmed ~8–9% wall both ways**; eq-aug 0.86 is our ceiling there.
+## Borrowable (ranked, all SFT / ~free)
+1. **Eval/submission parity audit** (HIGH EV, ~free) — change #1; our recurring bug class.
+2. **Bit-manipulation CoT reorganization** (MEDIUM EV) — change #4; shared with LB92; bit is our train-set headroom.
+3. **Selection discipline** (free) — lock best + a diverse hedge; never two near-duplicates.
+4. **(crack) test the composite `A·B−C+D ±1` hypothesis** for equation (low odds; one bounded constraint-solve).
+5. **min-logprob selective replay** (still valid from the base pipeline / data explorer) — target under-fit rows.
 
-## Open unknowns (see source_index)
-- Whether the 0.872 recipe is tonghuikang's or `kuangyicheng`'s short-response variant (same thread).
-- Exact min-logprob replay schedule and the short-response template — `unknown` (writeup body JS-blocked).
+## NOT worth borrowing / we're ahead
+- **Model soup** (our 0.86; INS-004) — huikang ships a single adapter; keep souping.
+- Heavy cryptarithm/equation effort — confirmed bounded ~8–9% both ways.

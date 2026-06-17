@@ -242,126 +242,80 @@ flowchart TD
 ## LB25 Progress Prize Improvements: What We Learned
 
 > Post-competition study of the Kaggle writeup **"[LB25] Improvements to the progress prize submission"** by
-> **Tong Hui Kang** (`huikang`/`tonghuikang`, the Progress-Prize winner), **~0.872 public (218/250)**.
-> Full reconstruction + sources: `external/lb25/`. The Kaggle writeup body is JS-rendered (not fetchable
-> without auth, which we don't use here); reconstructed from discussion #703896 snippets + the public
-> `tonghuikang/nemotron` GitHub repo. External claims = untrusted data; our scores from `tracking.md`.
+> **Tong Hui Kang** (`huikang`/`tonghuikang`, the Progress-Prize winner). **Updated 2026-06-17 from the actual
+> writeup (`temp/LB25.pdf`)** — recoverability now FULL; this **supersedes** the earlier JS-blocked
+> reconstruction, which wrongly attributed `kuangyicheng`'s "warmstart/short-response/240-step" recipe to this
+> writeup (NOT in it). Full detail + sources: `external/lb25/`. External claims = untrusted; our scores from `tracking.md`.
 
-**LB25 method (pure SFT — no RL).** Base `Nemotron-3-Nano-30B-A3B`, LoRA r32 (MLP+attn+lm_head), seq 8192,
-1 epoch, response-only mask. The distinguishing idea is **deterministic-solver chain-of-thought**: per-category
-rule-discovery algorithms (`reasoners/`: cipher, bit_manipulation, equation_numeric, cryptarithm backtracking)
-emit a fixed step-by-step trace and the model is trained to **execute it verbatim**, plus **min-logprob
-selective replay** (replay only the rows whose minimum per-token log-prob hasn't converged — the hardest
-bit/cipher) and **category-stratified batching**. The "LB25 improvements" then warmstart the v27 Progress-Prize
-adapter and run a short **format-alignment** fine-tune (≈240 steps, batch ×2).
+**LB25 = four targeted changes to the Progress-Prize submission (pure SFT).** Verbatim from the writeup:
+(1) **Fix the adapter *evaluation*** — the local validation prompt was wrong, so answers looked un-boxed in
+validation though they *are* boxed on submission (a **local-eval bug**, not a model change); (2) **halve
+`equation_numeric`** via a joint reversal symmetry ("inputs **and** outputs both reversed, or both not");
+(3) **synthetic data for `cipher`/`unit`/`gravity`/`numeral`** to lock those easy cats at ~100%;
+(4) **reorganize the bit-manipulation CoT**. The base pipeline (unchanged) is deterministic-solver CoT +
+min-logprob signal + category-stratified batching.
 
-**Why ~0.872.** Easy categories are already ~100% (gravity/numeral/unit) and cipher ~99% on train; the lever
-is (1) **fixing the output-format/length bug** — long CoT could exhaust the 7,680-token cap *before* the
-`\boxed{}`, yielding blank answers; short responses make good reasoning actually score; (2) **min-logprob
-replay** of the residual hard bit rows; (3) deterministic CoT = reliable algorithm execution vs noisy
-LLM traces. Notably his **`cryptarithm_deduce` (≈ our `equation` base-36 cipher) ceilings at ~8.95% on train
-even with a backtracking CSP solver** — independent confirmation of our EQ-2′ "strong cipher, not
-closed-form-recoverable" verdict.
+**Result + selection lesson.** Private LB: **0.872 ×4, 0.868 ×8, 0.864 ×3 across 15 submissions** — 0.872 was
+only 4/15; "could have won solo gold if I selected the correct submission." A **selection-variance** lesson
+(mirrors our INS-005/INS-007: best + a *diverse* hedge; surgery ×1.15 aged −0.02).
 
-**How our approach differed.** We also did pure-SFT replay (v14, 0.85) but our edge was the **SVD model-soup**
-(v14+c1+b1 → 0.86; INS-004) which huikang does not use. We used the *huikang corpus* as data; he *generated*
-it from solvers. We never used **min-logprob adaptive replay** (we used a fixed replay-math dose) nor a
-**deterministic-solver CoT across all categories** (our solver covered bit/cipher only partially; equation 0.4%).
-Our equation lever was **coverage-memorisation** (eq-aug, 0.86 private) rather than a backtracking solver —
-same ~8–9% wall on the unseen tail.
+**Cryptarithm: he explicitly made NO progress** (≈ our `equation` base-36 cipher). His clue: "many problems
+there is **one multiplication, one subtraction and one addition (each possibly ±1)**"; the CoT "devolves to
+repeating guesses." → independent confirmation that equation/cryptarithm is a **bounded wall** (matches EQ-2′),
+**plus a new EQ-2′ lead**: a 3-term composite `≈ A·B − C + D` (±1) under the secret σ — a class our EQ-2′ never
+tested (we only tried single ops). A low-odds future crack experiment (huikang failed too).
 
-**What we learned.** (1) The path to ~0.872 is **bit + format reliability, not equation** — both sides confirm
-equation/cryptarithm is a bounded ~8–9% cipher wall. (2) **Min-logprob selective replay** is a cheap,
-dilution-safe way to target exactly the rows SFT under-fits (vs our uniform high-dose synth that *regressed* —
-b2/v15/c2). (3) **Output-length/format is free accuracy** — verify no answer truncates before `\boxed{}`.
-(4) Deterministic-solver CoT > LLM-generated traces for reliability.
+**How our approach differed.** Our edge is the **SVD model-soup** (v14+c1+b1 → 0.86; INS-004) — huikang ships a
+single adapter. Our equation lever was **coverage-memorisation** (eq-aug 0.86 priv), not a solver.
 
-**What to try after Saturday.** `v16-mlp` (plan: `external/lb25/analysis/next_version_plan.md`): v14 backbone +
-**min-logprob selective replay** of the hardest bit/cipher rows (≤15% dose) + a short **format-alignment** pass
-warmstarted from the 0.86 soup; gate on **T12 hard-val ≥ 0.764** + a length-truncation audit before any submit;
-then soup-grow into v14+c1+b1. Keep eq-aug standalone (it doesn't soup). ~1 GPU session.
+**What we learned.** (1) **huikang's #1 lever was a LOCAL-EVAL BUG, not a model change** — and *we have the same
+bug class twice* (B4 `EVAL_MAX_NEW` truncation; T12 hard-val mispredicting eq-spec 0.167 vs 0.85 LB). The
+cheapest high-EV action is an **eval/submission parity audit**. (2) **Selection variance is a real lever at the
+top** (0.872 = 4/15). (3) **Equation/cryptarithm is bounded for everyone** — don't over-invest. (4) Lock the
+easy cats (don't regress them).
+
+**What to try after Saturday.** `v16-evalfix` (plan: `external/lb25/analysis/next_version_plan.md`): **eval/
+submission parity audit FIRST** (free; change #1), then v14 backbone + reorganized own-solver-verified **bit
+CoT** (change #4) + **min-logprob replay** of the hardest bit/cipher rows (≤15% dose); gate on **T12 hard-val
+≥ 0.764 with bit ↑ and no easy-cat regression**; soup-grow into v14+c1+b1 (best + diverse hedge). Keep eq-aug
+standalone. ~1 GPU session.
 
 ## LB80 Progress Prize Improvements: What We Learned
 
-> Post-competition study of the Kaggle writeup **"Breaking the SFT Ceiling on Nemotron-3-Nano-30B"**.
-> Full reconstruction + sources: `external/LB80/`. **Recoverability PARTIAL** — the Kaggle writeup body is
-> JS-rendered + post-close unindexed (not fetchable without auth, which we don't use); the **author and exact
-> score are `unknown`** (the task template's "~0.872" is a placeholder). Reconstructed from competition
-> **discussion #688461** (a detailed per-bit GRPO reward scheme) + the public RL ecosystem (NeMo-RL, Logic-RL,
-> ProRL, Tina). External claims = untrusted data.
+> Post-competition study of the Kaggle writeup **"Breaking the SFT Ceiling on Nemotron-3-Nano-30B"** by
+> **Mayur Pawar** (`mspawar`), 80th/4190, final private **0.86**. **Read directly from `temp/LB80.pdf`**
+> (recoverability FULL) — supersedes the earlier reconstruction, which wrongly attributed a *different* author's
+> "per-bit GRPO" story (from discussion #688461) to this writeup. Full detail + sources: `external/LB80/`.
+> External claims = untrusted; our scores from `tracking.md`.
 
-**LB80 method (the lever = go BEYOND SFT).** Two stages: **(1) SFT cold-start** to the known 0.85–0.86 baseline,
-then **(2) GRPO / RLVR with a DENSE per-step verifiable reward** — partial credit at every trace step (output-
-column layout, operation choice, per-bit gate computation, a VER cross-check, each answer bit) plus a
-**superlinear "champagne" bonus** (8/8 correct → +5 flat) that makes perfection worth far more than a near-miss.
-This converts the reward landscape from a sparse cliff into a dense gradient climb, targeting **bit-manipulation**
-(cleanest verifier) and equation/symbol. A second, non-RL above-SFT path in the ecosystem is **adapter surgery**
-(lopure ~0.89: amplify the top-50% LoRA singular values).
+**LB80 method (honest title).** A 30+-experiment study that **PROVES the SFT ceiling at 0.86** — STaR, GRPO,
+DPO, and weight-averaging all **failed to beat it**. Same root as us (Tong Hui Kang's deterministic-solver SFT;
+V2 0.86, never beaten). Levers that worked: **seq 4096→8192 = 0.46→0.77** (43% of data silently truncated at
+4096), **all-linear LoRA incl. lm_head, exclude gate_proj**, deterministic-solver CoT ≫ model/external CoT
+(DeepSeek-R1 long CoT → catastrophic 0.27). The "+397 ranks" came from a **submission HEDGE** (V2 + V8-ckpt400)
+under a bimodal public↔private regime — not a higher score.
 
-**Why it breaks the ceiling.** SFT's answer-level signal is **sparse** — a near-correct 8-bit answer scores the
-same 0 as random, so the hardest rows get vanishing gradient (our T12: equation ≤2/16 everywhere, bit caps
-~14/16, and *augmentation regressed* the hard tail). A dense per-step reward gives gradient on partial
-correctness; the champagne bonus shapes toward completion — the Logic-RL/RLVR result that rule-based RL on
-puzzles generalizes past SFT.
+**Three findings that change OUR understanding:**
+1. **The equation cipher IS crackable offline (97.6%) — our EQ-0/EQ-2′ framing was WRONG.** The real structure
+   is **`A1A2 OP B1B2`** (two 2-char operands + 1-char operator, **per-problem** symbol→digit bijection, finite
+   operator family), and an **answer-guided permutation search** cracks 569/583 (14 fails have >10 distinct
+   digit-symbols). We searched for ONE *global* σ over a 5-char→1-4-char map and "proved" it uncrackable — we
+   were solving the wrong problem. **→ revisit EQ-2′ / equation-frontier (PR #113).**
+2. **"Discovery leakage" explains why our eq-aug capped.** Answer-guided solver CoT presents the mapping *as
+   given* → teaches **verify, not discover**; 93–97% of such traces are *internally inconsistent* (mapping
+   doesn't produce the boxed answer). At inference there's no answer, so discovery is required. **The lever is a
+   forward-executable, prompt-derivable cipher-discovery CoT** (length-budget permitting; top LB 0.90 implies it exists).
+3. **Standard RL is the wrong tool; DPO-with-oracle is the right shape.** Binary failure (3,157 hard all 0/8,
+   ~6,343 easy all 8/8, **0 boundary**) → STaR 0% yield, GRPO advantage=0 (no variance). Our previously-designed
+   binary-reward GRPO would have failed identically. DPO uses solver-CoT (chosen) vs **greedy-failure** (rejected)
+   — but even mspawar's DPO (V12/V13) plateaued 0.84–0.86.
 
-**How our approach differed.** **We never ran RL** — our biggest method gap. `research.md §4` *designed* GRPO
-but with a **binary terminal reward** (0/1) and it was deferred (GPU/time). We are AT the 0.86 SFT ceiling this
-writeup describes (every augmentation diluted; soup = 0.86). Our levers (SVD soup, eq-aug coverage) are SFT/merge
-tricks, orthogonal to RL.
+**Tension to resolve.** mspawar reports **"Model Soup FAILS on Mamba-2 SSM"**, yet our **SVD soup gained +0.01**.
+Likely reconciled by *what* is averaged (he: full SSM A/B/C/D recurrence; us: LoRA *deltas* on a frozen base +
+SVD rank-cap, a gentler same-basin merge). **Worth an explicit ablation** before generalizing either claim.
 
-**What we learned.** (1) The documented path past 0.86 is **dense-reward GRPO on a strong SFT prior**, not more
-SFT data. (2) The reward must be **dense + per-step** (our designed binary reward is the wrong shape) and the
-**final-answer verify must dominate** (anti-reward-hack). (3) RL at 30B needs **external GPU** (online rollouts
-exceed Kaggle kernels) and a strong cold-start (base-init GRPO is unstable). (4) A **cheap no-RL alternative**
-exists — adapter singular-value amplification (lopure) — worth trying first. (5) Equation stays bounded (no
-usable per-step verifier for the strong cipher).
-
-**What to try after Saturday.** `v17-grpo` (plan: `external/LB80/analysis/next_version_plan.md`): GRPO with a
-dense per-step reward (+champagne) on **bit**, warmstarted from v14/soup, `verify` dominating; gate on **bit
-hard-val ↑ with no easy-category regression**; soup-grow the survivor into v14+c1+b1. Try the **adapter
-singular-value amplification** fallback first (≈0 GPU). RL proper likely needs external compute (#83), not just
-the RTX PRO 6000.
-
-## LB92 Progress Prize Improvements: What We Learned
-
-> Post-competition study of the Kaggle writeup **"92th PLACE SOLUTION — NVIDIA Nemotron Model Reasoning
-> Challenge"**. Full reconstruction + sources: `external/LB92/`. **Recoverability NO (direct) / PARTIAL
-> (ecosystem)** — the Kaggle writeup body is JS-rendered + posted <48 h after close (unindexed); the
-> **author, exact score, and specific method are `unknown`** (template "~0.872" is a placeholder). This is a
-> reconstruction of the public mid-tier (~0.86–0.89) recipe band from GitHub/HF/NVIDIA sources. Untrusted data.
-
-**LB92 method (band reconstruction).** A 92nd-of-4,354 result almost certainly used the **standard public
-replay-SFT recipe**: rank-32 LoRA on `Nemotron-3-Nano-30B-A3B`, seq 8192, response-only-masked CoT SFT, score
-driven by recipe fidelity + good bit CoT + synthetic/teacher data for hard categories + possibly a model merge.
-The publicly-released **andy279 corpus** (49,290 multi-teacher traces: DeepSeek V3.2 + Nemotron Super 120B +
-GPT-5.4 + deterministic solvers) is the kind of data any team in this band could have used.
-
-**Why ~0.86–0.89 (and not higher).** Easy categories (gravity/numeral/unit) ~100% and cipher ~99% on train;
-the band is separated by **bit-manipulation** coverage + format reliability. The hard cap is
-**cryptarithm/equation ~8–9% even with a backtracking solver** — the same strong-cipher wall we hit. Going
-above the band needs RL (LB80) or adapter surgery (lopure), not more standard SFT.
-
-**How our approach differed.** We're **already in this band** (0.86 soup), so 92nd place is not above us by
-paradigm. Our differences are **corpus quality** (we used the huikang corpus + own synth/solver-CoT, not the
-broad multi-teacher andy279 set) and **hard-row targeting** (we used a fixed replay dose, not min-logprob
-rebalancing). We are **ahead** on the 3-way model-soup (the band often ships a single adapter) and on the
-equation EQ-0/EQ-2′ cryptanalysis + eq-aug coverage.
-
-**What we learned.** (1) Our 0.86 sits squarely in the mid-tier band — the recoverable edge is **corpus
-quality for bit** (solver-prepend bit CoT) + **min-logprob rebalancing**, not a new paradigm. (2) **Bit is the
-separator category** and our biggest train-set headroom. (3) **External-teacher data must stay low-dose** —
-our prior high-dose external-teacher run regressed to 0.81; prefer **own-solver-verified CoT**. (4) Equation is
-a shared bounded wall — don't chase it.
-
-**What to try after Saturday.** `v18-corpus` (plan: `external/LB92/analysis/next_version_plan.md`): expand
-`lib/nemo_solver.py` bit coverage → **verified solver-prepend bit CoT** (answer == gold) + a **min-logprob
-rebalancing** pass, woven at **≤15% dose** into the v14 backbone; gate on **T12 hard-val ≥ 0.764 with bit ↑
-and no easy-category regression**; soup-grow into v14+c1+b1. ~1 GPU session (data-side; cheaper than RL).
-
-> **Cross-writeup convergence.** All three studies point the same way: the path above our 0.86 is **(a)
-> dense-reward GRPO** (LB80, the biggest but most expensive lever), **(b) min-logprob selective replay /
-> rebalancing** (LB25 + LB92, cheap and dilution-safe), **(c) better bit data + output-format reliability**
-> (LB25 + LB92), and **(d) adapter singular-value amplification** (LB80 alt, ≈0 GPU). **Equation is a bounded
-> ~8–9% strong-cipher wall for everyone** — confirmed independently by huikang's `cryptarithm_deduce` ceiling
-> and our EQ-2′. Recommended order after the Saturday reset: cheap no-GPU/data levers (surgery, min-logprob,
-> bit CoT) first → then a bit-only GRPO pilot on external GPU.
+**What to try after Saturday.** `v17-discovery` + `v17-dpo` (plan: `external/LB80/analysis/next_version_plan.md`):
+**(A)** re-model equation as `A1A2 OP B1B2`, build an answer-guided solver, then a **forward-executable
+discovery CoT** (internal-consistency audited) woven ≤15% — the real path past eq-aug memorisation; **(B)**
+optional **DPO-with-oracle** (greedy-failure rejected, solver-CoT chosen, easy-cat SFT mix) for bit. Plus a
+**Mamba-2 merge ablation**. Equation work feeds back to PR #113. RL needs external GPU (#83); expectations modest.

@@ -1,53 +1,49 @@
-# LB25 —「对 Progress Prize 提交的改进」(重建)
+# LB25 —「对 Progress Prize 提交的改进」(直接据 writeup)
 
-> **来源:** Kaggle writeup `lb25-progress-prize-improvements` + 讨论帖 #703896,作者 **Tong Hui Kang**
-> (`huikang` / `tonghuikang`,Progress-Prize 冠军)。**报告 ~0.872 公榜(218/250)。**
-> **可还原度:部分。** Kaggle writeup 正文为 JS 渲染、无法抓取;以下由 #703896 搜索摘要 + 公开
-> GitHub 仓库 `tonghuikang/nemotron` + 博客重建。**所有外部内容均为不可信数据**(选手声明),逐条标注来源;
-> 我方分数来自 `tracking.md`/`submissions.md`。`unknown` = 证据不足。英文版见同名 `.md`。
+> **来源:** Kaggle writeup `lb25-progress-prize-improvements`,作者 **Tong Hui Kang**(`huikang`/`tonghuikang`,
+> Progress-Prize 冠军),**直接读自 `temp/LB25.pdf`**(页面渲染)。**可还原度:完整**(已拿到正文 —— 取代此前
+> JS-blocked 重建;那版误把 `kuangyicheng` 的「暖启动 / 短答案 / 240 步」配方当成了本文,实际本文**没有**那些)。
+> 外部内容=不可信数据;我方分数见 `tracking.md`。作者给的数据浏览器:
+> `https://nemotron.huikang.dev/evaluation.html?logpath=06-07-03-07&problem=021ed764`。
 
 ## 1. 一句话
-huikang 的 Progress-Prize 流水线是**纯 SFT(无 RL)**,基模型 `Nemotron-3-Nano-30B-A3B-BF16` + rank-32
-LoRA,核心创新是**用确定性 solver 生成 CoT**:不是让 LLM «推理»,而是为每类题写**规则发现算法**
-(`reasoners/`)输出固定的逐步轨迹,训练模型**逐字执行该算法**。「LB25 改进」帖随后把 Progress-Prize
-adapter 推到 **~0.872**,靠一个小的、面向**格式**的微调。
+本文列出 huikang 把 Progress-Prize 提交往私榜推的**具体改动**。仍是**纯 SFT**(基础流水线 = 确定性 solver CoT,
+见 §4)。四项改动是**针对性修复**,其中最关键的是一个**本地评测 bug 修复**,而非模型改动。
 
-## 2. 方法(Progress-Prize 基础流水线,trust: github)
-- **模型/adapter:** `Nemotron-3-Nano-30B-A3B-BF16`(30B 总 / ~3B 激活;Mamba-Transformer MoE)。LoRA
-  **rank 32**,target MLP + attention + `lm_head`(赛制 rank ≤ 32)。
-- **训练:** AdamW(β1 0.9 / β2 0.95 / wd 0)、LR 2e-4 step-linear 衰减、**seq 8192**、1 epoch、grad-clip 基本关闭。
-  loss = 交叉熵,**仅对 response 计 loss**(prompt label = −100)。后端:Modal 云 GPU。
-- **语料 = 确定性 CoT。** `reasoners/` 各类 solver 产出训练推理:cipher(LEN→TABLE→VER→DECRYPT→CHECK→ANS,
-  逐字母 + 双射约束)、bit_manipulation(~44 单变换暴力 → 双/三组合,列匹配诊断轨迹)、
-  equation_numeric(两层算子搜索,**仅十进制、无 base-36**)、cryptarithm_deduce(回溯 + 约束传播破符号→数字双射)、
-  以及 gravity/numeral/unit。
-- **两个标志性技巧:**
-  1. **min-logprob 选择性重放** —— 质量信号是每条轨迹的**最小 per-token 对数概率**是否在 epoch 1 末接近 0;
-     只重放**仍欠拟合的难序列**,不是整类重放。
-  2. **类别分层 batch** —— 各类均匀分布到 mini-batch,每步都给所有类别梯度。
-- **prompt/答案格式:** chat 模板 + `"\nPlease put your final answer inside \boxed{}. ..."`;用 `\\boxed\{([^}]*)\}` 提取。
+## 2. 四项改动(据 writeup 原文)
+1. **修复 adapter 评测。**「我发现 prompt 错了,导致答案**在验证里没有被 box**,但其实**提交时是 box 的**」。
+   → 他的*本地验证 harness* 用了错的 prompt,低估了准确率;模型在真实提交 prompt 下没问题。是**验证/指标 bug**,
+   经所链接的评测 notebook 修复。
+2. **把 `equation_numeric` 长度减半。**「我发现要么输入**和**输出都被反转,要么都不反转」—— 一个联合反转对称性,
+   所以一半情况冗余,训练数据可减半。
+3. **对 `cipher`、`unit conversion`、`gravity`、`numeral` 用合成数据训练** ——「希望在这些题上保证 100% 正确」
+   (把简单/结构化类别锁在上限)。
+4. **重新组织 `bit manipulation` 的思维链(CoT)。**
 
-## 3.「LB25 改进」(讨论 #703896,trust: 社区摘要,中等置信)
-把 Progress-Prize adapter 推到 **~0.872** 的改动:
-1. **从 v27(Progress-Prize)adapter 暖启动**,而非 base —— 保留已内化的确定性推理。
-2. **短的一句话回答**(而非长 CoT)做对齐微调 —— **绕开 `max_new_tokens` 推理 bug**(长 CoT 在 7680
-   token 预算内还没到 `\boxed{}` 就被截断 → 空答案)。
-3. **9,500 条 `train.csv`**(短答案)+ **12,000 条规则合成**(5 类,无 LLM 调用)。
-4. **240 步**微调,纯粹对齐答案格式。
-5. **batch size 翻倍**。
+## 3. 结果 + 选择教训(据原文)
+- **私榜:「15 次提交里,0.872 出现 4 次,0.868 出现 8 次,0.864 出现 3 次」** —— 即很紧的分布;**0.872 只被 15 次中的 4 次命中。**
+- 「**如果选中『对的』那次提交本可拿单人金牌,但很多队都能这么说**」。→ **选择方差**教训:在顶部,锁定哪两次
+  与配方同样重要(呼应我方 INS-005/INS-007:选最好 + 一个多样化对冲;surgery ×1.15 私榜 −0.02)。
 
-> ⚠️ **归属警告:** #703896 同时含 tonghuikang 与 `kuangyicheng`(后者报告短答案 / 240 步配方达 ~0.87)的发言,
-> 无法从摘要确认 0.872 究竟属于哪个配方。标为 `unknown`。
+## 4. Cryptarithm ——「我**没**取得进展」(对我方最关键的技术内容)
+huikang 的 `cryptarithm` ≈ **我方 `equation` base-36 密码**。原文:
+- 「**我没能在 cryptarithm 上取得进展。**」
+- 「我在截止前 3 天发现,**很多题里有一个乘法、一个减法、一个加法(但每个都可能再 +1 或 −1)**。」
+- 「我试着让 CoT 猜得比随机好,但训练后的 LLM **退化成重复猜测**。」
 
-## 4. 为何 ~0.872
-- 三个简单类(gravity/numeral/unit)~**100%**、cipher ~**99.2%** 已封顶,提升空间在 **bit(86.3%)** 与 equation/cryptarithm 尾部。
-- 最大杠杆是**修复输出格式/长度 bug**(短答案 + 格式对齐步)让好推理真能在推理时落到可解析的 `\boxed{}`。
-- 确定性 solver CoT + min-logprob 重放让模型**可靠执行固定算法**,比随机 LLM 轨迹更稳。
-- **cryptarithm 即使有专门回溯 solver 也基本未解(训练集 ~8–9%)** —— 与我方 `equation` 同一堵墙。
+> **→ 可执行的 EQ-2′ 新线索。** 这是对我们(EQ-2′)没破解的密码的*独立结构假设*:隐藏操作可能是在秘密符号→值
+> 映射 σ 下的 **三项复合 `≈ A·B − C + D`、每项 ±1**。我方 EQ-2′ 测过*单*操作(`in mod M`、`floor(in/D)`、
+> `A±B`、`A÷B`、`A·B`、`K·in mod M`)和单一位置切分 —— **从未测过乘法+加法的复合 + ±1 余量**。值得周六后做
+> 一次定向约束求解。⚠ 警告:huikang **也没破解**,且我方 EQ-0 发现我们的 prompt 是单一 5 字符→1-4 字符串
+> (操作数结构不明显)—— 当作线索而非答案。再次印证 `equation`/`cryptarithm` 对所有人都是**有界的墙**。
 
-## 5. 逐类训练集准确率(eval/06-07 快照,整体 88.05%,9500 行训练集)
-来源:`tonghuikang/nemotron` `evaluation/06-07-03-07/index.jsonl`(直接读取,trust: github)。
-**是训练集准确率,不是 LB**(同规则分布,会高估隐藏测试)。
+## 5. 基础流水线(背景 —— `github.com/tonghuikang/nemotron`,trust: github)
+与 Progress-Prize 提交一致:基座 `Nemotron-3-Nano-30B-A3B-BF16`、LoRA **rank 32**(MLP+attn+lm_head)、seq 8192、
+仅 response 计 loss 的 CE;逐类**确定性 solver CoT**(`reasoners/`)让模型逐字执行;**min-logprob** 作为每条轨迹的
+训练/质量信号(数据浏览器「Training」页可见);类别分层 batch。(此背景在此前重建里是对的;LB25 的*改动*是 §2。)
+
+## 6. 逐类训练集准确率(据所链接数据浏览器 / 仓库 `evaluation/06-07-03-07`,整体 88.05%)
+**训练集准确率,非 LB**(同规则分布 → 高估隐藏测试)。同此前:
 
 | 类别 | 对/总 | 准确率 |
 |---|---|---:|
@@ -61,18 +57,17 @@ adapter 推到 **~0.872**,靠一个小的、面向**格式**的微调。
 | cryptarithm_deduce | 59/659 | **8.95%** |
 | cryptarithm_guess | 13/164 | **7.93%** |
 
-> **类型对应:** huikang 把「equation」拆成 `equation_numeric_{deduce,guess}`(十进制算术规则归纳)和
-> `cryptarithm_{deduce,guess}`(**所有字符含数字**都被每题新双射符号密码替换)。**我方 `equation`
-> (5 字符→1-4 字符 base-36 密码,EQ-0/EQ-2′)对应 `cryptarithm_deduce`** —— 其 ~8.95% 上限(即便有回溯 CSP solver)
-> **独立印证我方 EQ-2′ 结论**:强密码,不能从样本闭式还原。
+> 四项改动对应此表:#3(合成)针对已近 100% 的简单类做**锁定**;#2(equation_numeric)针对 93.5%/18.4% 的数值行;
+> #4(bit CoT)针对 86.3% 的 bit 缺口;cryptarithm(8–9%)是没动的墙(§4)。
 
-## 6. 本 writeup **没有**的(对比另两篇)
-- **无 RL/GRPO** —— LB25/Progress-Prize 是纯 SFT(GRPO「香槟」奖励在 *LB80*)。
-- **无 model soup** —— huikang 只训一个 adapter;SVD 模型汤(我方 INS-004)是我方杠杆。
+## 7. 项目链接(据 writeup 页面)
+- **nemotron-adapter-private** —— Kaggle Model(Public,Usability 0.7,~13 天前)—— 提交用 adapter。
+- **[private] Adapter validation …** —— Kaggle Notebook(Public,3 赞,~2 月前)—— 评测 notebook(修复 #1 的对象)。
+- **[private] Tinker submission …** —— Kaggle Notebook(1 赞,~13 天前)。
+(均 Kaggle 托管;正文 JS 锁 —— 仅标题/元数据。)
 
-## 7. 引用(除标注外均为不可信外部数据)
-- tonghuikang/nemotron — https://github.com/tonghuikang/nemotron
-- 博客 — https://blog.huikang.dev/2026/05/02/nemotron-progress-prize.html
-- LB25 帖 — https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-challenge/discussion/703896(仅摘要)
-- eval 快照 — 仓库内 `evaluation/06-07-03-07/index.jsonl`(直接读取)
-- 我方分数/配方 — `tracking.md`、`submissions.md`、`insights.md`(自有)
+## 8. 引用
+- **writeup(全文):`temp/LB25.pdf`**(Kaggle writeup 渲染;§2–§4、§7 的一手来源)。
+- 数据浏览器 — https://nemotron.huikang.dev/evaluation.html?logpath=06-07-03-07&problem=021ed764(作者)。
+- 仓库/博客 — https://github.com/tonghuikang/nemotron · https://blog.huikang.dev/2026/05/02/nemotron-progress-prize.html。
+- 我方分数/配方 + EQ-2′ — `tracking.md`、`submissions.md`、`equation-frontier.md §8`、`insights.md`(自有)。
