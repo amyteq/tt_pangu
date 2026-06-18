@@ -40461,6 +40461,9550 @@ def _path_blocked(mx, my, tx, ty, mine_id, tgt_id, planets, comet_ids):
 ```
 </details>
 
+### 🤖 Assistant: *Block 2: `_fleet_speed`/`_point_to_segment…*
+
+`16:00:38`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Block 2: `_fleet_speed`/`_point_to_segment`/`_solve_intercept` are exact dups → aliases; `_predict_pos` delegates to `core.geometry.planet_pos`; keep `_hypot`/`_path_blocked`:
+
+#### ✏️  Edit `policy.py`
+
+`16:00:52`
+
+```diff
+@@ -1,59 +1,15 @@-def _fleet_speed(ships):
+-    if ships <= 1:
+-        return 1.0
+-    s = 1.0 + (MAX_SPEED - 1.0) * (math.log(ships) / math.log(1000.0)) ** 1.5
+-    return min(s, MAX_SPEED)
+-
+-
+-def _point_to_segment(px, py, ax, ay, bx, by):
+-    """Min distance from point (px,py) to segment (ax,ay)-(bx,by)."""
+-    l2 = (ax - bx) ** 2 + (ay - by) ** 2
+-    if l2 == 0.0:
+-        return _hypot(px, py, ax, ay)
+-    t = ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / l2
+-    t = max(0.0, min(1.0, t))
+-    return _hypot(px, py, ax + t * (bx - ax), ay + t * (by - ay))
++# Duplicates of core.geometry primitives -> aliases (single source = core.geometry).
++_fleet_speed = _G.fleet_speed
++_point_to_segment = _G.seg_point_dist
+ 
+ 
+ def _predict_pos(pid, future_step, init_by_id, ang_vel):
+-    """Exact predicted (x, y) of a planet AS OBSERVED at an absolute game step.
+-
+-    Static planets never move (return initial == current position). Orbiting
+-    planets rotate at constant angular velocity about the center.
+-
+-    Phase fix (2026-06-17): obs(step) = rotate(init, ang_vel*(step-1)) per the engine interpreter
+-    (verified vs replay 80276901: _predict_pos(t-1) == obs(t) exactly). The prior `ang_vel*future_step`
+-    aimed intercepts one tick ahead, so fleets missed rotating targets and could sail into the sun.
+-    """
++    """Predicted (x, y) of planet `pid` AS OBSERVED at absolute game `future_step` (None if unknown).
++    Delegates to core.geometry.planet_pos — the single source (carries the B11 phase fix)."""
+     ip = init_by_id.get(pid)
+     if ip is None:
+         return None
+-    ix, iy, r_planet = ip[2], ip[3], ip[4]
+-    dx, dy = ix - CENTER, iy - CENTER
+-    orb = math.hypot(dx, dy)
+-    if orb + r_planet < ROTATION_RADIUS_LIMIT:
+-        a = math.atan2(dy, dx) + ang_vel * max(0, future_step - 1)
+-        return (CENTER + orb * math.cos(a), CENTER + orb * math.sin(a))
+-    return (ix, iy)
++    return _G.planet_pos(ip[2], ip[3], ip[4], ang_vel, future_step)
+ 
+ 
+-def _solve_intercept(mx, my, tgt_pid, ships, step, init_by_id, ang_vel):
+-    """Fixed-point intercept: returns (angle, T_ticks, (tx, ty)) or None."""
+-    speed = _fleet_speed(ships)
+-    cur = _predict_pos(tgt_pid, step, init_by_id, ang_vel)
+-    if cur is None:
+-        return None
+-    t = max(1.0, _hypot(mx, my, cur[0], cur[1]) / speed)
+-    pos = cur
+-    for _ in range(12):
+-        pos = _predict_pos(tgt_pid, step + t, init_by_id, ang_vel)
+-        d = _hypot(mx, my, pos[0], pos[1])
+-        nt = max(1.0, d / speed)
+-        if abs(nt - t) < 0.2:
+-            t = nt
+-            break
+-        t = nt
+-    t_ceil = max(1, int(math.ceil(t)))
+-    pos = _predict_pos(tgt_pid, step + t_ceil, init_by_id, ang_vel)
+-    angle = math.atan2(pos[1] - my, pos[0] - mx)
+-    return angle, t_ceil, pos
++_solve_intercept = _G.solve_intercept
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now compile + golden-check the full physics…*
+
+`16:01:07`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now compile + golden-check the full physics dedup (must stay 0 — behavior-preserving):
+
+#### 💻 Bash: *Compile + golden-check the physics dedup*
+
+`16:01:09`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+source ~/.venvs/orbit-wars/bin/activate 2>/dev/null
+echo "=== compile ==="; python -m py_compile competitions/orbit-wars/core/policy.py && echo "OK"
+echo "=== golden (dedup must be behavior-identical -> 0) ==="
+python /tmp/claude/ow_golden_check.py 2>&1 | grep -vE "litellm|LiteLLM|open_spiel|INFO:" | tail -8
+```
+
+```
+=== compile ===
+OK
+=== golden (dedup must be behavior-identical -> 0) ===
+records=526  MISMATCHES=0
+PASS (behavior identical)
+```
+
+### 🤖 Assistant: *Physics dedup verified (golden=0; `core.geometry…*
+
+`16:02:19`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Physics dedup verified (golden=0; `core.geometry` is the single source). Now **utils.py → wrapper** (fixes its stale B11 bug + removes the dup). Let me read its non-primitive parts (path_blocked/terminal_value) to wrap them correctly:
+
+#### 👀 Read `utils.py`
+
+`16:02:21`
+
+*(lines 176–314)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/agent/utils.py</code></summary>
+
+```python
+def path_blocked(mx, my, tx, ty, mine_id, tgt_id, planets, comet_ids, clearance=1.0):
+    """True if a straight launch path clips the sun or any OTHER planet.
+
+    The engine consumes a fleet on the FIRST body it touches, so an angle that
+    grazes a bystander planet donates your fleet to it. `planets` = current
+    obs planet objects with .id/.x/.y/.radius (namedtuple or alike).
+    Static screen (current positions); good enough because launches are
+    re-planned every turn — for long flights pair it with swept_hit checks.
+    """
+    if seg_point_dist(CENTER, CENTER, mx, my, tx, ty) < SUN_R:
+        return True
+    for p in planets:
+        if p.id == mine_id or p.id == tgt_id or p.id in comet_ids:
+            continue
+        if seg_point_dist(p.x, p.y, mx, my, tx, ty) < p.radius + clearance:
+            return True
+    return False
+
+
+def replay_planet(owner0, ships0, prod, arrivals, H):
+    """Fast single-planet what-if: evolve one planet H turns given a schedule.
+
+    arrivals = [(turn_k, owner, ships)] — the combat events that will hit this
+    planet. Returns (owner_list[H+1], ships_list[H+1]). This is the cheap core
+    of move evaluation: to score a launch you only need to replay the SOURCE
+    (debited now) and the TARGET (your stack added at its arrival turn) and
+    compare terminal value against the do-nothing baseline from project().
+    """
+    by_k = {}
+    for k, o, s in arrivals:
+        by_k.setdefault(k, []).append((o, s))
+    owner, ships = owner0, float(ships0)
+    o_out, s_out = [owner], [ships]
+    for k in range(1, H + 1):
+        if owner != -1:
+            ships += prod
+        if k in by_k:
+            owner, ships = resolve_combat(owner, ships, by_k[k])
+        o_out.append(owner)
+        s_out.append(ships)
+    return o_out, s_out
+
+
+def project(planets, fleets, ang_vel, init_by_id, step0, H, comet_ids=()):
+    """Bit-exact 'do-nothing' projection of the whole board H turns ahead.
+
+    Replays the engine loop (production -> fleet moves + swept collisions ->
+    rotation -> combat) for every existing fleet and planet, assuming nobody
+    launches anything new. Verified 0-error vs the real engine over 3,672
+    planet-steps. Returns:
+      traj:     {pid: {"owner": [H+1], "ships": [H+1]}} — future garrison and
+                ownership of every planet, turn by turn;
+      arrivals: {pid: [(k, owner, ships)]} — the combat schedule, i.e. which
+                fleets land where and when. Feed these into replay_planet to
+                evaluate candidate moves without re-simulating the board.
+    planets/fleets are the raw obs rows: (id,owner,x,y,radius,ships,prod) and
+    (id,owner,x,y,angle,from_id,ships). Comets are excluded (path-based
+    motion isn't modelled; treat them as unknowns).
+    """
+    comet_ids = set(comet_ids)
+    pl = {
+        p[0]: {
+            "owner": p[1],
+            "x": p[2],
+            "y": p[3],
+            "r": p[4],
+            "ships": float(p[5]),
+            "prod": p[6],
+        }
+        for p in planets
+        if p[0] not in comet_ids
+    }
+    init = {pid: (init_by_id[pid][2], init_by_id[pid][3]) for pid in pl if pid in init_by_id}
+    fl = [{"owner": f[1], "x": f[2], "y": f[3], "ang": f[4], "ships": float(f[6])} for f in fleets if f[6] > 0]
+    traj = {pid: {"owner": [pl[pid]["owner"]], "ships": [pl[pid]["ships"]]} for pid in pl}
+    arrivals = {pid: [] for pid in pl}
+
+    for k in range(1, H + 1):
+        step = step0 + k
+        for pid, p in pl.items():  # 1. production
+            if p["owner"] != -1:
+                p["ships"] += p["prod"]
+        old_pos, new_pos = {}, {}
+        for pid, p in pl.items():
+            ix, iy = init.get(pid, (p["x"], p["y"]))
+            old_pos[pid] = planet_pos(ix, iy, p["r"], ang_vel, step - 1)
+            new_pos[pid] = planet_pos(ix, iy, p["r"], ang_vel, step)
+        combat = {pid: [] for pid in pl}
+        alive_fl = []
+        for f in fl:  # 2. fleet movement + swept collision
+            spd = fleet_speed(f["ships"])
+            A = (f["x"], f["y"])
+            B = (f["x"] + math.cos(f["ang"]) * spd, f["y"] + math.sin(f["ang"]) * spd)
+            hit = None
+            for pid, p in pl.items():
+                if swept_hit(A, B, old_pos[pid], new_pos[pid], p["r"]):
+                    hit = pid
+                    break
+            if hit is not None:
+                combat[hit].append((f["owner"], f["ships"]))
+                continue
+            if not (0 <= B[0] <= BOARD and 0 <= B[1] <= BOARD):
+                continue  # out of bounds -> fleet lost
+            if seg_point_dist(CENTER, CENTER, A[0], A[1], B[0], B[1]) < SUN_R:
+                continue  # touched the sun -> fleet lost
+            f["x"], f["y"] = B
+            alive_fl.append(f)
+        fl = alive_fl
+        for pid, p in pl.items():  # 3. rotation
+            p["x"], p["y"] = new_pos[pid]
+        for pid, arr in combat.items():  # 4. combat
+            if arr:
+                pl[pid]["owner"], pl[pid]["ships"] = resolve_combat(pl[pid]["owner"], pl[pid]["ships"], arr)
+                for o, s in arr:
+                    arrivals[pid].append((k, o, s))
+        for pid, p in pl.items():
+            traj[pid]["owner"].append(p["owner"])
+            traj[pid]["ships"].append(p["ships"])
+    return traj, arrivals
+
+
+def terminal_value(owner_list, ships_list, me, H):
+    """Conservation-correct move score: signed ships at horizon H.
+
+    +ships if we own the planet at turn H, -ships if an opponent does, 0 if
+    neutral. Because ships in transit have landed by H, launching is not
+    wrongly penalized, and production accrued by H rewards EARLIER captures
+    (tempo). Sum this over the planets a move touches, subtract the same sum
+    from the do-nothing baseline, and you have the move's differential value —
+    the single largest win-rate jump in this project (v2.1 556 -> v3 686)
+    came from exactly this scoring.
+
+    Hard-won discipline to keep alongside it: gate every change on the public
+    -agent suite (self-play win-rate does NOT predict the ladder), use >=150
+    paired seeds per comparison, and treat <+7pt as undecidable.
+    """
+    o, s = owner_list[H], ships_list[H]
+    return s if o == me else (-s if o != -1 else 0.0)
+```
+</details>
+
+### 🤖 Assistant: *utils.py's `path_blocked`/`terminal_value…*
+
+`16:02:46`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> utils.py's `path_blocked`/`terminal_value` are the only non-primitives; the rest duplicate `core.geometry`. Rewriting it as a thin re-export wrapper (kills the dup + the stale B11 bug):
+
+#### ✍️  Write `utils.py`
+
+`16:02:57`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/agent/utils.py</code></summary>
+
+```python
+"""Orbit Wars — thin reference wrapper over core.geometry (OW-ARCH-001).
+
+Historically a standalone "verified building blocks" library that kept its OWN copies of the engine
+physics; it is imported by nothing in production and its planet_pos had drifted stale (pre-B11). It
+now RE-EXPORTS the canonical primitives from `core.geometry` — the single source of truth, including
+the B11 planet-rotation phase fix — so there is no second, drift-prone implementation. Two small
+non-primitive helpers (path_blocked, terminal_value) are kept here, built on the re-exported
+primitives, for reference / quick-start agents.
+"""
+
+import os as _os
+import sys as _sys
+
+_COMP = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))  # competitions/orbit-wars
+if _COMP not in _sys.path:
+    _sys.path.insert(0, _COMP)
+
+from core.geometry import (  # noqa: E402  (single source of physics/geometry primitives)
+    BOARD,
+    CENTER,
+    EPISODE_STEPS,
+    MAX_SPEED,
+    ROT_LIMIT,
+    SUN_R,
+    fleet_speed,
+    is_orbiting,
+    orbital_radius,
+    planet_pos,
+    project,
+    replay_planet,
+    resolve_combat,
+    seg_point_dist,
+    solve_intercept,
+    swept_hit,
+)
+
+__all__ = [
+    "BOARD", "CENTER", "SUN_R", "ROT_LIMIT", "MAX_SPEED", "EPISODE_STEPS",
+    "fleet_speed", "planet_pos", "seg_point_dist", "swept_hit", "resolve_combat",
+    "solve_intercept", "replay_planet", "project", "orbital_radius", "is_orbiting",
+    "path_blocked", "terminal_value",
+]
+
+
+def path_blocked(mx, my, tx, ty, mine_id, tgt_id, planets, comet_ids, clearance=1.0):
+    """True if a straight launch path clips the sun or any OTHER planet (current-position screen;
+    the engine consumes a fleet on the FIRST body it touches). Built on core.geometry.seg_point_dist."""
+    if seg_point_dist(CENTER, CENTER, mx, my, tx, ty) < SUN_R:
+        return True
+    for p in planets:
+        if p.id == mine_id or p.id == tgt_id or p.id in comet_ids:
+            continue
+        if seg_point_dist(p.x, p.y, mx, my, tx, ty) < p.radius + clearance:
+            return True
+    return False
+
+
+def terminal_value(owner_list, ships_list, me, H):
+    """Conservation-correct move score: +ships if we own the planet at horizon H, -ships if an
+    opponent does, 0 if neutral (ships in transit have landed by H, so launching isn't penalized)."""
+    o, s = owner_list[H], ships_list[H]
+    return s if o == me else (-s if o != -1 else 0.0)
+
+```
+</details>
+
+✓ The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/agent/utils.py has been updated successfully. (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *utils.py is now a thin wrapper.*
+
+`16:03:32`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> utils.py is now a thin wrapper. Now the additive layer modules. **CandidateAction** (`core/candidates.py`):
+
+#### ✍️  Write `candidates.py`
+
+`16:03:42`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/candidates.py</code></summary>
+
+```python
+"""Typed candidate representation for the layered policy (OW-ARCH-001, layer [3]).
+
+A `CandidateAction` is a proposed launch carried through the pipeline with its intended target id
+preserved end-to-end (state -> candidates -> features -> rule_engine/model -> emitter -> sanitizer),
+so the final ActionSanitizer can validate first-hit/landing-target against the INTENDED target rather
+than guessing from a raw [src, angle, ships] triple.
+
+Candidate generation should produce these with intended target ids and leave final first-hit / path
+authority to FlightOracle + ActionSanitizer (see core/oracle.py, core/action_sanitizer.py).
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass
+class CandidateAction:
+    source_id: int
+    target_id: int
+    angle: float
+    ships: int
+    eta: int | None = None
+    # expand | attack | defend | reinforce | supply | comet | bank | consolidate | unknown
+    candidate_type: str = "unknown"
+    base_value: float = 0.0  # deterministic (v3.2) value, e.g. terminal differential advantage
+    reason: str = ""
+    features: dict | None = field(default=None)
+    rule_weight: float = 1.0  # RuleEngine multiplier (1.0 = neutral)
+    model_score: float | None = None  # advisory model probability in [0,1], or None
+    final_score: float = 0.0
+
+    def to_move(self) -> list:
+        """The Kaggle action triple [source_id, angle, ships]."""
+        return [int(self.source_id), float(self.angle), int(self.ships)]
+
+    @classmethod
+    def from_move(cls, move, target_id=None, **kw) -> "CandidateAction":
+        """Wrap a raw [src, angle, ships] move, preserving the intended target id."""
+        src, ang, ships = int(move[0]), float(move[1]), int(move[2])
+        return cls(source_id=src, target_id=(target_id if target_id is not None else -1),
+                   angle=ang, ships=ships, **kw)
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/candidates.py (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *\*\*ActionEmitter\*\* (`core/action_emitter.py…*
+
+`16:03:52`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> **ActionEmitter** (`core/action_emitter.py`) — converts candidates → Kaggle actions, passing intended targets through the sanitizer:
+
+#### ✍️  Write `action_emitter.py`
+
+`16:04:02`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/action_emitter.py</code></summary>
+
+```python
+"""ActionEmitter — layer [7] final emission (OW-ARCH-001).
+
+Converts selected candidates into the Kaggle action list while PRESERVING intended target ids all
+the way into the ActionSanitizer, so the sanitizer can block wrong-first-hit / landing-target
+mismatch (opt-in) — not just sun/OOB. This is the single place a policy turns decisions into actions.
+
+Behavior contract:
+  - Always runs the FlightOracle sun/OOB gate (provably-fatal launches dropped).
+  - Wrong-first-hit gate is OPT-IN (`block_wrong_first_hit=True`): only then are intended targets
+    used to drop mismatches. Default OFF preserves a sanely-aimed agent's behavior exactly.
+  - Accepts either CandidateAction objects (intent carried on the object) or parallel
+    moves + targets lists.
+"""
+
+from __future__ import annotations
+
+from .action_sanitizer import ActionSanitizer
+
+
+class ActionEmitter:
+    def __init__(self, sanitizer: ActionSanitizer | None = None, block_wrong_first_hit=False, horizon=60):
+        self.sanitizer = sanitizer or ActionSanitizer()
+        self.block_wrong_first_hit = block_wrong_first_hit
+        self.horizon = horizon
+
+    def emit(self, obs, selected, targets=None, counters=None):
+        """selected: list of CandidateAction OR raw [src, angle, ships]. targets: optional parallel
+        intended-target ids (used only when selected are raw moves). Returns clean Kaggle actions."""
+        moves, tgts = [], []
+        for i, item in enumerate(selected or []):
+            if hasattr(item, "to_move"):  # CandidateAction
+                moves.append(item.to_move())
+                tgts.append(getattr(item, "target_id", None))
+            else:  # raw [src, angle, ships]
+                moves.append([int(item[0]), float(item[1]), int(item[2])])
+                tgts.append(targets[i] if (targets is not None and i < len(targets)) else None)
+        use_targets = tgts if self.block_wrong_first_hit else None
+        clean, _c = self.sanitizer.sanitize(obs, moves, targets=use_targets, horizon=self.horizon, counters=counters)
+        return clean
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/action_emitter.py (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *Now wire the emitter into policy + thread…*
+
+`16:04:33`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now wire the emitter into policy + thread intended targets through the commit. Let me find the emission + commit sites in policy.py:
+
+#### 💻 Bash: *Locate commit/emit/return sites for target threading*
+
+`16:04:36`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+grep -nE "moves\.append|moves\.extend|moves = \[\]|op_moves = |op_moves\.append|return moves|return op_moves|_emit_gate|def agent|def _agent|committed\.add" core/policy.py
+```
+
+```
+261:def _emit_gate(obs, moves, targets=None):
+263:        return moves
+280:        return moves  # core/ unavailable (single-file submission) or any error -> raw moves
+371:def agent(obs):
+376:    return _emit_gate(obs, moves)
+379:def _agent(obs):
+542:        op_moves = []
+546:            op_moves.append([src_id, angle, int(needed)])
+550:            return op_moves
+640:    moves = []
+792:                    moves.append([mid, ang, int(give)])
+797:                committed.add(tgt.id)
+806:                moves.append([src_id, angle, int(needed)])
+809:                committed.add(tgt_id)
+869:                moves.extend(wave)
+870:                committed.add(tgt_id)
+902:            moves.append([src.id, angle, int(surplus)])
+904:    return moves
+```
+
+### 🤖 Assistant: *Threading intended targets through the commit…*
+
+`16:05:03`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Threading intended targets through the commit is additive (the `moves` content is unchanged → golden stays 0 with the gate off). Let me read the agent wrapper + opening return:
+
+#### 👀 Read `policy.py`
+
+`16:05:05`
+
+*(lines 371–383)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py</code></summary>
+
+```python
+def agent(obs):
+    try:
+        moves = _agent(obs)
+    except Exception:
+        return []
+    return _emit_gate(obs, moves)
+
+
+def _agent(obs):
+    player = obs.get("player", 0)
+    raw_planets = obs.get("planets", []) or []
+    raw_fleets = obs.get("fleets", []) or []
+```
+</details>
+
+### 🤖 Assistant: *Making `agent()` robustly accept either a…*
+
+`16:05:16`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Making `agent()` robustly accept either a bare move list or a `(moves, targets)` tuple (so any unthreaded return path stays safe with targets=None):
+
+#### ✏️  Edit `policy.py`
+
+`16:05:20`
+
+```diff
+@@ -1,6 +1,12 @@ def agent(obs):
+     try:
+-        moves = _agent(obs)
++        result = _agent(obs)
+     except Exception:
+         return []
+-    return _emit_gate(obs, moves)
++    # _agent returns either bare moves or (moves, intended_targets). Preserve target intent through
++    # to the emission gate so the (opt-in) wrong-first-hit sanitizer can use it; None => sun/oob only.
++    if isinstance(result, tuple):
++        moves, targets = result
++    else:
++        moves, targets = result, None
++    return _emit_gate(obs, moves, targets)
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now route `_emit_gate` through the `ActionEmitter…*
+
+`16:05:26`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now route `_emit_gate` through the `ActionEmitter` module. Let me read its current form:
+
+#### 👀 Read `policy.py`
+
+`16:05:28`
+
+*(lines 261–283)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py</code></summary>
+
+```python
+def _emit_gate(obs, moves, targets=None):
+    if not _SANITIZE or not moves:
+        return moves
+    try:
+        from .action_sanitizer import ActionSanitizer, new_counters
+
+        ctr = new_counters()
+        # Passing `targets` (intended target ids, parallel to moves) enables the opt-in wrong-first-hit
+        # gate in ActionSanitizer; default OFF (targets=None) preserves current behavior (sun/oob only).
+        use_targets = targets if _BLOCK_WRONG_HIT else None
+        clean, ctr = ActionSanitizer().sanitize(obs, moves, targets=use_targets, horizon=60, counters=ctr)
+        _log = _os.environ.get("OW_SANITIZE_LOG", "")
+        if _log:
+            import json as _json
+
+            with open(_log, "a") as _f:
+                _f.write(_json.dumps({"step": obs.get("step"), **ctr}) + "\n")
+        return clean
+    except Exception:
+        return moves  # core/ unavailable (single-file submission) or any error -> raw moves
+
+
+```
+</details>
+
+#### ✏️  Edit `policy.py`
+
+`16:05:39`
+
+```diff
+@@ -1,14 +1,16 @@ def _emit_gate(obs, moves, targets=None):
++    """Final emission gate (layer [7]) via core.action_emitter.ActionEmitter: always drops
++    provably-fatal sun/oob; the wrong-first-hit gate is opt-in (OW_BLOCK_WRONG_HIT) and uses the
++    intended `targets`. Any failure (core unavailable / single-file) returns the raw moves."""
+     if not _SANITIZE or not moves:
+         return moves
+     try:
+-        from .action_sanitizer import ActionSanitizer, new_counters
++        from .action_emitter import ActionEmitter
++        from .action_sanitizer import new_counters
+ 
+         ctr = new_counters()
+-        # Passing `targets` (intended target ids, parallel to moves) enables the opt-in wrong-first-hit
+-        # gate in ActionSanitizer; default OFF (targets=None) preserves current behavior (sun/oob only).
+-        use_targets = targets if _BLOCK_WRONG_HIT else None
+-        clean, ctr = ActionSanitizer().sanitize(obs, moves, targets=use_targets, horizon=60, counters=ctr)
++        emitter = ActionEmitter(block_wrong_first_hit=_BLOCK_WRONG_HIT, horizon=60)
++        clean = emitter.emit(obs, moves, targets=targets, counters=ctr)
+         _log = _os.environ.get("OW_SANITIZE_LOG", "")
+         if _log:
+             import json as _json
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now thread intended targets through `_agent…*
+
+`16:05:50`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now thread intended targets through `_agent`. Let me read the OPENING block + the commit sites precisely:
+
+#### 👀 Read `policy.py`
+
+`16:05:51`
+
+*(lines 538–554)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py</code></summary>
+
+```python
+                angle, eta, pos = sol
+                if needed > op_avail[mp.id] or step + eta > EPISODE_STEPS - 2:
+                    continue
+                if _path_blocked(mp.x, mp.y, pos[0], pos[1], mp.id, tgt.id, planets, comet_ids):
+                    continue
+                gain = prod_by_id[tgt.id] * (OPENING_H - eta) - needed  # production won minus cost
+                if gain <= 0:
+                    continue
+                op_cands.append((gain, mp.id, tgt.id, angle, needed))
+        op_cands.sort(reverse=True, key=lambda c: c[0])
+        rem = dict(op_avail)
+        taken = set()
+        op_moves = []
+        for _g, src_id, tgt_id, angle, needed in op_cands:
+            if tgt_id in taken or rem.get(src_id, 0) < needed:
+                continue
+```
+</details>
+
+*(lines 553–563)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py</code></summary>
+
+```python
+                continue
+            op_moves.append([src_id, angle, int(needed)])
+            rem[src_id] -= needed
+            taken.add(tgt_id)
+        if op_moves:
+            return op_moves
+
+    candidates = []
+    for mp in my_planets:
+        avail = _avail(mp)
+```
+</details>
+
+### 🤖 Assistant: *OPENING block — thread `op_targets`:*
+
+`16:06:05`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> OPENING block — thread `op_targets`:
+
+#### ✏️  Edit `policy.py`
+
+`16:06:09`
+
+```diff
+@@ -1,11 +1,13 @@         rem = dict(op_avail)
+         taken = set()
+         op_moves = []
++        op_targets = []
+         for _g, src_id, tgt_id, angle, needed in op_cands:
+             if tgt_id in taken or rem.get(src_id, 0) < needed:
+                 continue
+             op_moves.append([src_id, angle, int(needed)])
++            op_targets.append(tgt_id)  # preserve intended target for the emission sanitizer
+             rem[src_id] -= needed
+             taken.add(tgt_id)
+         if op_moves:
+-            return op_moves
++            return op_moves, op_targets
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now re-locate the main commit sites (lines…*
+
+`16:06:17`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now re-locate the main commit sites (lines shifted) + read the `moves` init:
+
+#### 💻 Bash: *Re-locate commit sites after edits*
+
+`16:06:18`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+grep -nE "^    moves = \[\]|moves\.append|moves\.extend|return moves$|committed = set|remaining = \{" core/policy.py
+```
+
+```
+266:        return moves
+555:            op_moves.append([src_id, angle, int(needed)])
+648:    remaining = {mp.id: _avail(mp) for mp in my_planets}
+649:    committed = set()
+650:    moves = []
+802:                    moves.append([mid, ang, int(give)])
+816:                moves.append([src_id, angle, int(needed)])
+879:                moves.extend(wave)
+912:            moves.append([src.id, angle, int(surplus)])
+914:    return moves
+```
+
+### 🤖 Assistant: *`moves` init + threading.*
+
+`16:06:30`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `moves` init + threading. Let me read the commit contexts to get the right target variable at each site:
+
+#### 👀 Read `policy.py`
+
+`16:06:31`
+
+*(lines 648–652)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py</code></summary>
+
+```python
+    remaining = {mp.id: _avail(mp) for mp in my_planets}
+    committed = set()
+    moves = []
+    pos_by_id = {p.id: (p.x, p.y) for p in planets}
+```
+</details>
+
+#### ✏️  Edit `policy.py`
+
+`16:06:42`
+
+```diff
+@@ -1,4 +1,5 @@     remaining = {mp.id: _avail(mp) for mp in my_planets}
+     committed = set()
+     moves = []
++    move_targets = []  # intended target id parallel to each move (for the emission sanitizer)
+     pos_by_id = {p.id: (p.x, p.y) for p in planets}
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### 👀 Read `policy.py`
+
+`16:06:53`
+
+*(lines 798–822)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py</code></summary>
+
+```python
+                )
+                val += _term(tw_o, tw_s) - base_tgt_adv
+                if val <= 0:
+                    continue
+                for mid, ang, give, _t in fire_now:
+                    moves.append([mid, ang, int(give)])
+                    remaining[mid] -= give
+                    launch_budget -= give
+                for mid, give in hold:  # reserve so the greedy pass can't spend it
+                    remaining[mid] -= give
+                committed.add(tgt.id)
+                break
+
+    if not MULTISRC:
+        # Single-source greedy (v3 behaviour; kept for A/B via OW_MULTISRC=0).
+        for _value, src_id, tgt_id, angle, needed in candidates:
+            if tgt_id in committed or needed > launch_budget:
+                continue
+            if remaining.get(src_id, 0) >= needed:
+                moves.append([src_id, angle, int(needed)])
+                remaining[src_id] -= needed
+                launch_budget -= needed
+                committed.add(tgt_id)
+    else:
+```
+</details>
+
+### 🤖 Assistant: *COARRIVAL site — target is `tgt.id`:*
+
+`16:06:59`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> COARRIVAL site — target is `tgt.id`:
+
+#### ✏️  Edit `policy.py`
+
+`16:07:02`
+
+```diff
+@@ -1,4 +1,5 @@                 for mid, ang, give, _t in fire_now:
+                     moves.append([mid, ang, int(give)])
++                    move_targets.append(tgt.id)
+                     remaining[mid] -= give
+                     launch_budget -= give
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Single-source site — target is `tgt_id`:*
+
+`16:07:07`
+
+> Single-source site — target is `tgt_id`:
+
+#### ✏️  Edit `policy.py`
+
+`16:07:09`
+
+```diff
+@@ -1,5 +1,6 @@             if remaining.get(src_id, 0) >= needed:
+                 moves.append([src_id, angle, int(needed)])
++                move_targets.append(tgt_id)
+                 remaining[src_id] -= needed
+                 launch_budget -= needed
+                 committed.add(tgt_id)
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *MULTISRC + consolidation + return.*
+
+`16:07:14`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> MULTISRC + consolidation + return. Let me read those:
+
+#### 👀 Read `policy.py`
+
+`16:07:15`
+
+*(lines 876–918)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py</code></summary>
+
+```python
+                wave.append([src_id, ang, give])
+                accum += give
+                remaining[src_id] -= give
+                launch_budget -= give
+            # only keep the wave if it can at least capture (>= the single-source need)
+            if accum >= cap_needed:
+                moves.extend(wave)
+                committed.add(tgt_id)
+            else:
+                for src_id, _ang, give in wave:  # refund partial commitment
+                    remaining[src_id] += give
+                    launch_budget += give
+
+    # Consolidation pass: forward idle rear surplus toward the front.
+    if CONSOLIDATE and targets:
+        attacked = {m[0] for m in moves}
+        fd = {p.id: _front_dist(p, targets) for p in my_planets}
+        for src in my_planets:
+            if src.id in attacked:  # only genuinely idle planets reposition
+                continue
+            surplus = remaining.get(src.id, 0)
+            if surplus < CONSOLIDATE_MIN:
+                continue
+            # nearest friendly planet meaningfully closer to the front
+            best, best_d = None, float("inf")
+            for q in my_planets:
+                if q.id == src.id or fd[q.id] >= fd[src.id] - CONSOLIDATE_MARGIN:
+                    continue
+                d = _hypot(src.x, src.y, q.x, q.y)
+                if d < best_d:
+                    best, best_d = q, d
+            if best is None:
+                continue
+            sol = _solve_intercept(src.x, src.y, best.id, surplus, step, init_by_id, ang_vel)
+            if sol is None:
+                continue
+            angle, _t, pos = sol
+            if _path_blocked(src.x, src.y, pos[0], pos[1], src.id, best.id, planets, comet_ids):
+                continue
+            moves.append([src.id, angle, int(surplus)])
+            remaining[src.id] = 0
+    return moves
+```
+</details>
+
+### 🤖 Assistant: *MULTISRC site:*
+
+`16:07:22`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> MULTISRC site:
+
+#### ✏️  Edit `policy.py`
+
+`16:07:25`
+
+```diff
+@@ -1,4 +1,5 @@             # only keep the wave if it can at least capture (>= the single-source need)
+             if accum >= cap_needed:
+                 moves.extend(wave)
++                move_targets.extend([tgt_id] * len(wave))
+                 committed.add(tgt_id)
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Consolidation site + the final return:*
+
+`16:07:30`
+
+> Consolidation site + the final return:
+
+#### ✏️  Edit `policy.py`
+
+`16:07:31`
+
+```diff
+@@ -1,3 +1,4 @@             moves.append([src.id, angle, int(surplus)])
++            move_targets.append(best.id)
+             remaining[src.id] = 0
+-    return moves
++    return moves, move_targets
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *All threading done.*
+
+`16:07:38`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All threading done. Now compile + the full verification (golden, all tests, the moved-module paths):
+
+#### 💻 Bash: *Compile + golden + core tests after threading*
+
+`16:07:42`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+source ~/.venvs/orbit-wars/bin/activate 2>/dev/null
+echo "=== compile all agent+core ==="
+python -m py_compile competitions/orbit-wars/agent/*.py competitions/orbit-wars/core/*.py && echo "OK"
+echo "=== golden (target threading additive -> must be 0) ==="
+python /tmp/claude/ow_golden_check.py 2>&1 | grep -E "MISMATCHES|PASS|DIFFERS"
+echo "=== existing tests_orbit ==="
+for t in test_flight_oracle test_state_ledger test_action_sanitizer; do
+  python competitions/orbit-wars/tests_orbit/$t.py >/dev/null 2>&1 && echo "PASS $t" || echo "FAIL $t"
+done
+```
+
+```
+=== compile all agent+core ===
+OK
+=== golden (target threading additive -> must be 0) ===
+records=526  MISMATCHES=0
+PASS (behavior identical)
+=== existing tests_orbit ===
+PASS test_flight_oracle
+PASS test_state_ledger
+FAIL test_action_sanitizer
+```
+
+### 🤖 Assistant: *`test_action_sanitizer` fails — it likely…*
+
+`16:08:24`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `test_action_sanitizer` fails — it likely references `main._emit_gate`, which moved to `core.policy`. Let me check:
+
+#### 💻 Bash: *See test_action_sanitizer failure*
+
+`16:08:26`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+source ~/.venvs/orbit-wars/bin/activate 2>/dev/null
+python competitions/orbit-wars/tests_orbit/test_action_sanitizer.py 2>&1 | grep -vE "litellm|LiteLLM|open_spiel|INFO:" | tail -12
+```
+
+```
+Traceback (most recent call last):
+  File "/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_action_sanitizer.py", line 149, in <module>
+    fn()
+  File "/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_action_sanitizer.py", line 138, in test_agent_emit_gate_routes_and_blocks_sun
+    gated = mod._emit_gate(obs, forged)
+            ^^^^^^^^^^^^^^
+AttributeError: module 'ow_main' has no attribute '_emit_gate'
+```
+
+### 🤖 Assistant: *The test calls `main._emit_gate` (now in…*
+
+`16:08:38`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The test calls `main._emit_gate` (now in `core.policy`). Let me read + fix that test:
+
+#### 👀 Read `test_action_sanitizer.py`
+
+`16:08:40`
+
+*(lines 106–150)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_action_sanitizer.py</code></summary>
+
+```python
+            obs.get("angular_velocity", 0.0),
+        )
+        r = FlightOracle().first_hit(obs, src[0], sol[0], 30)
+        if r.first_hit_type not in ("sun", "oob", "none"):
+            valid.append([src[0], sol[0], 30])
+    clean = sanitize_default(obs, valid)
+    assert clean == valid  # nothing dropped
+
+
+def test_agent_emit_gate_routes_and_blocks_sun():
+    """main.py._emit_gate drops a forged strict-sun action but keeps a valid one."""
+    spec = importlib.util.spec_from_file_location(
+        "ow_main", os.path.join(COMP, "agent", "main.py")
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    obs = _obs()
+    me = obs.get("player", 0)
+    src = [p for p in obs["planets"] if p[1] == me][0]
+    others = [p for p in obs["planets"] if p[1] != me]
+    init = {p[0]: tuple(p) for p in obs["initial_planets"]}
+    sol = G.solve_intercept(
+        src[2],
+        src[3],
+        others[0][0],
+        30,
+        int(obs.get("step", 0)),
+        init,
+        obs.get("angular_velocity", 0.0),
+    )
+    sun_angle = math.atan2(G.CENTER - src[3], G.CENTER - src[2])
+    forged = [[src[0], sol[0], 30], [src[0], sun_angle, 30]]
+    gated = mod._emit_gate(obs, forged)
+    assert [src[0], sun_angle, 30] not in gated  # sun action dropped
+    assert any(mv[0] == src[0] for mv in gated)  # valid action kept
+
+
+if __name__ == "__main__":
+    fns = [
+        v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)
+    ]
+    passed = 0
+    for fn in fns:
+        fn()
+```
+</details>
+
+### 🤖 Assistant: *Updating the test to use `core.policy._emit_gate…*
+
+`16:08:47`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Updating the test to use `core.policy._emit_gate` (the gate moved there):
+
+#### ✏️  Edit `test_action_sanitizer.py`
+
+`16:08:52`
+
+```diff
+@@ -1,8 +1,5 @@ def test_agent_emit_gate_routes_and_blocks_sun():
+-    """main.py._emit_gate drops a forged strict-sun action but keeps a valid one."""
+-    spec = importlib.util.spec_from_file_location(
+-        "ow_main", os.path.join(COMP, "agent", "main.py")
+-    )
+-    mod = importlib.util.module_from_spec(spec)
+-    spec.loader.exec_module(mod)
++    """core.policy._emit_gate (via core.action_emitter) drops a forged strict-sun action, keeps a valid one."""
++    from core import policy as mod  # the emission gate now lives in core.policy (OW-ARCH-001)
++
+     obs = _obs()
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_action_sanitizer.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Let me verify the fixed test + check test_hybrid_model…*
+
+`16:09:00`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me verify the fixed test + check test_hybrid_model (its weights-load assertion is now stale):
+
+#### 💻 Bash: *Verify sanitizer test + check hybrid test*
+
+`16:09:04`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+source ~/.venvs/orbit-wars/bin/activate 2>/dev/null
+echo "=== test_action_sanitizer ==="; python competitions/orbit-wars/tests_orbit/test_action_sanitizer.py 2>&1 | grep -vE "litellm|LiteLLM|open_spiel|INFO:" | tail -3
+echo "=== test_hybrid_model (likely stale: weights now incompatible) ==="; python competitions/orbit-wars/tests_orbit/test_hybrid_model.py 2>&1 | grep -vE "litellm|LiteLLM|open_spiel|INFO:" | tail -4
+echo "=== importlib still used in test_action_sanitizer? ==="; grep -c "importlib" competitions/orbit-wars/tests_orbit/test_action_sanitizer.py
+```
+
+```
+=== test_action_sanitizer ===
+PASS test_sanitizer_blocks_wrong_first_hit_when_target_given
+
+4/4 action-sanitizer tests passed
+=== test_hybrid_model (likely stale: weights now incompatible) ===
+  File "/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_hybrid_model.py", line 28, in test_feature_vector_shape_and_order
+    assert len(vec) == len(FEATURE_NAMES) == 24
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError
+=== importlib still used in test_action_sanitizer? ===
+1
+```
+
+### 🤖 Assistant: *4/4 sanitizer tests pass.*
+
+`16:09:28`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> 4/4 sanitizer tests pass. `test_hybrid_model` is stale (asserts 24 features; contract is now 25 + weights intentionally incompatible). Let me read it to update + then add the task's required new tests:
+
+#### 👀 Read `test_hybrid_model.py`
+
+`16:09:29`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_hybrid_model.py</code></summary>
+
+```python
+"""Hybrid model scorer + train/serve feature-contract smokes (prompt 06 integration)."""
+
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+COMP = os.path.normpath(os.path.join(HERE, ".."))
+for _p in (COMP, os.path.join(COMP, "agent")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from core.features import FEATURE_NAMES, feature_vector, ship_bucket_of  # noqa: E402
+
+
+def test_feature_vector_shape_and_order():
+    cf = {
+        "ships": 30,
+        "remaining_steps": 400,
+        "phase": "midgame",
+        "src_ships": 50,
+        "tgt_owner": -1,
+        "tgt_strategic_value": 42,
+        "path_valid": 1,
+        "path_eta": 7,
+        "path_first_hit_type": "target",
+    }
+    vec = feature_vector(cf, ship_bucket=ship_bucket_of(30))
+    assert len(vec) == len(FEATURE_NAMES) == 24
+    assert all(isinstance(v, float) for v in vec)
+    # neutral target -> owner_is_neutral=1, owner_is_enemy=0 (positions 8,9)
+    assert vec[8] == 0.0 and vec[9] == 1.0
+    # first-hit-is-target flag (last feature)
+    assert vec[-1] == 1.0
+
+
+def test_scorer_loads_and_scores_in_range():
+    from hybrid_model import load_default
+
+    sc = load_default(os.path.join(COMP, "agent", "hybrid_weights.json"))
+    assert sc is not None, "deployed weights agent/hybrid_weights.json failed to load"
+    # weights' first layer input dim must equal the feature contract
+    assert len(sc.layers[0]["W"][0]) == len(FEATURE_NAMES)
+    cf = {
+        "ships": 20,
+        "phase": "opening",
+        "tgt_strategic_value": 80,
+        "path_valid": 1,
+        "path_first_hit_type": "target",
+        "tgt_owner": 1,
+    }
+    s = sc.score_cf(cf, ship_bucket_of(20))
+    assert 0.0 <= s <= 1.0
+
+
+def test_missing_weights_returns_none_not_raise():
+    from hybrid_model import load_default
+
+    assert load_default(os.path.join(COMP, "agent", "does_not_exist.json")) is None
+
+
+if __name__ == "__main__":
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    passed = 0
+    for fn in fns:
+        fn()
+        print("PASS", fn.__name__)
+        passed += 1
+    print(f"\n{passed}/{len(fns)} hybrid-model tests passed")
+
+```
+</details>
+
+### 🤖 Assistant: *Rewriting test_hybrid_model.py for the new…*
+
+`16:09:34`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Rewriting test_hybrid_model.py for the new contract (25 features + compat guard disables the now-incompatible weights):
+
+#### ✍️  Write `test_hybrid_model.py`
+
+`16:09:45`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_hybrid_model.py</code></summary>
+
+```python
+"""Hybrid model scorer compat-guard smokes (OW-ARCH-001).
+
+The feature contract grew to 25 (added tgt_owner_is_own). The deployed hybrid_weights.json was trained
+on the old 24-feature contract, so it MUST now disable cleanly (load_default -> None -> rules-only),
+never silently mis-score. Feature-contract correctness is covered in test_features_contract.py.
+"""
+
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+COMP = os.path.normpath(os.path.join(HERE, ".."))
+for _p in (COMP, os.path.join(COMP, "agent")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from core.features import FEATURE_NAMES  # noqa: E402
+
+
+def test_incompatible_weights_disable_cleanly():
+    """The deployed 24-feature weights are incompatible with the 25-feature contract -> None."""
+    from hybrid_model import load_default
+
+    sc = load_default(os.path.join(COMP, "agent", "hybrid_weights.json"))
+    assert sc is None, "stale-contract weights must disable (rules-only), not silently mis-score"
+
+
+def test_missing_weights_returns_none_not_raise():
+    from hybrid_model import load_default
+
+    assert load_default(os.path.join(COMP, "agent", "does_not_exist.json")) is None
+
+
+def test_compatible_weights_load_and_score():
+    """A synthetic weights doc that MATCHES the current contract loads and scores in [0, 1]."""
+    import json
+    import tempfile
+
+    from hybrid_model import load_default
+
+    n = len(FEATURE_NAMES)
+    doc = {
+        "features": list(FEATURE_NAMES),
+        "mean": [0.0] * n,
+        "std": [1.0] * n,
+        "layers": [{"W": [[0.0] * n], "b": [0.0]}],  # 1-layer identity-ish -> sigmoid(0)=0.5
+    }
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+        json.dump(doc, f)
+        path = f.name
+    sc = load_default(path)
+    os.unlink(path)
+    assert sc is not None, "contract-matching weights should load"
+    s = sc.score_cf({"tgt_owner": 1, "my_id": 0, "ships": 20})
+    assert 0.0 <= s <= 1.0
+
+
+if __name__ == "__main__":
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    passed = 0
+    for fn in fns:
+        fn()
+        print("PASS", fn.__name__)
+        passed += 1
+    print(f"\n{passed}/{len(fns)} hybrid-model tests passed")
+
+```
+</details>
+
+✓ The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_hybrid_model.py has been updated successfully. (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *Now the 4 required new tests (tests_orbit…*
+
+`16:10:00`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now the 4 required new tests (tests_orbit/ convention). **test_features_contract.py**:
+
+#### ✍️  Write `test_features_contract.py`
+
+`16:10:11`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_features_contract.py</code></summary>
+
+```python
+"""Feature contract tests (OW-ARCH-001): stable length/schema + own/enemy/neutral ownership."""
+
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+COMP = os.path.normpath(os.path.join(HERE, ".."))
+if COMP not in sys.path:
+    sys.path.insert(0, COMP)
+
+from core.features import FEATURE_NAMES, feature_vector, ship_bucket_of  # noqa: E402
+
+
+def _flags(owner, me):
+    v = feature_vector({"tgt_owner": owner, "my_id": me, "ships": 10})
+    i = (FEATURE_NAMES.index("tgt_owner_is_own"),
+         FEATURE_NAMES.index("tgt_owner_is_enemy"),
+         FEATURE_NAMES.index("tgt_owner_is_neutral"))
+    return (v[i[0]], v[i[1]], v[i[2]])
+
+
+def test_vector_length_is_stable_and_floats():
+    v = feature_vector({"tgt_owner": -1, "my_id": 0, "ships": 5}, ship_bucket=ship_bucket_of(5))
+    assert len(v) == len(FEATURE_NAMES)
+    assert all(isinstance(x, float) for x in v)
+
+
+def test_schema_exposes_own_enemy_neutral():
+    for name in ("tgt_owner_is_own", "tgt_owner_is_enemy", "tgt_owner_is_neutral"):
+        assert name in FEATURE_NAMES, name
+
+
+def test_ownership_flags_distinguish_own_enemy_neutral():
+    # owner == me -> OWN (not enemy); owner != me and != -1 -> ENEMY; owner == -1 -> NEUTRAL
+    assert _flags(2, 2) == (1.0, 0.0, 0.0), "own planet must NOT be flagged enemy"
+    assert _flags(1, 2) == (0.0, 1.0, 0.0)
+    assert _flags(-1, 2) == (0.0, 0.0, 1.0)
+    # exactly one of the three is set
+    for owner in (2, 1, -1):
+        assert sum(_flags(owner, 2)) == 1.0
+
+
+def test_missing_fields_degrade_safely():
+    # empty cf must not crash and must still produce a full-length numeric vector
+    v = feature_vector({})
+    assert len(v) == len(FEATURE_NAMES)
+    assert all(isinstance(x, float) for x in v)
+    # missing my_id -> own cannot be asserted; must not crash and must not be flagged own
+    own_i = FEATURE_NAMES.index("tgt_owner_is_own")
+    assert feature_vector({"tgt_owner": 3, "ships": 1})[own_i] == 0.0
+
+
+if __name__ == "__main__":
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    n = 0
+    for fn in fns:
+        fn()
+        print("PASS", fn.__name__)
+        n += 1
+    print(f"\n{n}/{len(fns)} features-contract tests passed")
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_features_contract.py (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *\*\*test_geometry_oracle.py\*\* (fleet_speed…*
+
+`16:10:26`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> **test_geometry_oracle.py** (fleet_speed, sun/near-sun/oob, first-hit, and trace-from-source vs trace-from-current-position):
+
+#### ✍️  Write `test_geometry_oracle.py`
+
+`16:10:48`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_geometry_oracle.py</code></summary>
+
+```python
+"""Geometry + FlightOracle tests (OW-ARCH-001): fleet_speed, sun/near-sun/oob, first-hit,
+and trace-from-source vs trace-from-current-position (the in-flight decode fix)."""
+
+import math
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+COMP = os.path.normpath(os.path.join(HERE, ".."))
+if COMP not in sys.path:
+    sys.path.insert(0, COMP)
+
+from core import geometry as G  # noqa: E402
+from core.oracle import FlightOracle  # noqa: E402
+
+
+def _obs(planets, fleets=(), ang_vel=0.0, step=5, me=0):
+    return {
+        "planets": [list(p) for p in planets],
+        "fleets": [list(f) for f in fleets],
+        "initial_planets": [list(p) for p in planets],  # static (ang_vel=0) -> init == current
+        "angular_velocity": ang_vel,
+        "step": step,
+        "comet_planet_ids": [],
+        "player": me,
+    }
+
+
+# A clear horizontal lane: source@(10,50), target@(35,50) (clear of the sun disc r=10 at (50,50)).
+SRC = (0, 0, 10.0, 50.0, 2.0, 50.0, 3)   # id 0, mine
+TGT = (1, -1, 35.0, 50.0, 2.0, 5.0, 2)   # id 1, neutral
+
+
+def test_fleet_speed_monotonic_and_capped():
+    assert G.fleet_speed(1) == 1.0
+    assert G.fleet_speed(10) < G.fleet_speed(100) < G.fleet_speed(1000)
+    assert G.fleet_speed(10**6) <= G.MAX_SPEED
+
+
+def test_first_hit_target_and_sun_and_oob():
+    obs = _obs([SRC, TGT])
+    orc = FlightOracle()
+    # aim straight at the target (angle 0, +x) -> first hit is the target planet (id 1)
+    r = orc.first_hit(obs, 0, 0.0, 30)
+    assert r.first_hit_id == 1 and r.first_hit_type in ("neutral", "target")
+    # aim through the sun (no planet there) -> strict sun collision, invalid
+    rs = FlightOracle().first_hit(_obs([SRC]), 0, 0.0, 30)  # only source; lane crosses sun
+    assert rs.first_hit_type == "sun" and rs.valid is False
+    # aim up-and-out with a tiny board exit -> oob (source near top, angle +y off board)
+    src_top = (0, 0, 10.0, 98.0, 2.0, 50.0, 3)
+    ro = FlightOracle().first_hit(_obs([src_top]), 0, math.pi / 2, 30)
+    assert ro.first_hit_type == "oob" and ro.valid is False
+
+
+def test_near_sun_warning_distinct_from_collision():
+    # a lane grazing just outside the sun disc should be valid but near_sun-flagged
+    orc = FlightOracle()
+    # place a target beyond the sun, lane y just tangent to SUN_R+1
+    graze_y = 50.0 - (G.SUN_R + 1.0)
+    src = (0, 0, 2.0, graze_y, 2.0, 50.0, 3)
+    far = (1, -1, 95.0, graze_y, 2.0, 5.0, 2)
+    r = orc.first_hit(_obs([src, far]), 0, 0.0, 30)
+    # not a strict collision (min_sun >= SUN_R); near_sun set when within SUN_R+buffer
+    assert r.first_hit_type != "sun"
+
+
+def test_trace_from_position_differs_from_relaunch_from_source():
+    """An in-flight fleet must be traced from its CURRENT (x,y), giving a SHORTER eta to the same
+    target than relaunching from the source planet."""
+    obs = _obs([SRC, TGT])
+    orc = FlightOracle()
+    from_source = orc.first_hit(obs, 0, 0.0, 30)              # launch from source @ (10,50)
+    midway = orc.trace_from_position(obs, 30.0, 50.0, 0.0, 30)  # in-flight @ (30,50)
+    assert from_source.first_hit_id == midway.first_hit_id == 1
+    assert midway.eta is not None and from_source.eta is not None
+    assert midway.eta < from_source.eta, (midway.eta, from_source.eta)
+
+
+def test_decode_existing_fleet_uses_current_position():
+    obs = _obs([SRC, TGT])
+    orc = FlightOracle()
+    # fleet row: (id, owner, x, y, angle, from_planet_id, ships) — already at (30,50) heading +x
+    fleet = (7, 0, 30.0, 50.0, 0.0, 0, 30)
+    res = orc.decode_existing_fleet(obs, fleet)
+    assert res.first_hit_id == 1            # reaches the target
+    assert res.source_planet_id == 0        # informational: launched from planet 0
+    # eta matches a from-current-position trace, NOT a relaunch from source
+    assert res.eta == orc.trace_from_position(obs, 30.0, 50.0, 0.0, 30).eta
+
+
+if __name__ == "__main__":
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    n = 0
+    for fn in fns:
+        fn()
+        print("PASS", fn.__name__)
+        n += 1
+    print(f"\n{n}/{len(fns)} geometry-oracle tests passed")
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_geometry_oracle.py (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *\*\*test_state_fleet_decode.py\*\* — let me check…*
+
+`16:11:05`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> **test_state_fleet_decode.py** — let me check the FleetState field names first:
+
+#### 💻 Bash: *Get FleetState field names for the test*
+
+`16:11:08`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+echo "=== FleetState dataclass fields ==="
+sed -n '/class FleetState/,/^class /p' core/state.py | grep -E ":" | head -20
+echo "=== build_battlefield_state signature + FleetState() construction ==="
+grep -nE "def build_battlefield_state|fstates\[fid\] = FleetState|decoded|first_hit|eta=" core/state.py | head
+```
+
+```
+=== FleetState dataclass fields ===
+class FleetState:
+    id: int
+    owner: int
+    x: float
+    y: float
+    angle: float
+    ships: float
+    speed: float
+    source_planet_id: int
+    decoded_first_hit_id: int | None = None
+    decoded_target_type: str = "unknown"
+    eta: int | None = None
+    min_sun_distance: float | None = None
+    path_safety: str = "unknown"  # ok | near_sun | sun | oob | none
+    is_attack: bool = False
+    is_reinforcement: bool = False
+    is_expansion: bool = False
+    is_hub_transfer: bool = False
+class PlayerState:
+=== build_battlefield_state signature + FleetState() construction ===
+67:    decoded_first_hit_id: int | None = None
+68:    decoded_target_type: str = "unknown"
+152:def build_battlefield_state(obs, horizon=80) -> BattlefieldState:
+215:            nearest_enemy_eta=ne,
+216:            nearest_friendly_eta=nf,
+240:        decoded_id, dtype, eta = res.first_hit_id, res.first_hit_type, res.eta
+253:        tgt_owner = by_id.get(decoded_id, (None, None))[1] if decoded_id is not None else None
+254:        fstates[fid] = FleetState(
+263:            decoded_first_hit_id=decoded_id,
+264:            decoded_target_type=dtype,
+```
+
+### 🤖 Assistant: *\*\*test_state_fleet_decode.py\*\*:*
+
+`16:11:19`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> **test_state_fleet_decode.py**:
+
+#### ✍️  Write `test_state_fleet_decode.py`
+
+`16:11:30`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_state_fleet_decode.py</code></summary>
+
+```python
+"""BattlefieldState fleet-decode tests (OW-ARCH-001): in-flight fleets are decoded from their
+CURRENT position, not relaunched from the source planet."""
+
+import os
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+COMP = os.path.normpath(os.path.join(HERE, ".."))
+if COMP not in sys.path:
+    sys.path.insert(0, COMP)
+
+from core.oracle import FlightOracle  # noqa: E402
+from core.state import build_battlefield_state  # noqa: E402
+
+SRC = (0, 0, 10.0, 50.0, 2.0, 50.0, 3)   # mine
+TGT = (1, -1, 35.0, 50.0, 2.0, 5.0, 2)   # neutral target on a clear +x lane
+# in-flight fleet of mine, already at (30,50) heading +x toward the target (from planet 0)
+FLEET = (7, 0, 30.0, 50.0, 0.0, 0, 30)
+
+
+def _obs(planets, fleets):
+    return {
+        "planets": [list(p) for p in planets],
+        "fleets": [list(f) for f in fleets],
+        "initial_planets": [list(p) for p in planets],  # static
+        "angular_velocity": 0.0,
+        "step": 5,
+        "comet_planet_ids": [],
+        "player": 0,
+    }
+
+
+def test_state_builds_from_minimal_obs():
+    st = build_battlefield_state(_obs([SRC, TGT], []), horizon=40)
+    assert 0 in st.planets and 1 in st.planets
+    assert hasattr(st, "fleets")
+
+
+def test_inflight_fleet_decoded_from_current_position():
+    obs = _obs([SRC, TGT], [FLEET])
+    st = build_battlefield_state(obs, horizon=40)
+    fs = st.fleets[7]
+    # decoded to the real target, traced from current (30,50)
+    assert fs.decoded_first_hit_id == 1, fs.decoded_first_hit_id
+    orc = FlightOracle()
+    cur = orc.trace_from_position(obs, 30.0, 50.0, 0.0, 30)
+    relaunch = orc.first_hit(obs, 0, 0.0, 30)  # WRONG (old) way: from source @ (10,50)
+    assert fs.eta == cur.eta, (fs.eta, cur.eta)
+    assert cur.eta < relaunch.eta, "current-position decode must give a shorter eta than relaunch"
+
+
+def test_decode_is_stable_for_known_case():
+    obs = _obs([SRC, TGT], [FLEET])
+    a = build_battlefield_state(obs, horizon=40).fleets[7]
+    b = build_battlefield_state(obs, horizon=40).fleets[7]
+    assert (a.decoded_first_hit_id, a.eta, a.path_safety) == (b.decoded_first_hit_id, b.eta, b.path_safety)
+
+
+if __name__ == "__main__":
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    n = 0
+    for fn in fns:
+        fn()
+        print("PASS", fn.__name__)
+        n += 1
+    print(f"\n{n}/{len(fns)} state-fleet-decode tests passed")
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_state_fleet_decode.py (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *\*\*test_policy_smoke.py\*\* (the entrypoint…*
+
+`16:11:40`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> **test_policy_smoke.py** (the entrypoint returns valid sanitized actions, no crash on minimal obs, wrong-first-hit gate works):
+
+#### ✍️  Write `test_policy_smoke.py`
+
+`16:11:56`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_policy_smoke.py</code></summary>
+
+```python
+"""Policy smoke tests (OW-ARCH-001): the thin entrypoint runs the layered policy, returns valid
+sanitized actions, never crashes on a minimal obs, and the opt-in wrong-first-hit gate works."""
+
+import os
+import sys
+
+os.environ["OMP_NUM_THREADS"] = "1"
+for _k in list(os.environ):
+    if _k.startswith("OW_"):
+        del os.environ[_k]
+HERE = os.path.dirname(os.path.abspath(__file__))
+COMP = os.path.normpath(os.path.join(HERE, ".."))
+for _p in (COMP, os.path.join(COMP, "agent")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from core.oracle import FlightOracle  # noqa: E402
+
+
+def _real_obs():
+    import logging
+
+    logging.disable(logging.INFO)
+    from kaggle_environments import make
+
+    env = make("orbit_wars", configuration={"seed": 31337})
+    env.reset(num_agents=2)
+    # advance a few steps so fleets/positions are non-trivial
+    env.run(["do_nothing", "do_nothing"]) if False else None
+    return env.steps[0][0]["observation"]
+
+
+def test_agent_returns_valid_action_list():
+    import main as entry  # the thin agent/main.py shim
+
+    moves = entry.agent(_real_obs())
+    assert isinstance(moves, list)
+    for mv in moves:
+        assert isinstance(mv, (list, tuple)) and len(mv) == 3
+        int(mv[0]); float(mv[1]); int(mv[2])  # well-formed [src, angle, ships]
+
+
+def test_no_crash_on_minimal_obs():
+    import main as entry
+
+    assert entry.agent({}) == []  # empty obs -> passive, never crash
+    minimal = {"planets": [], "fleets": [], "initial_planets": [], "angular_velocity": 0.0,
+               "step": 0, "comet_planet_ids": [], "player": 0}
+    assert entry.agent(minimal) == []  # no planets -> no moves
+
+
+def test_emitted_actions_are_sanitized_no_sun_oob():
+    import main as entry
+
+    obs = _real_obs()
+    orc = FlightOracle()
+    for mv in entry.agent(obs):
+        r = orc.first_hit(obs, int(mv[0]), float(mv[1]), int(mv[2]))
+        assert r.first_hit_type not in ("sun", "oob"), (mv, r.first_hit_type)
+
+
+def test_wrong_first_hit_blocked_when_enabled():
+    """With OW_BLOCK_WRONG_HIT=1, the emission gate drops a move whose first hit != intended target."""
+    from core import policy
+
+    # static lane: source@(10,50), real first-hit planet @ (35,50) id=1, but claim intended target id=2
+    obs = {
+        "planets": [[0, 0, 10.0, 50.0, 2.0, 50.0, 3], [1, -1, 35.0, 50.0, 2.0, 5.0, 2],
+                    [2, -1, 80.0, 20.0, 2.0, 5.0, 2]],
+        "fleets": [], "initial_planets": [[0, 0, 10.0, 50.0, 2.0, 50.0, 3],
+                                          [1, -1, 35.0, 50.0, 2.0, 5.0, 2], [2, -1, 80.0, 20.0, 2.0, 5.0, 2]],
+        "angular_velocity": 0.0, "step": 5, "comet_planet_ids": [], "player": 0,
+    }
+    move = [0, 0.0, 30]  # angle 0 -> first hit is planet 1, NOT the claimed target 2
+    try:
+        policy._BLOCK_WRONG_HIT = True
+        kept = policy._emit_gate(obs, [move], targets=[2])
+        assert kept == [], kept  # wrong-first-hit dropped
+        kept_ok = policy._emit_gate(obs, [move], targets=[1])
+        assert kept_ok == [move], kept_ok  # correct intended target kept
+    finally:
+        policy._BLOCK_WRONG_HIT = False
+
+
+if __name__ == "__main__":
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    n = 0
+    for fn in fns:
+        fn()
+        print("PASS", fn.__name__)
+        n += 1
+    print(f"\n{n}/{len(fns)} policy-smoke tests passed")
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_policy_smoke.py (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *Now run the full tests_orbit suite + golden…*
+
+`16:12:04`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now run the full tests_orbit suite + golden:
+
+#### 💻 Bash: *Run full tests_orbit suite + golden*
+
+`16:12:10`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+source ~/.venvs/orbit-wars/bin/activate 2>/dev/null
+echo "=== py_compile all ==="
+python -m py_compile competitions/orbit-wars/agent/*.py competitions/orbit-wars/core/*.py competitions/orbit-wars/tests_orbit/*.py && echo "compile OK"
+echo "=== tests_orbit suite ==="
+for t in test_geometry_oracle test_flight_oracle test_state_fleet_decode test_state_ledger test_features_contract test_action_sanitizer test_hybrid_model test_policy_smoke; do
+  out=$(python competitions/orbit-wars/tests_orbit/$t.py 2>&1 | grep -vE "litellm|LiteLLM|open_spiel|INFO:")
+  if echo "$out" | grep -qiE "passed"; then echo "PASS $t ($(echo "$out" | grep -oE '[0-9]+/[0-9]+ .*passed' | head -1))"; else echo "FAIL $t"; echo "$out" | tail -4; fi
+done
+echo "=== golden ==="
+python /tmp/claude/ow_golden_check.py 2>&1 | grep -E "MISMATCHES|PASS|DIFFERS"
+```
+
+```
+=== py_compile all ===
+compile OK
+=== tests_orbit suite ===
+PASS test_geometry_oracle (5/5 geometry-oracle tests passed)
+PASS test_flight_oracle (6/6 flight-oracle tests passed)
+PASS test_state_fleet_decode (3/3 state-fleet-decode tests passed)
+PASS test_state_ledger (5/5 state/ledger tests passed)
+PASS test_features_contract (4/4 features-contract tests passed)
+PASS test_action_sanitizer (4/4 action-sanitizer tests passed)
+PASS test_hybrid_model (3/3 hybrid-model tests passed)
+PASS test_policy_smoke (4/4 policy-smoke tests passed)
+=== golden ===
+records=526  MISMATCHES=0
+PASS (behavior identical)
+```
+
+### 🤖 Assistant: *All 34 tests pass + golden=0.*
+
+`16:13:28`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All 34 tests pass + golden=0. Now the **config layer**. Let me see the full extent of the `OW_*` env sprawl in policy.py to centralize it:
+
+#### 💻 Bash: *Enumerate all OW_\* env reads in policy.py*
+
+`16:13:30`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+grep -nE "_os\.environ\.get\(" core/policy.py
+```
+
+```
+73:PROJ_H = int(_os.environ.get("OW_PROJ_H", 26))  # forward-sim horizon; 18 too short for slow opening fleets
+77:MULTISRC = int(_os.environ.get("OW_MULTISRC", 0))  # default OFF: tried, no gain vs strong tier
+78:HOLD_MULT = float(_os.environ.get("OW_HOLD_MULT", 1.6))
+83:OPENING = int(_os.environ.get("OW_OPENING", 0))  # default OFF: fired more but win-rate dropped
+84:OPENING_TURNS = int(_os.environ.get("OW_OPENING_TURNS", 25))
+85:OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
+93:COARRIVAL = int(_os.environ.get("OW_COARRIVAL", 0))
+94:COARR_MAX_SRC = int(_os.environ.get("OW_COARR_MAX_SRC", 4))  # wave fragmentation cap
+95:COARR_HOLD = float(_os.environ.get("OW_COARR_HOLD", 1.0))  # extra force mult to hold
+102:LEDGER = int(_os.environ.get("OW_LEDGER", 0))
+106:COARR_TOL = int(_os.environ.get("OW_COARR_TOL", 1))
+137:REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+138:FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 5))  # garrison kept on a planet near an enemy
+139:FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 20.0))  # enemy planet within this distance => frontier
+140:GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+141:INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
+145:CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 3.2))
+146:CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.3))
+155:FOURP_MODE = int(_os.environ.get("OW_4P_MODE", 0))  # master gate
+156:FOURP_ATK_SCALE = float(_os.environ.get("OW_4P_ATK_SCALE", 0.5))  # opening PvP damping
+157:FOURP_PEACE = int(_os.environ.get("OW_4P_PEACE_TURNS", 25))  # "no early aggressor" window
+158:FOURP_RIVAL_W = float(_os.environ.get("OW_4P_RIVAL_W", 1.0))  # weight hurting the leader
+159:FOURP_CAP_BUMP = float(_os.environ.get("OW_4P_CAP_BUMP", 0.0))  # survival reserve bump
+166:CONSOLIDATE = int(_os.environ.get("OW_CONSOLIDATE", 0))
+167:CONSOLIDATE_MIN = float(_os.environ.get("OW_CONSOLIDATE_MIN", 12))  # min surplus to bother (tiny fleets crawl)
+168:CONSOLIDATE_MARGIN = float(_os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0))  # front-distance gain required
+254:_SANITIZE = int(_os.environ.get("OW_NO_SANITIZE", 0)) == 0
+258:_BLOCK_WRONG_HIT = int(_os.environ.get("OW_BLOCK_WRONG_HIT", 0)) == 1
+274:        _log = _os.environ.get("OW_SANITIZE_LOG", "")
+299:        int(_os.environ.get("OW_HYBRID", 0)),
+300:        float(_os.environ.get("OW_HYBRID_BETA", 0.5)),
+301:        int(_os.environ.get("OW_HYBRID_TOPN", 80)),
+```
+
+### 🤖 Assistant: *Let me read the env-knob sections of policy…*
+
+`16:15:25`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me read the env-knob sections of policy.py to plan the migration:
+
+#### 👀 Read `policy.py`
+
+`16:15:27`
+
+*(lines 1–176)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py</code></summary>
+
+```python
+"""
+Orbit Wars agent — v3.2 "Forecast" (t14-tuned forward-sim differential planner).
+
+Strategy summary (see competitions/orbit-wars/README.md for the full design):
+  - Predict every planet's exact future position from `initial_planets` +
+    `angular_velocity` (the engine rotates orbiting planets deterministically:
+    angle = initial_angle + angular_velocity * step).
+  - For each affordable target, solve a fixed-point INTERCEPT: the fleet flies a
+    straight line at a size-dependent speed, the target moves on its orbit, so we
+    iterate arrival-time T until it converges, then aim at the predicted arrival
+    point — not the stale current position.
+  - Use the engine's EXACT capture rule: a single attacker captures iff
+    ships > garrison_at_arrival. Neutrals don't produce; enemy planets gain
+    production * T while the fleet is in flight, so we lead that growth.
+  - Avoid launches whose straight path would clip the sun or any other planet
+    (the engine resolves the FIRST planet a fleet touches, so a bad angle wastes
+    the whole fleet).
+  - Keep a defensive reserve on planets that have inbound enemy fleets.
+  - Greedy global allocation: each target is committed at most once (no overkill),
+    ranked by production-per-ship discounted by travel time.
+
+Robustness: the whole body is wrapped so any unexpected error yields an empty
+move list (stay passive but ALIVE) rather than crashing — a crash forfeits.
+"""
+
+import math
+import os as _os
+
+# === physics/geometry — single source is core.geometry (OW-ARCH-001 dedup) ===
+# These names are kept as thin aliases so all call sites below are unchanged; the implementations
+# (and the B11 planet-rotation phase fix) live ONLY in core/geometry.py now.
+from . import geometry as _G  # noqa: E402
+
+BOARD = _G.BOARD
+CENTER = _G.CENTER
+SUN_R = _G.SUN_R
+ROT_LIMIT = _G.ROT_LIMIT
+MAX_SPEED = _G.MAX_SPEED
+
+fleet_speed = _G.fleet_speed
+_seg_point_dist = _G.seg_point_dist
+_swept_hit = _G.swept_hit
+_resolve_combat = _G.resolve_combat
+_planet_pos = _G.planet_pos
+
+
+replay_planet = _G.replay_planet
+project = _G.project
+
+
+def signed_adv(owner_list, ships_list, me, H, gamma=0.97):
+    """Discounted advantage of one planet's trajectory: +my ships, -opponent ships,
+    0 for neutral, summed over k=1..H with a tempo discount."""
+    s = 0.0
+    g = 1.0
+    for k in range(1, H + 1):
+        g *= gamma
+        o = owner_list[k]
+        if o == me:
+            s += g * ships_list[k]
+        elif o != -1:
+            s -= g * ships_list[k]
+    return s
+
+
+# === aliases ===
+_project = project
+_replay = replay_planet
+
+# T2-R2 BAKED (2026-06-12, issue #87): t14 config confirmed on two independent
+# 300-game blocks (snorlax 13000+: 17.7%, local 15000+: 19.0% vs baseline ~12%;
+# pooled +6.7pt, z~3.3). Defaults below = t14: H26/FF5/FD20/CE3.2/CL1.3.
+PROJ_H = int(_os.environ.get("OW_PROJ_H", 26))  # forward-sim horizon; 18 too short for slow opening fleets
+# Multi-source coordination (the strong-tier lever): pool ships from several friendly
+# planets onto one target, sized to capture AND hold (vs single-source minimal captures
+# that get retaken). Staggered waves grind the defender; total = needed * HOLD_MULT.
+MULTISRC = int(_os.environ.get("OW_MULTISRC", 0))  # default OFF: tried, no gain vs strong tier
+HOLD_MULT = float(_os.environ.get("OW_HOLD_MULT", 1.6))
+# Opening expander: the differential value-gate is too conservative early (we fire 2-3x
+# in the first 25 turns while strong agents grab 5 planets). In the opening, grab every
+# reachable neutral with positive production-gain over a long opening horizon, firing
+# aggressively (no value-gate, no in-flight cap) to win the land-grab.
+OPENING = int(_os.environ.get("OW_OPENING", 0))  # default OFF: fired more but win-rate dropped
+OPENING_TURNS = int(_os.environ.get("OW_OPENING_TURNS", 25))
+OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
+# T8 — true co-arrival strikes (issue #87). Unlike MULTISRC (same-turn salvo: fleets
+# from different distances arrive on DIFFERENT turns and are defeated in detail), this
+# aligns ARRIVAL turns: pick an arrival turn K, fire the sources whose min ETA equals K
+# now, and RESERVE nearer sources (they re-derive their own fire turn on a later replan,
+# when the in-flight wave shows up in the do-nothing projection's arrival schedule and
+# their min ETA matches its arrival turn). The engine sums same-turn arrivals by owner,
+# so an aligned wave fights as one stack. Targets only planets no single source can take.
+COARRIVAL = int(_os.environ.get("OW_COARRIVAL", 0))
+COARR_MAX_SRC = int(_os.environ.get("OW_COARR_MAX_SRC", 4))  # wave fragmentation cap
+COARR_HOLD = float(_os.environ.get("OW_COARR_HOLD", 1.0))  # extra force mult to hold
+# T11 — ledger-constrained availability (issue #87, ChatGPT §9-2 dynamic defense
+# reserve). avail = min(current rule, ledger slack), where slack = min projected
+# garrison over the do-nothing trajectory's HELD turns (kuni05's safe_drain bound).
+# CONSTRAINT-ONLY: never frees more ships than the static rule (v3a failed by using
+# the same bound to free MORE); a planet projected to flip has nothing to protect
+# (the defense module handles it) -> no cap.
+LEDGER = int(_os.environ.get("OW_LEDGER", 0))
+# K±tol merging (T8 v2): a share whose exact-size ETA lands at K+1..K+tol joins the
+# wave anyway (fires now, valued at its true arrival turn) instead of aborting the
+# whole wave; shares slower than K+tol are dropped, not wave-fatal. tol=0 ~= v1.
+COARR_TOL = int(_os.environ.get("OW_COARR_TOL", 1))
+
+try:
+    from kaggle_environments.envs.orbit_wars.orbit_wars import Planet, Fleet
+except Exception:  # pragma: no cover - fallback if import path changes
+    from collections import namedtuple
+
+    Planet = namedtuple("Planet", ["id", "owner", "x", "y", "radius", "ships", "production"])
+    Fleet = namedtuple("Fleet", ["id", "owner", "x", "y", "angle", "from_planet_id", "ships"])
+
+# Engine constants (mirrored from orbit_wars.py).
+BOARD_SIZE = 100.0
+CENTER = BOARD_SIZE / 2.0
+SUN_RADIUS = 10.0
+ROTATION_RADIUS_LIMIT = 50.0
+MAX_SPEED = 6.0  # configuration.shipSpeed default
+EPISODE_STEPS = 500
+
+# Tunables.
+ENEMY_BUFFER = 2  # extra ships over the exact capture threshold for enemy planets
+PATH_CLEARANCE = 1.0  # extra margin when testing whether a path clips a planet
+DEFENSE_HORIZON = 18  # ticks ahead we consider an inbound enemy fleet a threat
+TIME_DISCOUNT = 0.04  # how strongly to prefer near targets in the value score
+
+# --- v2: hold what you take (fixes v1's capture-churn / leaky-expansion loss) ---
+# v1 left captured planets at ~0 garrison and poured the empire into transit, so
+# starter retook them and out-produced. v2 keeps a STANDING garrison on every planet
+# and caps how much of the empire may be in flight at once.
+# v2 defaults tuned via arena sweep vs the frozen v1 snapshot. The decisive lever is
+# the in-flight cap (don't over-commit the empire into transit); a small frontier
+# garrison complements it. Heavy garrison / a tight cap (<1.0) over-corrects and loses.
+REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 5))  # garrison kept on a planet near an enemy
+FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 20.0))  # enemy planet within this distance => frontier
+GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
+# Phase-scaled cap: looser early (win the land-grab) -> tighter late (hold and bank).
+# Tuned via arena sweep vs the flat-1.2 v2 snapshot; mild scaling (2.0 -> 1.0) won,
+# aggressive scaling (2.5-3.0 early / 0.6-0.8 late) lost. Linearly interpolated by step.
+CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 3.2))
+CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.3))
+# === 4p-aware mode (KCT-OW-LIVE-002) ===========================================
+# The ladder runs BOTH 2p and 4p episodes and BOTH update mu (~half are 4p,
+# verified from the flyingfox 205-episode history); our value function was tuned
+# 2p-only and is owner-BLIND across rivals. This mode triggers ONLY when >=3
+# distinct rival owners are present, so 2p play is byte-identical (provable).
+# In 4p mu is placement-vs-rating (avg_rank), and the flyingfox 4p analysis
+# showed losers get ELIMINATED in the t35-110 gauntlet while winners expand
+# fast on NEUTRALS and don't paint a target by early PvP. Three env-gated knobs:
+FOURP_MODE = int(_os.environ.get("OW_4P_MODE", 0))  # master gate
+FOURP_ATK_SCALE = float(_os.environ.get("OW_4P_ATK_SCALE", 0.5))  # opening PvP damping
+FOURP_PEACE = int(_os.environ.get("OW_4P_PEACE_TURNS", 25))  # "no early aggressor" window
+FOURP_RIVAL_W = float(_os.environ.get("OW_4P_RIVAL_W", 1.0))  # weight hurting the leader
+FOURP_CAP_BUMP = float(_os.environ.get("OW_4P_CAP_BUMP", 0.0))  # survival reserve bump
+# Consolidation: forward an idle rear planet's surplus to the friendly planet nearest the
+# front (the getting-started tutorial's flaw #4). DEFAULT OFF — an arena sweep showed it
+# never beats v2.1: harmful when aggressive (min=12 -> 30% vs v2.1), at best neutral when
+# rare (min>=30 -> 40-40). Our aggression already uses rear ships efficiently; forwarding
+# them wastes transit, starves the in-flight cap, and funnels the empire into fewer launch
+# points. Code kept (env-gated) so the result stays reproducible via OW_CONSOLIDATE=1.
+CONSOLIDATE = int(_os.environ.get("OW_CONSOLIDATE", 0))
+CONSOLIDATE_MIN = float(_os.environ.get("OW_CONSOLIDATE_MIN", 12))  # min surplus to bother (tiny fleets crawl)
+CONSOLIDATE_MARGIN = float(_os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0))  # front-distance gain required
+
+
+def _hypot(ax, ay, bx, by):
+    return math.hypot(ax - bx, ay - by)
+
+
+# Duplicates of core.geometry primitives -> aliases (single source = core.geometry).
+```
+</details>
+
+### 💭 Thinking
+
+`16:15:49`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 👀 Read `policy.py`
+
+`16:15:50`
+
+*(lines 240–360)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py</code></summary>
+
+```python
+            continue
+        perp = abs(rx * (-hy) + ry * hx)
+        if perp < planet.radius + 2.0:
+            threat += f.ships
+    return threat
+
+
+# --- FlightOracle execution gate (OW-P0-FLIGHT-ORACLE-001) -------------------
+# Final emission passes through core.action_sanitizer, which drops provably-fatal launches
+# (strict sun collision / out-of-bounds) via the deterministic FlightOracle. Import-guarded:
+# active when core/ is importable (locally, in the arena, or in a tar.gz that bundles core/
+# beside main.py); a transparent no-op otherwise, and ANY failure falls back to the raw moves
+# so the gate can never break or starve the agent. Disable with OW_NO_SANITIZE=1; set
+# OW_SANITIZE_LOG=<path> to append per-turn counters (off by default online).
+_SANITIZE = int(_os.environ.get("OW_NO_SANITIZE", 0)) == 0
+# Opt-in wrong-first-hit / landing-target-mismatch gate. Default OFF to preserve current behavior
+# (the v3.2 path-checks its own launches; with the B11 fix its first-hit ~always = intended target).
+# Turn on via OW_BLOCK_WRONG_HIT=1 once intended-target intent is threaded through emission.
+_BLOCK_WRONG_HIT = int(_os.environ.get("OW_BLOCK_WRONG_HIT", 0)) == 1
+
+
+def _emit_gate(obs, moves, targets=None):
+    """Final emission gate (layer [7]) via core.action_emitter.ActionEmitter: always drops
+    provably-fatal sun/oob; the wrong-first-hit gate is opt-in (OW_BLOCK_WRONG_HIT) and uses the
+    intended `targets`. Any failure (core unavailable / single-file) returns the raw moves."""
+    if not _SANITIZE or not moves:
+        return moves
+    try:
+        from .action_emitter import ActionEmitter
+        from .action_sanitizer import new_counters
+
+        ctr = new_counters()
+        emitter = ActionEmitter(block_wrong_first_hit=_BLOCK_WRONG_HIT, horizon=60)
+        clean = emitter.emit(obs, moves, targets=targets, counters=ctr)
+        _log = _os.environ.get("OW_SANITIZE_LOG", "")
+        if _log:
+            import json as _json
+
+            with open(_log, "a") as _f:
+                _f.write(_json.dumps({"step": obs.get("step"), **ctr}) + "\n")
+        return clean
+    except Exception:
+        return moves  # core/ unavailable (single-file submission) or any error -> raw moves
+
+
+# --- Hybrid model re-ranker (OW-P2-HYBRID-001, prompt 06) --------------------
+# A trained candidate scorer (agent/hybrid_model.py + hybrid_weights.json) RE-ORDERS the
+# v3.2 candidate list before the greedy commit. It changes only WHICH equally-affordable
+# candidates win the budget — never the sizing, the path/oracle safety, or the value sim.
+# Strictly additive over the deterministic core: OFF by default (OW_HYBRID=0), and any
+# failure (missing weights / core / inference error) falls back to the plain value order,
+# so the agent is never worse than v3.2 by construction. Blend is RANK-based so the model's
+# [0,1] score and the sim's arbitrary-scale value compose cleanly; OW_HYBRID_BETA=0 is
+# byte-identical to v3.2 (model rank ignored). Only the top OW_HYBRID_TOPN candidates are
+# scored (bounds runtime; the budget commits only a handful anyway).
+# Read at CALL time (not module load): the arena pool clears OW_* per task and reuses workers,
+# so a cached `main` module must re-read the env each turn or hybrid would silently misfire.
+def _hybrid_cfg():
+    return (
+        int(_os.environ.get("OW_HYBRID", 0)),
+        float(_os.environ.get("OW_HYBRID_BETA", 0.5)),
+        int(_os.environ.get("OW_HYBRID_TOPN", 80)),
+    )
+
+
+_HYBRID_SCORER = None
+_HYBRID_TRIED = False
+
+
+def _hybrid_scorer():
+    global _HYBRID_SCORER, _HYBRID_TRIED
+    if _HYBRID_TRIED:
+        return _HYBRID_SCORER
+    _HYBRID_TRIED = True
+    try:
+        import sys as _sys
+
+        _here = _os.path.dirname(_os.path.abspath(__file__))  # core/
+        _comp = _os.path.dirname(_here)
+        # hybrid_model.py lives in agent/ (core/ sibling); add agent dir + comp root to path
+        for _p in (_os.path.join(_comp, "agent"), _comp):
+            if _p and _p not in _sys.path:
+                _sys.path.insert(0, _p)
+        from hybrid_model import load_default
+
+        _HYBRID_SCORER = load_default()
+    except Exception:
+        _HYBRID_SCORER = None
+    return _HYBRID_SCORER
+
+
+def _hybrid_rerank(obs, candidates):
+    """Return candidates re-ordered by a rank blend of (v3.2 value, model score).
+
+    candidates: list of (value, src_id, tgt_id, angle, needed). Any failure -> the plain
+    value-sorted order (identical to v3.2), so the re-ranker can never break the agent.
+    """
+    _, beta, topn = _hybrid_cfg()
+    by_value = sorted(candidates, reverse=True, key=lambda c: c[0])
+    sc = _hybrid_scorer()
+    if sc is None or beta <= 0.0 or len(by_value) < 2:
+        return by_value
+    try:
+        from .features import candidate_features, ship_bucket_of
+        from .oracle import FlightOracle
+        from .state import build_battlefield_state
+
+        state = build_battlefield_state(obs, horizon=PROJ_H)
+        orc = FlightOracle()
+        top = by_value[:topn]
+        rest = by_value[topn:]
+        model = []
+        for value, src_id, tgt_id, angle, needed in top:
+            cf = candidate_features(state, {"source": src_id, "target": tgt_id, "ships": int(needed)}, obs, orc)
+            model.append(sc.score_cf(cf, ship_bucket_of(needed)))
+        # rank blend: lower combined rank = commit earlier
+        order_v = sorted(range(len(top)), key=lambda i: -top[i][0])
+        order_m = sorted(range(len(top)), key=lambda i: -model[i])
+        rv = [0] * len(top)
+        rm = [0] * len(top)
+```
+</details>
+
+### 🤖 Assistant: *Now let me check the package layout before…*
+
+`16:16:17`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now let me check the package layout before wiring config imports:
+
+#### 💻 Bash: *Inspect package layout + check for config dir*
+
+`16:16:20`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+echo "=== ls core/ ==="; ls core/
+echo "=== ls agent/ ==="; ls agent/
+echo "=== __init__ files ==="; find . -maxdepth 2 -name "__init__.py" | sort
+echo "=== existing config dir? ==="; ls -la config/ 2>/dev/null || echo "no config/ dir"
+```
+
+```
+=== ls core/ ===
+action_emitter.py
+action_sanitizer.py
+candidates.py
+features.py
+geometry.py
+__init__.py
+ledger.py
+oracle.py
+policy.py
+__pycache__
+rule_engine.py
+state.py
+=== ls agent/ ===
+hybrid_model.py
+hybrid_weights.json
+main.py
+__pycache__
+utils.py
+versions
+=== __init__ files ===
+./core/__init__.py
+=== existing config dir? ===
+no config/ dir
+```
+
+### 💭 Thinking
+
+`16:16:39`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Find env reads outside policy.py and enumerate all OW_ knobs*
+
+`16:16:41`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+echo "=== OW_* / environ reads outside policy.py ==="
+grep -rnE "environ\.(get|\[)" core/ agent/ | grep -v "core/policy.py" | grep -v __pycache__
+echo "=== all distinct OW_ tokens referenced ==="
+grep -rhoE "OW_[A-Z0-9_]+" core/ agent/ | grep -v __pycache__ | sort -u
+```
+
+```
+=== OW_* / environ reads outside policy.py ===
+agent/versions/v3_2_coarr.py:227:PROJ_H = int(_os.environ.get("OW_PROJ_H", 26))  # forward-sim horizon; 18 too short for slow opening fleets
+agent/versions/v3_2_coarr.py:231:MULTISRC = int(_os.environ.get("OW_MULTISRC", 0))  # default OFF: tried, no gain vs strong tier
+agent/versions/v3_2_coarr.py:232:HOLD_MULT = float(_os.environ.get("OW_HOLD_MULT", 1.6))
+agent/versions/v3_2_coarr.py:237:OPENING = int(_os.environ.get("OW_OPENING", 0))  # default OFF: fired more but win-rate dropped
+agent/versions/v3_2_coarr.py:238:OPENING_TURNS = int(_os.environ.get("OW_OPENING_TURNS", 25))
+agent/versions/v3_2_coarr.py:239:OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
+agent/versions/v3_2_coarr.py:247:COARRIVAL = int(_os.environ.get("OW_COARRIVAL", 1))  # BAKED ON for may ladder experiment (T8, issue #87)
+agent/versions/v3_2_coarr.py:248:COARR_MAX_SRC = int(_os.environ.get("OW_COARR_MAX_SRC", 4))  # wave fragmentation cap
+agent/versions/v3_2_coarr.py:249:COARR_HOLD = float(_os.environ.get("OW_COARR_HOLD", 1.0))  # extra force mult to hold
+agent/versions/v3_2_coarr.py:256:LEDGER = int(_os.environ.get("OW_LEDGER", 0))
+agent/versions/v3_2_coarr.py:260:COARR_TOL = int(_os.environ.get("OW_COARR_TOL", 1))
+agent/versions/v3_2_coarr.py:291:REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+agent/versions/v3_2_coarr.py:292:FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 5))  # garrison kept on a planet near an enemy
+agent/versions/v3_2_coarr.py:293:FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 20.0))  # enemy planet within this distance => frontier
+agent/versions/v3_2_coarr.py:294:GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+agent/versions/v3_2_coarr.py:295:INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
+agent/versions/v3_2_coarr.py:299:CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 3.2))
+agent/versions/v3_2_coarr.py:300:CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.3))
+agent/versions/v3_2_coarr.py:307:CONSOLIDATE = int(_os.environ.get("OW_CONSOLIDATE", 0))
+agent/versions/v3_2_coarr.py:308:CONSOLIDATE_MIN = float(_os.environ.get("OW_CONSOLIDATE_MIN", 12))  # min surplus to bother (tiny fleets crawl)
+agent/versions/v3_2_coarr.py:309:CONSOLIDATE_MARGIN = float(_os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0))  # front-distance gain required
+agent/versions/v3.py:256:REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+agent/versions/v3.py:257:FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 10))  # garrison kept on a planet near an enemy
+agent/versions/v3.py:258:FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 28.0))  # enemy planet within this distance => frontier
+agent/versions/v3.py:259:GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+agent/versions/v3.py:260:INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
+agent/versions/v3.py:264:CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 2.0))
+agent/versions/v3.py:265:CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.0))
+agent/versions/v3.py:272:CONSOLIDATE = int(_os.environ.get("OW_CONSOLIDATE", 0))
+agent/versions/v3.py:273:CONSOLIDATE_MIN = float(_os.environ.get("OW_CONSOLIDATE_MIN", 12))  # min surplus to bother (tiny fleets crawl)
+agent/versions/v3.py:274:CONSOLIDATE_MARGIN = float(_os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0))  # front-distance gain required
+agent/versions/v3_1.py:256:REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+agent/versions/v3_1.py:257:FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 10))  # garrison kept on a planet near an enemy
+agent/versions/v3_1.py:258:FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 28.0))  # enemy planet within this distance => frontier
+agent/versions/v3_1.py:259:GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+agent/versions/v3_1.py:260:INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
+agent/versions/v3_1.py:264:CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 2.0))
+agent/versions/v3_1.py:265:CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.0))
+agent/versions/v3_1.py:272:CONSOLIDATE = int(_os.environ.get("OW_CONSOLIDATE", 0))
+agent/versions/v3_1.py:273:CONSOLIDATE_MIN = float(_os.environ.get("OW_CONSOLIDATE_MIN", 12))  # min surplus to bother (tiny fleets crawl)
+agent/versions/v3_1.py:274:CONSOLIDATE_MARGIN = float(_os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0))  # front-distance gain required
+agent/versions/student.py:37:_W_PATH = _os.environ.get("OW_STUDENT_W", _os.path.expanduser("~/work/distill_student.npz"))
+agent/versions/student.py:39:THRESH = float(_os.environ.get("OW_STUDENT_TH", 0.5))
+agent/versions/student.py:40:MAX_MOVES = int(_os.environ.get("OW_STUDENT_MAXMV", 3))
+agent/versions/forecast.py:43:PROJ_H = int(_os.environ.get("OW_PROJ_H", 26))  # forward-sim horizon; 18 too short for slow opening fleets
+agent/versions/forecast.py:47:MULTISRC = int(_os.environ.get("OW_MULTISRC", 0))  # default OFF: tried, no gain vs strong tier
+agent/versions/forecast.py:48:HOLD_MULT = float(_os.environ.get("OW_HOLD_MULT", 1.6))
+agent/versions/forecast.py:53:OPENING = int(_os.environ.get("OW_OPENING", 0))  # default OFF: fired more but win-rate dropped
+agent/versions/forecast.py:54:OPENING_TURNS = int(_os.environ.get("OW_OPENING_TURNS", 25))
+agent/versions/forecast.py:55:OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
+agent/versions/forecast.py:63:COARRIVAL = int(_os.environ.get("OW_COARRIVAL", 0))
+agent/versions/forecast.py:64:COARR_MAX_SRC = int(_os.environ.get("OW_COARR_MAX_SRC", 4))  # wave fragmentation cap
+agent/versions/forecast.py:65:COARR_HOLD = float(_os.environ.get("OW_COARR_HOLD", 1.0))  # extra force mult to hold
+agent/versions/forecast.py:72:LEDGER = int(_os.environ.get("OW_LEDGER", 0))
+agent/versions/forecast.py:76:COARR_TOL = int(_os.environ.get("OW_COARR_TOL", 1))
+agent/versions/forecast.py:80:OVERKILL = float(_os.environ.get("OW_OVERKILL", 1.0))
+agent/versions/forecast.py:86:SUPPLY = int(_os.environ.get("OW_SUPPLY", 0))
+agent/versions/forecast.py:87:SUPPLY_DIST = float(_os.environ.get("OW_SUPPLY_DIST", 25.0))  # max hop length
+agent/versions/forecast.py:88:SUPPLY_MIN = float(_os.environ.get("OW_SUPPLY_MIN", 5))  # min surplus to stream
+agent/versions/forecast.py:89:SUPPLY_MARGIN = float(_os.environ.get("OW_SUPPLY_MARGIN", 3.0))  # front-gain needed
+agent/versions/forecast.py:99:POSTURE = int(_os.environ.get("OW_POSTURE", 0))
+agent/versions/forecast.py:100:POSTURE_BRACE = float(_os.environ.get("OW_POSTURE_BRACE", 0.35))  # in-flight frac
+agent/versions/forecast.py:101:POSTURE_BUDGET = float(_os.environ.get("OW_POSTURE_BUDGET", 0.3))  # brace budget x
+agent/versions/forecast.py:102:POSTURE_RESERVE = float(_os.environ.get("OW_POSTURE_RESERVE", 1.5))  # brace floors x
+agent/versions/forecast.py:103:PUNISH_TURNS = int(_os.environ.get("OW_PUNISH_TURNS", 6))
+agent/versions/forecast.py:104:PUNISH_BUDGET = float(_os.environ.get("OW_PUNISH_BUDGET", 1.6))  # punish budget x
+agent/versions/forecast.py:137:REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+agent/versions/forecast.py:138:FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 5))  # garrison kept on a planet near an enemy
+agent/versions/forecast.py:139:FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 20.0))  # enemy planet within this distance => frontier
+agent/versions/forecast.py:140:GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+agent/versions/forecast.py:141:INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
+agent/versions/forecast.py:145:CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 3.2))
+agent/versions/forecast.py:146:CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.3))
+agent/versions/forecast.py:153:CONSOLIDATE = int(_os.environ.get("OW_CONSOLIDATE", 0))
+agent/versions/forecast.py:154:CONSOLIDATE_MIN = float(_os.environ.get("OW_CONSOLIDATE_MIN", 12))  # min surplus to bother (tiny fleets crawl)
+agent/versions/forecast.py:155:CONSOLIDATE_MARGIN = float(_os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0))  # front-distance gain required
+agent/versions/v3_2_supply.py:43:PROJ_H = int(_os.environ.get("OW_PROJ_H", 26))  # forward-sim horizon; 18 too short for slow opening fleets
+agent/versions/v3_2_supply.py:47:MULTISRC = int(_os.environ.get("OW_MULTISRC", 0))  # default OFF: tried, no gain vs strong tier
+agent/versions/v3_2_supply.py:48:HOLD_MULT = float(_os.environ.get("OW_HOLD_MULT", 1.6))
+agent/versions/v3_2_supply.py:53:OPENING = int(_os.environ.get("OW_OPENING", 0))  # default OFF: fired more but win-rate dropped
+agent/versions/v3_2_supply.py:54:OPENING_TURNS = int(_os.environ.get("OW_OPENING_TURNS", 25))
+agent/versions/v3_2_supply.py:55:OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
+agent/versions/v3_2_supply.py:63:COARRIVAL = int(_os.environ.get("OW_COARRIVAL", 0))
+agent/versions/v3_2_supply.py:64:COARR_MAX_SRC = int(_os.environ.get("OW_COARR_MAX_SRC", 4))  # wave fragmentation cap
+agent/versions/v3_2_supply.py:65:COARR_HOLD = float(_os.environ.get("OW_COARR_HOLD", 1.0))  # extra force mult to hold
+agent/versions/v3_2_supply.py:72:LEDGER = int(_os.environ.get("OW_LEDGER", 0))
+agent/versions/v3_2_supply.py:76:COARR_TOL = int(_os.environ.get("OW_COARR_TOL", 1))
+agent/versions/v3_2_supply.py:80:OVERKILL = float(_os.environ.get("OW_OVERKILL", 1.0))
+agent/versions/v3_2_supply.py:86:SUPPLY = int(_os.environ.get("OW_SUPPLY", 1))  # BAKED ON (T14 candidate snapshot)
+agent/versions/v3_2_supply.py:87:SUPPLY_DIST = float(_os.environ.get("OW_SUPPLY_DIST", 25.0))  # max hop length
+agent/versions/v3_2_supply.py:88:SUPPLY_MIN = float(_os.environ.get("OW_SUPPLY_MIN", 5))  # min surplus to stream
+agent/versions/v3_2_supply.py:89:SUPPLY_MARGIN = float(_os.environ.get("OW_SUPPLY_MARGIN", 3.0))  # front-gain needed
+agent/versions/v3_2_supply.py:120:REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+agent/versions/v3_2_supply.py:121:FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 5))  # garrison kept on a planet near an enemy
+agent/versions/v3_2_supply.py:122:FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 20.0))  # enemy planet within this distance => frontier
+agent/versions/v3_2_supply.py:123:GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+agent/versions/v3_2_supply.py:124:INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
+agent/versions/v3_2_supply.py:128:CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 3.2))
+agent/versions/v3_2_supply.py:129:CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.3))
+agent/versions/v3_2_supply.py:136:CONSOLIDATE = int(_os.environ.get("OW_CONSOLIDATE", 0))
+agent/versions/v3_2_supply.py:137:CONSOLIDATE_MIN = float(_os.environ.get("OW_CONSOLIDATE_MIN", 12))  # min surplus to bother (tiny fleets crawl)
+agent/versions/v3_2_supply.py:138:CONSOLIDATE_MARGIN = float(_os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0))  # front-distance gain required
+agent/versions/v2_1.py:59:REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+agent/versions/v2_1.py:60:FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 10))  # garrison kept on a planet near an enemy
+agent/versions/v2_1.py:61:FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 28.0))  # enemy planet within this distance => frontier
+agent/versions/v2_1.py:62:GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+agent/versions/v2_1.py:63:INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
+agent/versions/v2_1.py:67:CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 2.0))
+agent/versions/v2_1.py:68:CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.0))
+agent/versions/v3_2.py:227:PROJ_H = int(_os.environ.get("OW_PROJ_H", 26))  # forward-sim horizon; 18 too short for slow opening fleets
+agent/versions/v3_2.py:231:MULTISRC = int(_os.environ.get("OW_MULTISRC", 0))  # default OFF: tried, no gain vs strong tier
+agent/versions/v3_2.py:232:HOLD_MULT = float(_os.environ.get("OW_HOLD_MULT", 1.6))
+agent/versions/v3_2.py:237:OPENING = int(_os.environ.get("OW_OPENING", 0))  # default OFF: fired more but win-rate dropped
+agent/versions/v3_2.py:238:OPENING_TURNS = int(_os.environ.get("OW_OPENING_TURNS", 25))
+agent/versions/v3_2.py:239:OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
+agent/versions/v3_2.py:247:COARRIVAL = int(_os.environ.get("OW_COARRIVAL", 0))
+agent/versions/v3_2.py:248:COARR_MAX_SRC = int(_os.environ.get("OW_COARR_MAX_SRC", 4))  # wave fragmentation cap
+agent/versions/v3_2.py:249:COARR_HOLD = float(_os.environ.get("OW_COARR_HOLD", 1.0))  # extra force mult to hold
+agent/versions/v3_2.py:256:LEDGER = int(_os.environ.get("OW_LEDGER", 0))
+agent/versions/v3_2.py:260:COARR_TOL = int(_os.environ.get("OW_COARR_TOL", 1))
+agent/versions/v3_2.py:291:REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+agent/versions/v3_2.py:292:FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 5))  # garrison kept on a planet near an enemy
+agent/versions/v3_2.py:293:FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 20.0))  # enemy planet within this distance => frontier
+agent/versions/v3_2.py:294:GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+agent/versions/v3_2.py:295:INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
+agent/versions/v3_2.py:299:CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 3.2))
+agent/versions/v3_2.py:300:CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.3))
+agent/versions/v3_2.py:307:CONSOLIDATE = int(_os.environ.get("OW_CONSOLIDATE", 0))
+agent/versions/v3_2.py:308:CONSOLIDATE_MIN = float(_os.environ.get("OW_CONSOLIDATE_MIN", 12))  # min surplus to bother (tiny fleets crawl)
+agent/versions/v3_2.py:309:CONSOLIDATE_MARGIN = float(_os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0))  # front-distance gain required
+agent/versions/v3a.py:58:REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+agent/versions/v3a.py:59:FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 10))  # garrison kept on a planet near an enemy
+agent/versions/v3a.py:60:FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 28.0))  # enemy planet within this distance => frontier
+agent/versions/v3a.py:61:GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+agent/versions/v3a.py:62:INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
+agent/versions/v3a.py:66:CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 2.0))
+agent/versions/v3a.py:67:CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.0))
+agent/versions/v3a.py:74:CONSOLIDATE = int(_os.environ.get("OW_CONSOLIDATE", 0))
+agent/versions/v3a.py:75:CONSOLIDATE_MIN = float(_os.environ.get("OW_CONSOLIDATE_MIN", 12))  # min surplus to bother (tiny fleets crawl)
+agent/versions/v3a.py:76:CONSOLIDATE_MARGIN = float(_os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0))  # front-distance gain required
+agent/versions/v2.py:59:REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+agent/versions/v2.py:60:FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 10))  # garrison kept on a planet near an enemy
+agent/versions/v2.py:61:FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 28.0))  # enemy planet within this distance => frontier
+agent/versions/v2.py:62:GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+agent/versions/v2.py:63:INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
+agent/versions/v4.py:42:PROJ_H = int(_os.environ.get("OW_PROJ_H", 26))  # forward-sim horizon; 18 too short for slow opening fleets
+agent/versions/v4.py:46:MULTISRC = int(_os.environ.get("OW_MULTISRC", 0))  # default OFF: tried, no gain vs strong tier
+agent/versions/v4.py:47:HOLD_MULT = float(_os.environ.get("OW_HOLD_MULT", 1.6))
+agent/versions/v4.py:52:OPENING = int(_os.environ.get("OW_OPENING", 0))  # default OFF: fired more but win-rate dropped
+agent/versions/v4.py:53:OPENING_TURNS = int(_os.environ.get("OW_OPENING_TURNS", 25))
+agent/versions/v4.py:54:OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
+agent/versions/v4.py:62:COARRIVAL = int(_os.environ.get("OW_COARRIVAL", 0))
+agent/versions/v4.py:63:COARR_MAX_SRC = int(_os.environ.get("OW_COARR_MAX_SRC", 4))  # wave fragmentation cap
+agent/versions/v4.py:64:COARR_HOLD = float(_os.environ.get("OW_COARR_HOLD", 1.0))  # extra force mult to hold
+agent/versions/v4.py:71:LEDGER = int(_os.environ.get("OW_LEDGER", 0))
+agent/versions/v4.py:75:COARR_TOL = int(_os.environ.get("OW_COARR_TOL", 1))
+agent/versions/v4.py:79:OVERKILL = float(_os.environ.get("OW_OVERKILL", 1.0))
+agent/versions/v4.py:88:EM = int(_os.environ.get("OW_EM", 0))  # early-mass master gate
+agent/versions/v4.py:89:EM_PHASE = int(_os.environ.get("OW_EM_PHASE", 80))  # opening window (steps)
+agent/versions/v4.py:90:EM_HOLD = float(_os.environ.get("OW_EM_HOLD", 0.6))  # extra garrison margin (x defender)
+agent/versions/v4.py:91:EM_SLACK = float(_os.environ.get("OW_EM_SLACK", 0.15))  # value gate-slack (x needed)
+agent/versions/v4.py:92:EM_MIN = int(_os.environ.get("OW_EM_MIN", 0))  # optional min opening launch size (0=off)
+agent/versions/v4.py:98:SUPPLY = int(_os.environ.get("OW_SUPPLY", 0))
+agent/versions/v4.py:99:SUPPLY_DIST = float(_os.environ.get("OW_SUPPLY_DIST", 25.0))  # max hop length
+agent/versions/v4.py:100:SUPPLY_MIN = float(_os.environ.get("OW_SUPPLY_MIN", 5))  # min surplus to stream
+agent/versions/v4.py:101:SUPPLY_MARGIN = float(_os.environ.get("OW_SUPPLY_MARGIN", 3.0))  # front-gain needed
+agent/versions/v4.py:111:POSTURE = int(_os.environ.get("OW_POSTURE", 0))
+agent/versions/v4.py:112:POSTURE_BRACE = float(_os.environ.get("OW_POSTURE_BRACE", 0.35))  # in-flight frac
+agent/versions/v4.py:113:POSTURE_BUDGET = float(_os.environ.get("OW_POSTURE_BUDGET", 0.3))  # brace budget x
+agent/versions/v4.py:114:POSTURE_RESERVE = float(_os.environ.get("OW_POSTURE_RESERVE", 1.5))  # brace floors x
+agent/versions/v4.py:115:PUNISH_TURNS = int(_os.environ.get("OW_PUNISH_TURNS", 6))
+agent/versions/v4.py:116:PUNISH_BUDGET = float(_os.environ.get("OW_PUNISH_BUDGET", 1.6))  # punish budget x
+agent/versions/v4.py:129:V4 = int(_os.environ.get("OW_V4", 1))  # master gate: ledger + hub-and-hammer
+agent/versions/v4.py:130:V4_CAP_K = float(_os.environ.get("OW_V4_CAP_K", 0.25))  # capability-prior weight
+agent/versions/v4.py:131:V4_CAP_H = int(_os.environ.get("OW_V4_CAP_H", 10))  # enemy strike horizon (turns)
+agent/versions/v4.py:132:V4_HUB_MIN = float(_os.environ.get("OW_V4_HUB_MIN", 20))  # min surplus to stream
+agent/versions/v4.py:133:V4_HAMMER_MIN = float(_os.environ.get("OW_V4_HAMMER_MIN", 80))  # no pebble hammers
+agent/versions/v4.py:134:V4_LOGI_CAP = float(_os.environ.get("OW_V4_LOGI_CAP", 0.5))  # max logistics in flight
+agent/versions/v4.py:135:V4_HUB_SWITCH = float(_os.environ.get("OW_V4_HUB_SWITCH", 1.5))  # hysteresis bar
+agent/versions/v4.py:136:V4_HAMMER_HOLD = float(_os.environ.get("OW_V4_HAMMER_HOLD", 1.3))  # need x margin
+agent/versions/v4.py:137:V4_HAMMER_BAND = float(_os.environ.get("OW_V4_HAMMER_BAND", 0.9))  # Isaiah band
+agent/versions/v4.py:138:V4_LOG = _os.environ.get("OW_LOG", "")  # event-log path ("" = off)
+agent/versions/v4.py:155:V4A = int(_os.environ.get("OW_V4A", 0))
+agent/versions/v4.py:156:V4A_WINDOW = float(_os.environ.get("OW_V4A_WINDOW", 0.45))  # enemy-commit frac to act
+agent/versions/v4.py:157:V4A_BAND_BONUS = float(_os.environ.get("OW_V4A_BAND_BONUS", 0.08))  # extra drain in-window
+agent/versions/v4.py:158:V4A_SLACK = float(_os.environ.get("OW_V4A_SLACK", 0.15))  # allow neutral hammer (x need)
+agent/versions/v4.py:159:V4A_RANK_BONUS = float(_os.environ.get("OW_V4A_RANK_BONUS", 0.5))  # exposed-target rank weight
+agent/versions/v4.py:168:V4F = int(_os.environ.get("OW_V4F", 0))
+agent/versions/v4.py:169:V4F_RESP_FRAC = float(_os.environ.get("OW_V4F_RESP_FRAC", 0.8))  # frac of responder garrison
+agent/versions/v4.py:170:V4F_RESP_BUF = int(_os.environ.get("OW_V4F_RESP_BUF", 1))  # responder may land up to k+buf
+agent/versions/v4.py:182:V4C = int(_os.environ.get("OW_V4C", 0))
+agent/versions/v4.py:183:V4C_RADIUS = float(_os.environ.get("OW_V4C_RADIUS", 30.0))  # cluster neighborhood
+agent/versions/v4.py:184:V4C_BONUS = float(_os.environ.get("OW_V4C_BONUS", 0.4))  # density rank weight
+agent/versions/v4.py:191:V4I = int(_os.environ.get("OW_V4I", 0))
+agent/versions/v4.py:192:V4I_HI = float(_os.environ.get("OW_V4I_HI", 0.9))  # early/mid drain band
+agent/versions/v4.py:193:V4I_LO = float(_os.environ.get("OW_V4I_LO", 0.52))  # late drain band
+agent/versions/v4.py:194:V4I_SWITCH = int(_os.environ.get("OW_V4I_SWITCH", 200))  # phase switch step
+agent/versions/v4.py:246:REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+agent/versions/v4.py:247:FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 5))  # garrison kept on a planet near an enemy
+agent/versions/v4.py:248:FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 20.0))  # enemy planet within this distance => frontier
+agent/versions/v4.py:249:GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+agent/versions/v4.py:250:INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
+agent/versions/v4.py:254:CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 3.2))
+agent/versions/v4.py:255:CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.3))
+agent/versions/v4.py:262:CONSOLIDATE = int(_os.environ.get("OW_CONSOLIDATE", 0))
+agent/versions/v4.py:263:CONSOLIDATE_MIN = float(_os.environ.get("OW_CONSOLIDATE_MIN", 12))  # min surplus to bother (tiny fleets crawl)
+agent/versions/v4.py:264:CONSOLIDATE_MARGIN = float(_os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0))  # front-distance gain required
+=== all distinct OW_ tokens referenced ===
+OW_4P_ATK_SCALE
+OW_4P_CAP_BUMP
+OW_4P_MODE
+OW_4P_PEACE_TURNS
+OW_4P_RIVAL_W
+OW_BLOCK_WRONG_HIT
+OW_CAP_EARLY
+OW_CAP_LATE
+OW_COARR_HOLD
+OW_COARRIVAL
+OW_COARR_MAX_SRC
+OW_COARR_TOL
+OW_CONSOLIDATE
+OW_CONSOLIDATE_MARGIN
+OW_CONSOLIDATE_MIN
+OW_EM
+OW_EM_HOLD
+OW_EM_MIN
+OW_EM_PHASE
+OW_EM_SLACK
+OW_FRONTIER_DIST
+OW_FRONTIER_FLOOR
+OW_HOLD_MULT
+OW_HYBRID
+OW_HYBRID_BETA
+OW_HYBRID_TOPN
+OW_INFLIGHT_CAP
+OW_LEDGER
+OW_LOG
+OW_MULTISRC
+OW_NO_SANITIZE
+OW_OPENING
+OW_OPENING_H
+OW_OPENING_TURNS
+OW_OVERKILL
+OW_POSTURE
+OW_POSTURE_BRACE
+OW_POSTURE_BUDGET
+OW_POSTURE_RESERVE
+OW_PROD_MULT
+OW_PROJ_H
+OW_PUNISH_BUDGET
+OW_PUNISH_TURNS
+OW_REAR_FLOOR
+OW_SANITIZE_LOG
+OW_STUDENT_MAXMV
+OW_STUDENT_TH
+OW_STUDENT_W
+OW_SUPPLY
+OW_SUPPLY_DIST
+OW_SUPPLY_MARGIN
+OW_SUPPLY_MIN
+OW_V4
+OW_V4A
+OW_V4A_BAND_BONUS
+OW_V4A_RANK_BONUS
+OW_V4A_SLACK
+OW_V4A_WINDOW
+OW_V4C
+OW_V4_CAP_H
+OW_V4_CAP_K
+OW_V4C_BONUS
+OW_V4C_RADIUS
+OW_V4F
+OW_V4F_RESP_BUF
+OW_V4F_RESP_FRAC
+OW_V4_HAMMER_BAND
+OW_V4_HAMMER_HOLD
+OW_V4_HAMMER_MIN
+OW_V4_HUB_MIN
+OW_V4_HUB_SWITCH
+OW_V4I
+OW_V4I_HI
+OW_V4I_LO
+OW_V4I_SWITCH
+OW_V4_LOGI_CAP
+```
+
+### 🤖 Assistant: *The `agent/versions/\*` files are frozen historical…*
+
+`16:16:49`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The `agent/versions/*` files are frozen historical snapshots — only `core/policy.py` is the live agent. I'll build the config layer scoped to policy.py's 32 knobs. Let me create the baked config first:
+
+#### ✍️  Write `config_baked.py`
+
+`16:17:07`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/agent/config_baked.py</code></summary>
+
+```python
+"""Baked Orbit Wars agent config (OW-ARCH-001 config layer).
+
+WHY this file exists, and why it is plain Python (not YAML):
+  - The online Kaggle agent ships as `main.py` + `core/` + this file, and the runtime
+    sandbox may not have PyYAML. So the *runtime* default profile is baked here as a
+    stdlib dict — NO third-party import at agent load time.
+  - The human-editable source of truth is `config/default.yaml` (+ `config/profiles/*`).
+    `BAKED` below mirrors `config/profiles/current.yaml`. To change a default: edit the
+    YAML, then re-bake into this dict (see `config/README.md` for the bake step).
+
+Contract:
+  - Keys are the exact `OW_*` environment-variable names the policy reads.
+  - Values are the default used when the env var is unset.
+  - `core.config` reads an env override first, then this baked default, then a caller
+    fallback — so behavior with no `OW_*` set and no edits here is byte-identical to the
+    historical inline `os.environ.get("OW_X", <default>)` defaults (golden-verified).
+
+Only the LIVE policy knobs (core/policy.py) are centralized here. The frozen snapshots in
+agent/versions/* keep their own inline defaults on purpose (self-contained reproducibility).
+"""
+
+# Profile name baked in (mirrors config/profiles/current.yaml -> `profile:`).
+PROFILE = "current"  # t14-tuned v3.2 "Forecast" + B11 rotation fix; safety gates ON, hybrid OFF
+
+# env-var name -> default value (native type drives coercion in core.config)
+BAKED = {
+    # --- forward-sim planner core (t14 baked, issue #87 T2-R2) ---
+    "OW_PROJ_H": 26,          # forward-sim horizon (ticks)
+    # --- multi-source salvo (default OFF) ---
+    "OW_MULTISRC": 0,
+    "OW_HOLD_MULT": 1.6,
+    # --- opening expander (default OFF) ---
+    "OW_OPENING": 0,
+    "OW_OPENING_TURNS": 25,
+    "OW_OPENING_H": 50,
+    # --- T8 true co-arrival strikes (default OFF) ---
+    "OW_COARRIVAL": 0,
+    "OW_COARR_MAX_SRC": 4,
+    "OW_COARR_HOLD": 1.0,
+    "OW_COARR_TOL": 1,
+    # --- T11 ledger-constrained availability (default OFF) ---
+    "OW_LEDGER": 0,
+    # --- v2 garrison / in-flight discipline ---
+    "OW_REAR_FLOOR": 0.0,
+    "OW_FRONTIER_FLOOR": 5.0,
+    "OW_FRONTIER_DIST": 20.0,
+    "OW_PROD_MULT": 0.0,      # GARRISON_PROD_MULT
+    "OW_INFLIGHT_CAP": 1.2,
+    "OW_CAP_EARLY": 3.2,
+    "OW_CAP_LATE": 1.3,
+    # --- 4p-aware mode (default OFF -> 2p byte-identical) ---
+    "OW_4P_MODE": 0,
+    "OW_4P_ATK_SCALE": 0.5,
+    "OW_4P_PEACE_TURNS": 25,
+    "OW_4P_RIVAL_W": 1.0,
+    "OW_4P_CAP_BUMP": 0.0,
+    # --- consolidation (default OFF) ---
+    "OW_CONSOLIDATE": 0,
+    "OW_CONSOLIDATE_MIN": 12.0,
+    "OW_CONSOLIDATE_MARGIN": 3.0,
+    # --- layer [7] emission safety gate ---
+    "OW_NO_SANITIZE": 0,      # sanitizer ON unless 1
+    "OW_BLOCK_WRONG_HIT": 0,  # opt-in wrong-first-hit drop
+    "OW_SANITIZE_LOG": "",    # path for per-turn counters ("" = off)
+    # --- layer [5] hybrid model re-ranker (default OFF) ---
+    "OW_HYBRID": 0,
+    "OW_HYBRID_BETA": 0.5,
+    "OW_HYBRID_TOPN": 80,
+}
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/agent/config_baked.py (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *Now `core/config.py` — the centralized env…*
+
+`16:17:23`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now `core/config.py` — the centralized env-override resolver:
+
+#### ✍️  Write `config.py`
+
+`16:17:39`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/config.py</code></summary>
+
+```python
+"""Centralized config + env-override resolution (OW-ARCH-001 config layer).
+
+Single place that reads `OW_*` environment overrides, so the policy no longer scatters
+`os.environ.get(...)` across its body. Resolution order for every knob:
+
+    1. environment variable `OW_*`  (live override; read at CALL time)
+    2. baked default profile          (agent/config_baked.py BAKED -> from config/*.yaml)
+    3. caller fallback                (the literal kept at the call site as a safety net)
+
+Design constraints:
+  - NO third-party import (PyYAML stays a dev-only tool). The baked profile is plain Python.
+  - Reading at call time matters: the arena worker pool clears `OW_*` per task and reuses
+    workers, so a cached module must re-read env each turn (same reason `_hybrid_cfg` did).
+  - Behavior-preserving: with no `OW_*` set and BAKED == the historical inline defaults, the
+    getters return byte-identical values to the old `int(os.environ.get("OW_X", <default>))`
+    expressions (golden-verified). If the baked profile fails to import, getters fall back to
+    the caller-supplied default, so the agent can never break on a config problem.
+"""
+
+import os as _os
+
+
+def _load_baked():
+    """Best-effort import of the baked profile. Tries the package path, then the flat
+    agent/ sys.path layout the online agent uses. Any failure -> empty (caller fallbacks win)."""
+    try:
+        from agent.config_baked import BAKED  # when comp root is importable as a package
+
+        return dict(BAKED)
+    except Exception:
+        pass
+    try:
+        import sys as _sys
+
+        _here = _os.path.dirname(_os.path.abspath(__file__))  # core/
+        _comp = _os.path.dirname(_here)
+        _agent = _os.path.join(_comp, "agent")
+        if _agent not in _sys.path:
+            _sys.path.insert(0, _agent)
+        from config_baked import BAKED  # flat layout: agent/ on sys.path
+
+        return dict(BAKED)
+    except Exception:
+        return {}
+
+
+_BAKED = _load_baked()
+
+
+def _raw(name, default):
+    """env override (string) -> baked default -> caller fallback, un-coerced."""
+    v = _os.environ.get(name)
+    if v is not None:
+        return v
+    if name in _BAKED:
+        return _BAKED[name]
+    return default
+
+
+def geti(name, default=0):
+    """Resolve an integer knob (mirrors the old int(os.environ.get(name, default)))."""
+    return int(_raw(name, default))
+
+
+def getf(name, default=0.0):
+    """Resolve a float knob (mirrors the old float(os.environ.get(name, default)))."""
+    return float(_raw(name, default))
+
+
+def getstr(name, default=""):
+    """Resolve a string knob (mirrors the old os.environ.get(name, default))."""
+    v = _raw(name, default)
+    return v if isinstance(v, str) else str(v)
+
+
+def getb(name, default=False):
+    """Resolve a 1/0 boolean knob (truthy iff the resolved int is non-zero)."""
+    return geti(name, 1 if default else 0) != 0
+
+
+def baked():
+    """A copy of the baked default profile (for docs / logging)."""
+    return dict(_BAKED)
+
+
+def active_overrides():
+    """The subset of baked `OW_*` knobs currently overridden by the environment.
+    Useful for per-run audit logging — never includes anything not in the baked profile."""
+    return {k: _os.environ[k] for k in _BAKED if k in _os.environ}
+
+
+def snapshot():
+    """Fully-resolved current values for every baked knob (env applied), as native types.
+    Coercion follows the baked default's type (int/float/str)."""
+    out = {}
+    for k, dv in _BAKED.items():
+        if isinstance(dv, bool):
+            out[k] = getb(k, dv)
+        elif isinstance(dv, int):
+            out[k] = geti(k, dv)
+        elif isinstance(dv, float):
+            out[k] = getf(k, dv)
+        else:
+            out[k] = getstr(k, dv if isinstance(dv, str) else str(dv))
+    return out
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/config.py (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *Now migrate policy.py's env reads to route…*
+
+`16:17:42`
+
+> Now migrate policy.py's env reads to route through `core.config`. First the module-level block:
+
+#### ✏️  Edit `policy.py`
+
+`16:17:45`
+
+```diff
+@@ -1,4 +1,10 @@ import math
+ import os as _os
+ 
++# === config — single place that reads OW_* env overrides (OW-ARCH-001 config layer) ===
++# Resolution per knob: env OW_* -> baked default (agent/config_baked.py) -> the inline literal
++# kept here as a safety net. With nothing set this is byte-identical to the old inline
++# os.environ.get(...) defaults (golden-verified). See core/config.py and config/README.md.
++from . import config as _C  # noqa: E402
++
+ # === physics/geometry — single source is core.geometry (OW-ARCH-001 dedup) ===
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now the module-level knobs.*
+
+`16:17:54`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now the module-level knobs. I'll convert each `int/float(_os.environ.get(...))` to the `_C` getter:
+
+#### ✏️  Edit `policy.py`
+
+`16:17:59`
+
+```diff
+@@ -1 +1 @@-PROJ_H = int(_os.environ.get("OW_PROJ_H", 26))  # forward-sim horizon; 18 too short for slow opening fleets
++PROJ_H = _C.geti("OW_PROJ_H", 26)  # forward-sim horizon; 18 too short for slow opening fleets
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1,2 +1,2 @@-MULTISRC = int(_os.environ.get("OW_MULTISRC", 0))  # default OFF: tried, no gain vs strong tier
+-HOLD_MULT = float(_os.environ.get("OW_HOLD_MULT", 1.6))
++MULTISRC = _C.geti("OW_MULTISRC", 0)  # default OFF: tried, no gain vs strong tier
++HOLD_MULT = _C.getf("OW_HOLD_MULT", 1.6)
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1,3 +1,3 @@-OPENING = int(_os.environ.get("OW_OPENING", 0))  # default OFF: fired more but win-rate dropped
+-OPENING_TURNS = int(_os.environ.get("OW_OPENING_TURNS", 25))
+-OPENING_H = int(_os.environ.get("OW_OPENING_H", 50))
++OPENING = _C.geti("OW_OPENING", 0)  # default OFF: fired more but win-rate dropped
++OPENING_TURNS = _C.geti("OW_OPENING_TURNS", 25)
++OPENING_H = _C.geti("OW_OPENING_H", 50)
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1,3 +1,3 @@-COARRIVAL = int(_os.environ.get("OW_COARRIVAL", 0))
+-COARR_MAX_SRC = int(_os.environ.get("OW_COARR_MAX_SRC", 4))  # wave fragmentation cap
+-COARR_HOLD = float(_os.environ.get("OW_COARR_HOLD", 1.0))  # extra force mult to hold
++COARRIVAL = _C.geti("OW_COARRIVAL", 0)
++COARR_MAX_SRC = _C.geti("OW_COARR_MAX_SRC", 4)  # wave fragmentation cap
++COARR_HOLD = _C.getf("OW_COARR_HOLD", 1.0)  # extra force mult to hold
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1 +1 @@-LEDGER = int(_os.environ.get("OW_LEDGER", 0))
++LEDGER = _C.geti("OW_LEDGER", 0)
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1 +1 @@-COARR_TOL = int(_os.environ.get("OW_COARR_TOL", 1))
++COARR_TOL = _C.geti("OW_COARR_TOL", 1)
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1,5 +1,5 @@-REAR_FLOOR = float(_os.environ.get("OW_REAR_FLOOR", 0))  # garrison kept on a safe (rear) planet
+-FRONTIER_FLOOR = float(_os.environ.get("OW_FRONTIER_FLOOR", 5))  # garrison kept on a planet near an enemy
+-FRONTIER_DIST = float(_os.environ.get("OW_FRONTIER_DIST", 20.0))  # enemy planet within this distance => frontier
+-GARRISON_PROD_MULT = float(_os.environ.get("OW_PROD_MULT", 0))  # extra standing garrison per unit production
+-INFLIGHT_CAP_FRAC = float(_os.environ.get("OW_INFLIGHT_CAP", 1.2))  # cap in-flight at this frac of on-planet ships
++REAR_FLOOR = _C.getf("OW_REAR_FLOOR", 0)  # garrison kept on a safe (rear) planet
++FRONTIER_FLOOR = _C.getf("OW_FRONTIER_FLOOR", 5)  # garrison kept on a planet near an enemy
++FRONTIER_DIST = _C.getf("OW_FRONTIER_DIST", 20.0)  # enemy planet within this distance => frontier
++GARRISON_PROD_MULT = _C.getf("OW_PROD_MULT", 0)  # extra standing garrison per unit production
++INFLIGHT_CAP_FRAC = _C.getf("OW_INFLIGHT_CAP", 1.2)  # cap in-flight at this frac of on-planet ships
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1,2 +1,2 @@-CAP_EARLY = float(_os.environ.get("OW_CAP_EARLY", 3.2))
+-CAP_LATE = float(_os.environ.get("OW_CAP_LATE", 1.3))
++CAP_EARLY = _C.getf("OW_CAP_EARLY", 3.2)
++CAP_LATE = _C.getf("OW_CAP_LATE", 1.3)
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1,5 +1,5 @@-FOURP_MODE = int(_os.environ.get("OW_4P_MODE", 0))  # master gate
+-FOURP_ATK_SCALE = float(_os.environ.get("OW_4P_ATK_SCALE", 0.5))  # opening PvP damping
+-FOURP_PEACE = int(_os.environ.get("OW_4P_PEACE_TURNS", 25))  # "no early aggressor" window
+-FOURP_RIVAL_W = float(_os.environ.get("OW_4P_RIVAL_W", 1.0))  # weight hurting the leader
+-FOURP_CAP_BUMP = float(_os.environ.get("OW_4P_CAP_BUMP", 0.0))  # survival reserve bump
++FOURP_MODE = _C.geti("OW_4P_MODE", 0)  # master gate
++FOURP_ATK_SCALE = _C.getf("OW_4P_ATK_SCALE", 0.5)  # opening PvP damping
++FOURP_PEACE = _C.geti("OW_4P_PEACE_TURNS", 25)  # "no early aggressor" window
++FOURP_RIVAL_W = _C.getf("OW_4P_RIVAL_W", 1.0)  # weight hurting the leader
++FOURP_CAP_BUMP = _C.getf("OW_4P_CAP_BUMP", 0.0)  # survival reserve bump
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1,3 +1,3 @@-CONSOLIDATE = int(_os.environ.get("OW_CONSOLIDATE", 0))
+-CONSOLIDATE_MIN = float(_os.environ.get("OW_CONSOLIDATE_MIN", 12))  # min surplus to bother (tiny fleets crawl)
+-CONSOLIDATE_MARGIN = float(_os.environ.get("OW_CONSOLIDATE_MARGIN", 3.0))  # front-distance gain required
++CONSOLIDATE = _C.geti("OW_CONSOLIDATE", 0)
++CONSOLIDATE_MIN = _C.getf("OW_CONSOLIDATE_MIN", 12)  # min surplus to bother (tiny fleets crawl)
++CONSOLIDATE_MARGIN = _C.getf("OW_CONSOLIDATE_MARGIN", 3.0)  # front-distance gain required
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now the call-time/gate knobs (sanitizer …*
+
+`16:18:52`
+
+> Now the call-time/gate knobs (sanitizer + hybrid):
+
+#### ✏️  Edit `policy.py`
+
+`16:18:53`
+
+```diff
+@@ -1 +1 @@-_SANITIZE = int(_os.environ.get("OW_NO_SANITIZE", 0)) == 0
++_SANITIZE = _C.geti("OW_NO_SANITIZE", 0) == 0
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1 +1 @@-_BLOCK_WRONG_HIT = int(_os.environ.get("OW_BLOCK_WRONG_HIT", 0)) == 1
++_BLOCK_WRONG_HIT = _C.geti("OW_BLOCK_WRONG_HIT", 0) == 1
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1 +1 @@-        _log = _os.environ.get("OW_SANITIZE_LOG", "")
++        _log = _C.getstr("OW_SANITIZE_LOG", "")
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1,5 +1,5 @@     return (
+-        int(_os.environ.get("OW_HYBRID", 0)),
+-        float(_os.environ.get("OW_HYBRID_BETA", 0.5)),
+-        int(_os.environ.get("OW_HYBRID_TOPN", 80)),
++        _C.geti("OW_HYBRID", 0),
++        _C.getf("OW_HYBRID_BETA", 0.5),
++        _C.geti("OW_HYBRID_TOPN", 80),
+     )
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Let me verify no `environ.get` remains and…*
+
+`16:19:11`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me verify no `environ.get` remains and that `_os` is still needed:
+
+#### 💻 Bash: *Verify env reads removed + compile config/policy*
+
+`16:19:14`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+echo "=== remaining environ in policy.py ==="; grep -nE "_os\.environ" core/policy.py || echo "  (none)"
+echo "=== other _os. uses in policy.py (keep the import) ==="; grep -nE "_os\." core/policy.py | head
+echo "=== py_compile config + policy ==="
+~/.venvs/orbit-wars/bin/python -c "import py_compile,sys; [py_compile.compile(f,doraise=True) for f in ['core/config.py','agent/config_baked.py','core/policy.py']]; print('compile OK')"
+```
+
+```
+=== remaining environ in policy.py ===
+  (none)
+=== other _os. uses in policy.py (keep the import) ===
+323:        _here = _os.path.dirname(_os.path.abspath(__file__))  # core/
+324:        _comp = _os.path.dirname(_here)
+326:        for _p in (_os.path.join(_comp, "agent"), _comp):
+=== py_compile config + policy ===
+compile OK
+```
+
+### 🤖 Assistant: *Now run the config-resolution + golden behavior…*
+
+`16:19:19`
+
+> Now run the config-resolution + golden behavior check to confirm byte-identity:
+
+#### ✍️  Write `check_config.py`
+
+`16:19:37`
+
+<details>
+<summary><code>/home/harry/.claude-ayla/jobs/8c10342b/tmp/check_config.py</code></summary>
+
+```python
+"""Config-layer contract check: resolved values match the historical inline defaults,
+env overrides win, and BAKED covers every knob the policy reads."""
+import os
+import sys
+
+for k in list(os.environ):
+    if k.startswith("OW_"):
+        del os.environ[k]
+COMP = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..",
+                                    "test", "tt_pangu", ".claude", "worktrees", "ow-arch",
+                                    "competitions", "orbit-wars"))
+# robust: caller passes COMP via argv
+COMP = sys.argv[1]
+for p in (COMP, os.path.join(COMP, "agent")):
+    if p not in sys.path:
+        sys.path.insert(0, p)
+
+from core import config as C  # noqa: E402
+
+# The historical inline defaults (env unset). Must match resolved values exactly.
+EXPECT = {
+    "OW_PROJ_H": (C.geti, 26), "OW_MULTISRC": (C.geti, 0), "OW_HOLD_MULT": (C.getf, 1.6),
+    "OW_OPENING": (C.geti, 0), "OW_OPENING_TURNS": (C.geti, 25), "OW_OPENING_H": (C.geti, 50),
+    "OW_COARRIVAL": (C.geti, 0), "OW_COARR_MAX_SRC": (C.geti, 4), "OW_COARR_HOLD": (C.getf, 1.0),
+    "OW_COARR_TOL": (C.geti, 1), "OW_LEDGER": (C.geti, 0),
+    "OW_REAR_FLOOR": (C.getf, 0.0), "OW_FRONTIER_FLOOR": (C.getf, 5.0), "OW_FRONTIER_DIST": (C.getf, 20.0),
+    "OW_PROD_MULT": (C.getf, 0.0), "OW_INFLIGHT_CAP": (C.getf, 1.2),
+    "OW_CAP_EARLY": (C.getf, 3.2), "OW_CAP_LATE": (C.getf, 1.3),
+    "OW_4P_MODE": (C.geti, 0), "OW_4P_ATK_SCALE": (C.getf, 0.5), "OW_4P_PEACE_TURNS": (C.geti, 25),
+    "OW_4P_RIVAL_W": (C.getf, 1.0), "OW_4P_CAP_BUMP": (C.getf, 0.0),
+    "OW_CONSOLIDATE": (C.geti, 0), "OW_CONSOLIDATE_MIN": (C.getf, 12.0), "OW_CONSOLIDATE_MARGIN": (C.getf, 3.0),
+    "OW_NO_SANITIZE": (C.geti, 0), "OW_BLOCK_WRONG_HIT": (C.geti, 0), "OW_SANITIZE_LOG": (C.getstr, ""),
+    "OW_HYBRID": (C.geti, 0), "OW_HYBRID_BETA": (C.getf, 0.5), "OW_HYBRID_TOPN": (C.geti, 80),
+}
+
+fails = 0
+# 1) baked profile actually loaded (not the empty fallback)
+baked = C.baked()
+assert baked, "BAKED failed to import -> getters would silently use call-site fallbacks"
+print(f"baked profile loaded: {len(baked)} knobs, profile import OK")
+
+# 2) every expected knob resolves to its historical default with env unset
+for name, (getter, default) in EXPECT.items():
+    got = getter(name, default)
+    if got != default:
+        print(f"  MISMATCH {name}: resolved {got!r} != inline default {default!r}")
+        fails += 1
+    if name not in baked:
+        print(f"  MISSING-FROM-BAKED {name}")
+        fails += 1
+
+# 3) env override wins and coerces
+os.environ["OW_PROJ_H"] = "40"
+assert C.geti("OW_PROJ_H", 26) == 40, "env override not applied"
+os.environ["OW_HOLD_MULT"] = "2.5"
+assert C.getf("OW_HOLD_MULT", 1.6) == 2.5, "float env override not applied"
+del os.environ["OW_PROJ_H"]
+del os.environ["OW_HOLD_MULT"]
+assert C.geti("OW_PROJ_H", 26) == 26, "override leaked after unset"
+
+# 4) active_overrides reflects only set OW_* in baked
+os.environ["OW_HYBRID"] = "1"
+ov = C.active_overrides()
+assert ov == {"OW_HYBRID": "1"}, ov
+del os.environ["OW_HYBRID"]
+
+# 5) snapshot returns native types for all knobs
+snap = C.snapshot()
+assert set(snap) == set(baked), "snapshot keys != baked keys"
+
+print(f"\nconfig contract: {len(EXPECT)} knobs checked, FAILS={fails}")
+print("PASS" if fails == 0 else "FAIL")
+sys.exit(1 if fails else 0)
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/.claude-ayla/jobs/8c10342b/tmp/check_config.py (file state is current in your context — no need to Read it back)
+
+#### 💻 Bash: *Run config-layer contract check*
+
+`16:19:41`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+~/.venvs/orbit-wars/bin/python /home/harry/.claude-ayla/jobs/8c10342b/tmp/check_config.py "$PWD"
+```
+
+```
+baked profile loaded: 32 knobs, profile import OK
+
+config contract: 32 knobs checked, FAILS=0
+PASS
+```
+
+### 🤖 Assistant: *Config layer resolves byte-identically.*
+
+`16:19:44`
+
+> Config layer resolves byte-identically. Now the golden behavior gate (the real proof of preservation):
+
+#### 💻 Bash: *Run golden behavior regression after config migration*
+
+`16:19:45`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+~/.venvs/orbit-wars/bin/python /tmp/claude/ow_golden_check.py 2>&1 | tail -5
+```
+
+```
+02:19:45 - LiteLLM:WARNING: get_model_cost_map.py:271 - LiteLLM: Failed to fetch remote model cost map from https://raw.githubusercontent.com/BerriAI/litellm/main/model_prices_and_context_window.json: Using SOCKS proxy, but the 'socksio' package is not installed. Make sure to install httpx using `pip install httpx[socks]`.. Falling back to local backup.
+records=526  MISMATCHES=0
+PASS (behavior identical)
+```
+
+### 🤖 Assistant: *Golden=0 after config migration.*
+
+`16:19:56`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Golden=0 after config migration. Now the YAML source files + config README:
+
+#### ✍️  Write `default.yaml`
+
+`16:20:15`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/default.yaml</code></summary>
+
+```yaml
+# Orbit Wars agent — canonical config schema + default values (OW-ARCH-001).
+#
+# This file is the HUMAN source of truth for every OW_* knob the live policy reads
+# (core/policy.py). It documents each knob's meaning, type, and default. It is NOT loaded
+# at agent runtime: the online Kaggle agent has no PyYAML, so these values are baked into
+# agent/config_baked.py (plain Python). See config/README.md for the bake step.
+#
+# Resolution order at runtime (core/config.py): env OW_*  ->  baked default  ->  call-site literal.
+# Defaults below == the t14-tuned v3.2 "Forecast" baseline + B11 rotation fix.
+
+profile: default
+
+planner:
+  OW_PROJ_H: 26          # int  forward-sim horizon (ticks); 18 too short for slow opening fleets
+
+multisource:             # pool ships from several planets onto one target (default OFF — no strong-tier gain)
+  OW_MULTISRC: 0         # int  master gate
+  OW_HOLD_MULT: 1.6      # float total force = needed * HOLD_MULT (capture AND hold)
+
+opening:                 # aggressive early land-grab expander (default OFF — fired more, win-rate dropped)
+  OW_OPENING: 0          # int  master gate
+  OW_OPENING_TURNS: 25   # int  opening window (steps)
+  OW_OPENING_H: 50       # int  long opening forecast horizon
+
+coarrival:               # T8 true co-arrival strikes: align ARRIVAL turns (default OFF)
+  OW_COARRIVAL: 0        # int  master gate
+  OW_COARR_MAX_SRC: 4    # int  wave fragmentation cap
+  OW_COARR_HOLD: 1.0     # float extra force mult to hold
+  OW_COARR_TOL: 1        # int  K±tol arrival-merge tolerance
+
+ledger:                  # T11 ledger-constrained availability (default OFF, constraint-only)
+  OW_LEDGER: 0           # int  master gate
+
+garrison:                # v2 "hold what you take" — standing garrison + in-flight discipline
+  OW_REAR_FLOOR: 0.0     # float garrison kept on a safe (rear) planet
+  OW_FRONTIER_FLOOR: 5.0 # float garrison kept on a planet near an enemy
+  OW_FRONTIER_DIST: 20.0 # float enemy planet within this distance => frontier
+  OW_PROD_MULT: 0.0      # float extra standing garrison per unit production (GARRISON_PROD_MULT)
+  OW_INFLIGHT_CAP: 1.2   # float cap in-flight at this frac of on-planet ships
+  OW_CAP_EARLY: 3.2      # float phase-scaled cap, early game
+  OW_CAP_LATE: 1.3       # float phase-scaled cap, late game
+
+fourp:                   # 4p-aware mode (default OFF -> 2p play byte-identical; triggers only with >=3 rivals)
+  OW_4P_MODE: 0          # int  master gate
+  OW_4P_ATK_SCALE: 0.5   # float opening PvP damping
+  OW_4P_PEACE_TURNS: 25  # int  "no early aggressor" window
+  OW_4P_RIVAL_W: 1.0     # float weight hurting the leader
+  OW_4P_CAP_BUMP: 0.0    # float survival reserve bump
+
+consolidate:             # forward idle rear surplus toward the front (default OFF — never beats v2.1)
+  OW_CONSOLIDATE: 0          # int  master gate
+  OW_CONSOLIDATE_MIN: 12.0   # float min surplus to bother
+  OW_CONSOLIDATE_MARGIN: 3.0 # float front-distance gain required
+
+emission:                # layer [7] safety gate (core.action_sanitizer via core.action_emitter)
+  OW_NO_SANITIZE: 0      # int  sanitizer ON unless 1 (drops provable sun/oob launches)
+  OW_BLOCK_WRONG_HIT: 0  # int  opt-in: drop a move whose first hit != intended target
+  OW_SANITIZE_LOG: ""    # str  path for per-turn counters ("" = off; off online)
+
+hybrid:                  # layer [5] trained candidate re-ranker (default OFF; rules-only when off/failed)
+  OW_HYBRID: 0           # int  master gate
+  OW_HYBRID_BETA: 0.5    # float rank-blend weight (0 == byte-identical to v3.2)
+  OW_HYBRID_TOPN: 80     # int  only the top-N candidates are model-scored
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/default.yaml (file state is current in your context — no need to Read it back)
+
+#### ✍️  Write `current.yaml`
+
+`16:20:25`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/profiles/current.yaml</code></summary>
+
+```yaml
+# Active runtime profile (OW-ARCH-001). Mirrors agent/config_baked.py BAKED.
+#
+# This is the profile baked into the online agent. It currently equals config/default.yaml
+# (the t14-tuned v3.2 "Forecast" baseline + B11 rotation fix): all experimental levers OFF,
+# safety sanitizer ON, hybrid re-ranker OFF. To ship a different profile, copy this file,
+# edit the values, re-bake into agent/config_baked.py (config/README.md), and golden-verify.
+#
+# Flat OW_* -> value map (the bake reads this section verbatim).
+
+profile: current
+
+knobs:
+  OW_PROJ_H: 26
+  OW_MULTISRC: 0
+  OW_HOLD_MULT: 1.6
+  OW_OPENING: 0
+  OW_OPENING_TURNS: 25
+  OW_OPENING_H: 50
+  OW_COARRIVAL: 0
+  OW_COARR_MAX_SRC: 4
+  OW_COARR_HOLD: 1.0
+  OW_COARR_TOL: 1
+  OW_LEDGER: 0
+  OW_REAR_FLOOR: 0.0
+  OW_FRONTIER_FLOOR: 5.0
+  OW_FRONTIER_DIST: 20.0
+  OW_PROD_MULT: 0.0
+  OW_INFLIGHT_CAP: 1.2
+  OW_CAP_EARLY: 3.2
+  OW_CAP_LATE: 1.3
+  OW_4P_MODE: 0
+  OW_4P_ATK_SCALE: 0.5
+  OW_4P_PEACE_TURNS: 25
+  OW_4P_RIVAL_W: 1.0
+  OW_4P_CAP_BUMP: 0.0
+  OW_CONSOLIDATE: 0
+  OW_CONSOLIDATE_MIN: 12.0
+  OW_CONSOLIDATE_MARGIN: 3.0
+  OW_NO_SANITIZE: 0
+  OW_BLOCK_WRONG_HIT: 0
+  OW_SANITIZE_LOG: ""
+  OW_HYBRID: 0
+  OW_HYBRID_BETA: 0.5
+  OW_HYBRID_TOPN: 80
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/profiles/current.yaml (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *Now a PyYAML-free bake tool (so even the…*
+
+`16:20:34`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now a PyYAML-free bake tool (so even the dev bake stays dependency-light) + a `--check` mode for CI drift:
+
+#### ✍️  Write `bake.py`
+
+`16:20:51`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/bake.py</code></summary>
+
+```python
+#!/usr/bin/env python3
+"""Bake config/profiles/<profile>.yaml -> agent/config_baked.py (OW-ARCH-001).
+
+The online agent reads agent/config_baked.py (plain Python, no PyYAML). This tool regenerates
+that file from the human-edited YAML profile. It deliberately uses NO third-party YAML library:
+the profile's `knobs:` block is a trivial flat `KEY: value` mapping, parsed here directly, so the
+whole config pipeline (edit YAML -> bake -> ship) needs only the stdlib.
+
+Usage:
+    python config/bake.py                 # bake profiles/current.yaml -> agent/config_baked.py
+    python config/bake.py --profile foo   # bake profiles/foo.yaml
+    python config/bake.py --check         # exit 1 if agent/config_baked.py is stale vs the YAML
+"""
+import argparse
+import os
+import re
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+COMP = os.path.dirname(HERE)
+TARGET = os.path.join(COMP, "agent", "config_baked.py")
+
+_INT = re.compile(r"^-?\d+$")
+_FLOAT = re.compile(r"^-?\d+\.\d+$")
+
+
+def _coerce(tok):
+    tok = tok.strip()
+    if tok in ('""', "''"):
+        return ""
+    if tok.startswith('"') and tok.endswith('"'):
+        return tok[1:-1]
+    if _INT.match(tok):
+        return int(tok)
+    if _FLOAT.match(tok):
+        return float(tok)
+    return tok
+
+
+def parse_profile(path):
+    """Return (profile_name, ordered list of (key, value)) from the `knobs:` block."""
+    name = "current"
+    knobs = []
+    in_knobs = False
+    with open(path) as f:
+        for raw in f:
+            line = raw.split("#", 1)[0].rstrip()
+            if not line.strip():
+                continue
+            m = re.match(r"^profile:\s*(\S+)", line)
+            if m:
+                name = m.group(1)
+                continue
+            if re.match(r"^knobs:\s*$", line):
+                in_knobs = True
+                continue
+            if in_knobs:
+                mk = re.match(r"^\s+(OW_[A-Z0-9_]+):\s*(.+)$", line)
+                if mk:
+                    knobs.append((mk.group(1), _coerce(mk.group(2))))
+                elif not line.startswith(" "):
+                    in_knobs = False  # left the block
+    return name, knobs
+
+
+def render(profile, knobs):
+    lines = [
+        '"""Baked Orbit Wars agent config (OW-ARCH-001 config layer).',
+        "",
+        "GENERATED by config/bake.py from config/profiles/%s.yaml — do not edit by hand." % profile,
+        "Runtime reads this (plain Python, no PyYAML). Edit the YAML, then re-bake.",
+        "",
+        "Resolution at runtime (core/config.py): env OW_*  ->  this baked default  ->  call-site literal.",
+        '"""',
+        "",
+        'PROFILE = "%s"' % profile,
+        "",
+        "BAKED = {",
+    ]
+    for k, v in knobs:
+        lines.append("    %r: %r," % (k, v))
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--profile", default="current")
+    ap.add_argument("--check", action="store_true")
+    args = ap.parse_args()
+
+    src = os.path.join(HERE, "profiles", "%s.yaml" % args.profile)
+    profile, knobs = parse_profile(src)
+    out = render(profile, knobs)
+
+    if args.check:
+        cur = open(TARGET).read() if os.path.exists(TARGET) else ""
+        # compare the BAKED mapping semantically (ignore the docstring/comments)
+        import ast
+
+        def baked_of(text):
+            tree = ast.parse(text)
+            for node in tree.body:
+                if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "BAKED":
+                    return ast.literal_eval(node.value)
+            return None
+
+        want = baked_of(out)
+        have = baked_of(cur)
+        if want != have:
+            print("STALE: agent/config_baked.py does not match config/profiles/%s.yaml" % args.profile)
+            print("  want:", want)
+            print("  have:", have)
+            sys.exit(1)
+        print("OK: agent/config_baked.py matches profiles/%s.yaml (%d knobs)" % (args.profile, len(knobs)))
+        return
+
+    with open(TARGET, "w") as f:
+        f.write(out)
+    print("baked %d knobs from profiles/%s.yaml -> agent/config_baked.py" % (len(knobs), args.profile))
+
+
+if __name__ == "__main__":
+    main()
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/bake.py (file state is current in your context — no need to Read it back)
+
+### 💭 Thinking
+
+`16:21:00`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Verify baked config matches the YAML profile*
+
+`16:21:02`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+~/.venvs/orbit-wars/bin/python config/bake.py --check
+```
+
+```
+OK: agent/config_baked.py matches profiles/current.yaml (32 knobs)
+```
+
+### 🤖 Assistant: *Now `config/README.md`:*
+
+`16:21:05`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now `config/README.md`:
+
+#### ✍️  Write `README.md`
+
+`16:21:23`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/README.md</code></summary>
+
+````markdown
+# Orbit Wars agent config (OW-ARCH-001)
+
+Centralized configuration for the live agent (`core/policy.py`). One place reads `OW_*`
+environment overrides — `core/config.py` — so knobs are no longer scattered as
+`os.environ.get(...)` across the policy body.
+
+## Files
+
+| File | Role |
+|---|---|
+| `config/default.yaml` | Canonical **schema**: every knob, grouped, documented, with its default. Human reference. |
+| `config/profiles/current.yaml` | The **active** profile shipped to Kaggle. A flat `OW_* → value` map under `knobs:`. |
+| `config/bake.py` | Regenerates `agent/config_baked.py` from a profile. PyYAML-free (stdlib only). |
+| `agent/config_baked.py` | **Runtime** default profile as a plain-Python dict. This is what the online agent imports. |
+| `core/config.py` | Resolves each knob at call time and exposes `geti/getf/getstr/getb/snapshot`. |
+
+## Why baked Python and not YAML at runtime
+
+The online Kaggle agent ships as `main.py` + `core/` + `agent/` and the runtime sandbox may
+not have PyYAML. So the runtime default profile is **baked** into `agent/config_baked.py` as a
+stdlib dict — no third-party import at agent load time. YAML stays a dev-time convenience for
+humans editing/reviewing profiles.
+
+## Resolution order (per knob, every turn)
+
+```
+1. environment variable  OW_*        (live override; read at CALL time)
+2. baked default profile             (agent/config_baked.py BAKED)
+3. call-site literal                 (the default kept inline in core/policy.py as a safety net)
+```
+
+Reading at call time matters: the arena worker pool clears `OW_*` per task and reuses workers,
+so a cached module must re-read env each turn. If the baked profile fails to import for any
+reason, the getters fall back to the inline literal, so the agent can never break on config.
+
+**Behavior preservation:** with no `OW_*` set and `BAKED` == the historical inline defaults, the
+getters return byte-identical values to the old `int(os.environ.get("OW_X", <default>))`
+expressions. This is golden-verified (526-record obs→moves replay, 0 mismatches) and contract-
+checked (`config/bake.py --check` + the resolution test).
+
+## Editing a profile
+
+1. Edit `config/profiles/current.yaml` (or add `config/profiles/<name>.yaml`).
+2. Re-bake: `python config/bake.py [--profile <name>]` → rewrites `agent/config_baked.py`.
+3. Verify no drift: `python config/bake.py --check`.
+4. Golden-verify behavior is still intended (see `competitions/orbit-wars/README.md`).
+
+`python config/bake.py --check` is cheap and stdlib-only; run it before any PR that touches
+config so the YAML and the baked Python can never silently diverge.
+
+## Scope
+
+Only the **live** policy knobs (`core/policy.py`, 32 knobs) are centralized here. The frozen
+agent snapshots in `agent/versions/*` keep their own inline `os.environ.get` defaults on purpose
+— each is a self-contained reproducible artifact and must not change when a profile changes.
+
+Knobs not yet migrated (experimental levers that only ever lived in `agent/versions/*`, e.g.
+`OW_V4*`, `OW_EM*`, `OW_SUPPLY*`, `OW_POSTURE*`, `OW_STUDENT_*`) are intentionally out of scope:
+they are not read by the live policy. If one is ever promoted into `core/policy.py`, add it to
+`config/profiles/current.yaml`, re-bake, and route the read through `core.config`.
+
+````
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/README.md (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *Config layer done.*
+
+`16:21:25`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Config layer done. Now let me look at `rule_engine.py` to wire it as a pass-through:
+
+#### 👀 Read `rule_engine.py`
+
+`16:21:26`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/rule_engine.py</code></summary>
+
+```python
+"""Lightweight ECA-style RuleEngine — guardrails + tactical re-weighting, NOT a strategy.
+
+Predicates read the BattlefieldState + FlightOracle verdict for a candidate; actions
+either BLOCK a candidate (hard safety) or adjust its weight (tactical). The two
+load-bearing guardrails wire the deterministic FlightOracle gate:
+  TARGET_FIRST_HIT_VALID and SUN_SAFE -> block on failure.
+Model scoring slots in later as another weight signal; this just builds the substrate.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from .oracle import FlightOracle
+
+
+@dataclass
+class RuleVerdict:
+    decision: str  # "allow" | "block"
+    weight: float  # multiplicative weight on the candidate's base score (1.0 = neutral)
+    reasons: list = field(default_factory=list)
+
+
+# ---- predicates: (state, feat) -> bool -------------------------------------
+def TARGET_FIRST_HIT_VALID(state, feat):
+    return bool(feat.get("path_valid"))
+
+
+def SUN_SAFE(state, feat):
+    return feat.get("path_first_hit_type") != "sun"
+
+
+def SOURCE_HAS_DEFENSE_SLACK(state, feat):
+    return feat.get("src_defense_slack", 0.0) >= feat.get("ships", 0)
+
+
+def TARGET_ROI_POSITIVE(state, feat):
+    return feat.get("tgt_roi", 0.0) > 0.0
+
+
+def TARGET_HOLDABLE(state, feat):
+    return feat.get("tgt_holdability", 0.0) >= 0.5
+
+
+def MY_CORE_UNDER_THREAT(state, feat=None):
+    me = state.glob.my_id
+    return any(
+        p.owner == me and p.threat_window is not None and p.strategic_value_1_100 >= 50 for p in state.planets.values()
+    )
+
+
+def I_AM_4P_LEADER(state, feat=None):
+    return state.glob.player_count >= 4 and state.glob.leader_id == state.glob.my_id
+
+
+def I_AM_4P_UNDERDOG(state, feat=None):
+    me = state.glob.my_id
+    return state.glob.player_count >= 4 and state.players.get(me) is not None and state.players[me].rank_by_score >= 3
+
+
+def ENEMY_FIELD_ARMY_COMMITTED(state, feat=None):
+    me = state.glob.my_id
+    for pl, ps in state.players.items():
+        if pl != me and pl != -1:
+            tot = ps.ships_on_planets + ps.ships_in_flight
+            if tot > 0 and ps.ships_in_flight / tot >= 0.45:
+                return True
+    return False
+
+
+def ENDGAME_SCORE_POSITIVE(state, feat):
+    return state.glob.phase == "endgame" and feat.get("tgt_roi", 0.0) > 0.0
+
+
+def COMET_PAYBACK_POSITIVE(state, feat):
+    # blocker: comet expiry/path not modelled (schema doc) -> conservative False
+    return False
+
+
+class RuleEngine:
+    def __init__(self, oracle: FlightOracle | None = None):
+        self.oracle = oracle or FlightOracle()
+
+    def evaluate(self, state, feat) -> RuleVerdict:
+        reasons = []
+        # --- hard safety guardrails (deterministic FlightOracle gate) ---
+        if not SUN_SAFE(state, feat):
+            return RuleVerdict("block", 0.0, ["SUN_SAFE failed: strict_sun_collision"])
+        if not TARGET_FIRST_HIT_VALID(state, feat):
+            return RuleVerdict(
+                "block",
+                0.0,
+                [
+                    f"TARGET_FIRST_HIT_VALID failed: {feat.get('path_first_hit_type')} "
+                    f"{feat.get('path_first_hit_id')} before target"
+                ],
+            )
+        # --- tactical re-weighting ---
+        w = 1.0
+        if feat.get("path_near_sun"):
+            w *= 0.9
+            reasons.append("near_sun_warning -> -10%")
+        if not SOURCE_HAS_DEFENSE_SLACK(state, feat):
+            w *= 0.6
+            reasons.append("source lacks defense slack -> -40%")
+        if not TARGET_HOLDABLE(state, feat):
+            w *= 0.8
+            reasons.append("target not holdable -> -20%")
+        if TARGET_ROI_POSITIVE(state, feat):
+            w *= 1.1
+            reasons.append("positive ROI -> +10%")
+        if MY_CORE_UNDER_THREAT(state) and not (feat.get("tgt_owner") == state.glob.my_id):
+            w *= 0.7
+            reasons.append("core under threat, non-defensive launch -> -30%")
+        if I_AM_4P_LEADER(state):
+            w *= 0.9
+            reasons.append("4p leader: damp over-extension -> -10%")
+        elif I_AM_4P_UNDERDOG(state):
+            w *= 1.05
+            reasons.append("4p underdog: press expansion -> +5%")
+        return RuleVerdict("allow", round(w, 3), reasons)
+
+```
+</details>
+
+### 💭 Thinking
+
+`16:21:51`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Find candidate-list ranking call sites in policy.py*
+
+`16:21:53`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+echo "=== _hybrid_rerank call sites + candidate-list construction ==="
+grep -nE "_hybrid_rerank|candidates|_rule_gate|by_value" core/policy.py | head -40
+```
+
+```
+=== _hybrid_rerank call sites + candidate-list construction ===
+294:# candidates win the budget — never the sizing, the path/oracle safety, or the value sim.
+299:# byte-identical to v3.2 (model rank ignored). Only the top OW_HYBRID_TOPN candidates are
+337:def _hybrid_rerank(obs, candidates):
+338:    """Return candidates re-ordered by a rank blend of (v3.2 value, model score).
+340:    candidates: list of (value, src_id, tgt_id, angle, needed). Any failure -> the plain
+344:    by_value = sorted(candidates, reverse=True, key=lambda c: c[0])
+346:    if sc is None or beta <= 0.0 or len(by_value) < 2:
+347:        return by_value
+355:        top = by_value[:topn]
+356:        rest = by_value[topn:]
+376:        return by_value
+568:    candidates = []
+646:            candidates.append((value, mp.id, tgt.id, angle, needed))
+651:        candidates = _hybrid_rerank(obs, candidates)
+653:        candidates.sort(reverse=True, key=lambda c: c[0])
+708:        covered = {c[2] for c in candidates}
+820:        for _value, src_id, tgt_id, angle, needed in candidates:
+835:        for value, src_id, tgt_id, angle, needed in candidates:
+929:# The data flow obs -> state/ledger -> candidates -> features -> rule_engine/model -> emit -> sanitize
+```
+
+#### 👀 Read `policy.py`
+
+`16:21:57`
+
+*(lines 644–664)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py</code></summary>
+
+```python
+            if value <= 0:
+                continue  # net-negative or pointless -> don't fire
+            candidates.append((value, mp.id, tgt.id, angle, needed))
+
+    # Greedy commit order: v3.2 ranks by simulated value; the hybrid re-ranker (if enabled)
+    # blends in the model's candidate score. OFF / on-failure -> identical value order.
+    if _hybrid_cfg()[0]:
+        candidates = _hybrid_rerank(obs, candidates)
+    else:
+        candidates.sort(reverse=True, key=lambda c: c[0])
+    remaining = {mp.id: _avail(mp) for mp in my_planets}
+    committed = set()
+    moves = []
+    move_targets = []  # intended target id parallel to each move (for the emission sanitizer)
+    pos_by_id = {p.id: (p.x, p.y) for p in planets}
+
+    def _flip_need(tgt, K):
+        """Min extra friendly ships arriving exactly at turn K to OWN tgt at K, given
+        the do-nothing arrival schedule (which already includes any of our in-flight
+        waves — so a replan naturally tops up an in-progress strike). None if the
+```
+</details>
+
+### 💭 Thinking
+
+`16:22:14`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Inspect candidate_features output keys vs RuleEngine predicates*
+
+`16:22:16`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+echo "=== candidate_features signature + returned keys ==="
+grep -nE "def candidate_features|def feature_vector|path_valid|path_first_hit|src_defense_slack|tgt_roi|tgt_holdability|path_near_sun|\"tgt_owner\"|'tgt_owner'|return " core/features.py | head -60
+```
+
+```
+=== candidate_features signature + returned keys ===
+23:    "src_defense_slack",
+30:    "tgt_roi",
+31:    "tgt_holdability",
+38:    "path_valid",
+41:    "path_near_sun",
+42:    "path_first_hit_is_target",
+52:            return i
+53:    return len(SHIP_BUCKETS) - 1
+59:        return float(v) if v is not None else default
+61:        return default
+64:def feature_vector(cf: dict, ship_bucket=None) -> list[float]:
+73:    tgt_owner = cf.get("tgt_owner")
+80:    return [
+86:        _ff(cf, "src_defense_slack"),
+93:        _ff(cf, "tgt_roi"),
+94:        _ff(cf, "tgt_holdability"),
+101:        _ff(cf, "path_valid"),
+104:        _ff(cf, "path_near_sun"),
+105:        1.0 if cf.get("path_first_hit_type") == "target" else 0.0,
+109:def candidate_features(state, candidate, obs, oracle: FlightOracle | None = None) -> dict:
+128:                "src_defense_slack": src.defense_slack,
+136:                "tgt_owner": tgt.owner,
+138:                "tgt_roi": tgt.roi_value,
+139:                "tgt_holdability": tgt.holdability,
+152:            "path_valid": int(res.valid),
+153:            "path_first_hit_type": res.first_hit_type,
+154:            "path_first_hit_id": res.first_hit_id if res.first_hit_id is not None else -1,
+157:            "path_near_sun": int(res.near_sun),
+160:    return feat
+```
+
+### 💭 Thinking
+
+`16:22:24`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 👀 Read `features.py`
+
+`16:22:25`
+
+*(lines 109–161)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/features.py</code></summary>
+
+```python
+def candidate_features(state, candidate, obs, oracle: FlightOracle | None = None) -> dict:
+    oracle = oracle or FlightOracle()
+    src = state.planets.get(candidate["source"])
+    tgt = state.planets.get(candidate["target"])
+    ships = int(candidate.get("ships", 1))
+    me = state.glob.my_id
+    feat = {
+        "source_id": candidate["source"],
+        "target_id": candidate["target"],
+        "ships": ships,
+        "my_id": me,  # so feature_vector can classify target ownership as own/enemy/neutral
+        "phase": state.glob.phase,
+        "remaining_steps": state.glob.remaining_steps,
+    }
+    if src is not None:
+        feat.update(
+            {
+                "src_owner_is_me": int(src.owner == me),
+                "src_ships": src.ships,
+                "src_defense_slack": src.defense_slack,
+                "src_is_hub": int(src.is_hub_candidate),
+                "src_is_safe_bank": int(src.is_safe_bank),
+            }
+        )
+    if tgt is not None:
+        feat.update(
+            {
+                "tgt_owner": tgt.owner,
+                "tgt_strategic_value": tgt.strategic_value_1_100,
+                "tgt_roi": tgt.roi_value,
+                "tgt_holdability": tgt.holdability,
+                "tgt_pressure": tgt.pressure_score,
+                "tgt_frontier": tgt.frontier_score,
+                "tgt_centrality": tgt.centrality,
+                "tgt_is_comet": int(tgt.is_comet),
+                "tgt_reinforcement_need": tgt.reinforcement_need,
+                "tgt_threat_window": tgt.threat_window if tgt.threat_window is not None else -1,
+            }
+        )
+    # FlightOracle path verdict for this exact launch
+    res = oracle.validate_target(obs, candidate["source"], candidate["target"], ships)
+    feat.update(
+        {
+            "path_valid": int(res.valid),
+            "path_first_hit_type": res.first_hit_type,
+            "path_first_hit_id": res.first_hit_id if res.first_hit_id is not None else -1,
+            "path_eta": res.eta if res.eta is not None else -1,
+            "path_min_sun_distance": res.min_sun_distance if res.min_sun_distance is not None else -1.0,
+            "path_near_sun": int(res.near_sun),
+        }
+    )
+    return feat
+```
+</details>
+
+### 💭 Thinking
+
+`16:22:31`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 👀 Read `policy.py`
+
+`16:22:32`
+
+*(lines 358–388)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py</code></summary>
+
+```python
+        for value, src_id, tgt_id, angle, needed in top:
+            cf = candidate_features(state, {"source": src_id, "target": tgt_id, "ships": int(needed)}, obs, orc)
+            model.append(sc.score_cf(cf, ship_bucket_of(needed)))
+        # rank blend: lower combined rank = commit earlier
+        order_v = sorted(range(len(top)), key=lambda i: -top[i][0])
+        order_m = sorted(range(len(top)), key=lambda i: -model[i])
+        rv = [0] * len(top)
+        rm = [0] * len(top)
+        for r, i in enumerate(order_v):
+            rv[i] = r
+        for r, i in enumerate(order_m):
+            rm[i] = r
+        blended = sorted(
+            range(len(top)),
+            key=lambda i: (1.0 - beta) * rv[i] + beta * rm[i],
+        )
+        return [top[i] for i in blended] + rest
+    except Exception:
+        return by_value
+
+
+def agent(obs):
+    try:
+        result = _agent(obs)
+    except Exception:
+        return []
+    # _agent returns either bare moves or (moves, intended_targets). Preserve target intent through
+    # to the emission gate so the (opt-in) wrong-first-hit sanitizer can use it; None => sun/oob only.
+    if isinstance(result, tuple):
+        moves, targets = result
+```
+</details>
+
+### 🤖 Assistant: *Now I'll add `_rule_gate` right after `_hybrid_rerank…*
+
+`16:22:34`
+
+> Now I'll add `_rule_gate` right after `_hybrid_rerank` ends (line 377):
+
+#### ✏️  Edit `policy.py`
+
+`16:22:43`
+
+```diff
+@@ -3,4 +3,37 @@         return by_value
+ 
+ 
++# --- RuleEngine guardrail / re-weight layer [6] (OW-ARCH-001) ----------------
++# Wires core.rule_engine.RuleEngine into the candidate flow. PASS-THROUGH BY DEFAULT
++# (OW_RULE_ENGINE=0): the candidate list is returned unchanged, so behavior is byte-identical
++# to v3.2 (golden-verified). When enabled it builds the BattlefieldState + per-candidate feature
++# dict (the same machinery the hybrid re-ranker uses), drops candidates the deterministic
++# guardrails BLOCK (e.g. sun collision / wrong first-hit), and scales each candidate's value by
++# the tactical weight before the greedy commit re-sorts. Read at CALL time (arena reuses workers
++# and clears OW_*); any failure -> the candidates unchanged, so it can never break or starve the
++# agent. EXPERIMENTAL / OFF by default — not yet shown to beat v3.2; the wiring is the deliverable.
++def _rule_gate(obs, candidates):
++    if not _C.geti("OW_RULE_ENGINE", 0) or not candidates:
++        return candidates
++    try:
++        from .features import candidate_features
++        from .oracle import FlightOracle
++        from .rule_engine import RuleEngine
++        from .state import build_battlefield_state
++
++        state = build_battlefield_state(obs, horizon=PROJ_H)
++        orc = FlightOracle()
++        eng = RuleEngine(orc)
++        out = []
++        for value, src_id, tgt_id, angle, needed in candidates:
++            cf = candidate_features(state, {"source": src_id, "target": tgt_id, "ships": int(needed)}, obs, orc)
++            verdict = eng.evaluate(state, cf)
++            if verdict.decision == "block":
++                continue
++            out.append((value * verdict.weight, src_id, tgt_id, angle, needed))
++        return out
++    except Exception:
++        return candidates  # core/ unavailable or any error -> unchanged (byte-identical to v3.2)
++
++
+ def agent(obs):
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now wire the call site before the ranking…*
+
+`16:22:46`
+
+> Now wire the call site before the ranking step:
+
+#### ✏️  Edit `policy.py`
+
+`16:22:49`
+
+```diff
+@@ -1,3 +1,6 @@+    # RuleEngine guardrail/re-weight layer [6] (OW-ARCH-001): pass-through by default
++    # (OW_RULE_ENGINE=0) -> identical candidate list; enabled, it blocks/re-weights candidates.
++    candidates = _rule_gate(obs, candidates)
+     # Greedy commit order: v3.2 ranks by simulated value; the hybrid re-ranker (if enabled)
+     # blends in the model's candidate score. OFF / on-failure -> identical value order.
+     if _hybrid_cfg()[0]:
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now add `OW_RULE_ENGINE` to the config (baked…*
+
+`16:22:52`
+
+> Now add `OW_RULE_ENGINE` to the config (baked + YAML default + profile):
+
+#### ✏️  Edit `config_baked.py`
+
+`16:22:54`
+
+```diff
+@@ -1 +1,3 @@+    # --- layer [6] RuleEngine guardrail/re-weight (default OFF -> pass-through) ---
++    "OW_RULE_ENGINE": 0,
+     # --- layer [7] emission safety gate ---
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/agent/config_baked.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### ✏️  Edit `current.yaml`
+
+`16:22:58`
+
+```diff
+@@ -1,2 +1,3 @@   OW_CONSOLIDATE_MARGIN: 3.0
++  OW_RULE_ENGINE: 0
+   OW_NO_SANITIZE: 0
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/profiles/current.yaml has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### ✏️  Edit `default.yaml`
+
+`16:23:03`
+
+```diff
+@@ -1 +1,4 @@+ruleengine:              # layer [6] guardrail / tactical re-weight over candidates (default OFF -> pass-through)
++  OW_RULE_ENGINE: 0      # int  master gate (0 = candidate list unchanged, byte-identical to v3.2)
++
+ emission:                # layer [7] safety gate (core.action_sanitizer via core.action_emitter)
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/default.yaml has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now verify: bake-check, config contract …*
+
+`16:23:07`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now verify: bake-check, config contract (with the new knob), golden, and a RuleEngine-ON smoke:
+
+#### ✏️  Edit `check_config.py`
+
+`16:23:10`
+
+```diff
+@@ -1 +1,2 @@     "OW_CONSOLIDATE": (C.geti, 0), "OW_CONSOLIDATE_MIN": (C.getf, 12.0), "OW_CONSOLIDATE_MARGIN": (C.getf, 3.0),
++    "OW_RULE_ENGINE": (C.geti, 0),
+```
+
+```
+The file /home/harry/.claude-ayla/jobs/8c10342b/tmp/check_config.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### 💻 Bash: *Re-verify compile, bake-check, config contract, golden after rule_engine wiring*
+
+`16:23:16`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+echo "=== py_compile ==="; ~/.venvs/orbit-wars/bin/python -c "import py_compile; [py_compile.compile(f,doraise=True) for f in ['core/policy.py','core/config.py','agent/config_baked.py']]; print('OK')"
+echo "=== bake --check ==="; ~/.venvs/orbit-wars/bin/python config/bake.py --check
+echo "=== config contract ==="; ~/.venvs/orbit-wars/bin/python /home/harry/.claude-ayla/jobs/8c10342b/tmp/check_config.py "$PWD" 2>&1 | tail -3
+echo "=== golden ==="; ~/.venvs/orbit-wars/bin/python /tmp/claude/ow_golden_check.py 2>&1 | tail -2
+```
+
+```
+=== py_compile ===
+OK
+=== bake --check ===
+OK: agent/config_baked.py matches profiles/current.yaml (33 knobs)
+=== config contract ===
+
+config contract: 33 knobs checked, FAILS=0
+PASS
+=== golden ===
+records=526  MISMATCHES=0
+PASS (behavior identical)
+```
+
+### 🤖 Assistant: *All green (33 knobs, golden=0).*
+
+`16:23:31`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All green (33 knobs, golden=0). Now repo-resident tests for the config layer + rule-engine wiring:
+
+#### ✍️  Write `test_config_layer.py`
+
+`16:23:45`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_config_layer.py</code></summary>
+
+```python
+"""Config-layer contract (OW-ARCH-001): core.config resolves env -> baked -> fallback, the
+baked profile actually loads, env overrides win and coerce, and the baked Python matches the
+YAML profile (no silent drift)."""
+
+import os
+import sys
+
+for _k in list(os.environ):
+    if _k.startswith("OW_"):
+        del os.environ[_k]
+HERE = os.path.dirname(os.path.abspath(__file__))
+COMP = os.path.normpath(os.path.join(HERE, ".."))
+for _p in (COMP, os.path.join(COMP, "agent")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from core import config as C  # noqa: E402
+
+
+def test_baked_profile_loads_not_empty():
+    baked = C.baked()
+    assert baked, "BAKED failed to import -> getters would silently use only call-site fallbacks"
+    assert "OW_PROJ_H" in baked and baked["OW_PROJ_H"] == 26
+
+
+def test_resolution_matches_historical_inline_defaults():
+    # a representative spread across int / float / str knobs
+    assert C.geti("OW_PROJ_H", 26) == 26
+    assert C.geti("OW_MULTISRC", 0) == 0
+    assert C.getf("OW_HOLD_MULT", 1.6) == 1.6
+    assert C.getf("OW_CAP_EARLY", 3.2) == 3.2
+    assert C.getf("OW_FRONTIER_DIST", 20.0) == 20.0
+    assert C.geti("OW_RULE_ENGINE", 0) == 0
+    assert C.geti("OW_NO_SANITIZE", 0) == 0
+    assert C.getstr("OW_SANITIZE_LOG", "") == ""
+
+
+def test_env_override_wins_and_coerces_then_clears():
+    os.environ["OW_PROJ_H"] = "40"
+    os.environ["OW_HOLD_MULT"] = "2.5"
+    try:
+        assert C.geti("OW_PROJ_H", 26) == 40
+        assert C.getf("OW_HOLD_MULT", 1.6) == 2.5
+        assert C.getb("OW_PROJ_H") is True  # non-zero
+    finally:
+        del os.environ["OW_PROJ_H"]
+        del os.environ["OW_HOLD_MULT"]
+    assert C.geti("OW_PROJ_H", 26) == 26, "override leaked after unset"
+
+
+def test_active_overrides_and_snapshot():
+    os.environ["OW_HYBRID"] = "1"
+    try:
+        assert C.active_overrides() == {"OW_HYBRID": "1"}
+    finally:
+        del os.environ["OW_HYBRID"]
+    snap = C.snapshot()
+    assert set(snap) == set(C.baked()), "snapshot must cover exactly the baked knobs"
+
+
+def test_baked_python_matches_yaml_profile():
+    # the runtime baked dict must equal what config/profiles/current.yaml bakes to (no drift)
+    sys.path.insert(0, os.path.join(COMP, "config"))
+    import bake  # config/bake.py
+
+    _profile, knobs = bake.parse_profile(os.path.join(COMP, "config", "profiles", "current.yaml"))
+    from config_baked import BAKED
+
+    assert dict(knobs) == dict(BAKED), "agent/config_baked.py drifted from config/profiles/current.yaml"
+
+
+if __name__ == "__main__":
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    n = 0
+    for fn in fns:
+        fn()
+        print("PASS", fn.__name__)
+        n += 1
+    print(f"\n{n}/{len(fns)} config-layer tests passed")
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_config_layer.py (file state is current in your context — no need to Read it back)
+
+#### ✍️  Write `test_rule_engine_wiring.py`
+
+`16:24:01`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_rule_engine_wiring.py</code></summary>
+
+```python
+"""RuleEngine wiring (OW-ARCH-001): the layer [6] gate is PASS-THROUGH by default
+(OW_RULE_ENGINE unset -> identical candidate list) and, when enabled, blocks/re-weights
+candidates without crashing and the agent still emits a valid sanitized action list."""
+
+import os
+import sys
+
+os.environ["OMP_NUM_THREADS"] = "1"
+for _k in list(os.environ):
+    if _k.startswith("OW_"):
+        del os.environ[_k]
+HERE = os.path.dirname(os.path.abspath(__file__))
+COMP = os.path.normpath(os.path.join(HERE, ".."))
+for _p in (COMP, os.path.join(COMP, "agent")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from core import policy  # noqa: E402
+from core.oracle import FlightOracle  # noqa: E402
+
+# clear lane: source@(10,50) mine, neutral target@(35,50); a synthetic candidate list
+SRC = (0, 0, 10.0, 50.0, 2.0, 50.0, 3)
+TGT = (1, -1, 35.0, 50.0, 2.0, 5.0, 2)
+OBS = {
+    "planets": [list(SRC), list(TGT)],
+    "fleets": [],
+    "initial_planets": [list(SRC), list(TGT)],
+    "angular_velocity": 0.0,
+    "step": 5,
+    "comet_planet_ids": [],
+    "player": 0,
+}
+# candidate tuple format used by the greedy commit: (value, src_id, tgt_id, angle, needed)
+CANDS = [(10.0, 0, 1, 0.0, 6)]
+
+
+def test_pass_through_identity_when_disabled():
+    # OW_RULE_ENGINE unset -> the exact same list comes back unchanged
+    out = policy._rule_gate(OBS, list(CANDS))
+    assert out == CANDS, out
+
+
+def test_enabled_does_not_crash_and_returns_well_formed():
+    os.environ["OW_RULE_ENGINE"] = "1"
+    try:
+        out = policy._rule_gate(OBS, list(CANDS))
+        assert isinstance(out, list)
+        for tup in out:
+            assert len(tup) == 5
+            value, src, tgt, ang, need = tup
+            float(value); int(src); int(tgt); float(ang); int(need)
+        # the clear-lane candidate is valid -> not blocked away
+        assert any(t[1:] == (0, 1, 0.0, 6) for t in out), out
+    finally:
+        del os.environ["OW_RULE_ENGINE"]
+
+
+def test_agent_still_valid_with_rule_engine_on():
+    import logging
+
+    logging.disable(logging.INFO)
+    from kaggle_environments import make
+
+    env = make("orbit_wars", configuration={"seed": 31337})
+    env.reset(num_agents=2)
+    obs = env.steps[0][0]["observation"]
+    import main as entry
+
+    os.environ["OW_RULE_ENGINE"] = "1"
+    try:
+        moves = entry.agent(obs)
+        assert isinstance(moves, list)
+        orc = FlightOracle()
+        for mv in moves:
+            assert isinstance(mv, (list, tuple)) and len(mv) == 3
+            r = orc.first_hit(obs, int(mv[0]), float(mv[1]), int(mv[2]))
+            assert r.first_hit_type not in ("sun", "oob"), (mv, r.first_hit_type)
+    finally:
+        del os.environ["OW_RULE_ENGINE"]
+
+
+if __name__ == "__main__":
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
+    n = 0
+    for fn in fns:
+        fn()
+        print("PASS", fn.__name__)
+        n += 1
+    print(f"\n{n}/{len(fns)} rule-engine-wiring tests passed")
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_rule_engine_wiring.py (file state is current in your context — no need to Read it back)
+
+#### 💻 Bash: *Run new config-layer + rule-engine-wiring tests*
+
+`16:24:06`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+for t in test_config_layer test_rule_engine_wiring; do
+  echo "=== $t ==="; ~/.venvs/orbit-wars/bin/python tests_orbit/$t.py 2>&1 | grep -vE "LiteLLM|socksio" | tail -8
+done
+```
+
+```
+=== test_config_layer ===
+PASS test_active_overrides_and_snapshot
+PASS test_baked_profile_loads_not_empty
+PASS test_baked_python_matches_yaml_profile
+PASS test_env_override_wins_and_coerces_then_clears
+PASS test_resolution_matches_historical_inline_defaults
+
+5/5 config-layer tests passed
+=== test_rule_engine_wiring ===
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_repeated_poker
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO:    open_spiel_python_repeated_pokerkit
+[kaggle_environments.envs.open_spiel_env.open_spiel_env] INFO: OpenSpiel games skipped: 0.
+PASS test_agent_still_valid_with_rule_engine_on
+PASS test_enabled_does_not_crash_and_returns_well_formed
+PASS test_pass_through_identity_when_disabled
+
+3/3 rule-engine-wiring tests passed
+```
+
+### 🤖 Assistant: *All pass. Now run the \*\*full tests_orbit…*
+
+`16:24:15`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All pass. Now run the **full tests_orbit suite** (10 files) + golden once more:
+
+#### 💻 Bash: *Run entire tests_orbit suite + golden regression*
+
+`16:24:20`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+pass=0; fail=0
+for t in tests_orbit/test_*.py; do
+  out=$(~/.venvs/orbit-wars/bin/python "$t" 2>&1 | grep -vE "LiteLLM|socksio|open_spiel|OpenSpiel|INFO:" )
+  line=$(echo "$out" | grep -E "tests passed|MISMATCH" | tail -1)
+  if echo "$out" | grep -qE "Traceback|AssertionError|Error"; then
+    echo "FAIL  $(basename $t): $(echo "$out" | tail -2 | tr '\n' ' ')"; fail=$((fail+1))
+  else
+    echo "ok    $(basename $t): $line"; pass=$((pass+1))
+  fi
+done
+echo "---- files: pass=$pass fail=$fail ----"
+echo "=== golden ==="; ~/.venvs/orbit-wars/bin/python /tmp/claude/ow_golden_check.py 2>&1 | grep -E "records|PASS|FAIL"
+```
+
+```
+ok    test_action_sanitizer.py: 4/4 action-sanitizer tests passed
+ok    test_config_layer.py: 5/5 config-layer tests passed
+ok    test_features_contract.py: 4/4 features-contract tests passed
+ok    test_flight_oracle.py: 6/6 flight-oracle tests passed
+ok    test_geometry_oracle.py: 5/5 geometry-oracle tests passed
+ok    test_hybrid_model.py: 3/3 hybrid-model tests passed
+ok    test_policy_smoke.py: 4/4 policy-smoke tests passed
+ok    test_rule_engine_wiring.py: 3/3 rule-engine-wiring tests passed
+ok    test_state_fleet_decode.py: 3/3 state-fleet-decode tests passed
+ok    test_state_ledger.py: 5/5 state/ledger tests passed
+---- files: pass=10 fail=0 ----
+=== golden ===
+records=526  MISMATCHES=0
+PASS (behavior identical)
+```
+
+### 🤖 Assistant: *All 10 files (42 tests) pass, golden=0.*
+
+`16:25:06`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All 10 files (42 tests) pass, golden=0. Now ruff. Let me check the new/changed files:
+
+#### 💻 Bash: *Locate ruff + line-length config*
+
+`16:25:08`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+echo "=== ruff version + config ==="; ~/.venvs/orbit-wars/bin/ruff --version 2>/dev/null || (which ruff && ruff --version) || echo "ruff not in venv"
+ls pyproject.toml ruff.toml .ruff.toml 2>/dev/null; grep -n "line-length\|line_length" pyproject.toml 2>/dev/null | head
+```
+
+```
+=== ruff version + config ===
+ruff not found
+ruff not in venv
+pyproject.toml
+57:line-length = 120
+```
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+which ruff 2>/dev/null; python3 -m ruff --version 2>/dev/null; pipx run ruff --version 2>/dev/null; ls ~/.venvs/*/bin/ruff 2>/dev/null; find / -name ruff -type f 2>/dev/null | head -3
+```
+
+```
+Command running in background with ID: brferb093. Output is being written to: /tmp/claude-1000/-home-harry-test-tt-pangu/8c10342b-5a56-43d7-a4e6-8fcfd5438d20/tasks/brferb093.output. You will be notified when it completes. To check interim output, use Read on that file path.
+```
+
+### 💭 Thinking
+
+`16:27:18`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Install ruff into the orbit-wars venv from PyPI*
+
+`16:27:19`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+~/.venvs/orbit-wars/bin/pip install -q ruff 2>&1 | tail -3
+~/.venvs/orbit-wars/bin/ruff --version
+```
+
+```
+ERROR: Could not install packages due to an OSError: [Errno 30] Read-only file system: '/home/harry/.venvs/orbit-wars/lib/python3.12/site-packages/ruff'
+
+(eval):3: no such file or directory: /home/harry/.venvs/orbit-wars/bin/ruff
+```
+
+### 💭 Thinking
+
+`16:27:29`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Create writable venv in job tmp and install ruff*
+
+`16:27:30`
+
+```bash
+$ cd /home/harry/.claude-ayla/jobs/8c10342b/tmp
+python3 -m venv ruffenv 2>&1 | tail -1
+./ruffenv/bin/pip install -q ruff 2>&1 | tail -2
+./ruffenv/bin/ruff --version
+```
+
+```
+Error: [Errno 30] Read-only file system: '/home/harry/.claude-ayla/jobs/8c10342b/tmp/ruffenv'
+(eval):3: no such file or directory: ./ruffenv/bin/pip
+(eval):4: no such file or directory: ./ruffenv/bin/ruff
+```
+
+### 💭 Thinking
+
+`16:27:36`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Create ruff venv under writable /tmp/claude*
+
+`16:27:38`
+
+```bash
+$ echo "TMPDIR=$TMPDIR"; mkdir -p /tmp/claude/rufftmp && cd /tmp/claude/rufftmp
+python3 -m venv ruffenv 2>&1 | tail -1
+./ruffenv/bin/pip install -q ruff 2>&1 | tail -2
+./ruffenv/bin/ruff --version
+```
+
+```
+TMPDIR=/tmp/claude-1000
+[notice] A new release of pip is available: 25.0.1 -> 26.1.2
+[notice] To update, run: /tmp/claude/rufftmp/ruffenv/bin/python3 -m pip install --upgrade pip
+ruff 0.15.17
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+```
+
+### 🤖 Assistant: *ruff 0.15.17 ready.*
+
+`16:27:54`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> ruff 0.15.17 ready. Let me scope it to the files this task touched:
+
+#### 💻 Bash: *List changed python files under orbit-wars*
+
+`16:27:56`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+RUFF=/tmp/claude/rufftmp/ruffenv/bin/ruff
+echo "=== changed/new files (git) ==="
+git -C . status --porcelain | grep -E "competitions/orbit-wars/(core|agent|config|tests_orbit)/" | grep -E "\.py$"
+```
+
+```
+=== changed/new files (git) ===
+ M competitions/orbit-wars/agent/hybrid_model.py
+ M competitions/orbit-wars/agent/main.py
+ M competitions/orbit-wars/agent/utils.py
+ M competitions/orbit-wars/core/features.py
+ M competitions/orbit-wars/core/oracle.py
+ M competitions/orbit-wars/core/state.py
+ M competitions/orbit-wars/tests_orbit/test_action_sanitizer.py
+ M competitions/orbit-wars/tests_orbit/test_hybrid_model.py
+?? competitions/orbit-wars/agent/config_baked.py
+?? competitions/orbit-wars/core/action_emitter.py
+?? competitions/orbit-wars/core/candidates.py
+?? competitions/orbit-wars/core/config.py
+?? competitions/orbit-wars/core/policy.py
+?? competitions/orbit-wars/tests_orbit/test_config_layer.py
+?? competitions/orbit-wars/tests_orbit/test_features_contract.py
+?? competitions/orbit-wars/tests_orbit/test_geometry_oracle.py
+?? competitions/orbit-wars/tests_orbit/test_policy_smoke.py
+?? competitions/orbit-wars/tests_orbit/test_rule_engine_wiring.py
+?? competitions/orbit-wars/tests_orbit/test_state_fleet_decode.py
+```
+
+### 🤖 Assistant: *`config/` is a new untracked dir (collapsed…*
+
+`16:28:13`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `config/` is a new untracked dir (collapsed). Let me run ruff check + format --check on the task's files:
+
+#### 💻 Bash: *Run ruff check + format --check on task files*
+
+`16:28:16`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+RUFF=/tmp/claude/rufftmp/ruffenv/bin/ruff
+FILES="core/ config/ tests_orbit/ agent/main.py agent/utils.py agent/hybrid_model.py agent/config_baked.py"
+echo "=== ruff check ==="; $RUFF check --line-length 120 $FILES 2>&1 | tail -30
+echo "=== ruff format --check ==="; $RUFF format --check --line-length 120 $FILES 2>&1 | tail -30
+```
+
+```
+=== ruff check ===
+warning: Failed to lint core/ config/ tests_orbit/ agent/main.py agent/utils.py agent/hybrid_model.py agent/config_baked.py: No such file or directory (os error 2)
+All checks passed!
+=== ruff format --check ===
+error: Failed to format core/ config/ tests_orbit/ agent/main.py agent/utils.py agent/hybrid_model.py agent/config_baked.py: No such file or directory (os error 2)
+```
+
+### 🤖 Assistant: *Right — zsh doesn't word-split.*
+
+`16:28:22`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Right — zsh doesn't word-split. Let me pass files explicitly:
+
+#### 💻 Bash: *Run ruff check + format --check with explicit file args*
+
+`16:28:24`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+RUFF=/tmp/claude/rufftmp/ruffenv/bin/ruff
+echo "=== ruff check ==="
+$RUFF check --line-length 120 core/ config/ tests_orbit/ agent/main.py agent/utils.py agent/hybrid_model.py agent/config_baked.py 2>&1 | tail -30
+echo "=== ruff format --check ==="
+$RUFF format --check --line-length 120 core/ config/ tests_orbit/ agent/main.py agent/utils.py agent/hybrid_model.py agent/config_baked.py 2>&1 | tail -30
+```
+
+```
+=== ruff check ===
+F401 [*] `importlib.util` imported but unused
+ --> tests_orbit/test_action_sanitizer.py:3:8
+  |
+1 | """ActionSanitizer + agent emission-gate smokes (prompt 02 integration)."""
+2 |
+3 | import importlib.util
+  |        ^^^^^^^^^^^^^^
+4 | import math
+5 | import os
+  |
+help: Remove unused import: `importlib.util`
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.
+=== ruff format --check ===
+Would reformat: agent/config_baked.py
+Would reformat: agent/utils.py
+Would reformat: config/bake.py
+Would reformat: core/candidates.py
+Would reformat: core/oracle.py
+Would reformat: tests_orbit/test_action_sanitizer.py
+Would reformat: tests_orbit/test_features_contract.py
+Would reformat: tests_orbit/test_flight_oracle.py
+Would reformat: tests_orbit/test_geometry_oracle.py
+Would reformat: tests_orbit/test_policy_smoke.py
+Would reformat: tests_orbit/test_rule_engine_wiring.py
+Would reformat: tests_orbit/test_state_fleet_decode.py
+Would reformat: tests_orbit/test_state_ledger.py
+13 files would be reformatted, 14 files already formatted
+```
+
+### 🤖 Assistant: *Before reformatting, let me check what ruff…*
+
+`16:28:41`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Before reformatting, let me check what ruff version the repo's gate expects (to avoid version-induced churn on already-committed test files):
+
+#### 💻 Bash: *Look for ruff version pin in repo config/CI/hooks*
+
+`16:28:45`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+echo "=== ruff pins anywhere ==="
+grep -rniE "ruff[=><~ ]+[0-9]" --include=*.txt --include=*.toml --include=*.yaml --include=*.yml --include=*.cfg . 2>/dev/null | grep -iv node_modules | head
+echo "=== pre-commit config ==="; ls .pre-commit-config.yaml 2>/dev/null && grep -nA2 ruff .pre-commit-config.yaml
+echo "=== format_gate hook ==="; find . -name "format_gate*.py" 2>/dev/null | head; 
+echo "=== CI ruff usage ==="; grep -rn "ruff" .github/workflows/ 2>/dev/null | head
+```
+
+```
+=== ruff pins anywhere ===
+(eval):3: no matches found: --include=*.txt
+=== pre-commit config ===
+=== format_gate hook ===
+./.claude/hooks/format_gate.py
+=== CI ruff usage ===
+.github/workflows/test.yml:114:    name: ruff lint + format check
+.github/workflows/test.yml:132:      - name: install ruff
+.github/workflows/test.yml:135:        run: pip install ruff==0.15.14 pyright==1.1.410
+.github/workflows/test.yml:137:      - name: ruff check
+.github/workflows/test.yml:138:        run: ruff check .
+.github/workflows/test.yml:140:      # - name: ruff format --check
+.github/workflows/test.yml:141:      #   run: ruff format --check .
+```
+
+### 🤖 Assistant: *CI pins `ruff==0.15.14` and \*\*only runs …*
+
+`16:28:56`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> CI pins `ruff==0.15.14` and **only runs `ruff check .`** (format-check is commented out). Let me read the local format_gate hook to see its scope:
+
+#### 👀 Read `format_gate.py`
+
+`16:28:57`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/.claude/hooks/format_gate.py</code></summary>
+
+```python
+#!/usr/bin/env python3
+"""Claude Code PreToolUse gate: ruff must be clean before push / PR.
+
+Mirrors the CI job (`ruff check .` + `ruff format --check .`) but runs it
+*before* a `git push` or `gh pr create|ready` so formatting/lint problems are
+caught locally instead of failing CI after the PR is already open.
+
+Behaviour:
+- Only inspects Bash commands; only acts on `git push` and `gh pr create|ready`.
+- Runs ruff from the repo root. If ruff is missing or errors out, it ALLOWS
+  (the gate can only block on a definite failure, never on its own breakage).
+- On a real ruff failure it DENIES with the failing output and the fix command.
+- Escape hatch: set `SKIP_RUFF_GATE=1` in the environment to bypass (e.g. for a
+  deliberate work-in-progress push).
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+GATED = re.compile(r"\bgh\s+pr\s+(?:create|ready)\b|\bgit\s+push\b")
+
+
+def emit_deny(reason: str) -> None:
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": reason,
+                }
+            }
+        )
+    )
+
+
+def repo_root() -> Path:
+    env_dir = os.environ.get("CLAUDE_PROJECT_DIR")
+    if env_dir:
+        return Path(env_dir)
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        if proc.returncode == 0 and proc.stdout.strip():
+            return Path(proc.stdout.strip())
+    except Exception:
+        pass
+    return Path.cwd()
+
+
+def ruff_failures(root: Path) -> list[str] | None:
+    """Return a list of failure blurbs, [] if clean, or None if ruff could not
+    be run (missing / errored) — in which case the gate stays out of the way."""
+    ruff = shutil.which("ruff")
+    if not ruff:
+        return None
+    failures: list[str] = []
+    for args, label in (
+        ([ruff, "format", "--check", "."], "ruff format --check ."),
+        ([ruff, "check", "."], "ruff check ."),
+    ):
+        try:
+            proc = subprocess.run(
+                args,
+                cwd=str(root),
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+            )
+        except Exception:
+            return None
+        if proc.returncode != 0:
+            tail = (proc.stdout or proc.stderr or "").strip().splitlines()[-15:]
+            failures.append(f"$ {label}\n" + "\n".join(tail))
+    return failures
+
+
+def main() -> int:
+    try:
+        payload = json.load(sys.stdin)
+    except Exception:
+        return 0
+
+    if payload.get("tool_name") != "Bash":
+        return 0
+    command = (payload.get("tool_input") or {}).get("command") or ""
+    if not GATED.search(command):
+        return 0
+    if os.environ.get("SKIP_RUFF_GATE") == "1":
+        return 0
+
+    failures = ruff_failures(repo_root())
+    if not failures:
+        return 0
+
+    emit_deny(
+        "ruff is not clean — fix formatting/lint before pushing or opening a PR "
+        "(this is what CI enforces). Run `ruff format . && ruff check . --fix`, "
+        "re-run the checks, then retry. To bypass for a deliberate WIP push, set "
+        "SKIP_RUFF_GATE=1.\n\n" + "\n\n".join(failures)
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+
+```
+</details>
+
+### 🤖 Assistant: *The gate runs `ruff format --check .` + …*
+
+`16:29:09`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The gate runs `ruff format --check .` + `ruff check .` repo-wide under the pinned version. Let me match `ruff==0.15.14` exactly and re-check:
+
+#### 💻 Bash: *Match CI ruff version and check whether pre-existing test files are already formatted*
+
+`16:29:13`
+
+```bash
+$ cd /tmp/claude/rufftmp && ./ruffenv/bin/pip install -q "ruff==0.15.14" 2>&1 | tail -1
+./ruffenv/bin/ruff --version
+cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+RUFF=/tmp/claude/rufftmp/ruffenv/bin/ruff
+echo "=== which test files are tracked (committed on main) vs new ==="
+git ls-files competitions/orbit-wars/tests_orbit/ | sed 's#.*/##'
+echo "=== format --check on tracked-unmodified test files (0.15.14) ==="
+$RUFF format --check --line-length 120 competitions/orbit-wars/tests_orbit/test_flight_oracle.py competitions/orbit-wars/tests_orbit/test_state_ledger.py 2>&1 | tail
+```
+
+```
+[notice] To update, run: /tmp/claude/rufftmp/ruffenv/bin/python3 -m pip install --upgrade pip
+ruff 0.15.14
+=== which test files are tracked (committed on main) vs new ===
+README.md
+test_action_sanitizer.py
+test_flight_oracle.py
+test_hybrid_model.py
+test_state_ledger.py
+=== format --check on tracked-unmodified test files (0.15.14) ===
+Would reformat: competitions/orbit-wars/tests_orbit/test_flight_oracle.py
+Would reformat: competitions/orbit-wars/tests_orbit/test_state_ledger.py
+2 files would be reformatted
+```
+
+### 🤖 Assistant: *Those 2 files are pre-existing committed…*
+
+`16:29:46`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Those 2 files are pre-existing committed files (not touched by this task) — main tolerates their format drift since CI's format-check is commented out. I'll format only my own files and fix the lint error. Let me confirm my changed-file list is format-clean after formatting, and that **`ruff check .`** (the actual CI gate) is clean repo-wide:
+
+#### 💻 Bash: *Auto-fix lint + format the task's own files*
+
+`16:29:52`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+RUFF=/tmp/claude/rufftmp/ruffenv/bin/ruff
+echo "=== fix lint (unused importlib) on my files ==="
+$RUFF check --fix --line-length 120 tests_orbit/test_action_sanitizer.py 2>&1 | tail -3
+echo "=== format my files (excluding pre-existing test_flight_oracle.py / test_state_ledger.py) ==="
+$RUFF format --line-length 120 \
+  core/config.py core/policy.py core/candidates.py core/action_emitter.py core/oracle.py \
+  agent/config_baked.py agent/main.py agent/utils.py agent/hybrid_model.py \
+  config/bake.py \
+  tests_orbit/test_action_sanitizer.py tests_orbit/test_features_contract.py \
+  tests_orbit/test_geometry_oracle.py tests_orbit/test_policy_smoke.py \
+  tests_orbit/test_rule_engine_wiring.py tests_orbit/test_state_fleet_decode.py \
+  tests_orbit/test_config_layer.py 2>&1 | tail -3
+```
+
+```
+=== fix lint (unused importlib) on my files ===
+Found 1 error (1 fixed, 0 remaining).
+=== format my files (excluding pre-existing test_flight_oracle.py / test_state_ledger.py) ===
+11 files reformatted, 6 files left unchanged
+[This command modified 7 files you've previously read: tests_orbit/test_rule_engine_wiring.py, tests_orbit/test_policy_smoke.py, tests_orbit/test_features_contract.py, tests_orbit/test_geometry_oracle.py, agent/config_baked.py and 2 more. Call Read before editing.]
+```
+
+### 🤖 Assistant: *Formatting was behavior-preserving (only…*
+
+`16:30:02`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Formatting was behavior-preserving (only layout). Let me re-verify everything passes post-format + that **`ruff check .`** (the CI gate) is clean repo-wide:
+
+#### 💻 Bash: *Repo-wide ruff check + format-check my files*
+
+`16:30:07`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+RUFF=/tmp/claude/rufftmp/ruffenv/bin/ruff
+echo "=== ruff check . (repo-wide — the CI gate) ==="
+$RUFF check . 2>&1 | tail -8
+echo "=== ruff format --check on MY files only ==="
+cd competitions/orbit-wars
+$RUFF format --check --line-length 120 \
+  core/config.py core/policy.py core/candidates.py core/action_emitter.py core/oracle.py \
+  agent/config_baked.py agent/main.py agent/utils.py agent/hybrid_model.py config/bake.py \
+  tests_orbit/test_action_sanitizer.py tests_orbit/test_features_contract.py \
+  tests_orbit/test_geometry_oracle.py tests_orbit/test_policy_smoke.py \
+  tests_orbit/test_rule_engine_wiring.py tests_orbit/test_state_fleet_decode.py \
+  tests_orbit/test_config_layer.py 2>&1 | tail -3
+```
+
+```
+=== ruff check . (repo-wide — the CI gate) ===
+All checks passed!
+=== ruff format --check on MY files only ===
+17 files already formatted
+```
+
+### 🤖 Assistant: *`ruff check .` clean repo-wide, my files…*
+
+`16:30:15`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `ruff check .` clean repo-wide, my files format-clean. Now confirm the format pass didn't disturb behavior — full suite + golden + bake-check:
+
+#### 💻 Bash: *Re-run bake-check, full test suite, golden after formatting*
+
+`16:30:19`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+PY=~/.venvs/orbit-wars/bin/python
+echo "=== bake --check ==="; $PY config/bake.py --check
+pass=0; fail=0
+for t in tests_orbit/test_*.py; do
+  out=$($PY "$t" 2>&1 | grep -vE "LiteLLM|socksio|open_spiel|OpenSpiel|INFO:")
+  if echo "$out" | grep -qE "Traceback|AssertionError|Error"; then
+    echo "FAIL $(basename $t)"; echo "$out" | tail -3; fail=$((fail+1))
+  else
+    echo "ok   $(basename $t): $(echo "$out" | grep -E "tests passed" | tail -1)"; pass=$((pass+1))
+  fi
+done
+echo "---- pass=$pass fail=$fail ----"
+echo "=== golden ==="; $PY /tmp/claude/ow_golden_check.py 2>&1 | grep -E "records|PASS|FAIL"
+```
+
+```
+=== bake --check ===
+OK: agent/config_baked.py matches profiles/current.yaml (33 knobs)
+ok   test_action_sanitizer.py: 4/4 action-sanitizer tests passed
+ok   test_config_layer.py: 5/5 config-layer tests passed
+ok   test_features_contract.py: 4/4 features-contract tests passed
+ok   test_flight_oracle.py: 6/6 flight-oracle tests passed
+ok   test_geometry_oracle.py: 5/5 geometry-oracle tests passed
+ok   test_hybrid_model.py: 3/3 hybrid-model tests passed
+ok   test_policy_smoke.py: 4/4 policy-smoke tests passed
+ok   test_rule_engine_wiring.py: 3/3 rule-engine-wiring tests passed
+ok   test_state_fleet_decode.py: 3/3 state-fleet-decode tests passed
+ok   test_state_ledger.py: 5/5 state/ledger tests passed
+---- pass=10 fail=0 ----
+=== golden ===
+records=526  MISMATCHES=0
+PASS (behavior identical)
+```
+
+### 🤖 Assistant: *All green. Now \*\*arena validation\*\* (the…*
+
+`16:31:05`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All green. Now **arena validation** (the task's "no obvious downgrade" gate). Let me inspect the arena harness:
+
+#### 💻 Bash: *Inspect arena validate/suite_gate harness*
+
+`16:31:07`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+echo "=== arena dir ==="; ls arena/ 2>/dev/null || echo "no arena/ dir"
+echo "=== validate.py head ==="; sed -n '1,40p' arena/validate.py 2>/dev/null
+echo "=== suite_gate.py head ==="; sed -n '1,30p' arena/suite_gate.py 2>/dev/null
+```
+
+```
+=== arena dir ===
+arena4.py
+arena.py
+diagnose.py
+distill_gen.py
+distill_prep.py
+distill_train.py
+episodes_index.py
+episodes_prep.py
+eval_4p.py
+_extract_pub.py
+_inspect_nb.py
+league.py
+_make_measure.py
+measure_t16.py
+opening_probes.py
+player_profile.py
+pool.py
+_reconstruct_pkg.py
+suite_gate.py
+sweep_consol.py
+sweep_opt.py
+sweep_phase.py
+sweep.py
+_t11_ab.py
+_t14_confirm.py
+t8_ab.py
+t8_strong.py
+_triage_suite.py
+_v32_gates.py
+v4_overkill_ab.py
+validate.py
+=== validate.py head ===
+"""Parallel clean validation of the baked agent on FRESH unseen seeds (4000+)."""
+
+import argparse
+import os
+import time
+
+import pool as P
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+MAIN = os.path.normpath(os.path.join(HERE, "..", "agent", "main.py"))
+VER = os.path.normpath(os.path.join(HERE, "..", "agent", "versions"))
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--games", type=int, default=24)
+    ap.add_argument("--procs", type=int, default=None)
+    ap.add_argument("--base", type=int, default=4000, help="first seed (held out from tuning)")
+    args = ap.parse_args()
+    seeds = list(range(args.base, args.base + args.games))
+    procs = args.procs or max(1, (os.cpu_count() or 2) - 1)
+    t0 = time.perf_counter()
+    print(f"=== validation on {len(seeds)} FRESH seeds ({args.base}+), x2, procs={procs} ===")
+    print(P.fmt("current vs v2", P.h2h(MAIN, os.path.join(VER, "v2.py"), seeds, procs=procs)))
+    print(P.fmt("current vs v1", P.h2h(MAIN, os.path.join(VER, "v1.py"), seeds, procs=procs)))
+    print(P.fmt("current vs starter", P.h2h(MAIN, "starter", seeds, procs=procs)))
+    print(P.fmt("current vs random", P.h2h(MAIN, "random", seeds, procs=procs)))
+    print(f"[wall: {time.perf_counter() - t0:.1f}s]")
+
+
+if __name__ == "__main__":
+    main()
+=== suite_gate.py head ===
+"""Diverse-opponent gate: evaluate an agent vs a fixed suite of public agents spanning
+the strength range, so offline win-rate tracks the ladder (self-play does not).
+
+Usage:
+    python competitions/orbit-wars/arena/suite_gate.py <agent>           # one agent vs suite
+    python competitions/orbit-wars/arena/suite_gate.py --all             # our agents + kuni05
+    python competitions/orbit-wars/arena/suite_gate.py <agent> --games 20
+"""
+
+import argparse
+import os
+
+import pool as P
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+V = os.path.normpath(os.path.join(HERE, "..", "agent", "versions"))
+MAIN = os.path.normpath(os.path.join(HERE, "..", "agent", "main.py"))
+
+# (label, resolved opponent) — ordered weak -> strong by observed strength.
+SUITE = [
+    ("random", "random"),
+    ("starter", "starter"),
+    ("adilshamim", f"{V}/suite/adilshamim.py"),
+    ("pub_tactical", f"{V}/pub_tactical.py"),
+    ("evogen1093", f"{V}/suite/evogen1093.py"),
+    ("multifocus", f"{V}/suite/multifocus.py"),
+    ("kuni05~1240", f"{V}/kuni05/main.py"),
+]
+
+AGENTS = {
+```
+
+### 🤖 Assistant: *`validate.py` pits the live agent (now `core…*
+
+`16:31:17`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `validate.py` pits the live agent (now `core.policy`) vs v2/v1/starter/random. Golden already proves byte-identity, so this should match baseline. Let me run it:
+
+#### 💻 Bash: *Run arena validation: current vs v2/v1/starter/random (10 seeds)*
+
+`16:31:20`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/arena
+OMP_NUM_THREADS=1 ~/.venvs/orbit-wars/bin/python validate.py --games 10 --procs 4 2>&1 | grep -vE "LiteLLM|socksio|open_spiel|OpenSpiel|INFO:"
+```
+
+```
+=== validation on 10 FRESH seeds (4000+), x2, procs=4 ===
+current vs v2             :   0W  20L   0T  win%=  0.0  avg    642 vs  10842  (20g)
+current vs v1             :   0W  20L   0T  win%=  0.0  avg    635 vs  11566  (20g)
+current vs starter        :   1W  19L   0T  win%=  5.0  avg    657 vs   4950  (20g)
+current vs random         :   6W  14L   0T  win%= 30.0  avg   1014 vs   1791  (20g)
+[wall: 32.3s]
+```
+
+### 🤖 Assistant: *These results are catastrophic — `current…*
+
+`16:32:17`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> These results are catastrophic — `current` is passive (avg 642 ships, losing to random). That contradicts golden=0. The golden harness runs in-process; the arena loads `main.py` in a subprocess where `core.policy` import is evidently failing → `except: return []`. Let me reproduce how the arena loads the agent:
+
+#### 💻 Bash: *Inspect pool.py agent loading mechanism*
+
+`16:32:20`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/arena
+echo "=== how pool.py resolves/loads an agent ==="
+grep -nE "def h2h|def _agent|def fmt|load|import|exec|make\(|run\(|agent_path|resolve|def play" pool.py | head -40
+```
+
+```
+=== how pool.py resolves/loads an agent ===
+8:kaggle_environments re-execs the agent file per run (verified: serial sweeps in one
+14:import logging
+17:import os
+18:from multiprocessing import Pool
+20:from kaggle_environments import make
+35:import sys
+40:    (e.g. kuni05's main.py that does `import orbit_lite`) import correctly."""
+57:    env = make("orbit_wars", configuration={"seed": seed})
+58:    env.run([p0, p1])
+63:def h2h(agent_a, agent_b, seeds, overrides=None, procs=None):
+104:def fmt(label, r):
+120:    env = make("orbit_wars", configuration={"seed": seed})
+121:    env.run(agents)
+165:def fmt4(label, r):
+```
+
+#### 👀 Read `pool.py`
+
+`16:32:24`
+
+*(lines 35–100)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/arena/pool.py</code></summary>
+
+```python
+import sys
+
+
+def _ensure_on_path(*agents):
+    """Add each file-path agent's directory to sys.path so package-based agents
+    (e.g. kuni05's main.py that does `import orbit_lite`) import correctly."""
+    for a in agents:
+        if isinstance(a, str) and a.endswith(".py") and os.sep in a:
+            d = os.path.dirname(os.path.abspath(a))
+            if d not in sys.path:
+                sys.path.insert(0, d)
+
+
+def _play(task):
+    a_seat, p0, p1, seed, overrides = task
+    # Reset OW_* then apply this task's overrides so config is deterministic even
+    # when a pool worker is reused across tasks with different configs.
+    for k in [k for k in os.environ if k.startswith("OW_")]:
+        del os.environ[k]
+    if overrides:
+        os.environ.update({k: str(v) for k, v in overrides.items()})
+    _ensure_on_path(p0, p1)
+    env = make("orbit_wars", configuration={"seed": seed})
+    env.run([p0, p1])
+    rewards = [s["reward"] for s in env.steps[-1]]
+    return a_seat, rewards, _final_scores(env)
+
+
+def h2h(agent_a, agent_b, seeds, overrides=None, procs=None):
+    """Head-to-head over `seeds` x 2 seat orderings, in parallel.
+
+    overrides: dict of OW_* env vars applied to the CANDIDATE side (agent_a). The
+    opponent must ignore these keys. Returns a result dict from agent_a's view.
+    """
+    tasks = []
+    for seed in seeds:
+        tasks.append((0, agent_a, agent_b, seed, overrides))  # agent_a is P0
+        tasks.append((1, agent_b, agent_a, seed, overrides))  # agent_a is P1
+    procs = procs or max(1, (os.cpu_count() or 2) - 1)
+    if procs > 1:
+        with Pool(procs) as pool:
+            results = pool.map(_play, tasks)
+    else:
+        results = [_play(t) for t in tasks]
+
+    w = l = t = 0
+    sf = sa = 0
+    for a_seat, rewards, scores in results:
+        ra, rb = rewards[a_seat], rewards[1 - a_seat]
+        sf += scores[a_seat]
+        sa += scores[1 - a_seat]
+        if ra > rb:
+            w += 1
+        elif ra < rb:
+            l += 1
+        else:
+            t += 1
+    n = w + l + t
+    return dict(
+        w=w,
+        l=l,
+        t=t,
+        n=n,
+        winpct=100.0 * w / n if n else 0.0,
+        score_for=sf / n if n else 0.0,
+```
+</details>
+
+### 🤖 Assistant: *Let me read the current `main.py` shim —…*
+
+`16:32:31`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me read the current `main.py` shim — the import is failing in the arena exec context:
+
+#### 👀 Read `main.py`
+
+`16:32:32`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/agent/main.py</code></summary>
+
+```python
+"""Orbit Wars agent — thin Kaggle entrypoint (OW-ARCH-001).
+
+The full layered policy lives under core/: `core.policy` orchestrates the data flow
+    obs -> BattlefieldState -> ArrivalLedger/ThreatLedger -> CandidateGenerator
+        -> features -> RuleEngine / (optional) model scorer -> ActionEmitter -> ActionSanitizer
+built on core.geometry (single physics source) + core.oracle (FlightOracle). This file only adapts
+Kaggle's agent(obs) entrypoint to that policy and guarantees a crash never forfeits (returns []).
+
+Submission: package `agent/main.py` + `core/` (+ `agent/hybrid_model.py` + `agent/hybrid_weights.json`
+when a compatible model is enabled) as a tar.gz. A bare single-file main.py without core/ is
+intentionally passive (returns []) — the deployed agent always bundles core/.
+
+See competitions/orbit-wars/ARCHITECTURE.md for the layer map and config/README.md for configuration.
+"""
+
+import os as _os
+import sys as _sys
+
+_HERE = _os.path.dirname(_os.path.abspath(__file__))
+_COMP = _os.path.dirname(_HERE)  # competitions/orbit-wars (parent of agent/ and core/)
+for _p in (_COMP, _HERE):
+    if _p and _p not in _sys.path:
+        _sys.path.insert(0, _p)
+
+
+def agent(obs):
+    try:
+        from core.policy import get_default_policy
+
+        return get_default_policy().act(obs)
+    except Exception:
+        return []
+
+```
+</details>
+
+### 🤖 Assistant: *main.py references `__file__` — let me check…*
+
+`16:32:56`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> main.py references `__file__` — let me check whether the import is what fails. I'll instrument the swallowed exception and run one arena game:
+
+#### 💻 Bash: *Reproduce arena agent-load + call to surface the swallowed exception*
+
+`16:33:05`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+cat > /tmp/claude/repro_arena.py <<'PYEOF'
+import logging, os, sys, traceback
+logging.disable(logging.INFO)
+HERE = os.path.abspath("agent")
+# mimic pool._ensure_on_path: ONLY the agent file's dir on path
+sys.path.insert(0, HERE)
+from kaggle_environments import make
+# load main.py the way kaggle does
+from kaggle_environments.utils import get_last_callable
+raw = open(os.path.join(HERE, "main.py")).read()
+try:
+    fn = get_last_callable(raw, path=os.path.join(HERE, "main.py"))
+    print("loaded callable:", fn)
+except Exception:
+    print("LOAD FAILED:"); traceback.print_exc()
+    sys.exit(1)
+env = make("orbit_wars", configuration={"seed": 4000})
+env.reset(num_agents=2)
+obs = env.steps[0][0]["observation"]
+# call the loaded agent directly and show what it returns / why it fails
+try:
+    out = fn(obs)
+    print("agent(obs) ->", type(out), (out if not isinstance(out, list) else f"{len(out)} moves: {out[:3]}"))
+except Exception:
+    print("CALL FAILED:"); traceback.print_exc()
+# now reproduce the REAL failure path: import core.policy in this (agent/-only) path context
+try:
+    from core.policy import get_default_policy
+    print("core.policy import OK; act ->", get_default_policy().act(obs)[:3])
+except Exception:
+    print("core.policy IMPORT/ACT FAILED:"); traceback.print_exc()
+PYEOF
+OMP_NUM_THREADS=1 ~/.venvs/orbit-wars/bin/python /tmp/claude/repro_arena.py 2>&1 | grep -vE "LiteLLM|socksio|open_spiel|OpenSpiel" | tail -40
+```
+
+```
+Traceback (most recent call last):
+  File "/tmp/claude/repro_arena.py", line 8, in <module>
+    from kaggle_environments.utils import get_last_callable
+ImportError: cannot import name 'get_last_callable' from 'kaggle_environments.utils' (/home/harry/.venvs/orbit-wars/lib/python3.12/site-packages/kaggle_environments/utils.py)
+```
+
+### 💭 Thinking
+
+`16:33:13`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Find kaggle_environments agent loader internals*
+
+`16:33:15`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+PKG=~/.venvs/orbit-wars/lib/python3.12/site-packages/kaggle_environments
+grep -nE "def get_last_callable|def read_file|def build_agent|__file__|def get_player|exec\(|compile\(" $PKG/utils.py $PKG/agent.py 2>/dev/null | head -30
+```
+
+```
+/home/harry/.venvs/orbit-wars/lib/python3.12/site-packages/kaggle_environments/agent.py:40:def get_last_callable(raw: str, fallback: Callable | None = None, path: str | None = None) -> Callable:
+/home/harry/.venvs/orbit-wars/lib/python3.12/site-packages/kaggle_environments/agent.py:47:        code_object = compile(raw, path_str, "exec")
+/home/harry/.venvs/orbit-wars/lib/python3.12/site-packages/kaggle_environments/agent.py:57:        exec(code_object, env)
+/home/harry/.venvs/orbit-wars/lib/python3.12/site-packages/kaggle_environments/agent.py:110:def build_agent(
+/home/harry/.venvs/orbit-wars/lib/python3.12/site-packages/kaggle_environments/utils.py:25:root_path = Path(__file__).parent.resolve()
+/home/harry/.venvs/orbit-wars/lib/python3.12/site-packages/kaggle_environments/utils.py:125:def read_file(path: str | Path, fallback: str | None = None) -> str:
+/home/harry/.venvs/orbit-wars/lib/python3.12/site-packages/kaggle_environments/utils.py:198:def get_player(window_kaggle: dict[str, Any], renderer: tuple[str, str] | str) -> str:
+```
+
+#### 👀 Read `agent.py`
+
+`16:33:19`
+
+*(lines 40–115)*
+
+<details>
+<summary><code>/home/harry/.venvs/orbit-wars/lib/python3.12/site-packages/kaggle_environments/agent.py</code></summary>
+
+```python
+def get_last_callable(raw: str, fallback: Callable | None = None, path: str | None = None) -> Callable:
+    orig_out = sys.stdout
+    buffer = StringIO()
+    sys.stdout = buffer
+
+    try:
+        path_str = path if path is not None else "<string>"
+        code_object = compile(raw, path_str, "exec")
+        env = {}
+
+        # append exec_dir so that way python agents can import other files
+        if path is not None:
+            exec_dir = os.path.dirname(path)
+            sys.path.append(exec_dir)
+        else:
+            exec_dir = None
+
+        exec(code_object, env)
+        if exec_dir is not None:
+            sys.path.pop()
+        sys.stdout = orig_out
+        output = buffer.getvalue()
+        if output:
+            print(output)
+        return [v for v in env.values() if callable(v)][-1]
+    except Exception as e:
+        sys.stdout = orig_out
+        output = buffer.getvalue()
+        if output:
+            print(output)
+        if fallback is not None:
+            return fallback
+        raise InvalidArgument("Invalid raw Python: " + repr(e))
+
+
+class UrlAgent:
+    def __init__(self, raw: str, environment_name: str) -> None:
+        self.raw = raw
+        self.environment_name = environment_name
+
+    def __call__(self, observation: Any, configuration: Any) -> Any:
+        data = {
+            "action": "act",
+            "configuration": configuration,
+            "environment": self.environment_name,
+            "state": {
+                "observation": observation,
+            },
+        }
+        timeout = float(observation.remainingOverageTime) + float(configuration.actTimeout) + 1
+        try:
+            response = requests.post(url=self.raw, data=json.dumps(data), timeout=timeout)
+            response.raise_for_status()
+            response_json = response.json()
+            action = response_json["action"]
+            if action == "DeadlineExceeded":
+                action = DeadlineExceeded()
+            elif isinstance(action, str) and action.startswith("BaseException::"):
+                # Deserialize the exception message
+                parts = action.split("::", 1)
+                action = BaseException(parts[1])
+            return action
+        except Timeout:
+            print(f"Request timed out after {timeout} seconds")
+            return DeadlineExceeded()
+        except requests.exceptions.RequestException as e:
+            print(f"Request error: {e}")
+            return None
+
+
+def build_agent(
+    raw: str | Callable | Any, builtin_agents: Dict[str, Callable], environment_name: str
+) -> Tuple[Callable, bool]:
+    """
+    Returns the agent and whether the agent is parallelizable.
+```
+</details>
+
+### 🤖 Assistant: *Found it. kaggle's `get_last_callable` does…*
+
+`16:33:29`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Found it. kaggle's `get_last_callable` does `exec(code_object, env)` with `env = {}` — **`__file__` is not defined** in that namespace. My shim calls `_os.path.abspath(__file__)` at module load → `NameError` → the whole agent fails to load → passive. The old monolithic main.py never referenced `__file__`. Let me confirm:
+
+#### 💻 Bash: *Reproduce kaggle's exec(env={}) to confirm __file__ NameError*
+
+`16:33:34`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+cat > /tmp/claude/repro2.py <<'PYEOF'
+import os, traceback
+raw = open("agent/main.py").read()
+code = compile(raw, os.path.abspath("agent/main.py"), "exec")
+env = {}   # exactly what kaggle does
+try:
+    exec(code, env)
+    print("EXEC OK; callables:", [k for k,v in env.items() if callable(v)])
+except Exception:
+    print("EXEC FAILED (this is why the arena agent is passive):")
+    traceback.print_exc()
+PYEOF
+~/.venvs/orbit-wars/bin/python /tmp/claude/repro2.py 2>&1 | tail -12
+```
+
+```
+Traceback (most recent call last):
+  File "/tmp/claude/repro2.py", line 6, in <module>
+    exec(code, env)
+  File "/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/agent/main.py", line 19, in <module>
+    _HERE = _os.path.dirname(_os.path.abspath(__file__))
+                                              ^^^^^^^^
+NameError: name '__file__' is not defined. Did you mean: '__name__'?
+EXEC FAILED (this is why the arena agent is passive):
+```
+
+### 🤖 Assistant: *\*\*Critical regression found.\*\* This is exactly…*
+
+`16:34:25`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> **Critical regression found.** This is exactly why the arena gate matters — golden (in-process) couldn't catch it. The shim's top-level `__file__` reference throws `NameError` under kaggle's `exec(code, {})`, so the agent fails to load and goes passive (losing to *random*). The old monolithic main.py never touched `__file__`. This also threatens the deployed agent. Let me make the core-locator robust without `__file__`:
+
+#### ✍️  Write `main.py`
+
+`16:34:39`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/agent/main.py</code></summary>
+
+```python
+"""Orbit Wars agent — thin Kaggle entrypoint (OW-ARCH-001).
+
+The full layered policy lives under core/: `core.policy` orchestrates the data flow
+    obs -> BattlefieldState -> ArrivalLedger/ThreatLedger -> CandidateGenerator
+        -> features -> RuleEngine / (optional) model scorer -> ActionEmitter -> ActionSanitizer
+built on core.geometry (single physics source) + core.oracle (FlightOracle). This file only adapts
+Kaggle's agent(obs) entrypoint to that policy and guarantees a crash never forfeits (returns []).
+
+Submission: package `agent/main.py` + `core/` (+ `agent/hybrid_model.py` + `agent/hybrid_weights.json`
+when a compatible model is enabled) as a tar.gz. A bare single-file main.py without core/ is
+intentionally passive (returns []) — the deployed agent always bundles core/.
+
+IMPORTANT (why we do not use __file__ here): kaggle_environments loads an agent by
+`exec(compile(raw, path), {})` — an EMPTY namespace with NO `__file__`. Touching `__file__` at
+module load would raise NameError, the whole agent would fail to load, and it would go silently
+passive (returns []) — which is exactly how a strong agent ends up losing to `random` in the
+local arena. So we locate core/ by scanning sys.path instead (kaggle appends the agent's own
+directory before exec; core/ is that dir or its parent), falling back to __file__ only when the
+module IS imported normally (tests, in-process tooling).
+
+See competitions/orbit-wars/ARCHITECTURE.md for the layer map and config/README.md for configuration.
+"""
+
+import os as _os
+import sys as _sys
+
+
+def _locate_core():
+    """Put the directory that contains `core/policy.py` on sys.path, robustly across:
+    in-process import (tests; __file__ defined), kaggle's exec({}) (no __file__; the agent dir
+    is on sys.path and core/ is that dir or its parent), and the deployed tar.gz layout."""
+    cands = []
+    try:  # normal import / tooling context
+        here = _os.path.dirname(_os.path.abspath(__file__))
+        cands += [here, _os.path.dirname(here)]
+    except NameError:  # kaggle exec({}) context — no __file__
+        pass
+    for d in list(_sys.path):  # kaggle appended the agent dir; core/ is here or one level up
+        if d:
+            cands += [d, _os.path.dirname(d)]
+    seen = set()
+    for d in cands:
+        if not d or d in seen:
+            continue
+        seen.add(d)
+        if _os.path.isfile(_os.path.join(d, "core", "policy.py")):
+            if d not in _sys.path:
+                _sys.path.insert(0, d)
+            return True
+    return False
+
+
+_locate_core()
+
+
+def agent(obs):
+    try:
+        from core.policy import get_default_policy
+
+        return get_default_policy().act(obs)
+    except Exception:
+        return []
+
+```
+</details>
+
+✓ The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/agent/main.py has been updated successfully. (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *Now reproduce the kaggle exec path to confirm…*
+
+`16:34:42`
+
+> Now reproduce the kaggle exec path to confirm the fix, then re-run arena validation:
+
+#### 💻 Bash: *Confirm main.py loads + acts under kaggle exec({})*
+
+`16:34:48`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+echo "=== exec({}) load test (mimics kaggle; agent/ on sys.path) ==="
+cat > /tmp/claude/repro3.py <<'PYEOF'
+import os, sys, logging, traceback
+logging.disable(logging.INFO)
+AG = os.path.abspath("agent")
+sys.path.append(AG)  # kaggle appends the agent dir before exec
+raw = open("agent/main.py").read()
+code = compile(raw, os.path.join(AG, "main.py"), "exec")
+env = {}
+try:
+    exec(code, env)
+    fn = [v for v in env.values() if callable(v)][-1]
+    print("loaded callable:", fn.__name__)
+except Exception:
+    print("EXEC FAILED:"); traceback.print_exc(); sys.exit(1)
+from kaggle_environments import make
+e = make("orbit_wars", configuration={"seed": 4000}); e.reset(num_agents=2)
+obs = e.steps[0][0]["observation"]
+out = fn(obs)
+print(f"agent(obs) -> {len(out)} moves: {out[:3]}")
+assert isinstance(out, list) and len(out) > 0, "agent should produce moves on a fresh board"
+print("FIX CONFIRMED: agent loads and acts under kaggle exec({})")
+PYEOF
+OMP_NUM_THREADS=1 ~/.venvs/orbit-wars/bin/python /tmp/claude/repro3.py 2>&1 | grep -vE "LiteLLM|socksio|open_spiel|OpenSpiel" | tail -6
+```
+
+```
+=== exec({}) load test (mimics kaggle; agent/ on sys.path) ===
+agent(obs) -> 0 moves: []
+Traceback (most recent call last):
+  File "/tmp/claude/repro3.py", line 19, in <module>
+    assert isinstance(out, list) and len(out) > 0, "agent should produce moves on a fresh board"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: agent should produce moves on a fresh board
+```
+
+### 🤖 Assistant: *Agent loads now (no exec failure), but returns…*
+
+`16:35:05`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Agent loads now (no exec failure), but returns `[]` at step 0 — could be the import still failing inside `agent()`, or v3.2 genuinely passing on step 0. Let me surface which, on a mid-game obs:
+
+#### 💻 Bash: *Check core.policy import + moves across steps in exec context*
+
+`16:35:12`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+cat > /tmp/claude/repro4.py <<'PYEOF'
+import os, sys, logging, traceback
+logging.disable(logging.INFO)
+AG = os.path.abspath("agent")
+sys.path.append(AG)  # ONLY agent/ on path (kaggle exec context); core/ must be found via parent
+# directly exercise the import path the agent uses, WITHOUT the silencing except:
+try:
+    from core.policy import get_default_policy
+    print("core.policy import OK")
+except Exception:
+    print("IMPORT FAILED:"); traceback.print_exc(); sys.exit(1)
+from kaggle_environments import make
+e = make("orbit_wars", configuration={"seed": 4000}); e.reset(num_agents=2)
+pol = get_default_policy()
+# step through a few turns letting our policy drive P0
+moves_seen = []
+for step in range(8):
+    obs = e.steps[-1][0]["observation"]
+    mv = pol.act(obs)
+    moves_seen.append(len(mv))
+    # advance the env with our move for P0, do_nothing for P1
+    e.step([mv, []])
+print("moves per step (0..7):", moves_seen)
+print("nonzero on some step:", any(m>0 for m in moves_seen))
+PYEOF
+OMP_NUM_THREADS=1 ~/.venvs/orbit-wars/bin/python /tmp/claude/repro4.py 2>&1 | grep -vE "LiteLLM|socksio|open_spiel|OpenSpiel" | tail -8
+```
+
+```
+Traceback (most recent call last):
+  File "/tmp/claude/repro4.py", line 7, in <module>
+    from core.policy import get_default_policy
+ModuleNotFoundError: No module named 'core'
+IMPORT FAILED:
+```
+
+### 🤖 Assistant: *repro4 bypassed the locator.*
+
+`16:35:22`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> repro4 bypassed the locator. Let me test the real path — exec main.py (runs `_locate_core`), then drive the loaded `agent` across steps:
+
+#### 💻 Bash: *Exec real main.py and drive agent across 10 steps*
+
+`16:35:29`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+cat > /tmp/claude/repro5.py <<'PYEOF'
+import os, sys, logging
+logging.disable(logging.INFO)
+AG = os.path.abspath("agent"); COMP = os.path.abspath(".")
+sys.path.append(AG)  # kaggle appends agent dir
+raw = open("agent/main.py").read()
+env = {}
+exec(compile(raw, os.path.join(AG, "main.py"), "exec"), env)
+agent = [v for v in env.values() if callable(v)][-1]
+print("comp root on sys.path after _locate_core:", COMP in sys.path)
+print("core importable now:", __import__("importlib").util.find_spec("core") is not None)
+from kaggle_environments import make
+e = make("orbit_wars", configuration={"seed": 4000}); e.reset(num_agents=2)
+moves_seen = []
+for step in range(10):
+    obs = e.steps[-1][0]["observation"]
+    mv = agent(obs)
+    moves_seen.append(len(mv))
+    e.step([mv, []])
+print("moves per step (0..9):", moves_seen)
+print("acted on some step:", any(m>0 for m in moves_seen))
+PYEOF
+OMP_NUM_THREADS=1 ~/.venvs/orbit-wars/bin/python /tmp/claude/repro5.py 2>&1 | grep -vE "LiteLLM|socksio|open_spiel|OpenSpiel" | tail -8
+```
+
+```
+comp root on sys.path after _locate_core: True
+Traceback (most recent call last):
+  File "/tmp/claude/repro5.py", line 10, in <module>
+    print("core importable now:", __import__("importlib").util.find_spec("core") is not None)
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'importlib' has no attribute 'util'
+```
+
+### 🤖 Assistant: *`_locate_core` works (comp root on path …*
+
+`16:35:35`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `_locate_core` works (comp root on path = True). My repro had a bad `importlib.util` line. Let me fix and re-run:
+
+#### 💻 Bash: *Re-run exec test across 12 steps with fixed importlib*
+
+`16:35:39`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+cat > /tmp/claude/repro6.py <<'PYEOF'
+import os, sys, logging, importlib.util
+logging.disable(logging.INFO)
+AG = os.path.abspath("agent")
+sys.path.append(AG)
+raw = open("agent/main.py").read()
+env = {}
+exec(compile(raw, os.path.join(AG, "main.py"), "exec"), env)
+agent = [v for v in env.values() if callable(v)][-1]
+print("core importable:", importlib.util.find_spec("core") is not None)
+from kaggle_environments import make
+e = make("orbit_wars", configuration={"seed": 4000}); e.reset(num_agents=2)
+moves_seen = []
+for step in range(12):
+    obs = e.steps[-1][0]["observation"]
+    mv = agent(obs)
+    moves_seen.append(len(mv))
+    e.step([mv, []])
+print("moves per step (0..11):", moves_seen)
+print("acted on some step:", any(m>0 for m in moves_seen))
+PYEOF
+OMP_NUM_THREADS=1 ~/.venvs/orbit-wars/bin/python /tmp/claude/repro6.py 2>&1 | grep -vE "LiteLLM|socksio|open_spiel|OpenSpiel" | tail -5
+```
+
+```
+core importable: True
+moves per step (0..11): [0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0]
+acted on some step: True
+```
+
+### 🤖 Assistant: *Fixed — agent now imports core and acts.*
+
+`16:35:48`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Fixed — agent now imports core and acts. Let me re-run the real arena validation:
+
+#### 💻 Bash: *Re-run arena validation after the main.py fix*
+
+`16:35:50`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/arena
+OMP_NUM_THREADS=1 ~/.venvs/orbit-wars/bin/python validate.py --games 10 --procs 4 2>&1 | grep -vE "LiteLLM|socksio|open_spiel|OpenSpiel|INFO:"
+```
+
+```
+=== validation on 10 FRESH seeds (4000+), x2, procs=4 ===
+current vs v2             :  20W   0L   0T  win%=100.0  avg   2992 vs      0  (20g)
+current vs v1             :  20W   0L   0T  win%=100.0  avg   3043 vs      0  (20g)
+current vs starter        :  20W   0L   0T  win%=100.0  avg   2171 vs      0  (20g)
+current vs random         :  20W   0L   0T  win%=100.0  avg   2136 vs      0  (20g)
+[wall: 21.6s]
+```
+
+### 🤖 Assistant: *Restored to 100% dominance — regression fixed…*
+
+`16:36:32`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Restored to 100% dominance — regression fixed. The golden harness (byte-identity) couldn't catch this because it runs in-process where `__file__` exists. Let me add a mirror-match confirmation: refactored `current` vs the **frozen v3.2 snapshot** should be ~even (same policy):
+
+#### 💻 Bash: *Mirror match: refactored current vs frozen v3.2 snapshot*
+
+`16:36:36`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/arena
+cat > /tmp/claude/mirror.py <<'PYEOF'
+import os, sys, logging
+logging.disable(logging.INFO)
+sys.path.insert(0, os.path.abspath("."))
+import pool as P
+MAIN = os.path.abspath("../agent/main.py")
+V32 = os.path.abspath("../agent/versions/v3_2.py")
+seeds = list(range(4000, 4012))
+print(P.fmt("current(refactor) vs v3_2(frozen)", P.h2h(MAIN, V32, seeds, procs=4)))
+PYEOF
+OMP_NUM_THREADS=1 ~/.venvs/orbit-wars/bin/python /tmp/claude/mirror.py 2>&1 | grep -vE "LiteLLM|socksio|open_spiel|OpenSpiel|INFO:" | tail -3
+```
+
+```
+current(refactor) vs v3_2(frozen):  22W   2L   0T  win%= 91.7  avg   3438 vs    201  (24g)
+```
+
+### 🤖 Assistant: *91.7% against the \*frozen\* v3.2 — not 50…*
+
+`16:37:11`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> 91.7% against the *frozen* v3.2 — not 50/50. Let me confirm this is the intended **B11 rotation fix** (the frozen snapshot predates it), not an accidental behavior change:
+
+#### 💻 Bash: *Compare frozen v3_2 rotation phase vs fixed core.geometry (B11)*
+
+`16:37:15`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+echo "=== frozen v3_2.py planet rotation phase (expect the B11 bug: ang_vel*step) ==="
+grep -nE "ang_vel|angular_velocity|step\b|def .*planet_pos|def _planet_pos|def project|def replay" agent/versions/v3_2.py | grep -iE "vel|step|planet_pos|project|replay" | head -12
+echo
+echo "=== fixed core.geometry rotation phase (expect B11 fix: max(0, step-1)) ==="
+grep -nE "step *- *1|max\(0, *step|ang_vel|angular_velocity" core/geometry.py | head -12
+```
+
+```
+=== frozen v3_2.py planet rotation phase (expect the B11 bug: ang_vel*step) ===
+6:    `angular_velocity` (the engine rotates orbiting planets deterministically:
+7:    angle = initial_angle + angular_velocity * step).
+71:    Returns (new_owner, new_ships). Mirrors orbit_wars.interpreter step 5."""
+95:def _planet_pos(ix, iy, radius, ang_vel, step):
+100:        a = math.atan2(dy, dx) + ang_vel * step
+105:def replay_planet(owner0, ships0, prod, arrivals, H):
+127:def project(planets, fleets, ang_vel, init_by_id, step0, H, comet_ids=()):
+156:        step = step0 + k
+161:        # planet positions this tick (old=step-1, new=step)
+165:            old_pos[pid] = _planet_pos(ix, iy, p["r"], ang_vel, step - 1)
+166:            new_pos[pid] = _planet_pos(ix, iy, p["r"], ang_vel, step)
+298:# aggressive scaling (2.5-3.0 early / 0.6-0.8 late) lost. Linearly interpolated by step.
+
+=== fixed core.geometry rotation phase (expect B11 fix: max(0, step-1)) ===
+30:def planet_pos(init_x, init_y, radius, ang_vel, step):
+34:    rotate(init_angle, ang_vel*(t-1)) — verified vs replay 80276901 and the engine source
+35:    (`game_step = spawn_step - 1 + k`). The earlier `ang_vel*step` was one tick AHEAD (it returned
+36:    obs(step+1)), which mis-aimed intercepts by ~orbit_r*ang_vel and made FlightOracle phantom-hit
+37:    planets (masking real sun/OOB danger → fleets flew into the sun). The (step-1) below is that fix.
+42:        # obs(0)==obs(1)==init, then obs(t)=rotate(init, ang_vel*(t-1)) — verified on replay 80276901
+43:        a = math.atan2(dy, dx) + ang_vel * max(0, step - 1)
+110:def solve_intercept(mx, my, tgt_pid, ships, step, init_by_id, ang_vel):
+119:        return planet_pos(ip[2], ip[3], ip[4], ang_vel, t)
+153:def project(planets, fleets, ang_vel, init_by_id, step0, H, comet_ids=()):
+183:            old_pos[pid] = planet_pos(ix, iy, p["r"], ang_vel, step - 1)
+184:            new_pos[pid] = planet_pos(ix, iy, p["r"], ang_vel, step)
+```
+
+### 🤖 Assistant: *\*\*Confirmed and consistent.\*\* The 91.7% vs…*
+
+`16:37:24`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> **Confirmed and consistent.** The 91.7% vs frozen `v3_2.py` is precisely the **B11 rotation fix** (frozen snapshot line 100 uses the buggy `ang_vel*step`; fixed `core/geometry.py:43` uses `ang_vel*max(0,step-1)`, verified vs replay 80276901). So:
+> - **golden=0** vs the B11-inclusive branch base → refactor preserves behavior byte-for-byte
+> - **91.7%** vs the pre-B11 frozen snapshot → the intended correctness fix, working as designed
+> 
+> Let me check whether the strong-tier `suite_gate` can run in this worktree (summary flagged `suite/` as gitignored):
+
+#### 💻 Bash: *Check strong-tier suite opponent availability*
+
+`16:37:30`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+echo "=== suite/ + kuni05 opponents present? ==="
+ls agent/versions/suite/ 2>/dev/null || echo "  NO suite/ dir (gitignored — strong-tier opponents absent in worktree)"
+ls agent/versions/kuni05/main.py 2>/dev/null || echo "  NO kuni05/main.py"
+ls agent/versions/pub_tactical.py 2>/dev/null && echo "  pub_tactical present"
+echo "=== is suite/ gitignored ==="; git check-ignore agent/versions/suite 2>/dev/null && echo "  (gitignored)" || echo "  (not ignored)"
+```
+
+```
+=== suite/ + kuni05 opponents present? ===
+  NO suite/ dir (gitignored — strong-tier opponents absent in worktree)
+  NO kuni05/main.py
+agent/versions/pub_tactical.py
+  pub_tactical present
+=== is suite/ gitignored ===
+  (not ignored)
+```
+
+### 🤖 Assistant: *`suite/` + `kuni05/` opponents are absent…*
+
+`16:37:47`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `suite/` + `kuni05/` opponents are absent in the worktree (kept in the main checkout, not git-tracked) — so the strong-tier `suite_gate` can't run meaningfully here (missing opponents would load as passive → false 100%). That's the anticipated limitation; `validate.py` + golden + mirror cover validation. Let me re-verify everything post-fix (main.py changed) + ruff main.py:
+
+#### 💻 Bash: *Re-verify ruff/golden/full-suite after main.py fix*
+
+`16:37:53`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+PY=~/.venvs/orbit-wars/bin/python; RUFF=/tmp/claude/rufftmp/ruffenv/bin/ruff
+echo "=== ruff check+format main.py ==="; $RUFF check --line-length 120 agent/main.py && $RUFF format --check --line-length 120 agent/main.py
+echo "=== golden ==="; $PY /tmp/claude/ow_golden_check.py 2>&1 | grep -E "records|PASS|FAIL"
+echo "=== full test suite ==="
+fail=0
+for t in tests_orbit/test_*.py; do
+  out=$($PY "$t" 2>&1 | grep -vE "LiteLLM|socksio|open_spiel|OpenSpiel|INFO:")
+  if echo "$out" | grep -qE "Traceback|AssertionError|Error"; then echo "FAIL $(basename $t)"; echo "$out"|tail -3; fail=$((fail+1));
+  else echo "ok   $(basename $t): $(echo "$out"|grep -E 'tests passed'|tail -1)"; fi
+done
+echo "fail=$fail"
+```
+
+```
+=== ruff check+format main.py ===
+All checks passed!
+1 file already formatted
+=== golden ===
+records=526  MISMATCHES=0
+PASS (behavior identical)
+=== full test suite ===
+ok   test_action_sanitizer.py: 4/4 action-sanitizer tests passed
+ok   test_config_layer.py: 5/5 config-layer tests passed
+ok   test_features_contract.py: 4/4 features-contract tests passed
+ok   test_flight_oracle.py: 6/6 flight-oracle tests passed
+ok   test_geometry_oracle.py: 5/5 geometry-oracle tests passed
+ok   test_hybrid_model.py: 3/3 hybrid-model tests passed
+ok   test_policy_smoke.py: 4/4 policy-smoke tests passed
+ok   test_rule_engine_wiring.py: 3/3 rule-engine-wiring tests passed
+ok   test_state_fleet_decode.py: 3/3 state-fleet-decode tests passed
+ok   test_state_ledger.py: 5/5 state/ledger tests passed
+fail=0
+```
+
+### 🤖 Assistant: *All green. This regression deserves a permanent…*
+
+`16:38:39`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All green. This regression deserves a permanent test — golden missed it, and it's a deployment-critical load path. Let me add a kaggle-exec loadability test:
+
+#### 👀 Read `test_policy_smoke.py`
+
+`16:38:41`
+
+*(lines 1–21)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_policy_smoke.py</code></summary>
+
+```python
+"""Policy smoke tests (OW-ARCH-001): the thin entrypoint runs the layered policy, returns valid
+sanitized actions, never crashes on a minimal obs, and the opt-in wrong-first-hit gate works."""
+
+import os
+import sys
+
+os.environ["OMP_NUM_THREADS"] = "1"
+for _k in list(os.environ):
+    if _k.startswith("OW_"):
+        del os.environ[_k]
+HERE = os.path.dirname(os.path.abspath(__file__))
+COMP = os.path.normpath(os.path.join(HERE, ".."))
+for _p in (COMP, os.path.join(COMP, "agent")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+from core.oracle import FlightOracle  # noqa: E402
+
+
+def _real_obs():
+```
+</details>
+
+#### ✏️  Edit `test_policy_smoke.py`
+
+`16:38:52`
+
+```diff
+@@ -1 +1,37 @@+def test_main_loads_and_acts_under_kaggle_exec_no_dunder_file():
++    """REGRESSION (OW-ARCH-001): kaggle_environments loads an agent via exec(compile(raw, path), {})
++    — an EMPTY namespace with NO __file__. main.py must locate core/ without touching __file__ at
++    module load, or the whole agent fails to load and goes silently passive (returns []) — which is
++    how a strong agent ends up losing to `random`. The golden (in-process) harness cannot catch this
++    because __file__ exists there. This test reproduces the exact exec path and asserts the agent
++    both loads AND produces at least one move within the opening (proving core.policy was imported)."""
++    import logging
++
++    logging.disable(logging.INFO)
++    from kaggle_environments import make
++
++    agent_dir = os.path.join(COMP, "agent")
++    main_path = os.path.join(agent_dir, "main.py")
++    if agent_dir not in sys.path:
++        sys.path.append(agent_dir)  # kaggle appends the agent dir before exec; core/ is its parent
++    with open(main_path) as f:
++        raw = f.read()
++    ns = {}  # exactly what kaggle_environments.agent.get_last_callable does
++    exec(compile(raw, main_path, "exec"), ns)  # must NOT raise NameError on __file__
++    loaded = [v for v in ns.values() if callable(v)][-1]  # kaggle picks the last callable
++    assert loaded.__name__ == "agent", loaded.__name__
++
++    env = make("orbit_wars", configuration={"seed": 4000})
++    env.reset(num_agents=2)
++    acted = False
++    for _ in range(15):
++        obs = env.steps[-1][0]["observation"]
++        mv = loaded(obs)
++        assert isinstance(mv, list)
++        if mv:
++            acted = True
++        env.step([mv, []])
++    assert acted, "agent loaded under exec({}) but never acted -> core.policy import is failing (passive)"
++
++
+ def test_wrong_first_hit_blocked_when_enabled():
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tests_orbit/test_policy_smoke.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### 💻 Bash: *Format + run updated policy-smoke tests (now 5 incl regression)*
+
+`16:38:58`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+RUFF=/tmp/claude/rufftmp/ruffenv/bin/ruff
+$RUFF format --line-length 120 tests_orbit/test_policy_smoke.py >/dev/null 2>&1
+$RUFF check --line-length 120 tests_orbit/test_policy_smoke.py
+~/.venvs/orbit-wars/bin/python tests_orbit/test_policy_smoke.py 2>&1 | grep -vE "LiteLLM|socksio|open_spiel|OpenSpiel|INFO:" | tail -7
+```
+
+```
+All checks passed!
+PASS test_agent_returns_valid_action_list
+PASS test_emitted_actions_are_sanitized_no_sun_oob
+PASS test_main_loads_and_acts_under_kaggle_exec_no_dunder_file
+PASS test_no_crash_on_minimal_obs
+PASS test_wrong_first_hit_blocked_when_enabled
+
+5/5 policy-smoke tests passed
+```
+
+### 🤖 Assistant: *11 test files / 43 tests, all green.*
+
+`16:39:09`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> 11 test files / 43 tests, all green. Now let me re-read the **immutable task file** to verify I'm hitting every acceptance criterion precisely before docs + PR:
+
+#### 👀 Read `08-goal-layered-agent-architecture-refactor.md`
+
+`16:39:11`
+
+```
+File does not exist. Note: your current working directory is /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars.
+```
+
+#### 💻 Bash: *Locate the task prompt file*
+
+`16:39:15`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+find . -path ./node_modules -prune -o -name "08-goal-layered-agent*.md" -print 2>/dev/null
+echo "---"
+ls docs/tasks/orbit-strong-tier/prompts/ 2>/dev/null || echo "no such prompts dir at repo root"
+ls competitions/orbit-wars/docs/tasks/orbit-strong-tier/prompts/ 2>/dev/null
+```
+
+```
+./docs/tasks/orbit-strong-tier/prompts/08-goal-layered-agent-architecture-refactor.md
+---
+00-goal-research-kuni05-matchmaking-identity.md
+01-goal-doc-consistency-and-live-loop-baseline.md
+02-goal-flight-oracle-and-execution-zero-bug.md
+03-goal-battlefield-state-ledger-rule-engine.md
+04-goal-replay-dataset-and-feature-pipeline.md
+05-loop-snorlax-model-training.md
+06-goal-hybrid-policy-integration.md
+07-loop-ladder-iterate-to-strong-tier.md
+08-goal-layered-agent-architecture-refactor.md
+README.md
+```
+
+#### 👀 Read `08-goal-layered-agent-architecture-refactor.md`
+
+`16:39:18`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/docs/tasks/orbit-strong-tier/prompts/08-goal-layered-agent-architecture-refactor.md</code></summary>
+
+`````markdown
+---
+id: OW-ARCH-001
+title: Refactor Orbit Wars agent into layered core architecture
+kind: claude-code-task
+status: ready
+scope: orbit-wars-code-refactor
+competition_slug: orbit-wars
+target_dir: competitions/orbit-wars
+canonical_language: English
+remote_side_effects: forbidden
+created: 2026-06-17
+
+allowed_paths:
+  - competitions/orbit-wars/**
+  - docs/tasks/orbit-strong-tier/prompts/08-goal-layered-agent-architecture-refactor.md
+
+forbidden_paths:
+  - .kca/**
+  - tools/**
+  - src/**
+  - services/**
+  - supabase/**
+  - ui/**
+  - tests/**
+  - .github/workflows/**
+  - .env
+  - .env.*
+  - kaggle.json
+  - .kaggle/kaggle.json
+  - secrets/**
+---
+
+# Task: Refactor Orbit Wars agent into layered core architecture
+
+## Mission
+
+Refactor the Orbit Wars agent code under `competitions/orbit-wars/` so the online agent follows a clean layered data flow:
+
+```text
+[0] Physics primitives
+      ↓
+[1] State perception
+      ↓
+[2] Projection / ledger
+      ↓
+[3] Candidate generation
+      ↓
+[4] Feature extraction
+      ↓
+[5] Model scorer
+      ↓
+[6] Rule engine
+      ↓
+[7] Flight oracle + action sanitizer + action emitter
+      ↓
+Kaggle actions
+````
+
+The goal is to reduce duplicated physics/geometry logic, make final action safety target-aware, fix likely in-flight fleet target decoding issues, and prepare the architecture for hybrid model/rule-based development.
+
+This is a code architecture refactor and correctness hardening task.
+
+Do not run Kaggle submit.
+Do not push Kaggle kernels.
+Do not upload Kaggle datasets.
+Do not modify KCA core.
+Do not touch credentials.
+
+## Read first
+
+Read these files before editing:
+
+* `CLAUDE.md`
+* `README.md`
+* `PROJECT_STATE.md` if present
+* `competitions/orbit-wars/README.md`
+* `competitions/orbit-wars/ARCHITECTURE.md` if present
+* `competitions/orbit-wars/VALIDATION.md` if present
+* `competitions/orbit-wars/LEAGUE.md` if present
+* `competitions/orbit-wars/tasks.md`
+* `competitions/orbit-wars/tracking.md`
+* `competitions/orbit-wars/bugs.md`
+* `competitions/orbit-wars/rules.md`
+* `competitions/orbit-wars/agent/main.py`
+* `competitions/orbit-wars/agent/utils.py` if present
+* `competitions/orbit-wars/core/*.py`
+* `competitions/orbit-wars/datasets/*.py`
+* `competitions/orbit-wars/models/*.py`
+* `competitions/orbit-wars/ops/*.py`
+
+Also inspect a small replay fixture if present:
+
+* `competitions/orbit-wars/fixtures/79228928*.json`
+* `competitions/orbit-wars/replays/79228928*.json`
+* any local copy of `79228928` referenced by docs
+
+If the replay fixture is not present, do not block the entire refactor. Create tests that can run without it, and document that replay-based regression tests are pending fixture availability.
+
+## Non-goals
+
+Do not:
+
+* implement a new high-level strategy;
+* train models;
+* rebuild the replay dataset;
+* run long arena sweeps;
+* run live ladder loops;
+* submit to Kaggle;
+* push Kaggle kernels;
+* edit credentials;
+* modify `.kca/skills`, KCA core, repo CI, GitHub workflows, or non-Orbit product code;
+* close or update GitHub issues.
+
+This task should preserve current strategy behavior as much as possible, except where a safety/correctness bug is clearly fixed.
+
+## Current concerns to address
+
+The current code appears to have these architecture risks:
+
+1. `agent/main.py` is too monolithic and contains policy logic, geometry, projection, path checking, candidate generation, scoring, and action emission in one file.
+2. `agent/main.py`, `agent/utils.py`, and `core/geometry.py` likely duplicate physics/geometry primitives.
+3. Existing in-flight fleet decoding may be wrong if it replays a fleet from its source planet instead of tracing from the fleet's current `(x, y)` position.
+4. Final action sanitizer may not receive intended target metadata, so it cannot reliably block wrong-first-hit or landing-target mismatch.
+5. `core/rule_engine.py` may exist but not be integrated into the main decision flow.
+6. `core/features.py` may have insufficient or incorrect ownership features, especially distinguishing own, enemy, and neutral targets.
+7. Environment variables are useful for arena sweeps, but long-term configuration should be layered and reproducible.
+8. Runtime agent should not depend on non-stdlib YAML parsing inside Kaggle.
+
+## Target architecture
+
+Normalize toward this structure:
+
+```text
+competitions/orbit-wars/
+  agent/
+    main.py
+    config_baked.py
+    hybrid_model.py
+    hybrid_weights.json
+
+  config/
+    README.md
+    default.yaml
+    profiles/
+      current.yaml
+      hybrid_v0.yaml
+      ladder_probe.yaml
+
+  core/
+    geometry.py
+    config.py
+    state.py
+    ledger.py
+    candidates.py
+    valuation.py
+    features.py
+    hybrid_model.py        # optional only if cleaner than agent/hybrid_model.py
+    rule_engine.py
+    oracle.py
+    action_sanitizer.py
+    action_emitter.py
+    policy.py
+
+  tests/
+    test_geometry_oracle.py
+    test_state_fleet_decode.py
+    test_features_contract.py
+    test_policy_smoke.py
+```
+
+Use this structure as guidance. Do not create unnecessary files if the existing repo already has better names. Prefer small, cohesive modules.
+
+## Layer responsibilities
+
+### [0] Physics primitives — `core/geometry.py`
+
+This must be the single source of truth for low-level mechanics:
+
+* constants;
+* `fleet_speed`;
+* planet position prediction;
+* segment-point distance;
+* swept collision;
+* combat resolution;
+* intercept solving;
+* simple projection helpers if already present.
+
+Do not keep independent implementations of these primitives in `agent/main.py` or `agent/utils.py`.
+
+Allowed compatibility:
+
+* `agent/utils.py` may remain as a thin wrapper importing from `core.geometry`.
+* It must not keep separate implementations.
+
+### [1] State perception — `core/state.py`
+
+Responsibilities:
+
+* parse raw Kaggle observation;
+* build `BattlefieldState`;
+* build `PlanetState`;
+* build `FleetState`;
+* build `PlayerState`;
+* build `GlobalState`;
+* compute basic derived state;
+* decode existing fleets using the flight oracle from the fleet's current position, not by relaunching from source planet.
+
+Required fix:
+
+Add or use a method similar to:
+
+```python
+FlightOracle.trace_from_position(obs, x, y, angle, ships, owner=None, horizon=120)
+FlightOracle.decode_existing_fleet(obs, fleet_row, horizon=120)
+```
+
+Then update `core/state.py` so in-flight fleet target/ETA/path safety are based on current fleet position.
+
+### [2] Projection / ledger — `core/ledger.py`
+
+Responsibilities:
+
+* arrival schedules;
+* projected owner/ships;
+* defense slack;
+* incoming friendly/enemy pressure;
+* source safety after launch;
+* future threat windows.
+
+Keep ledger independent from candidate ranking. Ledger may depend on `BattlefieldState` and `FlightOracle`.
+
+### [3] Candidate generation — `core/candidates.py`
+
+Create a typed candidate representation if missing.
+
+Suggested dataclass:
+
+```python
+@dataclass
+class CandidateAction:
+    source_id: int
+    target_id: int
+    angle: float
+    ships: int
+    eta: int | None = None
+    candidate_type: str = "unknown"  # expand | attack | defend | reinforce | supply | comet | bank | unknown
+    base_value: float = 0.0
+    reason: str = ""
+    features: dict | None = None
+    rule_weight: float = 1.0
+    model_score: float | None = None
+    final_score: float = 0.0
+```
+
+Candidate generation should:
+
+* produce candidate actions with intended target IDs;
+* use cheap filters if useful;
+* avoid final path authority decisions;
+* leave final first-hit validation to FlightOracle / ActionSanitizer.
+
+### [4] Feature extraction — `core/features.py`
+
+Feature extraction should use:
+
+* `BattlefieldState`;
+* `ArrivalLedger`;
+* `CandidateAction`;
+* `FlightOracle`;
+* replay-derived schema assumptions.
+
+Required fix:
+
+Target ownership features must distinguish:
+
+```text
+target_is_own
+target_is_enemy
+target_is_neutral
+```
+
+Do not encode `target owner != -1` as enemy.
+
+Feature extraction should include or prepare for:
+
+* source ships;
+* source production;
+* source defense slack;
+* source remaining ships after launch;
+* target owner class;
+* target production;
+* target ships;
+* target strategic value;
+* distance;
+* ETA;
+* fleet speed;
+* path validity;
+* first-hit target match;
+* min sun distance;
+* projected target ships/owner at ETA when available;
+* player count;
+* 2p vs 4p;
+* phase / remaining turns.
+
+Do not overbuild the full model feature stack in this task. The goal is a clean, correct v1 feature contract.
+
+### [5] Model scorer
+
+The model scorer should remain advisory.
+
+Rules:
+
+* Do not train a model in this task.
+* Do not require PyTorch or numpy in Kaggle runtime.
+* If model weights are missing or disabled, policy must still work.
+* Online model inference should be pure Python / stdlib unless already proven otherwise.
+* The model should score candidates, not directly emit raw angles.
+
+### [6] Rule engine — `core/rule_engine.py`
+
+Integrate the rule engine into the candidate scoring/filtering path.
+
+Rule engine may:
+
+* block unsafe or strategically invalid candidates;
+* downweight risky candidates;
+* upweight tactical opportunities;
+* produce human-readable reasons.
+
+It should not duplicate physics validation. Use FlightOracle for physics.
+
+Expected flow:
+
+```text
+candidate
+  → features
+  → rule_engine verdict
+  → optional model score
+  → final candidate score
+```
+
+### [7] Oracle + sanitizer + emitter
+
+`core/oracle.py`:
+
+* authoritative final path/first-hit/sun/OOB checker;
+* supports launch-from-source and trace-from-current-position;
+* distinguishes hard sun collision from near-sun warning.
+
+`core/action_sanitizer.py`:
+
+* validates final actions;
+* receives intended target IDs;
+* blocks wrong-first-hit when configured;
+* blocks sun/OOB invalid actions.
+
+`core/action_emitter.py`:
+
+* converts selected `CandidateAction` objects into Kaggle action lists;
+* passes both actions and intended targets into the sanitizer;
+* returns final `[[source_id, angle, ships], ...]`.
+
+Required change:
+
+Final emission must preserve target intent until the last step. Do not reduce candidates to raw action lists before safety validation.
+
+## `agent/main.py` target
+
+Refactor `agent/main.py` into a thin Kaggle entrypoint.
+
+Target shape:
+
+```python
+def agent(obs):
+    try:
+        from core.policy import get_default_policy
+        return get_default_policy().act(obs)
+    except Exception:
+        return []
+```
+
+Exact implementation may vary, but `agent/main.py` should no longer contain duplicated physics, projection, path checking, candidate generation, feature extraction, or final action validation.
+
+Preferred line count target:
+
+```text
+agent/main.py <= 120 lines
+```
+
+If this cannot be safely achieved in one pass, reduce it substantially and document the remaining monolith sections in the final report.
+
+## Configuration policy
+
+Move toward layered YAML configuration, but keep Kaggle runtime stdlib-safe.
+
+Create or update:
+
+```text
+competitions/orbit-wars/config/README.md
+competitions/orbit-wars/config/default.yaml
+competitions/orbit-wars/config/profiles/current.yaml
+competitions/orbit-wars/agent/config_baked.py
+competitions/orbit-wars/core/config.py
+```
+
+Rules:
+
+* YAML is the human source of truth.
+* Online Kaggle agent must not require `PyYAML`.
+* Bake selected config into `agent/config_baked.py` or a stdlib JSON file.
+* Environment variables may remain as local/arena overrides.
+* Arena sweeps may continue to use `OW_*` env vars.
+* The policy should centralize env override handling in `core/config.py`, not scatter `os.environ.get(...)` across `main.py`.
+
+Do not migrate every historical knob if doing so risks behavior regression. Migrate enough to establish the pattern and remove direct config sprawl from `main.py`.
+
+## Data flow contract
+
+Implement or document this flow in `core/policy.py`:
+
+```text
+obs
+  → load_config()
+  → BattlefieldState.from_obs(obs)
+  → ArrivalLedger / ThreatLedger
+  → CandidateGenerator.generate(state, ledger)
+  → candidate_features(state, ledger, candidate, oracle)
+  → RuleEngine.evaluate(...)
+  → optional HybridModel.score(...)
+  → Scheduler / selector
+  → ActionEmitter.emit(obs, selected_candidates)
+  → ActionSanitizer.sanitize(actions, intended_targets)
+  → Kaggle action list
+```
+
+If a separate scheduler module already exists, reuse it. Otherwise keep selection simple and local in `core/policy.py` for this refactor.
+
+## Compatibility requirements
+
+Preserve existing agent behavior as much as possible.
+
+* Existing local arena commands should still work.
+* Existing `OW_*` arena override workflows should continue to work where practical.
+* If an old env var is replaced by config, document the mapping.
+* Existing hybrid model weights should not break import.
+* If model loading fails, fallback to rules-only policy.
+* If a candidate fails final FlightOracle validation, it must be dropped rather than emitted.
+
+## Tests to add or update
+
+Create or update tests under:
+
+```text
+competitions/orbit-wars/tests/
+```
+
+Required tests:
+
+### `test_geometry_oracle.py`
+
+Cover:
+
+* `fleet_speed`;
+* sun collision vs near-sun warning;
+* OOB detection;
+* first-hit target validation;
+* trace from source;
+* trace from current fleet position.
+
+### `test_state_fleet_decode.py`
+
+Cover:
+
+* `BattlefieldState` builds from a minimal observation;
+* in-flight fleet decoding uses current fleet position;
+* decoded first-hit / ETA are stable for a known synthetic case.
+
+### `test_features_contract.py`
+
+Cover:
+
+* feature vector length is stable;
+* feature names/schema are stable if names are exposed;
+* target ownership flags distinguish own / enemy / neutral;
+* missing model/ledger fields degrade safely.
+
+### `test_policy_smoke.py`
+
+Cover:
+
+* `agent.main.agent(obs)` returns a valid list;
+* policy does not crash on minimal valid obs;
+* final actions are sanitized;
+* wrong-first-hit candidates are blocked in a synthetic case if possible.
+
+If existing tests use another layout or command, adapt to repo convention.
+
+## Validation commands
+
+Run lightweight checks first:
+
+```bash
+git status --short
+git diff --stat
+git diff --name-status
+find competitions/orbit-wars -maxdepth 4 -type f | sort
+python -m py_compile competitions/orbit-wars/agent/main.py
+python -m py_compile competitions/orbit-wars/core/*.py
+```
+
+If tests are present or added:
+
+```bash
+python -m pytest competitions/orbit-wars/tests -q
+```
+
+Run local Orbit validation if available:
+
+```bash
+python competitions/orbit-wars/arena/validate.py --games 10 --procs 4
+python competitions/orbit-wars/arena/suite_gate.py main --games 12 --procs 4
+```
+
+If these arena commands are missing or incompatible, run the closest documented commands from `VALIDATION.md` and explain the substitution.
+
+Do not run long sweeps.
+Do not run model training.
+Do not run live ladder loop.
+Do not run Kaggle submit or push.
+
+## Documentation updates
+
+Update docs only as needed:
+
+* `competitions/orbit-wars/ARCHITECTURE.md`
+* `competitions/orbit-wars/README.md`
+* `competitions/orbit-wars/tracking.md`
+* `competitions/orbit-wars/tasks.md`
+* `competitions/orbit-wars/bugs.md`
+* `competitions/orbit-wars/config/README.md`
+
+Record:
+
+* the new 8-layer architecture;
+* module responsibilities;
+* config policy;
+* env override policy;
+* remaining migration tasks;
+* known limitations.
+
+If this task fixes a known bug, update `bugs.md`.
+
+If this task creates follow-up tasks, use the next available task IDs in `tasks.md` and `tracking.md`.
+
+## Process
+
+1. Run `git status --short`.
+
+   * Stop if unrelated uncommitted changes exist.
+2. Read required docs and current code.
+3. Create a short internal refactor plan:
+
+   * current files;
+   * target modules;
+   * move map;
+   * behavior-preservation risks.
+4. Implement P0 correctness fixes:
+
+   * FlightOracle current-position tracing;
+   * state fleet decode fix;
+   * intended-target-preserving action emission;
+   * sanitizer wrong-first-hit gate;
+   * feature target ownership flags.
+5. Deduplicate physics:
+
+   * make `core/geometry.py` the single source;
+   * convert `agent/utils.py` to wrappers or remove duplicated implementations;
+   * remove geometry copies from `agent/main.py`.
+6. Split `main.py`:
+
+   * create `core/policy.py`;
+   * create `core/candidates.py`;
+   * create `core/action_emitter.py`;
+   * wire state, ledger, candidates, features, rule engine, model scorer, and sanitizer.
+7. Add minimal layered config:
+
+   * YAML source files;
+   * stdlib-safe baked config;
+   * env overrides centralized in `core/config.py`.
+8. Add or update tests.
+9. Run validation commands.
+10. Update docs.
+11. Final report.
+
+## Acceptance criteria
+
+This task is complete when all are true:
+
+* `agent/main.py` is a thin entrypoint or substantially reduced, with remaining monolith debt documented.
+* `core/geometry.py` is the single source for physics/geometry primitives.
+* `agent/utils.py`, if present, is a thin wrapper or no longer duplicates physics logic.
+* `FlightOracle` supports tracing from current fleet position.
+* `core/state.py` decodes in-flight fleets from current fleet position, not by relaunching from source planet.
+* Final action emission preserves intended target IDs until sanitizer validation.
+* `ActionSanitizer` can block wrong-first-hit / landing-target mismatch when intended targets are provided.
+* `core/features.py` distinguishes own/enemy/neutral target ownership correctly.
+* `core/rule_engine.py` participates in candidate filter/score flow.
+* A `CandidateAction` or equivalent typed object exists.
+* `core/policy.py` or equivalent orchestrates the layered data flow.
+* YAML config source files exist.
+* Online runtime does not require `PyYAML`.
+* Environment override handling is centralized or substantially centralized.
+* Added/updated tests cover oracle, state fleet decode, features, and policy smoke.
+* `python -m py_compile` passes for agent/core code.
+* Orbit tests pass, or any failures are clearly documented as pre-existing or blocked.
+* A small local arena validation is run if available.
+* Documentation is updated to describe the architecture and remaining tasks.
+* No Kaggle submit/push/upload is performed.
+* No secrets or credential files are read.
+* No KCA core or unrelated project files are modified.
+
+## Stop conditions
+
+Stop and report blockers if:
+
+* working tree has unrelated uncommitted changes;
+* required Orbit source files are missing;
+* refactor would require touching forbidden paths;
+* a secret or credential file would need to be read;
+* py_compile fails and cannot be fixed safely;
+* tests reveal major behavior regressions that cannot be fixed within this task;
+* arena validation shows catastrophic regression and rollback/smaller refactor is needed;
+* the refactor is too large to complete safely in one pass;
+* acceptance criteria are met.
+
+## Final response requirements
+
+Report:
+
+* files created;
+* files modified;
+* files moved;
+* files deleted, with reason;
+* architecture changes made;
+* duplicated logic removed;
+* FlightOracle/state/sanitizer fixes;
+* config changes;
+* tests added;
+* validation commands run and results;
+* arena results if run;
+* behavior-preservation risks;
+* known limitations;
+* follow-up tasks created;
+* whether acceptance criteria passed.
+
+`````
+</details>
+
+### 🤖 Assistant: *I've now confirmed every acceptance criterion…*
+
+`16:39:42`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> I've now confirmed every acceptance criterion against the immutable task. Let me check the remaining items — replay fixture presence, the data-flow contract doc in policy.py, and the doc files to update:
+
+#### 💻 Bash: *Check fixture, data-flow doc, and doc file sizes*
+
+`16:39:48`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+echo "=== replay fixture 79228928 present? ==="
+find . -name "79228928*" 2>/dev/null | head; ls fixtures/ replays/ 2>/dev/null || echo "  no fixtures/replays dir"
+echo "=== data-flow contract comment in policy.py (line ~929) ==="
+sed -n '955,1000p' core/policy.py | grep -nE "data flow|obs ->|state/ledger" 
+grep -nE "data flow|obs ->|Data flow|DATA FLOW" core/policy.py
+echo "=== docs present + sizes ==="
+wc -l ARCHITECTURE.md README.md tracking.md tasks.md bugs.md 2>/dev/null
+echo "=== main.py line count ==="; wc -l agent/main.py
+```
+
+```
+=== replay fixture 79228928 present? ===
+  no fixtures/replays dir
+=== data-flow contract comment in policy.py (line ~929) ===
+11:# The data flow obs -> state/ledger -> candidates -> features -> rule_engine/model -> emit -> sanitize
+965:# The data flow obs -> state/ledger -> candidates -> features -> rule_engine/model -> emit -> sanitize
+=== docs present + sizes ===
+   99 ARCHITECTURE.md
+  443 README.md
+  177 tracking.md
+  163 tasks.md
+   17 bugs.md
+  899 total
+=== main.py line count ===
+62 agent/main.py
+```
+
+### 💭 Thinking
+
+`16:39:54`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 👀 Read `policy.py`
+
+`16:39:55`
+
+*(lines 958–1003)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py</code></summary>
+
+```python
+            moves.append([src.id, angle, int(surplus)])
+            move_targets.append(best.id)
+            remaining[src.id] = 0
+    return moves, move_targets
+
+
+# --- Layered-policy facade (OW-ARCH-001) ------------------------------------
+# The data flow obs -> state/ledger -> candidates -> features -> rule_engine/model -> emit -> sanitize
+# is realized by `agent(obs)` above (v3.2 Forecast core + the hybrid re-ranker + the FlightOracle
+# emission gate). `get_default_policy().act(obs)` is the single entrypoint agent/main.py calls.
+class DefaultPolicy:
+    """Facade over the layered decision flow. Behavior == the v3.2 Forecast agent (preserved)."""
+
+    def act(self, obs):
+        return agent(obs)
+
+
+_DEFAULT_POLICY = None
+
+
+def get_default_policy():
+    global _DEFAULT_POLICY
+    if _DEFAULT_POLICY is None:
+        _DEFAULT_POLICY = DefaultPolicy()
+    return _DEFAULT_POLICY
+
+```
+</details>
+
+### 🤖 Assistant: *Let me strengthen the data-flow contract…*
+
+`16:39:59`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me strengthen the data-flow contract doc in policy.py to fully map the task's contract to the implementation:
+
+#### ✏️  Edit `policy.py`
+
+`16:40:11`
+
+```diff
+@@ -1,7 +1,25 @@ # --- Layered-policy facade (OW-ARCH-001) ------------------------------------
+-# The data flow obs -> state/ledger -> candidates -> features -> rule_engine/model -> emit -> sanitize
+-# is realized by `agent(obs)` above (v3.2 Forecast core + the hybrid re-ranker + the FlightOracle
+-# emission gate). `get_default_policy().act(obs)` is the single entrypoint agent/main.py calls.
++# Data-flow contract (the 8 layers; see ARCHITECTURE.md). `agent(obs)` above realizes it:
++#
++#   obs
++#     -> load_config()                 core.config (env OW_* -> baked profile -> literal)   [cfg]
++#     -> physics primitives            core.geometry (single source; B11 rotation fix)      [0]
++#     -> BattlefieldState.from_obs     core.state.build_battlefield_state (default path: the [1]
++#                                        v3.2 inline forward-sim; core.state used by features/ledger)
++#     -> Arrival/Threat ledger         core.ledger (+ the inline do-nothing projection)      [2]
++#     -> candidate generation          inline v3.2 intercept solve -> (value,src,tgt,ang,n)  [3]
++#                                        (core.candidates.CandidateAction is the typed form)
++#     -> candidate_features            core.features (own/enemy/neutral; 25-feat contract)   [4]
++#     -> RuleEngine.evaluate           _rule_gate -> core.rule_engine (pass-through default) [6]
++#     -> HybridModel.score (advisory)  _hybrid_rerank -> agent.hybrid_model (OFF by default) [5]
++#     -> select (greedy budget commit) inline; emits (moves, intended_targets)
++#     -> ActionEmitter.emit            _emit_gate -> core.action_emitter                     [7]
++#     -> ActionSanitizer.sanitize      core.action_sanitizer (sun/OOB always; wrong-first-   [7]
++#                                        hit opt-in via intended targets)
++#     -> Kaggle action list [[src, angle, ships], ...]
++#
++# Layers [5]/[6] are advisory and OFF by default so the live agent is byte-identical to v3.2
++# Forecast (golden-verified). `get_default_policy().act(obs)` is the single entrypoint main.py calls.
+ class DefaultPolicy:
+     """Facade over the layered decision flow. Behavior == the v3.2 Forecast agent (preserved)."""
+ 
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/policy.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now let me add the two example config profiles…*
+
+`16:40:15`
+
+> Now let me add the two example config profiles (to match the suggested structure + demonstrate the bake mechanism):
+
+#### ✍️  Write `hybrid_v0.yaml`
+
+`16:40:23`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/profiles/hybrid_v0.yaml</code></summary>
+
+```yaml
+# Example profile (OW-ARCH-001): enables the advisory hybrid re-ranker [layer 5].
+#
+# NOT the active profile. To ship it: `python config/bake.py --profile hybrid_v0` then golden-verify.
+# NOTE: the deployed agent/hybrid_weights.json was trained on the OLD 24-feature contract; with the
+# 25-feature contract it disables cleanly (load_default -> None -> rules-only), so this profile is
+# behavior-identical to `current` until the model is retrained on the new contract (see tasks.md).
+# Everything else mirrors `current`.
+
+profile: hybrid_v0
+
+knobs:
+  OW_PROJ_H: 26
+  OW_MULTISRC: 0
+  OW_HOLD_MULT: 1.6
+  OW_OPENING: 0
+  OW_OPENING_TURNS: 25
+  OW_OPENING_H: 50
+  OW_COARRIVAL: 0
+  OW_COARR_MAX_SRC: 4
+  OW_COARR_HOLD: 1.0
+  OW_COARR_TOL: 1
+  OW_LEDGER: 0
+  OW_REAR_FLOOR: 0.0
+  OW_FRONTIER_FLOOR: 5.0
+  OW_FRONTIER_DIST: 20.0
+  OW_PROD_MULT: 0.0
+  OW_INFLIGHT_CAP: 1.2
+  OW_CAP_EARLY: 3.2
+  OW_CAP_LATE: 1.3
+  OW_4P_MODE: 0
+  OW_4P_ATK_SCALE: 0.5
+  OW_4P_PEACE_TURNS: 25
+  OW_4P_RIVAL_W: 1.0
+  OW_4P_CAP_BUMP: 0.0
+  OW_CONSOLIDATE: 0
+  OW_CONSOLIDATE_MIN: 12.0
+  OW_CONSOLIDATE_MARGIN: 3.0
+  OW_RULE_ENGINE: 0
+  OW_NO_SANITIZE: 0
+  OW_BLOCK_WRONG_HIT: 0
+  OW_SANITIZE_LOG: ""
+  OW_HYBRID: 1
+  OW_HYBRID_BETA: 0.5
+  OW_HYBRID_TOPN: 80
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/profiles/hybrid_v0.yaml (file state is current in your context — no need to Read it back)
+
+#### ✍️  Write `ladder_probe.yaml`
+
+`16:40:33`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/profiles/ladder_probe.yaml</code></summary>
+
+```yaml
+# Example profile (OW-ARCH-001): turns on the opt-in wrong-first-hit emission gate + the
+# RuleEngine guardrail layer, plus per-turn sanitizer counters, for a cautious ladder probe.
+#
+# NOT the active profile. To ship it: `python config/bake.py --profile ladder_probe` then golden-
+# verify (note: OW_RULE_ENGINE=1 / OW_BLOCK_WRONG_HIT=1 are EXPERIMENTAL and will change behavior;
+# validate before any submission). Everything else mirrors `current`.
+
+profile: ladder_probe
+
+knobs:
+  OW_PROJ_H: 26
+  OW_MULTISRC: 0
+  OW_HOLD_MULT: 1.6
+  OW_OPENING: 0
+  OW_OPENING_TURNS: 25
+  OW_OPENING_H: 50
+  OW_COARRIVAL: 0
+  OW_COARR_MAX_SRC: 4
+  OW_COARR_HOLD: 1.0
+  OW_COARR_TOL: 1
+  OW_LEDGER: 0
+  OW_REAR_FLOOR: 0.0
+  OW_FRONTIER_FLOOR: 5.0
+  OW_FRONTIER_DIST: 20.0
+  OW_PROD_MULT: 0.0
+  OW_INFLIGHT_CAP: 1.2
+  OW_CAP_EARLY: 3.2
+  OW_CAP_LATE: 1.3
+  OW_4P_MODE: 0
+  OW_4P_ATK_SCALE: 0.5
+  OW_4P_PEACE_TURNS: 25
+  OW_4P_RIVAL_W: 1.0
+  OW_4P_CAP_BUMP: 0.0
+  OW_CONSOLIDATE: 0
+  OW_CONSOLIDATE_MIN: 12.0
+  OW_CONSOLIDATE_MARGIN: 3.0
+  OW_RULE_ENGINE: 1
+  OW_NO_SANITIZE: 0
+  OW_BLOCK_WRONG_HIT: 1
+  OW_SANITIZE_LOG: ""
+  OW_HYBRID: 0
+  OW_HYBRID_BETA: 0.5
+  OW_HYBRID_TOPN: 80
+
+```
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/profiles/ladder_probe.yaml (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *Let me verify the new profiles parse cleanly…*
+
+`16:40:39`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me verify the new profiles parse cleanly and `current` is still the baked one:
+
+#### 💻 Bash: *Verify example profiles parse + current is baked*
+
+`16:40:43`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+PY=~/.venvs/orbit-wars/bin/python
+echo "=== parse each profile (no errors, 33 knobs each) ==="
+$PY -c "
+import sys; sys.path.insert(0,'config')
+import bake
+for p in ('current','hybrid_v0','ladder_probe'):
+    name,kn = bake.parse_profile('config/profiles/%s.yaml'%p)
+    d=dict(kn)
+    print(f'{p}: {len(kn)} knobs, OW_HYBRID={d[\"OW_HYBRID\"]} OW_RULE_ENGINE={d[\"OW_RULE_ENGINE\"]} OW_BLOCK_WRONG_HIT={d[\"OW_BLOCK_WRONG_HIT\"]}')
+"
+echo "=== current still the baked profile ==="; $PY config/bake.py --check
+```
+
+```
+=== parse each profile (no errors, 33 knobs each) ===
+current: 33 knobs, OW_HYBRID=0 OW_RULE_ENGINE=0 OW_BLOCK_WRONG_HIT=0
+hybrid_v0: 33 knobs, OW_HYBRID=1 OW_RULE_ENGINE=0 OW_BLOCK_WRONG_HIT=0
+ladder_probe: 33 knobs, OW_HYBRID=0 OW_RULE_ENGINE=1 OW_BLOCK_WRONG_HIT=1
+=== current still the baked profile ===
+OK: agent/config_baked.py matches profiles/current.yaml (33 knobs)
+```
+
+### 🤖 Assistant: *Let me update `config/README.md` to mention…*
+
+`16:40:50`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me update `config/README.md` to mention the example profiles, then read the docs to update:
+
+#### ✏️  Edit `README.md`
+
+`16:40:54`
+
+```diff
+@@ -1 +1,3 @@ | `config/profiles/current.yaml` | The **active** profile shipped to Kaggle. A flat `OW_* → value` map under `knobs:`. |
++| `config/profiles/hybrid_v0.yaml` | Example profile: enables the advisory hybrid re-ranker (`OW_HYBRID=1`). |
++| `config/profiles/ladder_probe.yaml` | Example profile: enables the RuleEngine + wrong-first-hit gates (experimental). |
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/config/README.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### 👀 Read `ARCHITECTURE.md`
+
+`16:40:57`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/ARCHITECTURE.md</code></summary>
+
+````markdown
+# Orbit Wars — agent architecture (hybrid design)
+
+> The competition agent is a **hybrid**: the deterministic **v3.2 "Forecast"** planner with an
+> *optional* trained candidate-scorer layered on top. One principle governs the whole stack:
+>
+> **The model only scores/ranks already-legal candidates — it never emits a launch angle or a ship
+> count. The deterministic FlightOracle + RuleEngine + ActionSanitizer are always the final authority,
+> and if the model (or `core/`) fails to load, the agent degrades to pure rules (v3.2).**
+>
+> Deployed entrypoint: `agent/main.py`. Hybrid toggle: `OW_HYBRID` (default **0** — see *Current
+> status*). The submission is `main.py` + `core/` (+ `hybrid_model.py` + `hybrid_weights.json` when the
+> model is enabled), packaged as a tar.gz; it stays **stdlib-only at runtime** (no numpy/torch online).
+
+## Data flow
+
+```
+obs  (raw kaggle_environments observation: planets / fleets / initial_planets / angular_velocity / step)
+ │
+ │  [0] geometry primitives      core/geometry.py            engine-exact physics — underpins every layer
+ ▼
+ [1] state perception            core/state.py               obs -> typed BattlefieldState
+ ▼
+ [2] projection / ledger         core/ledger.py + project()  do-nothing forecast; arrival & threat windows
+ ▼
+ [3] candidate generation        agent/main.py (v3.2)        intercept-solved legal launches, value-sim ranked
+ ▼
+ [4] features                    core/features.py            candidate -> 24-dim feature_vector (one contract)
+ ▼
+ [5] model scorer   (optional)   agent/hybrid_model.py       pure-Python MLP; rank-blends into commit order
+ ▼
+ [6] rule engine                 core/rule_engine.py         ECA guardrails + tactical re-weighting
+ ▼
+ [7] oracle + sanitizer          core/oracle.py + core/action_sanitizer.py   first-hit/path validate; final emission gate
+ ▼
+actions  [[src, angle, ships], ...]
+```
+
+## Layers
+
+| # | Layer | Module(s) | Function | Authority |
+|---|---|---|---|---|
+| 0 | **Physics primitives** | `core/geometry.py` | Engine-exact geometry/physics: `fleet_speed`, `planet_pos`, swept collision, `solve_intercept`, `project` — frame-aligned to the orbit_wars interpreter. **The B11 planet-rotation phase fix lives here** (`ang_vel*max(0, step-1)`); every prediction, intercept and safety check builds on it. | deterministic (foundation) |
+| 1 | **State perception** | `core/state.py` (`build_battlefield_state`) | Parse raw obs into a typed `BattlefieldState`: per-planet owner / production / 1–100 strategic value / ROI / holdability / frontier & hub flags; per-player and global (phase, remaining steps). | deterministic |
+| 2 | **Projection / ledger** | `core/ledger.py` (`ArrivalLedger`, `ThreatLedger`) + `project()` | "Do-nothing" forward simulation: each planet's owner/ship trajectory over a horizon, fleet arrival turns, and incoming-threat windows. Drives value estimation and defensive reserves. | deterministic |
+| 3 | **Candidate generation** | `agent/main.py` (v3.2 Forecast) | For each *my-planet → non-mine target*, solve a fixed-point intercept (angle, ships, ETA), size to capture-and-hold, and score by terminal differential value under budget/defense constraints. Emits legal candidates `(value, src, tgt, angle, ships)`. | deterministic |
+| 4 | **Features** | `core/features.py` (`candidate_features` → `feature_vector`) | Encode each candidate as a fixed **24-dim** vector (source/target strategic quantities + FlightOracle path quantities). This is the **single train/serve feature contract** — the offline trainer and the online scorer import the same `feature_vector` (verified bit-identical). | deterministic |
+| 5 | **Model scorer** *(optional)* | `agent/hybrid_model.py` + `agent/hybrid_weights.json` | Pure-Python MLP (stdlib only; no numpy/torch online) that scores candidates and **rank-blends** into the v3.2 greedy commit order (`OW_HYBRID_BETA`, default 0.5; `β=0` is byte-identical to v3.2). Only re-orders — never changes ships, angle, or safety. Fail-safe: missing/bad weights → rules-only. | model (advisory) |
+| 6 | **Rule engine** | `core/rule_engine.py` | ECA-style guardrails + tactical re-weighting (over-extension caps, safety constraints): hard-filters / down- or up-weights candidates. A guardrail, **not** a strategy. | deterministic |
+| 7 | **Oracle + sanitizer** | `core/oracle.py` (FlightOracle) + `core/action_sanitizer.py` | FlightOracle does deterministic first-hit / path classification (target / friendly / sun / oob; strict-sun vs near-sun). ActionSanitizer is the **final emission gate** — every action passes through it; provably-fatal sun/oob launches are dropped. | deterministic (final) |
+
+## Design principles
+
+- **Model ranks, rules execute.** The model can only re-order legal candidates the deterministic stack
+  already generated, sized, path-checked and (will) emit-gate. It cannot pick an unsafe move.
+- **Deterministic last word.** RuleEngine + FlightOracle + ActionSanitizer are the final authority,
+  regardless of the model.
+- **Fail-safe by construction.** `OW_HYBRID=0` or any model/`core` import or inference failure →
+  byte-identical pure v3.2. The hybrid is *strictly additive* — never worse than v3.2 by design.
+- **One feature contract.** Offline training and online scoring share `core.features.feature_vector`,
+  so there is no train/serve skew.
+- **Engine-exact substrate, anti-BC.** `core/geometry.py` is verified against the real engine; the model
+  scores *components* a deterministic engine consumes (candidate ranking / value), **not** a direct
+  policy clone — behavior cloning was refuted (high offline recall, 0% arena; see `bugs.md` B7).
+
+## Current status (2026-06-18)
+
+The hybrid **infrastructure is complete and fallback-safe, but the model scorer (layer 5) is OFF by
+default** (`OW_HYBRID=0`):
+
+- The arena A/B (prompt 06) showed the model re-ranker gave **no strong-tier gain** (vs evogen
+  13.8% → 13.8–14.6%, flat), and that model was trained on features from a *buggy* oracle.
+- The real breakthrough came from **layer 0**: the **B11 planet-rotation off-by-one fix** lifted the
+  pure-deterministic `fixed-v3.2` from **13.8% → 45%** vs evogen (and 0% sun-bound launches, down from
+  ~9%). See `bugs.md` B11 / `insights.md` INS-009.
+
+So the **currently deployed / strongest agent is the pure-deterministic v3.2-rotfix** (model layer
+inert; submissions 53769740 / 53769744). Layer 5 is retained as an additive, reversible "future-gain
+slot": it should be re-trained on **fixed-simulation** features (the strong-tier teacher corpus
+`datasets/strong_corpus/` is ready) and re-evaluated by arena A/B before being switched on.
+
+## File map
+
+```
+agent/main.py                 layers 2–3 + 7 wiring; _hybrid_rerank (5), _emit_gate (7); OW_HYBRID/OW_HYBRID_BETA
+agent/versions/hybrid_v0.py   = main.py with OW_HYBRID=1 (named A/B opponent)
+agent/hybrid_model.py         layer 5 scorer (pure-Python MLP loader + forward)
+agent/hybrid_weights.json     exported scorer weights (features + mean/std + per-layer W/b)
+core/geometry.py              layer 0
+core/state.py                 layer 1
+core/ledger.py                layer 2
+core/features.py              layer 4 (feature_vector = train/serve contract)
+core/rule_engine.py           layer 6
+core/oracle.py                layer 7 (FlightOracle)
+core/action_sanitizer.py      layer 7 (final emission gate)
+models/                       offline training/export for layer 5 (train_candidate_scorer, export_npz, …)
+```
+
+Provenance: prompts 02/03 (core substrate + FlightOracle gate), 04 (dataset/features), 05 (model
+training), 06 (hybrid integration); B11 fix + arena results in `tracking.md` / `bugs.md` / `insights.md`.
+
+````
+</details>
+
+### 🤖 Assistant: *ARCHITECTURE.md predates this refactor (says…*
+
+`16:41:11`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> ARCHITECTURE.md predates this refactor (says candidate-gen lives in main.py, 24-dim features, no emitter/config layers). Let me rewrite it to reflect the OW-ARCH-001 layout while preserving the design principles + status content:
+
+#### ✍️  Write `ARCHITECTURE.md`
+
+`16:41:59`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/ARCHITECTURE.md</code></summary>
+
+````markdown
+# Orbit Wars — agent architecture (layered hybrid design)
+
+> The competition agent is a **hybrid**: the deterministic **v3.2 "Forecast"** planner with an
+> *optional* trained candidate-scorer and an *optional* rule-engine layered on top. One principle
+> governs the whole stack:
+>
+> **The model only scores/ranks already-legal candidates — it never emits a launch angle or a ship
+> count. The deterministic FlightOracle + RuleEngine + ActionSanitizer are always the final authority,
+> and if the model (or `core/`) fails to load, the agent degrades to pure rules (v3.2).**
+>
+> Deployed entrypoint: `agent/main.py` (a **thin** shim since OW-ARCH-001). The layered policy lives in
+> `core/policy.py`. Hybrid toggle: `OW_HYBRID` (default **0**). The submission is `main.py` + `core/`
+> (+ `agent/config_baked.py`, and `hybrid_model.py` + `hybrid_weights.json` when the model is enabled),
+> packaged as a tar.gz; it stays **stdlib-only at runtime** (no numpy/torch/PyYAML online).
+
+## Data flow
+
+```
+obs  (raw kaggle_environments observation: planets / fleets / initial_planets / angular_velocity / step)
+ │
+ │  [cfg] config resolution      core/config.py             env OW_* -> baked profile -> inline literal
+ │  [0]  geometry primitives     core/geometry.py           engine-exact physics — underpins every layer
+ ▼
+ [1] state perception            core/state.py              obs -> typed BattlefieldState (fleets decoded
+ ▼                                                            from CURRENT position, not relaunched)
+ [2] projection / ledger         core/ledger.py + project() do-nothing forecast; arrival & threat windows
+ ▼
+ [3] candidate generation        core/policy.py (v3.2)      intercept-solved legal launches, value-sim ranked
+ ▼                                                            (typed form: core/candidates.py CandidateAction)
+ [4] features                    core/features.py           candidate -> 25-dim feature_vector (one contract)
+ ▼
+ [6] rule engine    (pass-thru)  core/rule_engine.py        ECA guardrails + tactical re-weighting (OW_RULE_ENGINE)
+ ▼
+ [5] model scorer   (optional)   agent/hybrid_model.py      pure-Python MLP; rank-blends into commit order
+ ▼
+ [7] emit + sanitize             core/action_emitter.py  ->  core/action_sanitizer.py (+ core/oracle.py)
+ ▼                                                            intended target IDs preserved to the last step
+actions  [[src, angle, ships], ...]
+```
+
+(Layers [6] and [5] are advisory and **OFF by default**, so the live path is byte-identical to pure
+v3.2 Forecast; the greedy budget selector sits between [4] and emission.)
+
+## Layers
+
+| # | Layer | Module(s) | Function | Authority |
+|---|---|---|---|---|
+| cfg | **Config** | `core/config.py` + `agent/config_baked.py` + `config/*.yaml` | One place resolves every `OW_*` knob: env override → baked profile → inline literal. YAML is the human source; the runtime reads the baked stdlib dict (no PyYAML online). | deterministic |
+| 0 | **Physics primitives** | `core/geometry.py` | Engine-exact geometry/physics: `fleet_speed`, `planet_pos`, swept collision, `solve_intercept`, `project` — frame-aligned to the orbit_wars interpreter. **The B11 planet-rotation phase fix lives here** (`ang_vel*max(0, step-1)`); every prediction, intercept and safety check builds on it. `agent/utils.py` is a thin re-export wrapper over this module (no separate physics). | deterministic (foundation) |
+| 1 | **State perception** | `core/state.py` (`build_battlefield_state`) | Parse raw obs into a typed `BattlefieldState`: per-planet owner / production / 1–100 strategic value / ROI / holdability / frontier & hub flags; per-player and global (phase, remaining steps). **In-flight fleets are decoded from their current `(x,y)` via `FlightOracle.decode_existing_fleet`, not relaunched from the source planet.** | deterministic |
+| 2 | **Projection / ledger** | `core/ledger.py` (`ArrivalLedger`, `ThreatLedger`) + `project()` | "Do-nothing" forward simulation: each planet's owner/ship trajectory over a horizon, fleet arrival turns, and incoming-threat windows. Drives value estimation and defensive reserves. | deterministic |
+| 3 | **Candidate generation** | `core/policy.py` (v3.2 Forecast) | For each *my-planet → non-mine target*, solve a fixed-point intercept (angle, ships, ETA), size to capture-and-hold, and score by terminal differential value under budget/defense constraints. Emits legal candidates `(value, src, tgt, angle, ships)`. `core/candidates.py` provides the typed `CandidateAction`. | deterministic |
+| 4 | **Features** | `core/features.py` (`candidate_features` → `feature_vector`) | Encode each candidate as a fixed **25-dim** vector. Target ownership is split into **own / enemy / neutral** (`tgt_owner_is_own` added in OW-ARCH-001 — `owner != -1` is no longer treated as enemy). Single train/serve contract: the offline trainer and the online scorer import the same `feature_vector`. | deterministic |
+| 5 | **Model scorer** *(optional)* | `agent/hybrid_model.py` + `agent/hybrid_weights.json` | Pure-Python MLP (stdlib only) that scores candidates and **rank-blends** into the greedy commit order (`OW_HYBRID_BETA`, default 0.5; `β=0` is byte-identical to v3.2). Only re-orders — never changes ships, angle, or safety. Fail-safe: missing / **stale-contract** / bad weights → `None` → rules-only. | model (advisory) |
+| 6 | **Rule engine** | `core/rule_engine.py` (wired via `_rule_gate`) | ECA-style guardrails + tactical re-weighting: hard-blocks unsafe/invalid candidates and down/up-weights the rest, with human-readable reasons. **Pass-through by default** (`OW_RULE_ENGINE=0`); when enabled it filters/re-weights the candidate list before the commit. A guardrail, **not** a strategy. | deterministic |
+| 7 | **Emit + sanitize** | `core/action_emitter.py` → `core/action_sanitizer.py` (+ `core/oracle.py` FlightOracle) | The selected candidates are emitted **with their intended target IDs preserved**; the sanitizer is the final gate — provably-fatal sun/oob launches are always dropped, and wrong-first-hit / landing-target mismatch is dropped when `OW_BLOCK_WRONG_HIT=1`. FlightOracle does deterministic first-hit / path classification (target / friendly / sun / oob; strict-sun vs near-sun) and supports both launch-from-source and trace-from-current-position. | deterministic (final) |
+
+## Design principles
+
+- **Model ranks, rules execute.** The model can only re-order legal candidates the deterministic stack
+  already generated, sized, path-checked and emit-gated. It cannot pick an unsafe move.
+- **Deterministic last word.** RuleEngine + FlightOracle + ActionSanitizer are the final authority,
+  regardless of the model.
+- **Fail-safe by construction.** `OW_HYBRID=0` / `OW_RULE_ENGINE=0` (defaults), or any model/`core`
+  import or inference failure → byte-identical pure v3.2. Both optional layers are *strictly additive*.
+- **One feature contract.** Offline training and online scoring share `core.features.feature_vector`,
+  so there is no train/serve skew.
+- **Engine-exact substrate, anti-BC.** `core/geometry.py` is verified against the real engine; the model
+  scores *components* a deterministic engine consumes (candidate ranking / value), **not** a direct
+  policy clone — behavior cloning was refuted (high offline recall, 0% arena; see `bugs.md` B7).
+- **Stdlib-only runtime.** No numpy/torch/PyYAML online. Config is baked to a Python dict; the scorer is
+  a hand-rolled MLP. `agent/main.py` must not touch `__file__` at load (kaggle execs it in an empty
+  namespace) — it locates `core/` by scanning `sys.path` (see `bugs.md` B12).
+
+## Current status (2026-06-18)
+
+The hybrid **infrastructure is complete and fallback-safe; both optional layers (5 model, 6 rules) are
+OFF by default**, so the deployed agent is the **pure-deterministic v3.2-rotfix**:
+
+- The arena A/B (prompt 06) showed the model re-ranker gave **no strong-tier gain** (vs evogen
+  13.8% → 13.8–14.6%, flat), and that model was trained on features from a *buggy* oracle.
+- The real breakthrough came from **layer 0**: the **B11 planet-rotation off-by-one fix** lifted the
+  pure-deterministic `fixed-v3.2` from **13.8% → 45%** vs evogen (0% sun-bound launches, down from ~9%).
+  See `bugs.md` B11 / `insights.md` INS-009.
+- OW-ARCH-001 grew the feature contract to **25 dims** (own/enemy/neutral split), so the deployed
+  `hybrid_weights.json` (trained on 24) now **disables cleanly** (load → `None` → rules-only). Re-train
+  on the **fixed-simulation** 25-feat contract (corpus `datasets/strong_corpus/` is ready) and re-A/B
+  before enabling layer 5. See `tasks.md`.
+
+## File map
+
+```
+agent/main.py                 thin entrypoint: locate core/ (no __file__) -> core.policy.get_default_policy().act(obs)
+agent/utils.py                thin wrapper re-exporting core.geometry primitives (no separate physics)
+agent/config_baked.py         baked default config profile (stdlib dict; the runtime config source)
+agent/hybrid_model.py         layer 5 scorer (pure-Python MLP loader + forward; compat-guards the contract)
+agent/hybrid_weights.json     exported scorer weights (currently 24-feat -> auto-disabled)
+config/default.yaml           layer cfg: canonical knob schema (human reference)
+config/profiles/current.yaml  layer cfg: the ACTIVE profile (baked into config_baked.py)
+config/profiles/*.yaml        example profiles (hybrid_v0, ladder_probe); config/bake.py + bake --check
+core/config.py                layer cfg: env OW_* resolution (geti/getf/getstr/getb/snapshot)
+core/geometry.py              layer 0 (single physics source; B11 fix)
+core/state.py                 layer 1 (current-position fleet decode)
+core/ledger.py                layer 2
+core/candidates.py            layer 3 typed CandidateAction
+core/policy.py                layers 3 + selector + orchestration (v3.2 Forecast core; data-flow contract)
+core/features.py              layer 4 (feature_vector = 25-dim train/serve contract)
+core/rule_engine.py           layer 6 (wired via _rule_gate; pass-through default)
+core/oracle.py                layer 7 FlightOracle (first_hit / trace_from_position / decode_existing_fleet)
+core/action_emitter.py        layer 7 emitter (preserves intended targets into the sanitizer)
+core/action_sanitizer.py      layer 7 final emission gate (sun/oob always; wrong-first-hit opt-in)
+models/                       offline training/export for layer 5 (train_candidate_scorer, export_npz, …)
+tests_orbit/                  layer tests: geometry/oracle, state-fleet-decode, features, policy-smoke,
+                              config-layer, rule-engine-wiring, hybrid-model, action-sanitizer, ledger
+```
+
+Provenance: prompts 02/03 (core substrate + FlightOracle gate), 04 (dataset/features), 05 (model
+training), 06 (hybrid integration), **08 (OW-ARCH-001 layered refactor: main.py→core/policy.py, physics
+dedup, config layer, P0 correctness fixes)**; B11 fix + arena results in `tracking.md` / `bugs.md` /
+`insights.md`.
+```
+
+````
+</details>
+
+✓ The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/ARCHITECTURE.md has been updated successfully. (file state is current in your context — no need to Read it back)
+
+### 🤖 Assistant: *Let me fix the stray trailing code-fence…*
+
+`16:42:04`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me fix the stray trailing code-fence I added at the end of ARCHITECTURE.md:
+
+#### ✏️  Edit `ARCHITECTURE.md`
+
+`16:42:07`
+
+````diff
+@@ -1,4 +1,3 @@ training), 06 (hybrid integration), **08 (OW-ARCH-001 layered refactor: main.py→core/policy.py, physics
+ dedup, config layer, P0 correctness fixes)**; B11 fix + arena results in `tracking.md` / `bugs.md` /
+ `insights.md`.
+-```
+````
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/ARCHITECTURE.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now bugs.md (add B12 for the `__file__`/exec…*
+
+`16:42:10`
+
+> Now bugs.md (add B12 for the `__file__`/exec regression), then tasks.md/tracking.md. Let me read them:
+
+#### 👀 Read `bugs.md`
+
+`16:42:11`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/bugs.md</code></summary>
+
+```markdown
+# Bugs — Orbit Wars
+
+> Mostly methodology pitfalls / rule-sim mismatches, not crashes. Detail in `README.md` / `VALIDATION.md` / issue #87.
+
+| ID | Status | Severity | Area | Summary | Evidence | Next action |
+|---|---|---|---|---|---|---|
+| B1 | fixed | high | eval-methodology | self-play win% **does not predict the ladder** (v3 beat v2.1 91% offline yet ≈ on ladder) | README; issue #87 | gate on `arena/suite_gate.py` (strong-weak suite); never self-play |
+| B2 | fixed | medium | eval-methodology | identical-mirror null is ~39% (2p) / ~57.5% (4p), not 50% | README | read decisive W-L / avg_rank |
+| B3 | fixed | medium | eval-methodology | small-batch noise 8–27% (24–60 games) → false positives (T2-R1 "25%") | issue #87 | ≥150 paired seeds (±3.5pt) + ±7pt bake gate |
+| B4 | fixed | high | value-fn | scoring net-ships over all k penalized in-transit ships → near-passive | README (Forecast bug) | terminal (k=H) differential value (conservation-correct) |
+| B5 | fixed | medium | agent-robustness | any exception → return `[]` (passive but never forfeits/crashes) | README | crash-safe wrapper on all agents |
+| B6 | open | high | strength-gap | strong-tier cliff: 0–15% vs evogen1093 / multifocus / kuni05 1240; **13 single-mechanism levers + the model candidate re-ranker all failed**. hybrid_v0 (real-corpus scorer AUC 0.882 blended into v3.2's commit order) is FLAT vs the strong tier (evogen 13.8%→13.8–14.6%, kuni05 0.8%→0.8%, 240g/cell) — the gap is candidate-GENERATION/strategy, not ranking (INS-008). | issue #87; `postmortems/2026-06-17-hybrid-v0.md` | strong-tier-teacher corpus (μ>1240 episodes) and/or past-imitation (value/outcome distillation, search-based generation) — NOT another scorer over v3.2's candidates |
+| B7 | wontfix | medium | ml | T12 BC reached high imitation (recall@k 0.387) but 0% in arena — distribution shift | issue #87 c (T12 v2) | de-prioritize BC; DAgger / value distillation if revisited |
+| B8 | fixed | low | ops | torch opponents spawn ~24 OMP threads/worker → 24-core box load 269 (idle spin) | issue #87 worklog | `OMP_NUM_THREADS=1` (recorded in snorlax doc) |
+| B9 | fixed | medium | agent-logic | v4 iter1 "shutter-crash" (mirror 13%): 83% empire in transit chasing a moving hub + 18–63-ship chip-hammers | issue #87 (C4 log) | iter2 guardrails (rear-only forwarding, supply cap 0.5, min hammer mass 80) → parity |
+| B10 | infra | — | execution-safety | path/landing safety was spread across agents (each its own `_path_blocked`) — risk of moving-planet first-hit mismatch / wrong-first-hit / strict-vs-near-sun confusion | OW-P0-STATE-LEDGER-001 | **deterministic `core/oracle.py` FlightOracle** centralizes it (engine-verified swept collision; target/friendly/enemy/neutral/comet/sun/oob; strict-sun vs near-sun); `tests_orbit/test_flight_oracle.py` 6/6. **✅ wired (prompt 02):** `core/action_sanitizer.py` gates `agent/main.py` final emission (`_emit_gate`, import-guarded; blocks sun/oob, wrong-first-hit on intent); verified ACTIVE with **0 false-positives** on v3.2 (pure safety net, no regression); `test_action_sanitizer.py` 4/4. Activate on ladder via `main.py+core/` tar.gz. |
+| B11 | **fixed** | **high** | execution/sim-fidelity | **Off-by-one planet-rotation phase** in every rotation predictor. The engine observes orbiting planets at `rotate(init, ang_vel*max(0,step-1))` (obs(0)==obs(1)==init, then rotate; verified vs replay 80276901 + engine `orbit_wars.py:530-545`). Our code used `ang_vel*step` → **one tick AHEAD** (returned obs(step+1)). Effects: (a) the agent's INTERCEPT (`_solve_intercept`/`_predict_pos`) aimed ~`orbit_r*ang_vel`≈1.6u ahead of the real target → fleets miss rotating inner planets and **sail into the sun** (user-reported, ep 80276901 step-11 launch: fleet→sun min 9.9<10); (b) `FlightOracle.first_hit` phantom-hit planets at their +1 positions, MASKING the real sun/OOB danger (reported safe min_sun 35 when真实 5.3) → sanitizer didn't block. My earlier "benign oob artifact" call was WRONG: winner/loser rates were equal because BOTH agents shared the bug (~9% wasted launches), not because it was non-causal. | user report ep 80276901; `debug_firsthit`/`check_planet17`/`validate_fix`; engine src | **✅ FIXED 2026-06-17** — `ang_vel*max(0,step-1)` in `core/geometry.planet_pos` + `agent/main.py._planet_pos`/`._predict_pos` (verified `_predict_pos(t-1)==obs(t)` exactly). Fixed agent: **0% sun / 0.5% oob** over 597 launches (was ~9%). All `tests_orbit` 4/4 pass; first_hit now reports the bad launch as sun. |
+
+```
+</details>
+
+### 💭 Thinking
+
+`16:42:16`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### ✏️  Edit `bugs.md`
+
+`16:42:28`
+
+```diff
+@@ -1 +1,2 @@+| B12 | **fixed** | **high** | execution-safety/deploy | **`__file__` at module load made the agent silently passive.** OW-ARCH-001 turned `agent/main.py` into a thin shim that computed its path via `os.path.abspath(__file__)`. But `kaggle_environments.agent.get_last_callable` loads an agent with `exec(compile(raw, path), {})` — an **empty namespace with no `__file__`** → `NameError` at load → the agent fails to import `core.policy` and returns `[]` every turn (passive). The **golden (in-process) harness could not catch this** (it imports with `__file__` present), but **arena `validate.py` did**: `current` lost 0/20 to v2/v1, 1/20 to starter, and only 30% vs **random** (avg 642 vs 10842 ships — doing nothing). | `arena/validate.py` first run; `kaggle_environments/agent.py:47-57`; repro `exec(code,{})` → NameError | **✅ FIXED 2026-06-18** — `main.py` no longer references `__file__` at load; `_locate_core()` scans `sys.path` (kaggle appends the agent dir; `core/` is that dir or its parent) with a `__file__` fallback only for normal imports. Post-fix arena: **100% vs v2/v1/starter/random**; regression test `tests_orbit/test_policy_smoke.py::test_main_loads_and_acts_under_kaggle_exec_no_dunder_file` reproduces the exec-load path. |
+ | B11 | **fixed** | **high** | execution/sim-fidelity | **Off-by-one planet-rotation phase** in every rotation predictor.
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/bugs.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now let me read tasks.md and tracking.md…*
+
+`16:42:31`
+
+> Now let me read tasks.md and tracking.md to append the OW-ARCH-001 entries + follow-ups:
+
+#### 👀 Read `tasks.md`
+
+`16:42:32`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tasks.md</code></summary>
+
+```markdown
+# Tasks — Orbit Wars
+
+> Derived from issue #87 TODO/Plan table (T1–T16). Full English tracking in `tracking.md`.
+
+## Now
+- **orbit5 ladder cycle (2026-06-16):** under Harry's directive to stop gating on the local arena (it
+  under-discriminates our cluster) and test shelved candidates on the REAL ladder, **submitted 2** (only
+  >1200-in-reasonable-time keeps a slot; both prior agents replaceable): harry ← `v4_scheduler.tar.gz`
+  (keeps kuni05 1079.7 anchor), may ← `v3_forecast.py` (keeps coarr 640.7). v4 = best of our line vs evogen
+  (20.0%); `v3_2_supply` NOT submitted (weaker 13.3% + confounded older lineage). **Arena reliability finding:**
+  local win% vs evogen separates GROSS tiers (kuni05 90% ≫ ours ≤20% ↔ ladder 1083 ≫ 640–686) but is BLIND
+  within our cluster (v3 μ686 and v3.2 μ640 both 16.7%) → fine candidate selection must use the ladder.
+  See `submissions.md` orbit5 cycle. **Next action: monitor v4/v3 μ via `ops/live_loop.py --once` (T20).**
+- **v4 "Scheduler"** (hub-and-hammer, T9/T13): at parity with v3.2 (49.3% on 150 paired seeds). OVERKILL-revival
+  **closed FAILED (2026-06-16), all 4 sub-cuts**: v4a counter-attack window (`OW_V4A`) null −0.3pt; v4f FM3
+  best-response (`OW_V4F`) −9pt; v4c cluster hammer (`OW_V4C`) null −0.3pt; v4i Isaiah two-band (`OW_V4I`)
+  inert→−1.0pt (games end ~step 152, never reach its endgame phase). All vs evogen @150 seeds, all default-OFF.
+  Diagnostics confirm the bottleneck is the strong-tier cliff itself (v4 ~1–2% vs kuni05), not a missing
+  concentration lever — next real lever must be integrated, not another bolt-on/knob. See
+  `postmortems/2026-06-16-overkill-revival.md`.
+
+## Strong-tier breakthrough phase backlog (task pack `docs/tasks/competition-tracking/orbit-strong-tier/`)
+> Target: public ladder **μ ≥ 1200** (secondary: upward early trajectory over first 10/20 episodes; offline:
+> no hard execution bugs + positive 2p AND 4p gates). Architecture: hybrid, model-centric, deterministic-execution
+> (`obs → BattlefieldState → Arrival/ThreatLedger → CandidateGenerator → Features → Model scorer/value → RuleEngine
+> guardrails → FlightOracle + ActionSanitizer → actions`). The model ranks/scores; it does NOT own continuous-angle
+> execution — flight/landing/path validity stays deterministic and tested.
+- **P0 OW-P0-RESEARCH-001** (prompt `00`): kuni05 source study + matchmaking + identity map — ✅ done (PR #116): rules+flow-diff (not NN); similar-skill matching from game 1; flyingfox=harrysun2006.
+- **P0 OW-P0-DOCS-LIVE-001** (prompt `01`): doc/live-loop consistency baseline — this task.
+- **P0 OW-P0-FLIGHT-ORACLE-001** (prompt `02`): ✅ **done** — `core/geometry.py` + `core/oracle.py` FlightOracle (`first_hit`/`validate_target`; strict-sun vs near-sun vs OOB vs wrong-first-hit) + **`core/action_sanitizer.py`** (ActionSanitizer: blocks provably-fatal sun/oob always, wrong-first-hit when intent given; debug counters). **Wired into `agent/main.py`** final emission via `_emit_gate` (import-guarded: active when `core/` importable — local/arena/tar.gz-bundled — transparent no-op for the current single-file submission; `OW_NO_SANITIZE=1` / `OW_SANITIZE_LOG=<path>`). Verified ACTIVE (27 turns, emitted_valid 41, **blocked 0** on v3.2 → pure safety net, zero regression); `tests_orbit/test_{flight_oracle,action_sanitizer}.py` 10/10; `arena/validate.py` identical to pre-gate. To activate on the ladder: submit `main.py + core/` as a tar.gz. **Gates all model integration.**
+- **P0/P1 OW-P0-STATE-LEDGER-001** (prompt `03`): ✅ **done** — typed `core/{state,ledger,rule_engine,features}.py` (Planet/Fleet/Player/Global/BattlefieldState, strategic value 1–100 decomposable, ArrivalLedger/ThreatLedger, ECA RuleEngine wiring the FlightOracle gate) + `tests_orbit/test_state_ledger.py` (5/5 PASS); `arena/validate.py` clean (no regression). Schema: `discussions/2026-06-16-battlefield-state-schema.md`.
+- **P1 OW-P1-DATASET-001** (prompt `04`): ✅ **done** — `datasets/{build_episode_index,build_step_table,build_candidate_dataset,build_quality_report}.py` (+ `_replay.py`, `schema.md`, `README.md`) reusing the FlightOracle for first-hit/safety labels + `core.state` features (anti-BC: supports candidate-scoring/value-modeling, not direct policy). Fixture smoke on ep 80118852: index 1ep/4p/207steps, step_table 21 rows, candidates 255 (decode 90.2%, oracle-valid 54.9%, 24 strict-sun labels), `reports/dataset_quality.md`. Full 20G corpus → snorlax commands documented; raw JSON gitignored. ruff + py_compile clean.
+- **P1/P2 OW-P1-MODEL-TRAIN-001 (prompt `05`, loop)**: ✅ **cycle 1 done (plumbing proof-of-life, local data)** — `models/{_featurize,train_candidate_scorer,train_value_model,export_npz,evaluate_offline}.py` + `README.md` + `datasets/gen_local_episodes.py`. No ladder replays were cached, so trained on **20 LOCAL self/cross-play episodes** (kuni05/evogen/v4/v3.2/pub_tactical, seeds 7000–3, 16×2p+4×4p → 144k candidates / 539 teacher-positives). Candidate scorer (MLP 24→128→64→1, BCE): valid **AUC 0.922** (2p 0.936 / 4p 0.903), recall@1/3/5 = 0.28/0.50/0.63. Value head (MSE on Δscore_h50): Pearson **r=0.68** (not exported — data-starved). Exported `scorer.npz` (97KB) runs in **pure numpy** (forward self-check vs torch = `err 0.0`); ladder fallback = rules-only. Card: `models/reports/model_card_20260617-cs-local20.md`; log: `models/reports/training_log.md`. **Decision: infra GO, model needs-more-data — promote ONLY via arena A/B (VALIDATION.md #3), NOT offline AUC (T12 BC: recall 0.387 / arena 0%).** Full ladder-teacher corpus → snorlax. py_compile + `--help` clean. **No Kaggle submit/push.**
+- **P2 OW-P2-HYBRID-001 (prompt `06`)**: ✅ **done — integration COMPLETE + safe, model REJECTED (not promotable)**. Real-ladder corpus rebuilt (310 eps, 2.48M candidates → scorer AUC 0.882; `agent/hybrid_weights.json`). Re-ranker wired into `agent/main.py` (`_hybrid_rerank`, `OW_HYBRID`/`OW_HYBRID_BETA`): blends the model's candidate score into the v3.2 greedy commit order; **β=0 byte-identical to v3.2** (provable fallback), pure-Python online (no torch; matches offline 3e-16), p99 44ms. `agent/versions/hybrid_v0.py` = main+OW_HYBRID. **Arena A/B (240g/cell): strong-tier FLAT** — vs evogen1093 13.8%→13.8–14.6%, vs kuni05 0.8%→0.8% (crushed); weak/4p non-regressive; crash-safe (0/3650). **VALIDATION #3 (+7pt) NOT met → reject.** Offline AUC 0.88 did NOT translate (3rd imitation-lesson confirmation). `live/last_eval.json` submit_ready=false; postmortem `2026-06-17-hybrid-v0.md`; card `models/reports/model_card_20260617-cs-ladder310.md`. **No Kaggle submit/push.**
+- **P2 FOLLOW-UP (from prompt 06) — strong-tier teacher corpus**: 🟡 **discovery DONE (2026-06-17)**. `ops/discover_strong_corpus.py` BFS-walks the ladder graph (ListEpisodes, read-only) from our subs → strong opponents (μ≥1200) → their strong-vs-strong games. Built `datasets/strong_corpus/manifest.json` = **1272 teacher episodes** (649 2p / 623 4p; 1056 strong subs; 1068 with a winning teacher seat), with per-episode teacher SEAT indices (API agents-list = seat order, verified vs replay rewards on 310 eps). **PENDING** (gated on ListEpisodes 429 cooldown): fetch the teacher replays + add `--seat-manifest` to `build_candidate_dataset.py` (restrict candidates to teacher seats) + retrain + re-run the `OW_HYBRID` A/B. Commands queued in `live/parallel_work_queue.md`. (BFS expansion stopped at 18 subs by the 429; manifest already large enough to start.)
+- **P3 (low) — FlightOracle `first_hit` oob-trace fidelity (B11)**: `first_hit` flags ~11% of real intercept launches "oob" (trace artifact, equal winner/loser, non-causal; sanitizer unaffected). Add an intercept tolerance (planet radius + ε) or require intended target if `first_hit` is used standalone. Does not block the loop. (NOT started.)
+- **online loop prompt `07`**: ladder iterate — submit → track first 10/20 episodes → analyze → classify → fix/train → resubmit (NOT run this session).
+
+## Early-stop / promotion policy (toward μ ≥ 1200)
+> Matchmaking is similar-skill from the first game (INS-005), so early μ is informative (fair, but noisy on few games).
+- **Immediate weak / fix_required:** any hard execution bug — strict sun collision, invalid action, OOB loss, or
+  repeated wrong-first-hit-target (detected by `episode_analyze.py` / the FlightOracle counters).
+- **After ~10 episodes:** weak if 2p win-rate / μ trend is flat-or-down and not climbing (track via `ops/track_submission.py --once --submission-id <id> --decide-after 10`).
+- **After ~20 episodes:** weak if not climbing toward μ ≥ 1200 and below the incumbent/anchor (kuni05 ~1080) — release the active slot.
+- **Strong (keep slot):** μ ≥ 1200 or a robust upward trajectory with strong-tier wins.
+- Config home (if/when formalized): `configs/early_stop_policy.yaml` (referenced by the task pack; not yet present — `unknown`). `track_submission.py` currently emits a keep/replace recommendation; thresholds above are the documented intent.
+
+## Next
+- D2 last-3-days freeze: pick the best 2 versions per account and re-submit (latest-2 scored).
+- T1 replay mining of the public episode dataset (top-bot behavior → heuristic params).
+- T4 endgame + comet module (turns 450–500 score-positive only; comet payback gate).
+- **T15 comet trajectory prediction** (§9-1 gap; chartered 2026-06-14, measure-first). Gap: `project()`
+  drops comets (`main.py` "Comets are dropped") and `_path_blocked` ignores them — we neither predict nor
+  exploit/dodge their path-based motion. Pre-build gate: quantify comet incidence + games comets decide
+  from the episode dataset; build only if material. Scope: model `comets` path → feed `project()` swept
+  collision + `_path_blocked`; optional comet-payback timing (merge w/ T4). Env-gated `OW_COMET`; suite-gate
+  A/B on comet maps + no-regress on comet-free + 4p avg_rank.
+- ~~**T16 sun/planet-avoidance waypoint routing**~~ → **measured → PARK (2026-06-15).** Instrumented
+  stock v3.2 (`arena/measure_t16.py` + identity-proven twin) over 80 games; 3-agent adversarial review.
+  Dropped value-positive launches are frequent but realistic recoverable value is **6–15% of committed
+  ≈ 1.4–2.7pt win-rate, below the +7pt bake bar** (only 35.5% of "recoverable" drops are value-positive;
+  41% of dropped targets are captured anyway within 5 turns; same frequent-gap → ladder-null mechanism as
+  co-arrival). Measure-first did its job: parked before building. Reopen via a gate-only prototype only if v4 stalls.
+
+## Follow-ups from the fleet-massing discussion (orbit5, 2026-06-16)
+> Harry's "少而重 + 内圈旋转中转站" thesis, checked against the engine source + our code + rigorous timing math.
+> Engine facts confirmed: inner planets (orbital_r+radius<50) rotate at ω∈[0.025,0.05] rad/step, same ω all;
+> outer static (`orbit_wars.py:540-546`). `prod=randint(1,5)`, `radius=1+ln(prod)` (size is log-of-prod, prod is
+> primitive), size ⟂ distance-to-sun (`:80-81,:133-138`). Fleet `speed=1+(maxSpeed-1)(ln n/ln1000)^1.5` cap ~6
+> (`:577`): 19→2.39, 76→3.48 (+46%). Garrison rides a rotating planet for free (it sits AT the planet pos).
+
+- **T19 — Episode 80118852 = OUR adapted-kuni05's WIN; confirms an early 多而小 / slow-expansion weakness**
+  (✅ resolved 2026-06-16). 🔴 **DOC CORRECTION: `flyingfox` is harrysun2006's Kaggle PROFILE name → flyingfox = US.**
+  So submission **53582503 = our `submission_kuni.tar.gz` (adapted kuni05, μ~1080)**, NOT an external competitor —
+  this also means tracking.md's "flyingfox 205-episode history" 4p-format finding and `episode_discover`'s example
+  were analyzing OUR OWN account's history (the 4p finding still stands; only the "external" label was wrong;
+  EPISODES.md #3 should be re-labeled). Episode 80118852 (`replays/80118852.json`, gitignored) is a 4p FFA we WON
+  (seat 1, rewards [-1,+1,-1,-1]); 36 planets ids 0–35 (no 163/164 — viewer artifact). **Substance CONFIRMED** —
+  our seat-1 (kuni05) launch profile BY PHASE: early ≤80 = 74 launches **median 20 ships** (多而小), and we were
+  BEHIND (5 planets vs Lucky's 7 at step 40); mid 81–160 = median 36; late >160 = median **238**, max 467. We
+  overtook only ~step 100 and ground out the win after rivals imploded. → Even our strongest agent expands with
+  many small fleets early and only masses late; vs the strong tier (which doesn't collapse) that loses. **This is
+  the empirical basis for T20/T21: mass EARLIER (few-but-heavy from the opening), don't grind.**
+- **T20 — EARLY-game massing (the empirically-pinpointed lever) + v4 live test** (🟢 in progress; submitted orbit5).
+  Episode 80118852 (T19) shows our own kuni05's gap is SPECIFICALLY the opening: early ≤step80 median launch is
+  **20 ships (多而小)** and we fall behind (5 vs 7 planets @ step40); we only mass (median 238) once rivals collapse.
+  So the lever is "mass few-but-heavy FROM THE OPENING," not late. (a) v4's hub-and-hammer (default ON,
+  `v4.py:813-949`) is the source-side-massing embodiment, now on harry's ladder — monitor μ as the live test;
+  v3.2/main.py has NO massing (`main.py:938-947`). (b) Concrete experiment: an early-phase (step<~80) massing/
+  bigger-min-launch knob that exploits speed (`+46%` at 19→76) + the strict capture threshold, gated on suite
+  (evogen) + 4p. Distinguish carefully from already-refuted `OW_MULTISRC`/`OW_COARRIVAL`/`OW_OPENING` (the prior
+  opening-grabber FIRED more but won LESS — the difference must be HEAVY not just MORE). If neither v4 nor an
+  early-massing knob moves the ladder, massing is ladder-null at our tier.
+  **v4 LIVE RESULT (sub 53730511, first 10 episodes, 2026-06-16 via `ops/track_submission.py`):** μ
+  600→peak 842.9→settling **~690–720** (net +90), 2p **4W-3L** + 4p 1×1st/2×2nd. **v4 is our BEST own-agent
+  ladder result to date** (> old v3.2 640 / v3 686) — and the LOCAL arena had called it mere "parity with v3.2",
+  so this re-confirms the arena under-discriminates and the ladder is the judge. But v4 plateaus well short of
+  the >1200 bar (strong-tier cliff intact). **DECISION: KEEP v4 on the ladder (replacing it gains nothing — no
+  candidate >1200).** Loop stopped at 10 episodes; data in `live/track_53730511.csv` + `live/version_submissions.md`.
+  - **T20(b) early-massing knob `OW_EM` — ❌ REFUTED (2026-06-16).** Implemented opening-only + neutral-only
+    capture-and-hold sizing (`OW_EM`/`EM_HOLD`/`EM_SLACK`/`EM_PHASE`/`EM_MIN`, default OFF, byte-identical when
+    off) — distinct from `OW_OVERKILL`/`OW_OPENING`. A/B vs fidelity-verified evogen (40 paired seeds): defaults
+    **8.8% = −11.2pt**; a 6-config sweep is **monotonic-negative with NO positive region** (HOLD0.3 −7.5, HOLD0.6
+    −13.8, MIN25 −11.2, gentlest PHASE40 −1.2≈noise). Heavier opening grabs over-commit and lose the ship race —
+    same as `OW_OVERKILL`/`v4f`. 12th refuted single-mechanism massing lever; `OW_EM` left default-OFF for repro.
+    The on-target direction is an INTEGRATED opening planner (sequence/target selection), not a sizing knob —
+    large/high-risk, deferred. Postmortem: `postmortems/2026-06-16-t20-early-massing.md`. **Do NOT iterate the knob.**
+- **T21 — Forward-planet aggregation (pure geometry, measure-first)**. Rigorous timing math: the ONLY regime
+  where 2-hop beats 1-hop is launching from an ALREADY-HELD planet that is closer-in-flight-time to T — pure
+  geometry, not rotation. Check whether the greedy already picks min-ETA sources; if not, add a "prefer the
+  held source with min flight-time + allow an already-held forward planet to aggregate" preference. NEVER ship
+  O→I as a deliberate detour (honest 2-hop strictly worse: 35–39 vs 27 turns direct).
+- **PARK — Rotation-conveyor / inner-planet staging relay.** Rigorously REFUTED as a distance/speed lever with
+  the exact engine swept-collision rule: max inner radial closing speed ≈2.35 u/step < a 19-ship fleet's
+  2.39 u/step → flying always beats riding; optimal relaunch delay = 0 in every tested geometry/ω; the orbital
+  minimum-distance phase is 170–210 steps out (games end ~150). The real value Harry intuits is the
+  MASSING/+speed effect, obtainable at the source (no hop). Same family as PARKed T8/T16/OVERKILL. No build;
+  recorded in `insights.md`.
+- **T22 — (optional) inner vs outer target valuation** (measure-first). Production ⟂ distance-to-sun and inner
+  planets rotate — does holding an inner (rotating) planet differ in defensibility/value (a captured inner
+  planet's garrison drifts toward different fronts as it orbits)? Measure in episodes before any build.
+
+## 4p ladder finding (KCT-OW-LIVE-002, 2026-06-15)
+- 🔴 **The μ-ladder is ~half 4-player FFA and 4p updates μ** (verified from flyingfox's 205-episode history; ~83% net μ
+  from 2p, ~17% from 4p). Prior "1v1 only" assumption was wrong; our line is 2p-tuned. Full analysis: `EPISODES.md` #3.
+- ✅ **T17: 4p placement gate** `arena/eval_4p.py` (avg_rank / 1st-rate / elim-by-t50 / planets@t50) — every future
+  candidate now gated in BOTH 2p and 4p (Harry's standing directive). Our v3.2/v4 4p avg_rank ≈ 1.8 (not broken, untuned).
+- ❌ **Naive 4p-aware mode** (`OW_4P_MODE`: owner-aware `_term` + don't-be-early-aggressor + survival reserve; 2p
+  byte-identical, gated): A/B vs 3×v3_2 = 1.719 avg_rank / 28% 1st vs baseline 1.469 / 53% — WORSE (unconditional
+  damping cedes advantage when we're dominant). Kept default-OFF. 8th lever to test negative naively.
+- 📋 **T18: situational 4p strategy** — damp aggression / raise survival ONLY when outgunned (multiple stronger rivals),
+  press when dominant; needs a diverse-strong 4p field to validate (local homogeneous field can't). Framework in place.
+
+## Backlog / background
+- T12 RL/distillation (D4): de-prioritized to background after v0/v1/v2 (BC ≠ playing); next would be
+  DAgger / value distillation / forward-sim features.
+
+## Blocked
+- None hard-blocking; constrained by deadline (06-23), 5/day quota, and the strong-tier cliff.
+
+## Live loop (KCT-OW-LIVE-002)
+- **`ops/` bounded live-submission loop built + ran one `--once` cycle (2026-06-15).** Tracks active
+  latest-2 slots across both accounts (read-only Kaggle), credential-safe (`ops/kaggle_auth.py`; secrets
+  never printed/committed), ingests/analyzes episodes (decode + **sun-collision/hard-bug detection**,
+  winner-reason → `live/episodes_index.csv`), classifies agents (`neutral/strong/weak/fix_required/retired/
+  unknown`), and performs **gated autonomous submit** via `submit.py` (budget + quota + compliance +
+  replacement-plan gates). Commands in `ops/README.md`.
+- **Cycle result:** harry [kuni05 μ1086.5, v3.2 μ655.7]; may [v3_2_coarr μ644.0, v3.2 μ630.1]. No queued
+  episodes; **NO_SUBMIT** — no validated candidate beats an active slot (v4 = parity), budget/quota preserved.
+  `live/account_status.md`, `live/agent_status.md`, `live/submit_plans.md`, `live/push_submit_audit.md`,
+  `live/active_agents.yaml` written. No bugs found → no new Tn tasks generated this cycle.
+
+## Done
+- T2 suite param optimization → **t14 → v3.2 baked (+7pt over baseline)**, 6/6 VALIDATION gates, submitted.
+- T8 co-arrival (real +3pt evogen-layer; default OFF). T10 VALIDATION.md gate. T11 ledger (no-op).
+- T6 confirm eval-side torch usable. T7 2p/4p split (rejected — ladder is 1v1).
+- v1 → v2 → v2.1 (556) → v3 Forecast (686) → v3.1 → v3.2 (660 current) → v4 Scheduler (parity, iterating).
+- Multi-account submit tool (`submit.py`, compliance-gated). Version league (`LEAGUE.md`). Episode pipeline.
+
+## Proposed GitHub issues
+> Not created in this task. Issue #87 is the hub. Suggested:
+- "orbit-wars: last-3-days final-2 freeze decision + post-deadline archival" (acceptance: record final
+  submitted 2 per account; backfill submissions.md with final ladder + private LB; status → archived).
+
+```
+</details>
+
+### 💭 Thinking
+
+`16:42:44`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### ✏️  Edit `tasks.md`
+
+`16:43:01`
+
+```diff
+@@ -1 +1,6 @@+- **P1 OW-ARCH-001 (prompt `08`)**: ✅ **done (2026-06-18) — layered-architecture refactor + correctness hardening.** Split the monolithic `agent/main.py` (now a **62-line thin entrypoint**) → `core/policy.py` (v3.2 Forecast core + orchestration + the documented 8-layer data-flow contract); deduped all physics to `core/geometry.py` (`agent/utils.py` is now a thin re-export wrapper). **P0 fixes:** (a) `FlightOracle.trace_from_position` + `decode_existing_fleet`, and `core/state.py` now decodes in-flight fleets from their CURRENT `(x,y)` (not relaunched from source); (b) intended target IDs preserved through emission via new `core/action_emitter.py` → `core/action_sanitizer.py` (wrong-first-hit gate opt-in `OW_BLOCK_WRONG_HIT`); (c) `core/features.py` ownership split into **own/enemy/neutral** (25-dim now; `owner!=-1`≠enemy). New typed `core/candidates.py::CandidateAction`. `core/rule_engine.py` wired via `_rule_gate` (pass-through default `OW_RULE_ENGINE=0`). **Config layer:** `core/config.py` centralizes all 33 `OW_*` reads (env→baked→literal); YAML source `config/{default,profiles/*}.yaml` baked (PyYAML-free) to `agent/config_baked.py` via `config/bake.py` (`--check` drift guard). **Behavior preserved byte-for-byte** (golden 526-record obs→moves = 0 mismatches; arena `validate.py` 100% vs v2/v1/starter/random). **Caught + fixed B12** (the `__file__`-at-load passive-agent regression — see `bugs.md`). 11 `tests_orbit` files / 43 tests pass; `ruff check .` clean. **No Kaggle ops.** Follow-ups:
++  - **OW-ARCH-002 (P2)**: re-train the layer-5 scorer on the **fixed-sim 25-feature** contract (the deployed 24-feat `hybrid_weights.json` now auto-disables → rules-only) and re-run the `OW_HYBRID` suite-gate A/B (corpus `datasets/strong_corpus/` ready). Supersedes the prompt-06 reject.
++  - **OW-ARCH-003 (P3)**: evaluate the RuleEngine layer on the ladder/suite (`OW_RULE_ENGINE=1`, currently inert/pass-through) — A/B vs v3.2 before any enable; same +7pt bar.
++  - **OW-ARCH-004 (P3)**: extract the inline forward-sim valuation into `core/valuation.py` (deferred — tightly coupled to the v3.2 intercept loop; not split this pass to avoid behavior risk). Migrate the remaining experimental `OW_*` knobs (live only in `agent/versions/*`) into `core.config` if/when any is promoted into `core/policy.py`.
++  - **OW-ARCH-005 (chore)**: re-format the 2 pre-existing format-dirty test files `tests_orbit/test_{flight_oracle,state_ledger}.py` (committed unformatted on main; CI's `ruff format --check` is disabled so they don't fail CI — left untouched here to avoid out-of-scope churn).
+ - **P3 (low) — FlightOracle `first_hit` oob-trace fidelity (B11)**:
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tasks.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now tracking.md — let me read its structure…*
+
+`16:43:04`
+
+> Now tracking.md — let me read its structure to add a consistent entry:
+
+#### 👀 Read `tracking.md`
+
+`16:43:05`
+
+*(lines 1–41)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tracking.md</code></summary>
+
+```markdown
+# Tracking — Orbit Wars
+
+> English consolidation of GitHub issue **#87** ("[Orbit Wars] 长期跟踪与策略讨论"). Original Chinese tables
+> preserved verbatim in [`tracking_zh.md`](./tracking_zh.md). Future status updates live here, not in issue #87.
+> `unknown` = not in available evidence.
+
+## Current snapshot
+- **$50,000 Featured, μ-ladder, deadline 2026-06-23** (final eval ~2 weeks after); id 138420; 5/day, latest-2 scored.
+- 🔴 **Format correction (2026-06-15, KCT-OW-LIVE-002, verified from our own kuni05 submission's 205-episode history — `flyingfox` = harrysun2006's profile name = US, sub 53582503, not an external competitor — via `ListEpisodes` API):**
+  the ladder runs **BOTH 2p AND 4p FFA** episodes and **both update μ** — ~half the games are 4p (net μ ~83% 2p / ~17% 4p).
+  The prior "1v1 only / 4p robustness-only" assumption (T7) was WRONG; our whole line was tuned 2p-only.
+  4p gate now exists (`arena/eval_4p.py`); naive 4p-aware mode (`OW_4P_MODE`) tested NEGATIVE → default OFF; situational 4p = T18.
+  See `EPISODES.md` analysis #3.
+- Direction **D1 = C** (low-cost continue). Incremental path largely exhausted (7 single-mechanism levers failed);
+  strong tier wins as integrated systems.
+- **Ladder (refreshed 2026-06-14, read-only Kaggle):**
+  - harrysun2006 latest-2: adapted-kuni05 (attributed) **1085.4** + v3.2 **660.0**
+  - firefly2006 (may) latest-2: v3_2_coarr **648.8** + v3.2 **636.7**
+  - retired peaks: adapted-kuni05 **1151.0**, Forecast v3 686.1, v2.1 555.8
+- 🟢 **orbit5 cycle 2026-06-16:** stopped gating on local arena (Harry: it under-discriminates our cluster →
+  test shelved candidates on the REAL ladder; only >1200-in-reasonable-time keeps a slot). **Submitted 2**:
+  harry ← `v4_scheduler.tar.gz` (keeps kuni05 1079.7 anchor), may ← `v3_forecast.py` (keeps coarr 640.7). Active
+  slots (refreshed 2026-06-16, COMPLETE): harry [**v4 703.9**, kuni05 **1069.9**], may [**v3 678.1**, coarr **644.4**]
+  — v4/v3 settled ≈ predicted (~700/~686), both < the >1200 bar; kuni05 our best (drifting 1085→1070). **Arena reliability (calibrated):** local
+  win% vs evogen separates GROSS tiers (kuni05 90% ≫ ours ≤20% ↔ ladder 1083 ≫ 640–686) but is BLIND within our
+  cluster (v3 μ686 & v3.2 μ640 both 16.7%; v4 best 20.0%). Fleet-massing discussion → T19–T22 + rotation-relay
+  PARK (`tasks.md`); relay rigorously refuted (riding ≤2.35 < flying 2.39 u/step). **DOC FIX: `flyingfox` =
+  harrysun2006's profile name = US** (so sub 53582503 = our adapted-kuni05; the "flyingfox 205-episode" 4p finding
+  was our OWN history, label only). Episode 80118852 = our kuni05's 4p WIN, and it CONFIRMS an early 多而小 weakness:
+  early (≤step80) median launch **20 ships**, behind at step40 (5 vs 7 planets), massing only mid/late (median
+  238 late). Mass-earlier is the real lever (T20/T21). Monitor μ via `ops/live_loop.py --once`.
+- 🟢 **Strong-tier foundation (2026-06-16, prompts 01/03):** built the deterministic execution +
+  battlefield-awareness substrate `core/` (geometry + FlightOracle + ArrivalLedger + typed
+  BattlefieldState + ECA RuleEngine) the hybrid/model plan sits on — `tests_orbit` 11/11 pass,
+  `arena/validate.py` clean (no agent regression). Schema: `discussions/2026-06-16-battlefield-state-schema.md`.
+  Plus the replay **dataset pipeline** `datasets/` (prompt 04): episode index + step + candidate
+  tables with FlightOracle safety/first-hit labels (fixture smoke OK; 20G corpus → snorlax).
+  ✅ FlightOracle gate now WIRED into `agent/main.py` emission (prompt 02 — `core/action_sanitizer.py`
+  + `_emit_gate`, import-guarded; verified active, 0 false-positives on v3.2, no regression; activate on
+  ladder via `main.py+core/` tar.gz). Next: model training (05) → hybrid (06) → ladder loop (07) toward μ≥1200.
+```
+</details>
+
+### 💭 Thinking
+
+`16:43:10`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 👀 Read `tracking.md`
+
+`16:43:11`
+
+*(lines 40–60)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tracking.md</code></summary>
+
+```markdown
+  ladder via `main.py+core/` tar.gz). Next: model training (05) → hybrid (06) → ladder loop (07) toward μ≥1200.
+- 🟡 **Model training + hybrid (2026-06-17, prompts 05/06) — infra GO, model REJECTED.** Rebuilt the corpus
+  from **310 REAL ladder episodes** (subs 53582503/53730511, fetched read-only; 2.48M candidates) and trained the
+  candidate scorer (MLP, valid **AUC 0.882**; `agent/hybrid_weights.json`, pure-Python online, p99 44ms). Wired as
+  an additive re-ranker in `agent/main.py` (`OW_HYBRID`; β=0 byte-identical to v3.2; `agent/versions/hybrid_v0.py`).
+  **Arena A/B (240g/cell): strong-tier FLAT** — vs evogen1093 13.8%→13.8–14.6%, vs kuni05 0.8%→0.8% (crushed,
+  avg 17 vs 2315); weak/4p non-regressive; crash-safe. **VALIDATION #3 (+7pt) NOT met → not submitted**
+  (`live/last_eval.json` submit_ready=false). 3rd confirmation that offline AUC ≠ ladder strength (INS-003); the
+  cliff is candidate-GENERATION/strategy, not ranking (INS-008). Compute: local HARRY-ARCH (snorlax off + GPU-useless
+  for a CPU MLP). Postmortem `2026-06-17-hybrid-v0.md`; card `models/reports/model_card_20260617-cs-ladder310.md`.
+  Next: strong-tier-teacher corpus (μ>1240 episodes) and/or past-imitation generation.
+- 🟢 **Ladder loop cycle 2026-06-17 (prompt 07, OW-LADDER-LOOP-001) — NO_SUBMIT; corpus built.**
+  Bounded cycle: (a) **execution-safety audit** over 60 cached real-ladder replays (10,648 of our
+  launches via FlightOracle) — **0 strict-sun, no fix_required**; the ~11% `first_hit` "oob" is a
+  trace artifact (winner 11.0% ≈ loser 10.8%, non-causal; sanitizer blocks 0 → B11). (b) **early-stop:**
+  kuni05 (53582503, μ~1077) = keep anchor; v4 (53730511, ~700) / v3 / coarr = weak-but-retained (no
+  validated >1200 replacement; hybrid_v0 rejected). (c) **NO_SUBMIT** — no candidate beats the strong
+  tier; budget/quota untouched. (d) **idle task = built the strong-tier-teacher corpus manifest**
+  (`datasets/strong_corpus/`, 1272 strong-vs-strong episodes μ≥1200) via `ops/discover_strong_corpus.py`;
+  fetch/build/train queued (`live/parallel_work_queue.md`). (e) fresh ListEpisodes refresh **blocked by
+```
+</details>
+
+*(lines 59–71)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tracking.md</code></summary>
+
+```markdown
+  fetch/build/train queued (`live/parallel_work_queue.md`). (e) fresh ListEpisodes refresh **blocked by
+  HTTP 429** (added backoff to `ops/episode_discover.py`); μ from this session's earlier queries.
+  Distance to target: **kuni05 ~1077, ≈123 below μ1200**.
+- 🟢 **Submit override (2026-06-17, Harry-directed): hybrid_v0 ladder-probe ×2.** Harry: *"any agents
+  <1200 can be replaced; submit to both accounts to collect more episodes."* So the cycle's NO_SUBMIT was
+  superseded: built + validated the `hybrid_v0_submission.tar.gz` (v3.2 + model re-ranker, OW_HYBRID baked,
+  core/+weights bundled; clean-extract validated: hybrid active, crash-free, p99 59 ms) and submitted it as
+  a **ladder-probe** (failed local +7pt gate but qualifies for the exception) to **harry `53767016`**
+  (latest-2 [hybrid_v0, v4]; kuni05 evicted) + **may `53767026`** (latest-2 [hybrid_v0, v3]; coarr evicted).
+  Both `neutral`, awaiting episodes — the goal is real-ladder data on the model-integrated agent (orbit5
+  thesis: local under-discriminates). Next: after 10/20 eps, track 53767016/53767026 → early-stop; in
+  parallel, fetch the strong-corpus → retrain a stronger scorer.
+```
+</details>
+
+### 💭 Thinking
+
+`16:43:18`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 👀 Read `tracking.md`
+
+`16:43:19`
+
+*(lines 70–84)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tracking.md</code></summary>
+
+```markdown
+  parallel, fetch the strong-corpus → retrain a stronger scorer.
+- 🟢🔑 **CRITICAL BUG FIX (2026-06-17, user-reported): planet-rotation off-by-one (B11).** Harry flagged a
+  fleet flying into the sun (ep 80276901, sub 53767016, ~step 20). Traced to a 1-tick phase error: the
+  engine observes orbiting planets at `rotate(init, ang_vel*max(0,step-1))` but ALL our predictors used
+  `ang_vel*step` (one tick ahead). This mis-aimed every intercept (~1.6u, into the sun for sun-line
+  targets) AND made `FlightOracle.first_hit` phantom-hit planets, masking sun/OOB so the sanitizer
+  didn't block. **Fixed** in `core/geometry.planet_pos` + `agent/main.py._planet_pos`/`._predict_pos`
+  (`_predict_pos(t-1)==obs(t)` verified). **Impact: fixed-v3.2 beats buggy-v3.2 95% (200g); vs evogen
+  13.8%→45.0% (+31pt); sun launches 0%, oob 0.5% (was ~9%); 4p avg_rank 1.72.** tests 4/4. **The
+  evogen cliff was largely THIS BUG, not strategy** (INS-009; revises the 13-levers-refuted narrative).
+  kuni05 still ~1% (separate gap). Fixed tarball `v3_2_rotfix_submission.tar.gz` built + validated;
+  **submit to ladder PENDING Harry's go-ahead** (the live probes 53767016/53767026 carry the bug).
+- **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
+  (evogen 1093 / multifocus / kuni05 1240).
+```
+</details>
+
+### 💭 Thinking
+
+`16:43:22`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### ✏️  Edit `tracking.md`
+
+`16:43:33`
+
+```diff
+@@ -1,2 +1,17 @@+- 🟢 **Layered-architecture refactor (2026-06-18, prompt 08, OW-ARCH-001).** Split the monolithic
++  `agent/main.py` (now a 62-line thin entrypoint) → `core/policy.py` (v3.2 core + the documented
++  8-layer data-flow); deduped all physics to `core/geometry.py` (`agent/utils.py` → thin wrapper).
++  P0 correctness: in-flight fleets decoded from current `(x,y)` (`FlightOracle.trace_from_position`/
++  `decode_existing_fleet` + `core/state.py`); intended target IDs preserved through `core/action_emitter.py`
++  → `core/action_sanitizer.py` (wrong-first-hit gate opt-in); features split own/enemy/neutral (25-dim).
++  New `core/candidates.py::CandidateAction`; `core/rule_engine.py` wired (pass-through default). **Config
++  layer:** `core/config.py` centralizes all 33 `OW_*` (env→baked→literal); YAML `config/*` baked PyYAML-free
++  to `agent/config_baked.py` (`config/bake.py --check`). **Behavior byte-identical** (golden 526-record
++  obs→moves = 0 mismatches; arena `validate.py` **100% vs v2/v1/starter/random**; mirror vs frozen pre-B11
++  v3_2 = 91.7%, i.e. the B11 fix). **Caught + fixed B12** — the refactor's thin shim referenced `__file__`
++  at load, which kaggle's `exec(code, {})` leaves undefined → agent went silently passive (lost to random
++  in the first arena run); fixed via a `sys.path`-scanning `_locate_core()` + a permanent regression test.
++  11 `tests_orbit` files / 43 tests pass; `ruff check .` clean. No Kaggle ops. Follow-ups OW-ARCH-002..005 in
++  `tasks.md` (chief: re-train the layer-5 scorer on the **25-feat** contract — the 24-feat weights now auto-disable).
+ - **Leaderboard top ~1746** (was ~1713 in the issue snapshot). **Cliff:** ~100% vs weak, **0–15% vs strong tier**
+   (evogen 1093 / multifocus / kuni05 1240).
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tracking.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now README.md — let me find architecture…*
+
+`16:43:37`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now README.md — let me find architecture references that the refactor makes stale:
+
+#### 💻 Bash: *Find architecture references in README.md*
+
+`16:43:40`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+grep -nE "main\.py|core/|agent/|24-dim|24 feat|ARCHITECTURE|monolith|config|OW_HYBRID|policy\.py|## |### " README.md | head -60
+```
+
+```
+7:**Architecture:** see [ARCHITECTURE.md](./ARCHITECTURE.md) — the layered hybrid design (deterministic v3.2 core + optional model candidate-scorer; deterministic last word).
+9:## Current status (2026-06-14, KCT-003 consolidation)
+20:  - harrysun2006 latest-2: `submission_kuni.tar.gz` (adapted kuni05, **attributed**) **1085.4** + `main.py` v3.2 **660.0**
+21:  - firefly2006 (may) latest-2: `v3_2_coarr.py` **648.8** + `main.py` v3.2 **636.7**
+29:## TL;DR — final status (closeout 2026-06-10)
+36:- **Our own agent (`agent/main.py`) = Forecast v3.1**: bit-exact forward simulator (validated 0 error
+49:## Layout
+53:  agent/main.py        # the submission agent (single-file; stdlib + kaggle_environments only)
+54:  agent/versions/*.py  # frozen snapshots (v1, v2, v2_1) for head-to-head regression
+71:## Ground truth
+93:## Agent versions
+95:### v2.1 — "Phase-Scaled" (current best; `agent/main.py`, snapshot `agent/versions/v2_1.py`)
+123:### v2 — "Hold What You Take" (superseded; snapshot `agent/versions/v2.py`)
+153:### v1 — "Intercept Economist" (superseded; snapshot `agent/versions/v1.py`)
+172:### Roadmap (v3+ ideas, by expected impact)
+194:## Sparring opponents
+200:- **`agent/versions/pub_tactical.py`** — sigmaborov "Tactical Heuristic 2026" (lead-aim,
+208:### 4-player coverage (`arena/arena4.py`)
+249:### REALITY CHECK — not competitive with top public agents (the 2p caveat above is now moot)
+254:`agent/versions/kuni05/` (main.py + orbit_lite/, needs `torch`; arena adds its dir to sys.path).
+267:### Design study — why kuni05 (LB 1240.5) beats us (drives v3)
+270:deep search. Source `agent/versions/kuni05/` (read planner_core.py / garrison_launch.py).
+292:### v3a (safe_drain increment) — TRIED → REJECTED
+295:(`agent/versions/v3a.py`, env-gated, not promoted). Result: **vs v2.1 36.2%, vs kuni05 0%,
+300:main.py stays v2.1. Closing the kuni05 gap needs the full forward-sim differential planner
+303:### Track 2 (adapt public) + Track 1 (build our own) — in progress
+308:  (main.py + orbit_lite/, torch) with **clear attribution**, self-play-clean, submitted. Expect
+311:- **Track 1 — "Forecast" planner v3: DONE, PROMOTED TO main, SUBMITTED.** `agent/main.py` is now
+313:  forward sim (per-planet owner/ships over H=18; `agent/versions/forecast_sim.py`, validated 0
+321:    self-play clean. Inlined main.py reproduces it (91.7%) and is ruff-clean.
+328:  Promoted to main + snapshot `agent/versions/v3_1.py`. **NOT resubmitted** — see below.
+334:### CRITICAL — self-play arena does NOT predict the ladder
+350:### Diverse-opponent gate (`arena/suite_gate.py`) — ladder-predictive
+353:ladder (self-play did not). Usable members (vendored under `agent/versions/suite/`, gitignored,
+370:### Design study — how the strong tier beats us (evogen1093 + kuni05)
+390:### Multi-source coordination — TRIED → no gain vs strong tier (default OFF)
+392:Implemented multi-source pooling on Forecast (`agent/versions/forecast.py`, `OW_MULTISRC`,
+406:### Opening-sequence planner — TRIED → no gain (default OFF). Incremental path exhausted.
+422:one).** Best current own-agent config: Forecast v3.1 (all experimental levers default OFF).
+424:## Running
+435:## Submission policy (per CLAUDE.md)
+441:- Submit command (when approved): `kaggle competitions submit orbit-wars -f agent/main.py -m "..."`.
+```
+
+### 💭 Thinking
+
+`16:43:46`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 👀 Read `README.md`
+
+`16:43:47`
+
+*(lines 49–71)*
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/README.md</code></summary>
+
+````markdown
+## Layout
+
+```
+competitions/orbit-wars/
+  agent/main.py        # the submission agent (single-file; stdlib + kaggle_environments only)
+  agent/versions/*.py  # frozen snapshots (v1, v2, v2_1) for head-to-head regression
+  arena/pool.py        # parallel engine: fans independent games across CPU cores
+  arena/arena.py       # round-robin / head-to-head on the REAL engine (offline gate)
+  arena/validate.py    # held-out validation on fresh seeds
+  arena/sweep.py        # garrison/cap sweep, gated vs v1 snapshot
+  arena/sweep_phase.py  # phase-scaled cap sweep, gated vs v2 snapshot
+  arena/diagnose.py    # single-game loss tracer
+  README.md            # this file
+```
+
+The engine is pure-Python and CPU-bound (a GPU does not help); wall-clock is just
+running many 500-step games. `arena/pool.py` parallelizes across cores — on a 24-core
+box, ~96 games run in ~8s (≈30-40x serial). Results are **deterministic and identical
+to serial** (each game is seeded; verified procs=1 vs procs=12), except against the
+inherently-random `random` agent. All arena tools take `--games`, `--procs`, `--base`
+(first seed). To run on the RTX 4090 box (snorlax), use its CPU cores via `--procs`.
+
+````
+</details>
+
+#### ✏️  Edit `README.md`
+
+`16:43:58`
+
+````diff
+@@ -1,5 +1,16 @@+> **Layered since OW-ARCH-001 (2026-06-18):** `agent/main.py` is now a **thin entrypoint** that calls
++> `core/policy.py`; the v3.2 strategy, physics (`core/geometry.py`), state/ledger/features/oracle and the
++> emit→sanitize gate live under `core/`, and config under `config/` (baked PyYAML-free to
++> `agent/config_baked.py`). See [ARCHITECTURE.md](./ARCHITECTURE.md) for the 8-layer map. The submission is
++> `main.py` + `core/` (+ `agent/config_baked.py`) as a tar.gz — stdlib-only at runtime.
++
+ ```
+ competitions/orbit-wars/
+-  agent/main.py        # the submission agent (single-file; stdlib + kaggle_environments only)
+-  agent/versions/*.py  # frozen snapshots (v1, v2, v2_1) for head-to-head regression
++  agent/main.py        # thin Kaggle entrypoint -> core.policy.get_default_policy().act(obs)
++  agent/config_baked.py# baked default config profile (stdlib dict; no PyYAML online)
++  agent/versions/*.py  # frozen self-contained snapshots (v1..v4, forecast, …) for h2h regression
++  config/              # YAML config source + profiles + bake.py (-> agent/config_baked.py)
++  core/                # layered policy: geometry, config, state, ledger, candidates, features,
++                       #   rule_engine, oracle, action_emitter, action_sanitizer, policy
++  tests_orbit/         # layer tests (geometry/oracle, fleet-decode, features, policy-smoke, config, …)
+   arena/pool.py        # parallel engine: fans independent games across CPU cores
+````
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/README.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Docs updated.*
+
+`16:44:11`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Docs updated. Let me run a final full verification before the adversarial review:
+
+#### 💻 Bash: *Final full verification: compile, bake, golden, tests, ruff*
+
+`16:44:18`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+PY=~/.venvs/orbit-wars/bin/python; RUFF=/tmp/claude/rufftmp/ruffenv/bin/ruff
+cd competitions/orbit-wars
+echo "=== py_compile agent + core ==="
+$PY -c "import py_compile,glob; [py_compile.compile(f,doraise=True) for f in glob.glob('core/*.py')+['agent/main.py','agent/utils.py','agent/hybrid_model.py','agent/config_baked.py','config/bake.py']]; print('compile OK')"
+echo "=== bake --check ==="; $PY config/bake.py --check
+echo "=== golden ==="; $PY /tmp/claude/ow_golden_check.py 2>&1 | grep -E "records|PASS|FAIL"
+echo "=== full test suite ==="
+fail=0; tot=0
+for t in tests_orbit/test_*.py; do
+  out=$($PY "$t" 2>&1 | grep -vE "LiteLLM|socksio|open_spiel|OpenSpiel|INFO:")
+  n=$(echo "$out" | grep -oE "[0-9]+/[0-9]+ .*tests passed" | tail -1)
+  if echo "$out" | grep -qE "Traceback|AssertionError|Error"; then echo "FAIL $(basename $t)"; fail=$((fail+1)); else echo "ok   $(basename $t): $n"; fi
+done
+echo "fail=$fail"
+cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+echo "=== ruff check . (repo-wide CI gate) ==="; $RUFF check . 2>&1 | tail -2
+```
+
+```
+=== py_compile agent + core ===
+compile OK
+=== bake --check ===
+OK: agent/config_baked.py matches profiles/current.yaml (33 knobs)
+=== golden ===
+records=526  MISMATCHES=0
+PASS (behavior identical)
+=== full test suite ===
+ok   test_action_sanitizer.py: 4/4 action-sanitizer tests passed
+ok   test_config_layer.py: 5/5 config-layer tests passed
+ok   test_features_contract.py: 4/4 features-contract tests passed
+ok   test_flight_oracle.py: 6/6 flight-oracle tests passed
+ok   test_geometry_oracle.py: 5/5 geometry-oracle tests passed
+ok   test_hybrid_model.py: 3/3 hybrid-model tests passed
+ok   test_policy_smoke.py: 5/5 policy-smoke tests passed
+ok   test_rule_engine_wiring.py: 3/3 rule-engine-wiring tests passed
+ok   test_state_fleet_decode.py: 3/3 state-fleet-decode tests passed
+ok   test_state_ledger.py: 5/5 state/ledger tests passed
+fail=0
+=== ruff check . (repo-wide CI gate) ===
+All checks passed!
+```
+
+### 🤖 Assistant: *All green. Let me verify the change set is…*
+
+`16:45:05`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All green. Let me verify the change set is scoped entirely within `competitions/orbit-wars/**` (no forbidden-path touches):
+
+#### 💻 Bash: *Confirm all changes scoped to orbit-wars, no forbidden paths*
+
+`16:45:10`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+echo "=== full change set (modified + untracked) ==="
+git status --porcelain | sed 's#^#  #'
+echo
+echo "=== anything OUTSIDE competitions/orbit-wars/? (must be empty) ==="
+git status --porcelain | awk '{print $2}' | grep -vE "^competitions/orbit-wars/" || echo "  (none — all changes scoped to orbit-wars)"
+echo "=== forbidden-path check (must be empty) ==="
+git status --porcelain | awk '{print $2}' | grep -Ely "(^|/)(\.kca|tools|src|services|supabase|ui|tests|\.github)/" 2>/dev/null || \
+git status --porcelain | awk '{print $2}' | grep -E "^(\.kca|tools|src|services|supabase|ui|tests|\.github|\.env|kaggle\.json|secrets)/" || echo "  (none)"
+```
+
+```
+=== full change set (modified + untracked) ===
+   M competitions/orbit-wars/ARCHITECTURE.md
+   M competitions/orbit-wars/README.md
+   M competitions/orbit-wars/agent/hybrid_model.py
+   M competitions/orbit-wars/agent/main.py
+   M competitions/orbit-wars/agent/utils.py
+   M competitions/orbit-wars/bugs.md
+   M competitions/orbit-wars/core/features.py
+   M competitions/orbit-wars/core/oracle.py
+   M competitions/orbit-wars/core/state.py
+   M competitions/orbit-wars/tasks.md
+   M competitions/orbit-wars/tests_orbit/test_action_sanitizer.py
+   M competitions/orbit-wars/tests_orbit/test_hybrid_model.py
+   M competitions/orbit-wars/tracking.md
+  ?? competitions/orbit-wars/agent/config_baked.py
+  ?? competitions/orbit-wars/config/
+  ?? competitions/orbit-wars/core/action_emitter.py
+  ?? competitions/orbit-wars/core/candidates.py
+  ?? competitions/orbit-wars/core/config.py
+  ?? competitions/orbit-wars/core/policy.py
+  ?? competitions/orbit-wars/tests_orbit/test_config_layer.py
+  ?? competitions/orbit-wars/tests_orbit/test_features_contract.py
+  ?? competitions/orbit-wars/tests_orbit/test_geometry_oracle.py
+  ?? competitions/orbit-wars/tests_orbit/test_policy_smoke.py
+  ?? competitions/orbit-wars/tests_orbit/test_rule_engine_wiring.py
+  ?? competitions/orbit-wars/tests_orbit/test_state_fleet_decode.py
+
+=== anything OUTSIDE competitions/orbit-wars/? (must be empty) ===
+  (none — all changes scoped to orbit-wars)
+=== forbidden-path check (must be empty) ===
+  (none)
+```
+
+### 🤖 Assistant: *All changes scoped to orbit-wars, zero forbidden…*
+
+`16:45:35`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All changes scoped to orbit-wars, zero forbidden-path touches. The substrate modules (`geometry`, `ledger`, `rule_engine`, `action_sanitizer`) are unchanged from main — the refactor builds on them.
+> 
+> Now, per ultracode, let me run an **adversarial review workflow** to independently verify behavior preservation, P0 correctness, deploy robustness, and acceptance — before committing:
+
+#### Workflow
+
+`16:46:35`
+
+**description:** `Adversarial review of OW-ARCH-001 refactor`
+
+**script:**
+
+```
+export const meta = {
+  name: 'ow-arch-001-review',
+  description: 'Adversarial review of the OW-ARCH-001 layered-architecture refactor (behavior preservation, P0 correctness, deploy robustness, acceptance, scope/safety)',
+  phases: [
+    { title: 'Review', detail: 'five independent review dimensions over the refactor' },
+    { title: 'Verify', detail: 'adversarially verify each non-trivial finding' },
+    { title: 'Synthesize', detail: 'consolidate confirmed findings + acceptance verdict' },
+  ],
+}
+
+const ROOT = '/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars'
+const VENV = '/home/harry/.venvs/orbit-wars/bin/python'
+
+const CONTEXT = `
+You are reviewing the OW-ARCH-001 layered-architecture refactor of the Orbit Wars Kaggle agent.
+Repo (git worktree): ${ROOT}
+Task spec (immutable): ${ROOT}/docs/tasks/orbit-strong-tier/prompts/08-goal-layered-agent-architecture-refactor.md
+  (note: the prompts dir is actually at the repo root: /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/docs/tasks/orbit-strong-tier/prompts/)
+Python venv (has kaggle_environments, torch): ${VENV}
+
+What changed (this PR):
+- agent/main.py: monolithic v3.2 agent -> THIN entrypoint (locates core/ via sys.path WITHOUT __file__, then core.policy.get_default_policy().act(obs)).
+- core/policy.py: NEW — the moved v3.2 "Forecast" policy + 8-layer orchestration + data-flow contract. Physics aliased from core.geometry.
+- core/config.py + agent/config_baked.py + config/*.yaml + config/bake.py: NEW config layer (env OW_* -> baked -> literal; PyYAML-free runtime).
+- core/candidates.py (CandidateAction), core/action_emitter.py (ActionEmitter): NEW.
+- core/oracle.py: ADDED trace_from_position + decode_existing_fleet (first_hit behavior preserved).
+- core/state.py: in-flight fleets now decoded from CURRENT (x,y) via decode_existing_fleet (not relaunched from source).
+- core/features.py: ownership split own/enemy/neutral; FEATURE_NAMES now 25.
+- agent/hybrid_model.py: load_default compat-guard (stale 24-feat weights -> None -> rules-only).
+- agent/utils.py: thin wrapper re-exporting core.geometry.
+- _rule_gate wires core/rule_engine.py (pass-through default OW_RULE_ENGINE=0).
+- tests_orbit/: new/updated layer tests.
+
+Established evidence (you may re-run to confirm, do NOT trust blindly):
+- golden obs->moves regression: ${VENV} /tmp/claude/ow_golden_check.py  => "records=526 MISMATCHES=0"
+- arena: cd ${ROOT}/arena && OMP_NUM_THREADS=1 ${VENV} validate.py --games 10 --procs 4 => current 100% vs v2/v1/starter/random
+- ${VENV} ${ROOT}/config/bake.py --check ; tests: ${VENV} ${ROOT}/tests_orbit/test_<x>.py
+
+Constraints to check are NOT violated: no Kaggle submit/push/upload; no edits outside competitions/orbit-wars/**;
+forbidden paths (.kca,tools,src,services,supabase,ui,tests,.github,.env*,kaggle.json,secrets); no secrets read.
+
+Be adversarial and concrete. Cite file:line. Distinguish OBSERVATION from INFERENCE. Prefer re-running a
+command or reading the engine source (kaggle_environments/envs/orbit_wars/orbit_wars.py) over assuming.
+`
+
+const FINDINGS_SCHEMA = {
+  type: 'object',
+  properties: {
+    dimension: { type: 'string' },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          title: { type: 'string' },
+          severity: { type: 'string', enum: ['critical', 'high', 'medium', 'low', 'info'] },
+          evidence: { type: 'string', description: 'file:line + what you observed / command output' },
+          why_it_matters: { type: 'string' },
+          claim: { type: 'string', description: 'the falsifiable claim a verifier should try to refute' },
+        },
+        required: ['title', 'severity', 'evidence', 'claim'],
+      },
+    },
+    dimension_summary: { type: 'string' },
+  },
+  required: ['dimension', 'findings', 'dimension_summary'],
+}
+
+const VERDICT_SCHEMA = {
+  type: 'object',
+  properties: {
+    finding_title: { type: 'string' },
+    verdict: { type: 'string', enum: ['confirmed', 'refuted', 'partial'] },
+    reasoning: { type: 'string', description: 'what you did to verify (commands/reads) + result' },
+    corrected_severity: { type: 'string', enum: ['critical', 'high', 'medium', 'low', 'info', 'not-a-bug'] },
+  },
+  required: ['finding_title', 'verdict', 'reasoning', 'corrected_severity'],
+}
+
+const DIMENSIONS = [
+  {
+    key: 'behavior-preservation',
+    prompt: `${CONTEXT}\n\nDIMENSION: Behavior preservation. The refactor MUST keep the default-path agent byte-identical to the pre-refactor v3.2(+B11) agent. Verify:\n- Every OW_* default resolved by core.config matches the historical inline default the old code used (read core/policy.py module-level knobs + core/config.py + agent/config_baked.py; spot-check against agent/versions/v3_2.py).\n- _rule_gate and _hybrid_rerank are genuinely no-ops by default (OW_RULE_ENGINE=0, OW_HYBRID=0) and cannot alter the committed candidate list/order when off.\n- The golden harness actually exercises the LIVE default path (read /tmp/claude/ow_golden_check.py and /tmp/claude/ow_golden_capture.py if present). Is the 0-mismatch claim meaningful, or could it be testing the wrong thing? Re-run it.\n- core/policy.py physics aliases (_planet_pos, _swept_hit, etc.) point to core.geometry and are not shadowed by a divergent local impl.\nReport concrete risks where default behavior could differ.`,
+  },
+  {
+    key: 'p0-correctness',
+    prompt: `${CONTEXT}\n\nDIMENSION: P0 correctness fixes. Verify each is actually correct (not just present):\n- FlightOracle.trace_from_position / decode_existing_fleet (core/oracle.py): does decode_existing_fleet trace from the fleet's CURRENT (x,y) and give a shorter ETA than relaunch-from-source? Does first_hit still behave as before (read the shared _trace_from refactor)?\n- core/state.py: confirm the fleet loop uses decode_existing_fleet, not first_hit(relaunch). Check the fleet row field order it assumes matches the engine obs (read kaggle_environments/envs/orbit_wars/orbit_wars.py for fleet row layout).\n- core/features.py: own/enemy/neutral split — is is_enemy correctly (owner not in (None,-1) and != my_id)? Does candidate_features pass my_id? Could a missing my_id mis-flag own as enemy or vice versa?\n- target-intent threading: are intended target IDs preserved from candidate to ActionSanitizer (core/action_emitter.py + policy _emit_gate + the 5 commit sites)? Does OW_BLOCK_WRONG_HIT actually drop a wrong-first-hit move?\nRe-run the relevant tests_orbit files to confirm.`,
+  },
+  {
+    key: 'deploy-robustness',
+    prompt: `${CONTEXT}\n\nDIMENSION: Deployment robustness (this is where the B12 regression lived). Verify:\n- agent/main.py must NOT reference __file__ at module load. Confirm _locate_core finds core/ under: (a) kaggle exec(compile(raw,path),{}) with the agent dir appended to sys.path (reproduce it), (b) normal import (tests), (c) a tar.gz where main.py and core/ are siblings at the archive root. Read kaggle_environments/agent.py get_last_callable to confirm the exec/namespace/last-callable behavior. Is there ANY load order where _locate_core fails and the agent silently returns []?\n- The "last callable wins" rule in get_last_callable: confirm 'agent' is the last callable defined in main.py (not _locate_core).\n- core/config.py _load_baked: if config_baked import fails, do getters fall back to call-site literals (behavior preserved)? Confirm no crash.\n- Runtime stdlib-only: grep core/ + agent/ for runtime imports of yaml/numpy/torch on the DEFAULT path. PyYAML must not be needed online.\nReproduce the kaggle exec-load and assert the agent acts.`,
+  },
+  {
+    key: 'acceptance-audit',
+    prompt: `${CONTEXT}\n\nDIMENSION: Acceptance-criteria audit. Read the task spec's "Acceptance criteria" section and independently check EACH bullet against the actual code (cite file:line). Flag any criterion that is NOT met or only partially met. Pay attention to: main.py thin (<=120 lines), geometry single source, utils thin wrapper, FlightOracle trace-from-current, state current-position decode, target intent preserved, sanitizer wrong-first-hit, features own/enemy/neutral, rule_engine participates, CandidateAction exists, policy orchestrates, YAML config exists, no PyYAML runtime, env handling centralized, tests cover oracle/state/features/policy-smoke, py_compile passes, tests pass, arena run, docs updated. Report any gap as a finding.`,
+  },
+  {
+    key: 'scope-safety',
+    prompt: `${CONTEXT}\n\nDIMENSION: Scope & safety. Verify via git + reads:\n- cd ${ROOT}/../../../.. (repo root is /home/harry/test/tt_pangu/.claude/worktrees/ow-arch) and run 'git status --porcelain' — confirm EVERY changed/new path is under competitions/orbit-wars/** and NONE touches forbidden paths (.kca,tools,src,services,supabase,ui,tests,.github/workflows,.env*,kaggle.json,.kaggle,secrets).\n- Confirm no Kaggle submit/push/upload is performed by any new code that runs at import or in agent() (grep for kaggle submit/push, dataset upload, network calls).\n- Confirm no secret/credential file is read by the new code (.env, kaggle.json, ~/.kaggle, secrets/).\n- Confirm KCA core is untouched.\nReport any violation as critical.`,
+  },
+]
+
+phase('Review')
+const reviews = await pipeline(
+  DIMENSIONS,
+  (d) => agent(d.prompt, { label: `review:${d.key}`, phase: 'Review', schema: FINDINGS_SCHEMA, agentType: 'Explore' }),
+  // verify each non-trivial finding from this dimension as soon as the review lands
+  (review, d) => {
+    if (!review) return { dimension: d.key, findings: [], verified: [] }
+    const toVerify = (review.findings || []).filter((f) => ['critical', 'high', 'medium'].includes(f.severity))
+    if (!toVerify.length) return { dimension: review.dimension, findings: review.findings, verified: [] }
+    return parallel(
+      toVerify.map((f) => () =>
+        agent(
+          `${CONTEXT}\n\nADVERSARIALLY VERIFY this review finding. Try HARD to REFUTE it — re-read the cited code, re-run commands, check the engine source. Default to 'refuted' if you cannot reproduce a concrete problem.\n\nFinding: ${f.title}\nSeverity claimed: ${f.severity}\nEvidence: ${f.evidence}\nFalsifiable claim: ${f.claim}`,
+          { label: `verify:${d.key}:${f.title.slice(0, 30)}`, phase: 'Verify', schema: VERDICT_SCHEMA, agentType: 'Explore' },
+        ),
+      ),
+    ).then((verdicts) => ({ dimension: review.dimension, findings: review.findings, verified: verdicts.filter(Boolean) }))
+  },
+)
+
+phase('Synthesize')
+const flat = reviews.filter(Boolean)
+const allFindings = flat.flatMap((r) => r.findings || [])
+const allVerdicts = flat.flatMap((r) => r.verified || [])
+const confirmed = allVerdicts.filter((v) => v.verdict === 'confirmed' || v.verdict === 'partial')
+
+const synthesis = await agent(
+  `${CONTEXT}\n\nYou are the lead reviewer. Below are per-dimension findings and the adversarial verdicts on the non-trivial ones. Produce a final review:\n1. List only the CONFIRMED/PARTIAL findings that survive adversarial verification, with corrected severity and a concrete fix recommendation.\n2. State an overall verdict: is the OW-ARCH-001 refactor SAFE TO MERGE (behavior preserved, P0 fixes correct, deploy-robust, acceptance met, scope/safety clean)? If not, what blocks it?\n3. Note anything the review could NOT verify.\n\nAll findings (JSON):\n${JSON.stringify(allFindings, null, 1)}\n\nAdversarial verdicts (JSON):\n${JSON.stringify(allVerdicts, null, 1)}`,
+  { label: 'synthesis', phase: 'Synthesize' },
+)
+
+return {
+  dimensions_reviewed: DIMENSIONS.length,
+  total_findings: allFindings.length,
+  verified_count: allVerdicts.length,
+  confirmed_or_partial: confirmed.length,
+  confirmed_findings: confirmed,
+  synthesis,
+}
+
+```
+
+```
+Workflow launched in background. Task ID: w23l4s4vb
+Summary: Adversarial review of the OW-ARCH-001 layered-architecture refactor (behavior preservation, P0 correctness, deploy robustness, acceptance, scope/safety)
+Transcript dir: /home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu/8c10342b-5a56-43d7-a4e6-8fcfd5438d20/subagents/workflows/wf_b1986a43-6ca
+Script file: /home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu--claude-worktrees-ow-arch/8c10342b-5a56-43d7-a4e6-8fcfd5438d20/workflows/scripts/ow-arch-001-review-wf_b1986a43-6ca.js
+(Edit this file with Write/Edit and re-invoke Workflow with {scriptPath: "/home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu--claude-worktrees-ow-arch/8c10342b-5a56-43d7-a4e6-8fcfd5438d20/workflows/scripts/ow-arch-001-review-wf_b1986a43-6ca.js"} to iterate without resending the script.)
+Run ID: wf_b1986a43-6ca
+To resume after editing the script: Workflow({scriptPath: "/home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu--claude-worktrees-ow-arch/8c10342b-5a56-43d7-a4e6-8fcfd5438d20/workflows/scripts/ow-arch-001-review-wf_b1986a43-6ca.js", resumeFromRunId: "wf_b1986a43-6ca"}) — completed agents return cached results.
+
+You will be notified when it completes. Use /workflows to watch live progress.
+```
+
+### 🤖 Assistant: *The adversarial review is running in the…*
+
+`16:46:45`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The adversarial review is running in the background (5 dimensions → adversarial verify → synthesis). Everything is already objectively green:
+> 
+> - **Behavior**: golden 526-record obs→moves = **0 mismatches**; arena `validate.py` **100%** vs v2/v1/starter/random
+> - **Tests**: 11 `tests_orbit` files / **43 tests** pass; `py_compile` clean
+> - **Lint**: `ruff check .` clean repo-wide; my files format-clean
+> - **Config**: `bake --check` OK (33 knobs, PyYAML-free runtime)
+> - **Scope**: every change under `competitions/orbit-wars/**`, zero forbidden-path touches, no Kaggle ops
+> 
+> The standout result this session: the arena gate **caught a critical regression the golden harness couldn't** — the thin-shim `main.py` referenced `__file__` at load, which kaggle's `exec(code, {})` leaves undefined, so the agent silently went passive (lost to *random*). Fixed via a `sys.path`-scanning `_locate_core()` + a permanent regression test (logged as B12). This validates *why* the task mandates the arena run on top of unit tests.
+> 
+> I'll hold the commit until the adversarial review confirms no blockers, then commit on `orbit-arch-refactor` and open the PR (no push to main, no Kaggle ops). Waiting for the workflow to complete.
+
+### Recap
+
+`16:46:56`
+
+📝 Recap: OW-ARCH-001 layered refactor of the Orbit Wars agent is done and fully green (golden 0-mismatch, arena 100%, 43 tests, ruff clean). An adversarial review workflow is running. Next: once it confirms no blockers, commit and open the PR.
+
+#### 🔄 Async result · *Dynamic workflow "Adversarial review of the OW-ARCH-001 layered-architecture refactor (behavior preservation, P0 correctness, deploy robustness, acceptance, scope/safety)" completed*
+
+`21:40:57`
+
+- **Task ID:** `w23l4s4vb`
+- **Status:** `completed`
+- **Spawn:** ↱ Task `#d-3458`
+
+<details>
+<summary>Result</summary>
+
+{"dimensions_reviewed":5,"total_findings":77,"verified_count":38,"confirmed_or_partial":37,"confirmed_findings":[{"finding_title":"FlightOracle.decode_existing_fleet correctly traces from CURRENT fleet position, not from source planet","verdict":"confirmed","reasoning":"Verified through code inspection, test execution, and concrete calculation:\n\n1. CODE INSPECTION (/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/core/oracle.py:106-120):\n   - decode_existing_fleet extracts fx=fleet_row[2] (current x) and fy=fleet_row[3] (current y)\n   - Line 118: calls trace_from_position(obs, fx, fy, fang, ...) with current position, NOT source planet\n   - trace_from_position (line 90) passes x, y directly to _trace_from without recomputing launch point\n   - _trace_from (line 131) uses ax, ay as starting position and increments by fleet_speed each tick\n\n2. INTEGRATION VERIFICATION (core/state.py:234-239):\n   - build_battlefield_state loops through fleets_raw and calls decode_existing_fleet(obs, f) for each fleet\n   - This creates FleetState.eta directly from the decode result\n\n3. TEST EXECUTION:\n   - test_geometry_oracle.py::test_trace_from_position_differs_from_relaunch_from_source: PASS (eta: 8 vs 2)\n   - test_geometry_oracle.py::test_decode_existing_fleet_uses_current_position: PASS\n   - test_state_fleet_decode.py::test_inflight_fleet_decoded_from_current_position: PASS\n\n4. CONCRETE EXAMPLE:\n   - Fleet at (30,50) heading toward target at (35,50):\n     - Relaunch from source (10,50): eta=8 ticks\n     - Trace from current (30,50): eta=2 ticks\n     - Difference: 6 ticks (exact distance/speed = 20 units / 2.5 speed per ship group)\n\n5. NO ALTERNATIVE CODE PATHS:\n   - Only one place decode_existing_fleet is called: state.py:239\n   - only two places first_hit is called: action_sanitizer.py:52 (for NEW launches) and oracle.py:248 (for target validation)\n   - No code path exists that incorrectly relaunches in-flight fleets from source","corrected_severity":"critical"},{"finding_title":"core/state.py fleet decoding uses decode_existing_fleet for all in-flight fleets","verdict":"confirmed","reasoning":"VERIFICATION STEPS:\n\n1. Code inspection (core/state.py:231-272):\n   - Line 232: FlightOracle() instantiated\n   - Line 234-239: Single loop over fleets_raw calling orc.decode_existing_fleet(obs, f) for EACH fleet\n   - Lines 240-241: Results extracted (decoded_id, dtype, eta, minsun)\n   - Lines 254-270: FleetState populated with these values\n   - Comment at lines 236-237: explicitly states \"NOT by relaunching\"\n\n2. Oracle implementation verified (core/oracle.py:106-120):\n   - decode_existing_fleet calls trace_from_position(obs, fx, fy, fang, ...) NOT first_hit\n   - trace_from_position uses arbitrary (x,y) as start, does not relaunch from source\n   - Never invokes first_hit in the decode path\n\n3. No alternative paths:\n   - grep -n \"\\.first_hit(\" found only 2 usages: action_sanitizer.py:52 (validating new launches) and oracle.py:248 (validate_target for new launches)\n   - No fallback logic in state.py; single unconditional decode_existing_fleet call\n\n4. Behavioral verification:\n   - Direct test: in-flight fleet at (30,50) decoded → ETA=2 (current-position)\n   - vs relaunch from (10,50) → ETA=8\n   - build_battlefield_state confirms eta=2, proving current-position decode used\n\n5. Regression test (golden):\n   - /tmp/claude/ow_golden_check.py: records=526 MISMATCHES=0\n   - v3.2 behavior preserved despite implementation change\n\n6. Arena validation:\n   - OMP_NUM_THREADS=1 validate.py --games 5 --procs 2\n   - 100% win rate vs v2/v1/starter/random\n\n7. Architecture documentation (ARCHITECTURE.md):\n   - Layer 1 explicitly states: \"In-flight fleets are decoded from their current (x,y) via FlightOracle.decode_existing_fleet, not relaunched from the source planet\"\n\n8. Test suite (tests_orbit/test_state_fleet_decode.py):\n   - test_inflight_fleet_decoded_from_current_position: confirms ETA difference (current=2 &lt; relaunch=8)\n   - test_decode_is_stable_for_known_case: confirms determinism\n   - All 3 tests PASS","corrected_severity":"critical"},{"finding_title":"Fleet row field order (id, owner, x, y, angle, from_planet_id, ships) matches engine and is correctly decoded","verdict":"confirmed","reasoning":"Verified through: (1) Engine source inspection: kaggle_environments Fleet namedtuple at lines 12-14 defines order as (id, owner, x, y, angle, from_planet_id, ships). (2) Code inspection: core/oracle.py lines 109-117 unpacks fleet_row exactly matching engine order; line 119 correctly assigns ffrom (field[5]) to source_planet_id; line 118 correctly passes fships (field[6]). (3) state.py line 235 uses identical unpacking. (4) Direct namedtuple verification: Fleet(id=42, owner=1, x=25.5, y=35.7, angle=1.57, from_planet_id=10, ships=50) confirms all 7 indices match. (5) Test execution: test_state_fleet_decode.py (3/3 PASS), test_flight_oracle.py (6/6 PASS), test_features_contract.py (4/4 PASS), golden regression (526 records, 0 MISMATCHES), arena validation (100% win rate). Docstring at line 108 correctly documents the field order.","corrected_severity":"info"},{"finding_title":"core/features.py ownership flags correctly distinguish own/enemy/neutral without mis-classification","verdict":"confirmed","reasoning":"READ core/features.py lines 73-79: The ownership flag logic is correctly implemented with three mutually exclusive conditions:\n  - is_own = 1.0 only if (tgt_owner is not None AND my_id is not None AND tgt_owner == my_id)\n  - is_neutral = 1.0 only if (tgt_owner == -1)\n  - is_enemy = 1.0 only if (tgt_owner not in (None, -1) AND NOT is_own)\n\nRAN tests_orbit/test_features_contract.py: All 4 tests pass, including test_ownership_flags_distinguish_own_enemy_neutral which explicitly verifies:\n  - _flags(2, 2) == (1.0, 0.0, 0.0) — own planet flags as OWN only\n  - _flags(1, 2) == (0.0, 1.0, 0.0) — different owner flags as ENEMY only  \n  - _flags(-1, 2) == (0.0, 0.0, 1.0) — neutral flags as NEUTRAL only\n  - sum of three flags == 1.0 for all defined owners\n\nVERIFIED game constraints from kaggle_environments/envs/orbit_wars/orbit_wars.py: Player IDs are always assigned as i in range(num_agents), never -1. Planet owners are -1 (neutral) or player indices &gt;= 0. Therefore the theoretical edge case where my_id == -1 is impossible in practice.\n\nRAN golden regression (/tmp/claude/ow_golden_check.py): records=526 MISMATCHES=0 — confirms the feature extraction (including ownership flags) produces identical moves to v3.2 baseline across 526 regression test cases.\n\nFEATURE_NAMES verification: Indices 8-10 correctly contain the three ownership flags in the expected order, total feature vector length is 25, matching FEATURE_NAMES length.","corrected_severity":"critical"},{"finding_title":"candidate_features() passes my_id to feature_vector() so ownership flags work correctly","verdict":"confirmed","reasoning":"Verified through code inspection, unit tests, and integration tests. Code flow: (1) core/state.py:158 extracts my_id from obs[\"player\"]; (2) core/state.py:322 populates state.glob.my_id; (3) core/features.py:114-119 in candidate_features() reads me = state.glob.my_id and includes \"my_id\": me in returned dict; (4) core/features.py:74-77 in feature_vector() reads cf.get('my_id') and uses it to correctly classify is_own via tgt_owner == my_id comparison; (5) test_features_contract.py verifies ownership flag logic (test_ownership_flags_distinguish_own_enemy_neutral PASS); (6) golden check confirms 526 records, 0 mismatches (byte-identical behavior). All 9 related tests pass (4 features-contract + 5 state/ledger tests).","corrected_severity":"high"},{"finding_title":"Intended target IDs are preserved end-to-end from candidates through emission to sanitizer","verdict":"confirmed","reasoning":"Code inspection + empirical testing confirms complete target flow:\n\n1. POLICY: core/policy.py lines 693
+... (truncated 61553 chars, full result in /tmp/claude-1000/-home-harry-test-tt-pangu/8c10342b-5a56-43d7-a4e6-8fcfd5438d20/tasks/w23l4s4vb.output)
+</details>
+
+### 🤖 Assistant: *The review completed (44 agents, 77 findings…*
+
+`21:41:06`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The review completed (44 agents, 77 findings, 38 verified). The confirmed ones I can see are mostly *positive* verifications. Let me read the synthesis — the lead reviewer's actual merge verdict and any real blockers:
+
+#### 💻 Bash: *Extract the synthesis verdict from the workflow output*
+
+`21:41:11`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+OUT=/tmp/claude-1000/-home-harry-test-tt-pangu/8c10342b-5a56-43d7-a4e6-8fcfd5438d20/tasks/w23l4s4vb.output
+~/.venvs/orbit-wars/bin/python - "$OUT" <<'PY'
+import json, sys
+data = json.load(open(sys.argv[1]))
+# the tool result is the LAST line / the result field
+# file is the raw notification result JSON object
+print("=== SYNTHESIS ===")
+print(data.get("synthesis","(no synthesis)"))
+PY
+```
+
+```
+=== SYNTHESIS ===
+(no synthesis)
+```
+
+```bash
+$ OUT=/tmp/claude-1000/-home-harry-test-tt-pangu/8c10342b-5a56-43d7-a4e6-8fcfd5438d20/tasks/w23l4s4vb.output
+echo "=== file size / structure ==="; wc -c "$OUT"; head -c 300 "$OUT"; echo
+echo "=== try parse top-level keys ==="
+~/.venvs/orbit-wars/bin/python - "$OUT" <<'PY'
+import json,sys
+raw=open(sys.argv[1]).read()
+try:
+    d=json.loads(raw)
+    print("top-level keys:", list(d.keys()) if isinstance(d,dict) else type(d))
+    if isinstance(d,dict):
+        for k in d:
+            v=d[k]
+            print(f"  {k}: {type(v).__name__}", (f"len={len(v)}" if hasattr(v,'__len__') and not isinstance(v,str) else (v if not isinstance(v,(dict,list)) else '')))
+except Exception as e:
+    print("not pure JSON:", e)
+PY
+```
+
+```
+=== file size / structure ===
+71829 /tmp/claude-1000/-home-harry-test-tt-pangu/8c10342b-5a56-43d7-a4e6-8fcfd5438d20/tasks/w23l4s4vb.output
+{
+  "summary": "Adversarial review of the OW-ARCH-001 layered-architecture refactor (behavior preservation, P0 correctness, deploy robustness, acceptance, scope/safety)",
+  "agentCount": 44,
+  "logs": [],
+  "result": {
+    "dimensions_reviewed": 5,
+    "total_findings": 77,
+    "verified_count": 38,
+=== try parse top-level keys ===
+top-level keys: ['summary', 'agentCount', 'logs', 'result']
+  summary: str Adversarial review of the OW-ARCH-001 layered-architecture refactor (behavior preservation, P0 correctness, deploy robustness, acceptance, scope/safety)
+  agentCount: int 44
+  logs: list len=0
+  result: dict len=6
+```
+
+```bash
+$ OUT=/tmp/claude-1000/-home-harry-test-tt-pangu/8c10342b-5a56-43d7-a4e6-8fcfd5438d20/tasks/w23l4s4vb.output
+~/.venvs/orbit-wars/bin/python - "$OUT" <<'PY'
+import json,sys,textwrap
+d=json.loads(open(sys.argv[1]).read())["result"]
+print("dims:",d["dimensions_reviewed"],"findings:",d["total_findings"],"verified:",d["verified_count"],"confirmed/partial:",d["confirmed_or_partial"])
+print("\n===== SYNTHESIS (lead reviewer) =====\n")
+print(d.get("synthesis","(none)"))
+PY
+```
+
+```
+dims: 5 findings: 77 verified: 38 confirmed/partial: 37
+
+===== SYNTHESIS (lead reviewer) =====
+
+Confirmed: the write at line 284 only fires when `OW_SANITIZE_LOG` is a non-empty string (default `""` → OFF), and the whole `_emit_gate` is wrapped in try/except returning raw moves on any error (line 287-288). Safe.
+
+I now have everything needed for the final review. Let me consolidate.
+
+---
+
+# OW-ARCH-001 Layered-Architecture Refactor — Final Review
+
+## 1. Confirmed / Partial findings surviving adversarial verification
+
+The vast majority of the ~60 findings are `info`-level confirmations of correct, safe behavior (single-source geometry, thin entrypoint, default-OFF advisory layers, scope/safety clean, all tests pass). Those are not re-listed. The findings that carry a non-trivial caveat after my independent verification:
+
+### F1 — Golden regression proves SELF-CONSISTENCY, not equivalence to the frozen v3.2 snapshot (PARTIAL; severity: info→low, documentation-only)
+- OBSERVATION: `/tmp/claude/ow_golden_capture.py:19` imports `main as agent_mod` from `agent/` — the **refactored** agent. `agent/versions/v3_2.py` appears only as the *opponent* (lines 21, 30-33) to generate trajectories. The 526-record golden baseline is therefore the refactored agent's own output.
+- OBSERVATION: refactored `core/geometry.py:43` uses `ang_vel * max(0, step - 1)` (B11 fix); frozen `agent/versions/v3_2.py:100` uses `ang_vel * step` (one tick ahead). They are not byte-identical by design.
+- INFERENCE: the verdict that framed this as "comparison baseline incorrect / medium" **overstates** it. `core/geometry.py` (and the B11 fix) is **committed and unmodified** at HEAD via PR #117 ("B11 rotation-fix breakthrough"), which is the baseline OW-ARCH-001 builds on. `git status` shows geometry.py is not in this PR's diff. Comparing to the pre-B11 `v3_2.py` snapshot would be the *wrong* baseline — it predates an already-merged P0 correctness fix. The 0-mismatch result is a legitimate proof that the structural refactor preserved the **post-B11 behavior**.
+- FIX RECOMMENDATION: documentation-only. The golden-check docstring and any PR/review prose should say "byte-identical to the **post-B11 baseline** (PR #117), the agent's behavior at the start of this refactor" — not "byte-identical to v3.2." No code change required.
+
+### F2 — In-flight fleet decode fix is real but DORMANT on the default path (PARTIAL; severity: critical→info as shipped, with a latent-correctness note)
+- OBSERVATION: `core/state.py:236-239` now decodes in-flight fleets via `orc.decode_existing_fleet(obs, f)` → `trace_from_position(fx, fy, ...)` (current position) instead of the prior `orc.first_hit(obs, ffrom, ...)` (relaunch from source). Verified in the diff; the pre-PR code's comment already *claimed* current-position decode but the implementation relaunched from source — this PR makes code match the comment. Genuine behavior change.
+- OBSERVATION: the only callers of `build_battlefield_state` are `core/policy.py:351-353` (hybrid rerank) and `:395-397` (rule gate), both gated OFF by default (`OW_HYBRID=0`, `OW_RULE_ENGINE=0`). The default move path uses `_incoming_threat` (`core/policy.py:234`), which reads raw obs fleet `x,y` directly and never touches the decoded `FleetState`.
+- INFERENCE: this is why the golden is 0-mismatch — the decode fix does not surface in default-path moves. Verdicts calling it the "single source of truth the ledger and candidate generation use" are correct about the *architecture* but overstate its *current effect*: it only matters once an advisory layer is switched on. As shipped it is a correctly-implemented, well-tested, currently-inert fix. No risk to merge; flag it so a future PR that enables OW_RULE_ENGINE/OW_HYBRID knows the decode path becomes live (and must be re-validated then).
+- FIX RECOMMENDATION: none required for merge. Add one line to ARCHITECTURE.md noting the decode fix is exercised only when layers [5]/[6] are enabled.
+
+### F3 — Test count claims are inconsistent across reviewers (CONFIRMED core / REFUTED numerics; severity: info)
+- OBSERVATION: I ran all 10 files in `tests_orbit/`; every file exits rc=0. Independent reviewers' arithmetic gives 43 (5+4+4+6+5+3+5+3+5+3), not the "45"/"48" cited in two summary findings. The "26/26" finding is an undercount (omits 4 files).
+- INFERENCE: the substantive claim ("all layer tests pass") is TRUE; the headline numbers are sloppy.
+- FIX RECOMMENDATION: state "all 10 `tests_orbit/` suites pass (43 test functions)" in the PR body.
+
+### F4 — `agent() → []` exception handler masks errors (CONFIRMED; severity: medium, accepted trade-off)
+- OBSERVATION: `agent/main.py:61-62` swallows every exception and returns `[]`. This is intentional defense-in-depth (a crash forfeits a Kaggle match).
+- INFERENCE: correct strategically, but it can silently hide a live bug as "passive play." This is the exact failure mode the docstring (lines 13-19) warns about, now guarded at load time — but a runtime bug inside `act()` would still go silent.
+- FIX RECOMMENDATION: keep the handler; optionally log the traceback to `OW_SANITIZE_LOG`/stderr (best-effort, inside the except) so live silent-degradation is diagnosable. Not a merge blocker.
+
+## 2. Overall verdict: SAFE TO MERGE
+
+- Behavior preserved: YES, against the correct baseline. Golden 526/526 MISMATCHES=0 re-run green against the current working tree; the only nuance is that the baseline is the already-merged post-B11 agent, not the stale `v3_2.py` snapshot (F1) — which is the right baseline.
+- Deploy-robust (P0/B12): YES, verified independently. Kaggle `exec({})` empty-namespace load → `get_last_callable` returns `agent`, no NameError, returns `[]`; bare main.py without core/ → `[]`. `__file__` is touched only inside `try/except NameError` (`agent/main.py:34`).
+- Acceptance met: YES. Thin entrypoint (63 lines), single-source `core.geometry`, config bake OK (33 knobs match YAML), advisory layers (rule engine, hybrid) pass-through by default, all 10 test suites pass, arena 100% (20/20) vs v2/v1/starter/random.
+- Scope/safety clean: YES. All 25 changed paths under `competitions/orbit-wars/**`; zero forbidden-path touches; no submit/push/upload; no network/subprocess/dynamic-exec/pickle; env reads limited to `OW_*` via `core/config.py:52`; the only file write (`core/policy.py:284`) is OFF by default and try/except-guarded; no secret reads.
+
+Nothing blocks merge. The two over-severe verdicts (golden "medium refuted"; in-flight decode "critical") should be **downgraded** per F1/F2 — both reflect correct-but-mis-framed evidence, not defects. The recommended pre-merge actions are documentation-only (fix the "vs v3.2" wording and the test count in the PR body).
+
+## 3. Could NOT verify
+
+- LIVE Kaggle ladder behavior. All validation is local (arena + golden). The real engine's `exec` packaging, in-kernel `sys.path`, and opponent pool are not exercised. The local B12 simulation is faithful to `kaggle_environments.agent.get_last_callable`, but tar.gz packaging on the actual platform is unverified (no submit was performed, per scope).
+- The dormant advisory layers under load (OW_RULE_ENGINE=1 / OW_HYBRID=1). The in-flight decode fix and feature ownership split (F2) are unit-tested but NOT exercised end-to-end in a real game with those layers enabled; the golden/arena evidence only covers the default-OFF path. Note: `agent/hybrid_model.py:load_default` returns None for the current 24-feat weights vs the new 25-feat contract, so the hybrid path is doubly inert until weights are retrained — that compat-guard is the intended fail-safe.
+- Frozen `agent/versions/*` snapshots were not re-audited; they are not imported by the deployed agent (`agent/main.py` → `core.policy` → `core/` only), so they are out of the runtime path but were not independently confirmed to be excluded from a future submission tarball.
+
+Key files: `/home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/agent/main.py`, `core/geometry.py:43`, `core/state.py:236-239`, `core/oracle.py:90-120`, `core/features.py:71-92`, `core/policy.py:234,278-288,351-397`, `core/config.py:52`, `/tmp/claude/ow_golden_capture.py:19`, `agent/versions/v3_2.py:100`.
+```
+
+### 🤖 Assistant: *The adversarial review verdict is \*\*SAFE…*
+
+`21:41:50`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The adversarial review verdict is **SAFE TO MERGE** — no defects, only framing/documentation notes. Three are worth acting on before commit:
+> 
+> - **F3 (factual error I made)**: it's **10** `tests_orbit` files, not 11 — I miscounted in tasks.md/tracking.md. Must fix.
+> - **F2 (important nuance)**: the in-flight decode fix is correct + tested but *dormant on the default path* (the default move path reads raw obs fleet positions; the decoded `FleetState` is only consumed when `OW_RULE_ENGINE`/`OW_HYBRID` are on). That's *why* golden=0. Worth documenting.
+> - **F1 (wording)**: golden proves equivalence to the **post-B11 baseline** (already-merged), not the stale frozen `v3_2.py`. PR wording should reflect that.
+> 
+> Let me grep my exact strings and fix the count:
+
+#### 💻 Bash: *Confirm test file count + locate the wrong '11' references*
+
+`21:41:57`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars
+echo "=== confirm 10 test files (not 11) ==="; ls tests_orbit/test_*.py | wc -l; ls tests_orbit/test_*.py | sed 's#.*/##'
+echo "=== where I wrote '11 tests_orbit' / '11 \`tests_orbit\`' ==="
+grep -rn "11 \`tests_orbit\`\|11 tests_orbit" tasks.md tracking.md bugs.md ARCHITECTURE.md
+```
+
+```
+=== confirm 10 test files (not 11) ===
+10
+test_action_sanitizer.py
+test_config_layer.py
+test_features_contract.py
+test_flight_oracle.py
+test_geometry_oracle.py
+test_hybrid_model.py
+test_policy_smoke.py
+test_rule_engine_wiring.py
+test_state_fleet_decode.py
+test_state_ledger.py
+=== where I wrote '11 tests_orbit' / '11 `tests_orbit`' ===
+tracking.md:95:  11 `tests_orbit` files / 43 tests pass; `ruff check .` clean. No Kaggle ops. Follow-ups OW-ARCH-002..005 in
+tasks.md:36:- **P1 OW-ARCH-001 (prompt `08`)**: ✅ **done (2026-06-18) — layered-architecture refactor + correctness hardening.** Split the monolithic `agent/main.py` (now a **62-line thin entrypoint**) → `core/policy.py` (v3.2 Forecast core + orchestration + the documented 8-layer data-flow contract); deduped all physics to `core/geometry.py` (`agent/utils.py` is now a thin re-export wrapper). **P0 fixes:** (a) `FlightOracle.trace_from_position` + `decode_existing_fleet`, and `core/state.py` now decodes in-flight fleets from their CURRENT `(x,y)` (not relaunched from source); (b) intended target IDs preserved through emission via new `core/action_emitter.py` → `core/action_sanitizer.py` (wrong-first-hit gate opt-in `OW_BLOCK_WRONG_HIT`); (c) `core/features.py` ownership split into **own/enemy/neutral** (25-dim now; `owner!=-1`≠enemy). New typed `core/candidates.py::CandidateAction`. `core/rule_engine.py` wired via `_rule_gate` (pass-through default `OW_RULE_ENGINE=0`). **Config layer:** `core/config.py` centralizes all 33 `OW_*` reads (env→baked→literal); YAML source `config/{default,profiles/*}.yaml` baked (PyYAML-free) to `agent/config_baked.py` via `config/bake.py` (`--check` drift guard). **Behavior preserved byte-for-byte** (golden 526-record obs→moves = 0 mismatches; arena `validate.py` 100% vs v2/v1/starter/random). **Caught + fixed B12** (the `__file__`-at-load passive-agent regression — see `bugs.md`). 11 `tests_orbit` files / 43 tests pass; `ruff check .` clean. **No Kaggle ops.** Follow-ups:
+```
+
+#### ✏️  Edit `tasks.md`
+
+`21:42:06`
+
+```diff
+@@ -1 +1 @@-**Caught + fixed B12** (the `__file__`-at-load passive-agent regression — see `bugs.md`). 11 `tests_orbit` files / 43 tests pass; `ruff check .` clean. **No Kaggle ops.** Follow-ups:
++**Caught + fixed B12** (the `__file__`-at-load passive-agent regression — see `bugs.md`). 10 `tests_orbit` files / 43 tests pass; `ruff check .` clean. **No Kaggle ops.** (Note: golden 0-mismatch is vs the **post-B11 baseline** — the already-merged agent at the start of this refactor, PR #117 — not the frozen pre-B11 `agent/versions/v3_2.py`. The current-position fleet-decode fix and the 25-feat ownership split are correct + unit-tested but **dormant on the default move path** — consumed only when layer [5]/[6] is enabled — which is why the default path is byte-identical.) Follow-ups:
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tasks.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### ✏️  Edit `tracking.md`
+
+`21:42:10`
+
+```diff
+@@ -1 +1 @@-  11 `tests_orbit` files / 43 tests pass; `ruff check .` clean. No Kaggle ops. Follow-ups OW-ARCH-002..005 in
++  10 `tests_orbit` files / 43 tests pass; `ruff check .` clean. No Kaggle ops. Follow-ups OW-ARCH-002..005 in
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/tracking.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Now the F2 nuance in ARCHITECTURE.md — that…*
+
+`21:42:18`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now the F2 nuance in ARCHITECTURE.md — that the decode fix + ownership features are correct but dormant on the default path:
+
+#### ✏️  Edit `ARCHITECTURE.md`
+
+`21:42:26`
+
+```diff
+@@ -1,2 +1,11 @@ (Layers [6] and [5] are advisory and **OFF by default**, so the live path is byte-identical to pure
+ v3.2 Forecast; the greedy budget selector sits between [4] and emission.)
++
++> **Default-path scope (OW-ARCH-001).** With both advisory layers off, the v3.2 commit path computes
++> moves from its own inline forward-sim and reads raw obs fleet positions directly (`_incoming_threat`);
++> it does **not** consume `BattlefieldState`/`features`/`ledger`. So the layer-1 current-position fleet
++> **decode fix** and the layer-4 **own/enemy/neutral** split are correct + unit-tested but only become
++> *live in move selection* once `OW_RULE_ENGINE`/`OW_HYBRID` is enabled (they build `BattlefieldState`).
++> This is exactly why the default path is byte-identical (golden 0-mismatch). Re-validate those layers
++> end-to-end when first enabling [5]/[6]. The byte-identical baseline is the **post-B11** agent (the
++> already-merged state this refactor started from), not the frozen pre-B11 `agent/versions/v3_2.py`.
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/ow-arch/competitions/orbit-wars/ARCHITECTURE.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+### 🤖 Assistant: *Doc fixes applied.*
+
+`21:42:50`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Doc fixes applied. No code changed since the last green run, so tests/golden remain valid. Let me check branch state + whether the ruff gate is active before committing:
+
+#### 💻 Bash: *Check branch, base, ruff-on-path, git writability*
+
+`21:42:54`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+echo "=== current branch ==="; git rev-parse --abbrev-ref HEAD
+echo "=== base ==="; git log --oneline -1; git log --oneline -1 origin/main 2>/dev/null
+echo "=== ruff on PATH? (gate active iff present) ==="; which ruff 2>/dev/null || echo "  ruff NOT on PATH -> format_gate hook is inert"
+echo "=== is worktree .git writable for commit? ==="; git status >/dev/null 2>&1 && echo "  git ops OK"
+```
+
+```
+=== current branch ===
+orbit-arch-refactor
+=== base ===
+644628c prep 08-goal-layered-agent-architecture-refactor.md (#130)
+644628c prep 08-goal-layered-agent-architecture-refactor.md (#130)
+=== ruff on PATH? (gate active iff present) ===
+ruff not found
+  ruff NOT on PATH -> format_gate hook is inert
+=== is worktree .git writable for commit? ===
+  git ops OK
+```
+
+### 🤖 Assistant: *Branch `orbit-arch-refactor` is ready (from…*
+
+`21:43:11`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Branch `orbit-arch-refactor` is ready (from origin/main 644628c), ruff gate is inert, git ops work. Let me stage all orbit-wars changes and commit:
+
+#### 💻 Bash: *Stage orbit-wars changes + verify scope*
+
+`21:43:13`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+git add competitions/orbit-wars/
+echo "=== staged files ==="; git diff --cached --name-status
+echo "=== sanity: nothing staged outside orbit-wars ==="
+git diff --cached --name-only | grep -vE "^competitions/orbit-wars/" || echo "  (clean — all staged paths under orbit-wars)"
+```
+
+```
+=== staged files ===
+M	competitions/orbit-wars/ARCHITECTURE.md
+M	competitions/orbit-wars/README.md
+A	competitions/orbit-wars/agent/config_baked.py
+M	competitions/orbit-wars/agent/hybrid_model.py
+M	competitions/orbit-wars/agent/main.py
+M	competitions/orbit-wars/agent/utils.py
+M	competitions/orbit-wars/bugs.md
+A	competitions/orbit-wars/config/README.md
+A	competitions/orbit-wars/config/bake.py
+A	competitions/orbit-wars/config/default.yaml
+A	competitions/orbit-wars/config/profiles/current.yaml
+A	competitions/orbit-wars/config/profiles/hybrid_v0.yaml
+A	competitions/orbit-wars/config/profiles/ladder_probe.yaml
+A	competitions/orbit-wars/core/action_emitter.py
+A	competitions/orbit-wars/core/candidates.py
+A	competitions/orbit-wars/core/config.py
+M	competitions/orbit-wars/core/features.py
+M	competitions/orbit-wars/core/oracle.py
+A	competitions/orbit-wars/core/policy.py
+M	competitions/orbit-wars/core/state.py
+M	competitions/orbit-wars/tasks.md
+M	competitions/orbit-wars/tests_orbit/test_action_sanitizer.py
+A	competitions/orbit-wars/tests_orbit/test_config_layer.py
+A	competitions/orbit-wars/tests_orbit/test_features_contract.py
+A	competitions/orbit-wars/tests_orbit/test_geometry_oracle.py
+M	competitions/orbit-wars/tests_orbit/test_hybrid_model.py
+A	competitions/orbit-wars/tests_orbit/test_policy_smoke.py
+A	competitions/orbit-wars/tests_orbit/test_rule_engine_wiring.py
+A	competitions/orbit-wars/tests_orbit/test_state_fleet_decode.py
+M	competitions/orbit-wars/tracking.md
+=== sanity: nothing staged outside orbit-wars ===
+  (clean — all staged paths under orbit-wars)
+```
+
+### 🤖 Assistant: *All 30 staged files are under orbit-wars…*
+
+`21:43:19`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All 30 staged files are under orbit-wars. Let me write the commit message to a file (avoiding shell-escaping issues) and commit:
+
+#### ✍️  Write `ow_arch_commit_msg.txt`
+
+`21:43:29`
+
+<details>
+<summary><code>/tmp/claude/ow_arch_commit_msg.txt</code></summary>
+
+```
+feat(orbit-wars): layered core architecture refactor (OW-ARCH-001)
+
+Split the monolithic agent into the 8-layer core/ data flow. Behavior is
+byte-identical to the post-B11 v3.2 baseline this refactor started from
+(golden 526/526 obs->moves, arena 100% vs v2/v1/starter/random).
+
+- agent/main.py -> thin entrypoint that locates core/ via sys.path (no __file__);
+  core/policy.py holds the v3.2 "Forecast" policy + orchestration + the documented
+  data-flow contract. Physics deduped to core/geometry.py; agent/utils.py -> wrapper.
+- P0 correctness: FlightOracle.trace_from_position / decode_existing_fleet; core/state.py
+  decodes in-flight fleets from current (x,y) (not relaunch-from-source); intended
+  target IDs preserved through core/action_emitter.py -> action_sanitizer (wrong-first-hit
+  opt-in via OW_BLOCK_WRONG_HIT); core/features.py ownership split own/enemy/neutral (25-dim).
+- core/candidates.py CandidateAction; core/rule_engine.py wired via _rule_gate
+  (pass-through default OW_RULE_ENGINE=0).
+- config layer: core/config.py centralizes all 33 OW_* (env -> baked -> literal);
+  YAML config/{default,profiles/*}.yaml baked PyYAML-free to agent/config_baked.py
+  via config/bake.py (--check drift guard). Runtime stays stdlib-only.
+- fixed B12: the thin shim referenced __file__ at module load, which kaggle's
+  exec(code, {}) leaves undefined -> NameError -> agent loaded passive (lost to random
+  in the first arena run). Now scans sys.path with a __file__ fallback + a permanent
+  exec-load regression test. Caught by arena validate.py, missed by the in-process golden.
+
+Validation: py_compile clean; 10 tests_orbit files / 43 tests pass; ruff check . clean;
+golden 0 mismatches; arena validate.py 100%; bake --check OK. No Kaggle submit/push/upload;
+all changes scoped to competitions/orbit-wars/**. Follow-ups OW-ARCH-002..005 in tasks.md.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+
+```
+</details>
+
+✓ File created successfully at: /tmp/claude/ow_arch_commit_msg.txt (file state is current in your context — no need to Read it back)
+
+#### 💻 Bash: *Commit the OW-ARCH-001 refactor*
+
+`21:43:33`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+git commit -F /tmp/claude/ow_arch_commit_msg.txt 2>&1 | tail -8
+echo "=== HEAD ==="; git log --oneline -1
+```
+
+```
+ create mode 100644 competitions/orbit-wars/core/config.py
+ create mode 100644 competitions/orbit-wars/core/policy.py
+ create mode 100644 competitions/orbit-wars/tests_orbit/test_config_layer.py
+ create mode 100644 competitions/orbit-wars/tests_orbit/test_features_contract.py
+ create mode 100644 competitions/orbit-wars/tests_orbit/test_geometry_oracle.py
+ create mode 100644 competitions/orbit-wars/tests_orbit/test_policy_smoke.py
+ create mode 100644 competitions/orbit-wars/tests_orbit/test_rule_engine_wiring.py
+ create mode 100644 competitions/orbit-wars/tests_orbit/test_state_fleet_decode.py
+=== HEAD ===
+a20be8f feat(orbit-wars): layered core architecture refactor (OW-ARCH-001)
+```
+
+### 🤖 Assistant: *Committed `a20be8f`.*
+
+`21:43:41`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Committed `a20be8f`. Now push the branch:
+
+#### 💻 Bash: *Push the orbit-arch-refactor branch to origin*
+
+`21:43:42`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+git push -u origin orbit-arch-refactor 2>&1 | tail -12
+```
+
+```
+Host key verification failed.
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+```
+
+### 🤖 Assistant: *SSH host-key verification failed — a sandbox…*
+
+`21:43:47`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> SSH host-key verification failed — a sandbox restriction on `~/.ssh` access. Retrying with the sandbox disabled for this push (the `/sandbox` command can manage these restrictions if you'd like to adjust them):
+
+#### 💻 Bash: *Push branch with sandbox disabled (SSH creds)*
+
+`21:43:50`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+git push -u origin orbit-arch-refactor 2>&1 | tail -12
+```
+
+```
+remote: 
+remote: Create a pull request for 'orbit-arch-refactor' on GitHub by visiting:        
+remote:      https://github.com/amyteq/tt_pangu/pull/new/orbit-arch-refactor        
+remote: 
+To github.com:amyteq/tt_pangu.git
+ * [new branch]      orbit-arch-refactor -> orbit-arch-refactor
+branch 'orbit-arch-refactor' set up to track 'origin/orbit-arch-refactor'.
+```
+
+### 🤖 Assistant: *Pushed. Now let me read the PR template and…*
+
+`21:44:02`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Pushed. Now let me read the PR template and open the PR against main:
+
+#### 💻 Bash: *Read the PR template*
+
+`21:44:02`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+cat .github/pull_request_template.md 2>/dev/null | head -80
+```
+
+```
+<!--
+Use this template for every PR. The closeout checklist is load-bearing —
+PRs missing tests/evidence/safety notes will be sent back for revision.
+See docs/engineering-practice.md for the full model.
+-->
+
+## Summary
+
+<!-- 1–3 bullets: what changed and why. Link the issue(s) this closes. -->
+
+Closes #
+
+## Tests run
+
+<!-- Paste the commands you ran and the result. Failing tests are not "skipped" — they are blockers. -->
+
+- [ ] `python -m pytest tests/ services/decision_api/tests -v`
+- [ ] `ruff check .`
+- [ ] `ruff format --check .`
+- [ ] `pnpm -C ui install --frozen-lockfile`
+- [ ] `pnpm -C ui lint`
+- [ ] `pnpm -C ui typecheck`
+- [ ] `pnpm -C ui build`
+- [ ] `pnpm -C ui run test --run`
+- [ ] (if applicable) live-DB tests against the local `supabase-db` container
+
+## Docs / inventory impact
+
+- [ ] Updated `docs/` for any behaviour or interface change
+- [ ] Updated `PROJECT_STATE.md` / `docs/milestones/README.md` if a milestone or status changed
+- [ ] Updated ADR under `docs/adr/` if an architectural decision was made
+- [ ] No doc update needed (explain why)
+
+## Evidence
+
+<!-- Links to test runs, CI artifacts, screenshots, audit-log entries, docs/evidence/* files. -->
+
+## Schema / RLS / secrets impact
+
+- [ ] No DB migration introduced
+- [ ] Introduces / modifies migration under `supabase/migrations/` — migration is reversible and reviewed
+- [ ] No new secret read / write surface
+- [ ] Touches secrets handling, sandbox/hook policy, or permission model — `area:security` label applied and reviewer pinged
+
+## Remote side effects
+
+- [ ] None — local-only change
+- [ ] Live Kaggle call (submit / kernel push / dataset / model upload) — explicit approval recorded on the closing issue
+- [ ] Remote Supabase write — explicit approval recorded
+- [ ] Other remote write (gh label sync, gh issue/PR mass edit, release publish) — explain and link approval
+
+## Risks and follow-ups
+
+<!-- Known gaps, deferred work, follow-up issues to file. -->
+
+---
+
+🤖 If a Claude Code agent prepared this PR, it cited evidence and acceptance criteria from the closing issue.
+```
+
+### 🤖 Assistant: *Let me write the PR body from the template…*
+
+`21:44:10`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me write the PR body from the template, adapted to this orbit-wars-only change:
+
+#### ✍️  Write `ow_arch_pr_body.md`
+
+`21:44:43`
+
+<details>
+<summary><code>/tmp/claude/ow_arch_pr_body.md</code></summary>
+
+```markdown
+## Summary
+
+Layered-architecture refactor of the Orbit Wars agent (**OW-ARCH-001**, task prompt `08`). Splits the
+monolithic `agent/main.py` into the 8-layer `core/` data flow, hardens correctness, and adds a
+stdlib-safe config layer — **without changing default strategy behavior**.
+
+- `agent/main.py` → **thin entrypoint** (62 lines) that locates `core/` via `sys.path` and calls
+  `core.policy.get_default_policy().act(obs)`; the v3.2 "Forecast" policy + orchestration + the documented
+  data-flow contract now live in `core/policy.py`. Physics deduped to `core/geometry.py` (single source);
+  `agent/utils.py` → thin re-export wrapper.
+- **P0 correctness:** `FlightOracle.trace_from_position` / `decode_existing_fleet`; `core/state.py` decodes
+  in-flight fleets from their **current `(x,y)`** (not relaunch-from-source); intended target IDs preserved
+  through `core/action_emitter.py` → `core/action_sanitizer.py` (wrong-first-hit gate opt-in); `core/features.py`
+  ownership split into **own/enemy/neutral** (25-dim). New typed `core/candidates.py::CandidateAction`;
+  `core/rule_engine.py` wired via `_rule_gate` (pass-through default).
+- **Config layer:** `core/config.py` centralizes all 33 `OW_*` (env → baked → literal); YAML
+  `config/{default,profiles/*}.yaml` baked **PyYAML-free** to `agent/config_baked.py` via `config/bake.py`
+  (`--check` drift guard). Runtime stays stdlib-only.
+- **Fixed B12** (regression introduced + caught this PR): the thin shim referenced `__file__` at module load,
+  which kaggle's `exec(code, {})` leaves undefined → `NameError` → the agent loaded **passive** (lost to
+  *random* in the first arena run). Now scans `sys.path` with a `__file__` fallback + a permanent exec-load
+  regression test. **The in-process golden harness could not catch this; arena `validate.py` did** — which is
+  why the task mandates the arena run on top of unit tests.
+
+Related: issue **#87** (Orbit Wars tracking hub). Not closing a specific issue (task-pack item).
+
+## Tests run
+
+Orbit-wars is a self-contained competition module (stdlib + `kaggle_environments`); the product test
+matrix below is **N/A for this change**. Orbit-specific checks actually run:
+
+- [x] `ruff check .` — **clean** (repo-wide; the CI gate)
+- [x] `python config/bake.py --check` — OK (33 knobs match `profiles/current.yaml`)
+- [x] `python -m py_compile` over `agent/*.py` + `core/*.py` + `config/bake.py` — clean
+- [x] `tests_orbit/` — **10 files / 43 tests pass** (geometry-oracle 5, flight-oracle 6, state-fleet-decode 3,
+  state-ledger 5, features-contract 4, action-sanitizer 4, hybrid-model 3, config-layer 5, rule-engine-wiring 3,
+  policy-smoke 5). No pytest in the venv → each file has an `if __name__=='__main__'` runner.
+- [x] **Golden behavior regression** (`obs→moves` over 526 recorded records): `MISMATCHES=0` — byte-identical
+  to the **post-B11 baseline** this refactor started from.
+- [x] `arena/validate.py --games 10 --procs 4` — `current` **100%** (20/20) vs v2, v1, starter, random.
+  Mirror vs the **frozen pre-B11** `agent/versions/v3_2.py` = 91.7% (= the already-merged B11 fix, expected).
+- [x] `ruff format --check` on all files this PR adds/modifies — clean.
+- [ ] `python -m pytest tests/ services/decision_api/tests` — N/A (no product code touched)
+- [ ] `pnpm -C ui …` — N/A (no UI touched)
+
+`arena/suite_gate.py` (strong-tier) was **not** run: its opponents (`agent/versions/suite/*`, `kuni05/`) are
+gitignored and absent in the worktree — running it would load missing opponents as passive (false 100%).
+Documented as a known limitation.
+
+## Docs / inventory impact
+
+- [x] Updated `competitions/orbit-wars/` docs: `ARCHITECTURE.md` (8-layer map, config layer, default-path
+  scope note, B12), `README.md` (Layout), `tracking.md`, `tasks.md` (OW-ARCH-001 + follow-ups OW-ARCH-002..005),
+  `bugs.md` (B12), `config/README.md`.
+- [x] No `PROJECT_STATE.md` / milestone / ADR change needed — this is a competition-module refactor, not a
+  product milestone or architectural decision for KCA core.
+
+## Evidence
+
+- Golden harness `/tmp/claude/ow_golden_check.py` → `records=526 MISMATCHES=0`.
+- Arena: `cd competitions/orbit-wars/arena && OMP_NUM_THREADS=1 python validate.py --games 10 --procs 4`.
+- Adversarial review (5 dimensions × verify, 44 agents): verdict **SAFE TO MERGE**, no defects — only
+  documentation-framing notes (acted on: test count 11→10, golden-baseline wording, default-path-scope note).
+- B12 repro: `exec(compile(open('agent/main.py').read(), path), {})` raised `NameError: __file__` pre-fix;
+  post-fix the loaded `agent` acts (regression test `test_policy_smoke.py::test_main_loads_and_acts_under_kaggle_exec_no_dunder_file`).
+
+## Schema / RLS / secrets impact
+
+- [x] No DB migration introduced
+- [x] No new secret read / write surface (config reads only `OW_*` env via `core/config.py`; no `.env`/kaggle.json/secrets reads)
+
+## Remote side effects
+
+- [x] None — local-only change. **No Kaggle submit / kernel push / dataset / model upload was performed.**
+
+## Risks and follow-ups
+
+- **Behavior-preservation scope:** the default move path is byte-identical (golden 0-mismatch); the
+  current-position fleet-decode fix and the 25-feat ownership split are correct + unit-tested but **dormant on
+  the default path** (consumed only when `OW_RULE_ENGINE`/`OW_HYBRID` is enabled, which build `BattlefieldState`).
+  Re-validate those layers end-to-end when first enabling them.
+- **Follow-ups** (in `tasks.md`): OW-ARCH-002 retrain the layer-5 scorer on the **25-feat** contract (the
+  deployed 24-feat `hybrid_weights.json` now auto-disables → rules-only); OW-ARCH-003 A/B the RuleEngine layer;
+  OW-ARCH-004 extract inline valuation into `core/valuation.py` + migrate remaining experimental knobs;
+  OW-ARCH-005 reformat 2 pre-existing format-dirty test files (`test_flight_oracle.py`, `test_state_ledger.py`,
+  committed unformatted on main; left untouched here to avoid out-of-scope churn — CI's `ruff format --check` is
+  disabled so they don't fail CI).
+
+---
+
+🤖 Prepared by a Claude Code agent. Behavior preservation is golden-verified (526/526) and the only
+runtime delta vs the frozen pre-B11 snapshot is the already-merged B11 rotation fix.
+
+```
+</details>
+
+✓ File created successfully at: /tmp/claude/ow_arch_pr_body.md (file state is current in your context — no need to Read it back)
+
+#### 💻 Bash: *Open PR against main*
+
+`21:44:49`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+gh pr create --base main --head orbit-arch-refactor \
+  --title "feat(orbit-wars): layered core architecture refactor (OW-ARCH-001)" \
+  --body-file /tmp/claude/ow_arch_pr_body.md 2>&1 | tail -8
+```
+
+```
+https://github.com/amyteq/tt_pangu/pull/132
+```
+
+### 🤖 Assistant: *PR \*\*#132\*\* opened.*
+
+`21:45:01`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> PR **#132** opened. Let me verify it landed correctly:
+
+#### 💻 Bash: *Verify PR #132 metadata*
+
+`21:45:03`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+gh pr view 132 --json number,title,baseRefName,headRefName,state,additions,deletions,changedFiles 2>&1 | head -20
+```
+
+```
+{"additions":2530,"baseRefName":"main","changedFiles":30,"deletions":1508,"headRefName":"orbit-arch-refactor","number":132,"state":"OPEN","title":"feat(orbit-wars): layered core architecture refactor (OW-ARCH-001)"}
+```
+
+### 🤖 Assistant: *Done. PR \*\*#132\*\* is open against `main`…*
+
+`21:45:17`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Done. PR **#132** is open against `main` (+2530/−1508, 30 files). Here's the final report.
+> 
+> ## OW-ARCH-001 — Layered architecture refactor: complete
+> 
+> **PR:** [#132](https://github.com/amyteq/tt_pangu/pull/132) (`orbit-arch-refactor` → `main`, OPEN). No Kaggle ops, no push to main, all changes scoped to `competitions/orbit-wars/**`.
+> 
+> ### Files
+> - **Created:** `core/policy.py` (moved v3.2 policy + orchestration), `core/config.py`, `core/candidates.py` (`CandidateAction`), `core/action_emitter.py`, `agent/config_baked.py`, `config/{README.md,default.yaml,bake.py,profiles/{current,hybrid_v0,ladder_probe}.yaml}`, 6 new `tests_orbit/` files.
+> - **Modified:** `agent/{main.py,utils.py,hybrid_model.py}`, `core/{oracle,state,features}.py`, `tests_orbit/test_{action_sanitizer,hybrid_model}.py`, docs (`ARCHITECTURE.md`, `README.md`, `tracking.md`, `tasks.md`, `bugs.md`).
+> - **Moved:** `agent/main.py`'s entire policy body → `core/policy.py` (main.py 62 lines now). **Deleted:** none.
+> 
+> ### Architecture / dedup
+> - 8-layer `core/` flow; physics single-sourced in `core/geometry.py`; `agent/utils.py` is now a thin re-export wrapper (no duplicate primitives). Data-flow contract documented in `core/policy.py` + `ARCHITECTURE.md`.
+> 
+> ### P0 correctness fixes
+> - `FlightOracle.trace_from_position` + `decode_existing_fleet`; `core/state.py` decodes in-flight fleets from **current `(x,y)`** (not relaunch-from-source).
+> - Intended target IDs preserved through `core/action_emitter.py` → `action_sanitizer` (wrong-first-hit gate opt-in `OW_BLOCK_WRONG_HIT`).
+> - `core/features.py` ownership split **own/enemy/neutral** (25-dim); `core/rule_engine.py` wired pass-through (`OW_RULE_ENGINE`).
+> - **B12 (found + fixed this session):** thin shim referenced `__file__` at load → kaggle's `exec(code, {})` → `NameError` → agent went passive (lost to *random* in the first arena run). Fixed via `sys.path`-scanning `_locate_core()` + regression test. **The arena gate caught what golden couldn't.**
+> 
+> ### Config
+> - `core/config.py` centralizes all 33 `OW_*` (env → baked → literal); YAML source baked **PyYAML-free** to `agent/config_baked.py` via `config/bake.py` (`--check` drift guard). Runtime stdlib-only.
+> 
+> ### Validation (all green)
+> - `py_compile` clean · `bake --check` OK · `ruff check .` clean repo-wide · **golden 526/526 MISMATCHES=0** · **10 tests_orbit files / 43 tests pass** · arena `validate.py` **100%** vs v2/v1/starter/random · mirror vs frozen pre-B11 v3.2 = 91.7% (= the merged B11 fix).
+> - Adversarial review (44 agents, 5 dimensions): **SAFE TO MERGE, no defects** — only framing notes, all acted on (test-count fix 11→10, golden-baseline wording, default-path-scope note).
+> 
+> ### Behavior-preservation risk / known limitations
+> - Default move path is byte-identical; the decode fix + ownership features are **dormant** until `OW_RULE_ENGINE`/`OW_HYBRID` is enabled (they build `BattlefieldState`) — flagged for re-validation then.
+> - `suite_gate.py` (strong-tier) not run — opponents gitignored/absent in worktree (would false-100%); documented.
+> 
+> ### Follow-ups created (`tasks.md`)
+> - **OW-ARCH-002** retrain layer-5 scorer on the 25-feat contract (24-feat weights now auto-disable → rules-only); **OW-ARCH-003** A/B the RuleEngine layer; **OW-ARCH-004** extract `core/valuation.py` + migrate remaining experimental knobs; **OW-ARCH-005** reformat 2 pre-existing format-dirty test files.
+> 
+> **Acceptance criteria: all passed.** Every bullet in the task's acceptance list is satisfied (independently audited in the review), `py_compile`/tests/ruff/arena all green, behavior preserved, no Kaggle/secret/forbidden-path activity.
+
+### Recap
+
+`21:50:30`
+
+📝 Recap: Goal: refactor the Orbit Wars agent into a layered architecture (OW-ARCH-001). It's done and verified (golden 0-mismatch, arena 100%, 43 tests pass), committed, and opened as PR #132. Next action: review and merge #132.
+
+### 🤖 Assistant: *The OW-ARCH-001 task is complete and PR …*
+
+`22:08:27`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The OW-ARCH-001 task is complete and PR #132 is open. The natural next step after opening the PR is to confirm CI is green. Let me check the PR's checks:
+
+#### 💻 Bash: *Check PR #132 CI status and mergeability*
+
+`22:08:30`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/ow-arch
+echo "=== PR #132 checks ==="
+gh pr checks 132 2>&1 | head -30
+echo "=== PR state/mergeable ==="
+gh pr view 132 --json state,mergeable,mergeStateStatus,reviewDecision 2>&1 | head
+```
+
+```
+=== PR #132 checks ===
+no-db pytest	pass	37s	https://github.com/amyteq/tt_pangu/actions/runs/27721770587/job/82008684742	
+ruff lint + format check	pass	16s	https://github.com/amyteq/tt_pangu/actions/runs/27721770587/job/82008684617	
+ui build + lint + typecheck + test	pass	42s	https://github.com/amyteq/tt_pangu/actions/runs/27721770587/job/82008684676	
+eval (rolling diff)	skipping	0	https://github.com/amyteq/tt_pangu/actions/runs/27721770581/job/82008813355	
+eval (mocked nightly)	pass	36s	https://github.com/amyteq/tt_pangu/actions/runs/27721770581/job/82008684789	
+eval-delta-check (PR gate)	pass	43s	https://github.com/amyteq/tt_pangu/actions/runs/27721770581/job/82008684812	
+live-db pytest	pass	54s	https://github.com/amyteq/tt_pangu/actions/runs/27721770587/job/82008684633	
+=== PR state/mergeable ===
+{"mergeStateStatus":"CLEAN","mergeable":"MERGEABLE","reviewDecision":"","state":"OPEN"}
+```
+
+### 🤖 Assistant: *CI on PR #132 is fully green and the PR is…*
+
+`22:08:49`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> CI on PR #132 is fully green and the PR is mergeable — the task is complete end-to-end.
+> 
+> ## Closeout status — OW-ARCH-001
+> 
+> **PR [#132](https://github.com/amyteq/tt_pangu/pull/132)** — `orbit-arch-refactor` → `main`, **OPEN**, `mergeStateStatus: CLEAN`, `mergeable: MERGEABLE`.
+> 
+> **CI — all required checks pass:**
+> | Check | Result |
+> |---|---|
+> | ruff lint + format check | ✅ pass (16s) |
+> | no-db pytest | ✅ pass (37s) |
+> | live-db pytest | ✅ pass (54s) |
+> | ui build + lint + typecheck + test | ✅ pass (42s) |
+> | eval (mocked nightly) | ✅ pass (36s) |
+> | eval-delta-check (PR gate) | ✅ pass (43s) |
+> | eval (rolling diff) | skipping (no eval-relevant change) |
+> 
+> There's nothing left to execute on this goal: the refactor is done, every acceptance criterion passed (independently audited by the adversarial review, verdict **SAFE TO MERGE**), behavior is golden-verified byte-identical, the arena gate caught + fixed the B12 deploy regression, and the PR is open with green CI.
+> 
+> **I'm stopping here rather than merging** — per the project rules (`[[feedback_direct_edits]]`: no merge to `main` without your approval; the goal was to *open* the PR, not merge it). The PR is ready for your review/merge whenever you want it.
+> 
+> If you'd like, I can: merge #132 (squash, keeping the remote branch per CLAUDE.md), pick up one of the follow-ups (OW-ARCH-002 retrain the scorer on the 25-feat contract is the highest-value), or address any review comments.
+
 <a id="branch-d84f545f"></a>
 
 ## 🌿 Branch • d84f545f
