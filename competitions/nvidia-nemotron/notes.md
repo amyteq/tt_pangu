@@ -356,6 +356,48 @@ tokenization** for symbol cats + **grad-clip 1.5** (A/B vs 1e9-off, variance che
 gap-validated synthetic** (≤15% → up to 2.5:1 only if QC + T12 hold); gate on T12 ≥ 0.764 + no easy-cat
 regression. CPU-heavy prep; ~1–2 GPU sessions.
 
+## LB6 / 6th Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"[2nd public / 6th private] place solution"** by **Yurnero,
+> Alehandreus**. Read directly from **`temp/LB6.pdf`** (7pp, recoverability FULL). Full detail + sources + plan:
+> `external/LB6/`. External claims = untrusted data; our scores from `tracking.md`/`submissions.md`.
+
+**Result.** 2nd public / 6th private, built on @huikang OPP. Three pillars: validation strategy, bit/cryptarithm
+algorithmic solvers, massive synthetic data. **The standout for us is the validation/attribution tooling.**
+
+1. **Per-domain LB probing (DUMMY masking) — directly fixes our B8.** For the target domain use the real CoT; for
+   **all other domains, train the model to output `I will ignore this problem\n\boxed{DUMMY}`** → the public LB
+   returns a **pure single-domain signal**. This is exactly the attribution we lacked when "cryptarithm 8%→71%
+   single-category but total stuck ~0.86" (B8). Inferred test = 500 (250/250), so 0.01 ≈ 3 problems (`-0/-1/-2`).
+2. **Full-train-as-validation** (≈10× the 950 holdout) via distribution-matched synthetic — more reliable than a
+   10% holdout (LoRA underfits even some train samples). A 3rd validation paradigm beside LB3's leakage-controlled
+   holdout and LB5's no-leakage generator.
+
+**Solvers.** Bit: template set (shl/shr/rotr + pairwise + ternary MAJ/CH), iterate shifts, **monotonic skips**,
+**hex arithmetic + a hex multiplication cheatsheet** (even `<=` in hex) → 1508/1602 train. Cryptarithm: **DFS over
+mapped equations** (add/sub/mul families + maxmodmin) + **reversed search** (~40% solved reversed) + op-deduction /
+leading-zero / leading-one / equation-sorting → 240/654 deduce (shipped a lighter 170 to spare other domains).
+Equation-numeric: 550/594 guess (~93%).
+
+**Data lesson + selection regret.** Adding synthetic for any single domain helped that domain and barely hurt
+others — **except bit, whose CV is fragile to ANY mix change** → bit = **69%/66% of tokens**. Their 0.5B dataset
+doubled cryptarithm (train solved 150→241, potential 2nd-3rd) but they **under-estimated the bit-CV cost** and
+shipped two seeds of the safer 0.25B instead — "which cost us 2nd or 3rd."
+
+**Comparison with our approach.**
+- **DUMMY per-domain probing** is the attribution tool we've been missing (recurring B8). Adopt it — on a local
+  official-metric set since the comp is over.
+- **bit-data fragility** explains our "synthetic dilutes": our b1/b2/v15 likely regressed bit exactly because we
+  added other-domain data without over-weighting bit. Fix = **over-weight bit when scaling** (LB6: ~65-70%).
+- **Equation premise — 4th independent refutation** (after LB1 95%, LB3 93%, LB5 96%): LB6's family-DFS solves
+  equation_numeric_guess **~93%**. Our "global cipher" verdict is wrong for the deduce subset. Re-test (no GPU).
+- **hex arithmetic** matches LB1/LB3 HEX but conflicts with LB5's "encoding broke the model" — validate tokenizer first.
+
+**Next-version ideas (`lb6-v1`, PLAN ONLY — comp ended).** See `external/LB6/analysis/next_version_plan.md`:
+per-domain DUMMY probing (offline) + full-train-as-validation; template bit solver (hex+skips, tokenizer-checked);
+DFS cryptarithm + reversed search; over-weight bit data; calibrate the bit/cryptarithm trade-off; graft LB1/LB3
+cryptarithm onto LB6's validation; re-crack equation-deduce (no-GPU, shared with `lb{1,3,5}-v1`). Hold-best = soup
+(0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
 ## LB5 / 5th Place Solution: What We Learned
 
 > Post-competition study of the Kaggle writeup **"Jack of Trades, Loser of Cryptarithm" — 5th Place** (team:
