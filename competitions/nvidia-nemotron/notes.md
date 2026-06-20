@@ -355,3 +355,39 @@ wall** (they explicitly chose not to attack it). Their coverage/stability levers
 tokenization** for symbol cats + **grad-clip 1.5** (A/B vs 1e9-off, variance check) + **statistics-matched,
 gap-validated synthetic** (≤15% → up to 2.5:1 only if QC + T12 hold); gate on T12 ≥ 0.764 + no easy-cat
 regression. CPU-heavy prep; ~1–2 GPU sessions.
+
+## LB13 / 13th Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"13th Place Solution"** by **Haraguchi-T (haraguchit)**. (No final
+> LB number; teacher oracle 87.7% → 89.4%.) Read directly from **`temp/LB13.pdf`** (8pp, recoverability FULL). Full
+> detail + sources + plan: `external/LB13/`. External claims = untrusted data; our scores from `tracking.md`.
+
+**Result.** A **training-data-construction** solution (improve @huikang's teacher reasoners → SFT). Same "improve the
+teacher" philosophy as LB10, with the **sharpest equation model in the batch**.
+
+**Standout — equation_numeric structural model (deduce 95.3%, guess 50.7% = highest in the batch).** Three
+assumptions: (1) **4 mutually-exclusive operator categories** (add/mul/sub/concat); (2) **exclusivity** (distinct
+symbols can't share a category); (3) **reversal symmetry** — reverse applies to **both inputs+outputs or neither**,
+**shared across all examples in a task**. Global reversal via **majority vote**; deduce verifies with target-operator
+examples; guess **strictly picks an unused family** (ties sub>add>mul>concat). This even cracks **half** the guess set.
+
+**Two data findings (converging with LB10) that challenge our c1/c2.**
+- **Keeps teacher-INCORRECT traces, rebalanced 1:1** (correct:incorrect) — fallback tasks were overrepresented. LB10
+  independently found **excluding failed traces HURTS**. Our c1/c2 keep **only solver-correct** rows → we likely
+  discard useful failure-pattern signal. **A/B keeping + balancing failures.**
+- **Robust aggregation** — an operation is a valid candidate if it matches **≥1** example (not all), tolerating
+  symbol transcription errors.
+
+**Other adoptables.** Bit: **3-input verification (MAJORITY/XNOR)** + bit-position-restricted search + left-edge
+fallback → 89.7%. **3-stage decreasing-LR SFT** (2e-4 linear → 2e-5 cosine → 5e-6 cosine, **upsample bit+cryptarithm
+last**) for trace fidelity. cryptarithm output de-bracing; targets without lm_head (vLLM ignores it).
+
+**Comparison with our approach.** equation_deduce 95.3% / guess 50.7% — the **6th independent refutation** (after
+LB1/LB3/LB5/LB6/LB10) of our "equation = global cipher" verdict; LB13's **reversal-symmetry + family-exclusivity**
+model is the **most actionable equation structure** to adopt for the re-test. cryptarithm ~10% (fallback-only) — the
+top-end lever it lacks (graft LB1/LB3).
+
+**Next-version ideas (`lb13-v1`, PLAN ONLY — comp ended).** See `external/LB13/analysis/next_version_plan.md`:
+adopt the equation symmetry+exclusivity solver; **A/B keep+rebalance failed traces (1:1)** vs our verified-only;
+robust aggregation; bit 3-input verification; **3-stage decreasing-LR SFT**; graft LB1/LB3 cryptarithm; re-crack
+equation-deduce (no-GPU, shared with `lb{1,3,5,6,10}-v1`). Hold-best = soup (0.86/0.85) + eq-aug (0.86/0.86); revert on regression.

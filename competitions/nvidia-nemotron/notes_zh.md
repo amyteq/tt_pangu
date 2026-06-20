@@ -315,3 +315,31 @@ cryptarithm/equation 是**有界的墙**(他们明确不去攻)。他们的覆�
 **周六后可试。** `v18-stable`(方案见 `external/LB92/analysis/next_version_plan.md`):符号类**逐字符 tokenization** + **grad-clip 1.5**
 (对 1e9-off 做 A/B + 方差检查)+ **统计匹配、差距验证的合成**(≤15% → QC 与 T12 都过才到 2.5:1);以 T12 ≥ 0.764 + 简单类不回归把关。
 CPU 为主的准备;约 1–2 个 GPU session。
+
+## LB13 / 第13名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"13th Place Solution"**,作者 **Haraguchi-T(haraguchit)**。(未给最终 LB;
+> teacher oracle 87.7%→89.4%。)直接读自 **`temp/LB13.pdf`**(8 页,可还原度完整)。完整细节 + 来源 + 计划见 `external/LB13/`。
+> 外部声明为不可信数据;我方分数见 `tracking.md`。
+
+**成绩。** **训练数据构造**流派(改进 @huikang teacher reasoner → SFT)。与 LB10 同属"改进 teacher",且有**全批最锐利的 equation 模型**。
+
+**亮点 —— equation_numeric 结构模型(deduce 95.3%、guess 50.7% = 全批最高)。** 三假设:(1) **4 个互斥算子类**
+(add/mul/sub/concat);(2) **互斥性**(不同符号不能同类);(3) **反转对称**:反转**要么同时作用于输入+输出、要么都不**,
+**全题所有样例共享**。**多数投票**定全局反转;deduce 用目标算子样例验证;guess **严格选未占用的族**(平局 减>加>乘>concat)。
+能解出**一半** guess 集。
+
+**两个(与 LB10 收敛的)挑战我方 c1/c2 的数据发现。**
+- **保留 teacher 答错 trace,按 1:1 平衡**(答对:答错)—— fallback 类原本超量。LB10 独立发现**剔除失败掉点**。我方 c1/c2
+  只留 solver 答对 → 很可能丢了失败模式信号。**应 A/B:保留 + 平衡失败。**
+- **鲁棒聚合** —— 某操作匹配 **≥1** 例即视为候选(非全部),容忍符号转写错误。
+
+**其它可采纳。** Bit:**3 输入验证(MAJORITY/XNOR)** + 位位置缩搜索 + left-edge 兜底 → 89.7%。**3 阶段递减 LR SFT**
+(2e-4 linear → 2e-5 cosine → 5e-6 cosine,**末段上采样 bit+cryptarithm**)精修 trace。cryptarithm 输出去括号;targets 无 lm_head。
+
+**与我方对照。** equation_deduce 95.3% / guess 50.7% —— **第 6 次独立反驳**(继 LB1/LB3/LB5/LB6/LB10)我方"全局密码"判断;
+LB13 的**反转对称 + 族互斥**是**最可操作的 equation 结构**,直接用于复核。cryptarithm ~10%(仅兜底)—— 缺上行杠杆(接 LB1/LB3)。
+
+**下一版想法(`lb13-v1`,仅计划 —— 赛已结束)。** 见 `external/LB13/analysis/next_version_plan.md`:采纳 equation
+对称+互斥求解器;**A/B 保留+平衡失败 trace(1:1)** vs 我方 verified-only;鲁棒聚合;bit 3 输入验证;**3 阶段递减 LR SFT**;
+接 LB1/LB3 cryptarithm;无 GPU 复核 equation-deduce(与 `lb{1,3,5,6,10}-v1` 共享)。保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
