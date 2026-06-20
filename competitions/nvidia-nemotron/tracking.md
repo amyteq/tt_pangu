@@ -153,6 +153,31 @@ seen-input fraction, but the unseen-input majority is a strong cipher and stays 
 from samples, EQ-2′). Why LB didn't jump: equation is ≈ 1/9 of the test and only a fraction of it is learnable,
 so the maximum aggregate headroom from a perfect equation memoriser is small, and even that only covers seen inputs.
 
+## lb3-v1 — post-LB3 (3rd place) method implementation (2026-06-20)
+
+> Reproducible **CPU** implementation of the 3rd-place method (Private 0.900) under
+> `versions/lb3-v1/` (branch `exp/nemo-postlb3-v1`). **Competition closed 2026-06-15**
+> → no live submission (preflight gate blocks: closed comp + no completed GPU run →
+> no `submission.zip`). This validates the *mechanism* (CSP cryptarithm, hex bit
+> compression, two-stage drills, private-tracking validation, equation-deduce
+> premise), not LB3's full score. Held-best protected: soup 0.86/0.85, eq-aug 0.86/0.86.
+
+| check | result | vs writeup |
+|---|---|---|
+| **equation-numeric re-probe** (real `train.csv`, 732 prompts) | **deduce 566/596 = 95.0%**, guess 65/136 = 47.8% | 93.3% / ~57% |
+| **CSP cryptarithm** (synthetic, n=150; lookup→intersect→anchor→bounded backtracking) | `*` deduce **100%** (full-map recovery 100%); `+` 98%; `-` 94.7%; `*` guess 94% | mechanism ✓ (LB3 within-budget 24.2% on harder real cryptarithm) |
+| **bit HEX+tail-2-bit** compression + solver (n=300) | solved **100%**; **−23.4%** trace tokens | ≈ −25% ✓ |
+| **numeric 13-op** solver (n=300) | deduce **98.3%**; guess 11% (synthetic guess adversarial — no generator family co-occurrence) | deduce 93.8% ✓ |
+| stage-1 **memorize drills** (16 packed/sample, request masked) | 28% chars masked; recall rows rendered as `(a,b)->p` tuples | masked-drill design ✓ |
+| **private-tracking validation** self-check | PASS — stratified 10% hold-out (all cats), leakage exclusion, perfect-trace-rate, adapter rank=32≤32 + zip-root preflight | design ✓ |
+
+**Equation premise — 2nd independent refutation.** The real-data re-probe (95.0% deduce)
+confirms equation-numeric *deduce* is per-prompt-operator solvable, not a global cipher;
+matches LB1 (95.5%) and LB3 (93.3%). Our `equation-frontier.md` EQ-0/EQ-2′ verdict is
+over-generalized — it holds only for the *guess* (unseen-operator) subset (~48%). The
+decisive remaining gap to 0.900 is the **two-stage memorize→execute training** + cryptarithm
+**volume** (LB3 ~58 GPU-h), reproducible only as a down-scaled GPU method-validation run (handoff).
+
 ## Evidence links
 - GitHub issue #86 (body + comments 0–4) — original hub.
 - `tracking_zh.md` — original Chinese tables verbatim.
