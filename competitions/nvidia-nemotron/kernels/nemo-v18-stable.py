@@ -6,22 +6,20 @@
 #       LB92 traced submission-to-submission score VARIANCE to gradient explosions
 #       (grad-norm spiked to ~25089 @ step 107); clipping at 1.5 stabilized it. The
 #       cheapest concrete win; the v14 training loop already calls clip_grad_norm_.
-#   [LEVER 2 — SCAFFOLD, default OFF] PER-CHARACTER tokenization for the symbol
-#       categories (PER_CHAR_TOKENIZATION): force each cipher/cryptarithm symbol to
-#       encode as one token (BPE merges e.g. `}!`->one token and hurts). Hook:
-#       apply_per_char_tokenization() — needs add_tokens + embedding resize, which
-#       interacts with the CCE lm_head patch + adapter save; validate on GPU Saturday.
-#       NOTE: the huikang token corpus here is PRE-tokenized, so this lever only
-#       applies once a re-tokenized / synthetic-data path is added (Lever 3).
-#   [LEVER 3 — SCAFFOLD, default OFF] STATISTICS-MATCHED synthetic data + gap QC
-#       (SYNTH_RATIO): generate rule_found samples matching train.csv stats
-#       (char-freq / numeric-range / transform-method dist); train-synth / eval-both
-#       / close-the-gap; final ~2.5:1 synth:original. Hook: build_synth_examples().
+#   [LEVER 2 — DROPPED, infeasible] PER-CHARACTER tokenization would need
+#       add_tokens + embedding resize, but the competition submits ONLY the LoRA
+#       adapter (2 files) and the grader uses the FIXED base tokenizer — added tokens
+#       can't reach inference. PER_CHAR_TOKENIZATION stays False (see the function note).
+#   [LEVER 3 — ACTIVE, conservative] VERIFIED synthetic equation data via the cracked
+#       per-operator rule family (same family as nemo-v17-discovery, validated on 180
+#       real plaintext-digit problems). We pick the rules, so every synthetic answer
+#       is correct by construction (no poison — the b1/b2/v15 regression came from
+#       naive synth whose rules did NOT match the real cipher). Forward rule-discovery
+#       CoT; woven synth-first at SYNTH_RATIO=0.1 (conservative; LB92's 2.5:1 + gap-QC
+#       loop needs GPU). build_synth_examples().
 # Gate before any submit (per plan): T12 hard-val >= 0.764, no easy-cat regression,
 # and a VARIANCE check (>=2 runs) confirming clip-1.5 narrows the spread vs 1e9.
-# NOTE: analysis/prep artifact — NOT run or pushed here; for the Saturday RTX PRO
-# 6000 window. Levers 2/3 default OFF so the file runs as a valid v14 reproduction
-# with only the grad-clip change until completed on GPU.
+# Measured post-deadline on the late-submission window (100/day). Levers active.
 # ruff: noqa: E402  (Kaggle kernel: imports follow env/setup cells)
 import time as _wall
 
@@ -40,9 +38,7 @@ BATCH_SIZE = 32
 MICRO_BATCH_SIZE = 4
 LEARNING_RATE = 3.5e-4
 WARMUP_STEPS = 0
-GRAD_CLIP_NORM = (
-    1.5  # v18-stable LEVER 1 (was 1e9): kill gradient-explosion variance (LB92)
-)
+GRAD_CLIP_NORM = 1.5  # v18-stable LEVER 1 (was 1e9): kill gradient-explosion variance (LB92)
 
 MIN_CORPUS_EXAMPLES = 1000
 TARGET_REPLAY_ANSWER_TOKENS = 2_000_000
@@ -52,11 +48,14 @@ MIN_REPLAY_EXAMPLES = 100
 MOE_TIE_WEIGHTS = True
 SHUFFLE_DATASET = False
 
-# --- v18-stable levers 2/3 (LB92 plan) — scaffolds, default OFF -----------
-PER_CHAR_TOKENIZATION = (
-    False  # LEVER 2: force 1 symbol = 1 token for cipher/cryptarithm
-)
-SYNTH_RATIO = 0.0  # LEVER 3: synthetic:original ratio (LB92 final = 2.5); 0 = off
+# --- v18-stable levers 2/3 (LB92 plan) -----------------------------------
+# LEVER 2 (per-char tokenization) is DROPPED: infeasible for an adapter-only
+# submission (the grader uses the base tokenizer; added tokens can't reach it).
+PER_CHAR_TOKENIZATION = False  # LEVER 2 — infeasible here, kept off (see function note)
+# LEVER 3 (active, conservative): verified synthetic equation data via the cracked
+# rule family. 0.1 ~ synth:original 1:10 (LB92 used 2.5:1, but their gap-QC loop needs
+# GPU; kept conservative to respect the b1/b2/v15 dilution lesson + T12 gate).
+SYNTH_RATIO = 0.1
 # Symbol alphabet for per-char tokenization (the 36-char equation/cipher set).
 SYMBOL_CHARS = list("!\"#$%&'()*+-/:;<>?@[\\]^`{|}")
 
@@ -76,9 +75,7 @@ TARGET_MODULES = [
 # %%
 import os
 
-assert os.path.isdir("/kaggle/input"), (
-    "This final notebook is Kaggle-only and must run inside a Kaggle session."
-)
+assert os.path.isdir("/kaggle/input"), "This final notebook is Kaggle-only and must run inside a Kaggle session."
 print("Kaggle runtime detected.")
 
 
@@ -161,8 +158,7 @@ def find_path(label, candidates, predicate=lambda path: True, required=True):
             )
             matches = [matches[0]]
         assert len(matches) == 1, (
-            f"{label} is ambiguous for candidate {raw_candidate}: "
-            f"{[str(path) for path in matches]}"
+            f"{label} is ambiguous for candidate {raw_candidate}: {[str(path) for path in matches]}"
         )
         return matches[0]
 
@@ -220,10 +216,7 @@ MODEL_CONFIG = find_unique(
     ],
     lambda path: (
         path.is_file()
-        and (
-            (path.parent / "model.safetensors.index.json").is_file()
-            or any(path.parent.glob("*.safetensors"))
-        )
+        and ((path.parent / "model.safetensors.index.json").is_file() or any(path.parent.glob("*.safetensors")))
     ),
 )
 MODEL_PATH = str(MODEL_CONFIG.parent)
@@ -258,11 +251,7 @@ HUIKANG_SFT_DIR = find_unique(
         "/kaggle/input/datasets/huikang/*/*/nemotron-master/training/sft/04-08-16-14",
         "/kaggle/input/datasets/huikang/**/nemotron-master/training/sft/04-08-16-14",
     ],
-    lambda path: (
-        path.is_dir()
-        and (path / "tokens").is_dir()
-        and (path / "logprobs/index.jsonl").is_file()
-    ),
+    lambda path: path.is_dir() and (path / "tokens").is_dir() and (path / "logprobs/index.jsonl").is_file(),
 )
 CORPUS_PATH = str(HUIKANG_SFT_DIR / "tokens")
 TRAIN_ORDER_PATH = str(HUIKANG_SFT_DIR / "logprobs/index.jsonl")
@@ -322,33 +311,176 @@ subprocess.run("rm -rf /kaggle/tmp/*", shell=True, check=True)
 # %%
 # ---- v18-stable levers 2/3 (LB92 plan) — scaffolds, default OFF ----------
 def apply_per_char_tokenization(model, tokenizer):
-    """LEVER 2 scaffold. Force each symbol in SYMBOL_CHARS to be its own token so
-    BPE cannot merge e.g. `}!` into a single id (which hurt cipher/cryptarithm in
-    LB92). SATURDAY (GPU): tokenizer.add_tokens(SYMBOL_CHARS); model.resize_token_
-    embeddings(len(tokenizer)); init new rows (mean of existing). CAUTION: this
-    changes lm_head/embeddings shape and interacts with the v14 CCE lm_head patch +
-    the adapter save/rename — validate the round-trip before a full run. Also only
-    bites once a re-tokenized synthetic-data path exists (the huikang corpus here is
-    pre-tokenized)."""
+    """LEVER 2 — DROPPED as infeasible for this submission format. It requires
+    tokenizer.add_tokens(SYMBOL_CHARS) + model.resize_token_embeddings(), but the
+    competition submits ONLY the LoRA adapter (adapter_config.json +
+    adapter_model.safetensors); the grader loads the FIXED base model + base
+    tokenizer, so added tokens/embeddings never reach inference (they live in the
+    resized base layers, which the adapter does not carry). Per-char tokenization
+    can't be communicated to an adapter-only grader. PER_CHAR_TOKENIZATION stays
+    False; this body is unreachable and kept only to document the finding."""
     raise NotImplementedError(
-        "PER_CHAR_TOKENIZATION=True: implement add_tokens + resize on Saturday (validate adapter round-trip)."
+        "PER_CHAR_TOKENIZATION is infeasible for an adapter-only submission (grader uses the base tokenizer)."
     )
+
+
+# ---- LEVER 3 helper: validated equation rule family (cracked 2026-06-20) -------
+# Same per-operator digit-string transform family as nemo-v17-discovery. Used here
+# to GENERATE verified synthetic equation problems (the bottleneck category): we pick
+# the rules, so every synthetic answer is correct by construction (no poison — the
+# b1/b2/v15 regression came from naive synth whose rules did NOT match the real
+# cipher; this family reproduces 180 real plaintext-digit problems). Plaintext-digit
+# synth with a forward rule-discovery CoT; complements v17's real-data discovery lever.
+_SYN_BASES = {
+    "add": lambda A, B: A + B,
+    "sub": lambda A, B: A - B,
+    "rsub": lambda A, B: B - A,
+    "mul": lambda A, B: A * B,
+    "absdiff": lambda A, B: abs(A - B),
+}
+_SYN_BASE_TXT = {"add": "A+B", "sub": "A-B", "rsub": "B-A", "mul": "A*B", "absdiff": "|A-B|"}
+
+
+def _syn_rev(s):
+    return ("-" + s[1:][::-1]) if s.startswith("-") else s[::-1]
+
+
+def _syn_apply(spec, a, b):
+    kind = spec[0]
+    if kind == "v":
+        _, pa, pb, bn, k, post = spec
+        A = int(a[::-1] if pa else a)
+        B = int(b[::-1] if pb else b)
+        s = str(_SYN_BASES[bn](A, B) + k)
+        return _syn_rev(s) if post else s
+    _, pa, pb, order, post = spec
+    aa = a[::-1] if pa else a
+    bb = b[::-1] if pb else b
+    s = (aa + bb) if order == "ab" else (bb + aa)
+    return s[::-1] if post else s
+
+
+def _syn_desc(spec):
+    if spec[0] == "c":
+        _, pa, pb, order, post = spec
+        A = "rev(A)" if pa else "A"
+        B = "rev(B)" if pb else "B"
+        s = (A + "·" + B) if order == "ab" else (B + "·" + A)
+        return f"reverse({s})" if post else s
+    _, pa, pb, bn, k, post = spec
+    txt = _SYN_BASE_TXT[bn]
+    if pa:
+        txt = txt.replace("A", "rev(A)")
+    if pb:
+        txt = txt.replace("B", "rev(B)")
+    if k:
+        txt += f"{k:+d}"
+    return f"reverse-digits of ({txt})" if post else txt
+
+
+def _syn_pick_spec(rng):
+    if rng.random() < 0.8:
+        return (
+            "v",
+            rng.randint(0, 1),
+            rng.randint(0, 1),
+            rng.choice(list(_SYN_BASES)),
+            rng.choice([0, 0, 0, 1, -1]),
+            rng.randint(0, 1),
+        )
+    return ("c", rng.randint(0, 1), rng.randint(0, 1), rng.choice(["ab", "ba"]), rng.randint(0, 1))
 
 
 def build_synth_examples(tokenizer, ratio):
-    """LEVER 3 scaffold (ratio<=0 -> []). SATURDAY: extract train.csv task-level
-    statistics (character frequencies, numeric ranges/distributions, transformation-
-    method distributions) and generate `rule_found` samples that match them; run the
-    QC loop (train on synthetic only, eval on BOTH synthetic and original, close the
-    gap by fixing missing factors) before trusting the data; then return enough
-    tokenized examples for synthetic:original = `ratio` (LB92 final = 2.5, synthetic
-    first then original). Keep the dilution guard (T12-gate) — naive synth regressed
-    for us (b1/b2/v15)."""
+    """LEVER 3 (active, conservative). Generate VERIFIED synthetic equation problems
+    using the cracked per-operator rule family: pick 1-2 operators, a rule per
+    operator, and random 2-digit operands; the answer is correct by construction.
+    Emit the real prompt format + a forward rule-discovery CoT (response-only mask).
+    Count ~= ratio * the ~8000-example corpus. Plaintext-digit only (the glyph-cipher
+    discovery for the grader's ciphered majority is still open); kept at a conservative
+    ratio (no GPU gap-QC loop here) to respect the b1/b2/v15 dilution lesson."""
     if ratio <= 0:
         return []
-    raise NotImplementedError(
-        "SYNTH_RATIO>0: implement the statistics-matched generator + gap QC on Saturday."
-    )
+    import random as _r
+
+    rng = _r.Random(1234)
+    SUFFIX = "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
+    target = int(ratio * 8000)
+    out = []
+    attempts = 0
+    while len(out) < target and attempts < target * 20:
+        attempts += 1
+        n_ops = rng.choice([1, 1, 2])
+        ops = rng.sample("+-*", n_ops)
+        rule = {op: _syn_pick_spec(rng) for op in ops}
+        # build example lines: 1-2 per operator, plus a query
+        lines = []
+        ok = True
+        for op in ops:
+            for _ in range(rng.choice([2, 3])):
+                a = f"{rng.randint(0, 99):02d}"
+                b = f"{rng.randint(0, 99):02d}"
+                r = _syn_apply(rule[op], a, b)
+                if r.startswith("-"):  # keep results non-negative for clean digit glyphs
+                    ok = False
+                    break
+                lines.append((a, op, b, r))
+            if not ok:
+                break
+        if not ok or len(lines) < 2:
+            continue
+        qop = rng.choice(ops)
+        qa = f"{rng.randint(0, 99):02d}"
+        qb = f"{rng.randint(0, 99):02d}"
+        qans = _syn_apply(rule[qop], qa, qb)
+        if qans.startswith("-"):
+            continue
+        rng.shuffle(lines)
+        ex_txt = "\n".join(f"{a}{op}{b} = {r}" for a, op, b, r in lines)
+        prompt = (
+            "In Alice's Wonderland, a secret set of transformation rules is applied "
+            "to equations. Below are a few examples:\n"
+            f"{ex_txt}\n"
+            f"Now, determine the result for: {qa}{qop}{qb}"
+        )
+        # forward rule-discovery CoT (no answer reference; re-derived)
+        cot_lines = [
+            "Each line is `A1A2 <op> B1B2 = result`: find, per operator, the digit-"
+            "string rule consistent with all of its examples.",
+        ]
+        for op in ops:
+            cot_lines.append(f"Operator '{op}': rule {_syn_desc(rule[op])} ->")
+            for a, o, b, r in lines:
+                if o == op:
+                    cot_lines.append(f"  A={a} B={b}: gives '{_syn_apply(rule[op], a, b)}' (want '{r}') OK")
+        cot_lines.append(f"Apply the '{qop}' rule {_syn_desc(rule[qop])} to A={qa} B={qb}: '{qans}'.")
+        cot = "\n".join(cot_lines)
+        msgs = [{"role": "user", "content": prompt + SUFFIX}]
+        pids = tokenizer.apply_chat_template(msgs, tokenize=True, add_generation_prompt=True)
+        if hasattr(pids, "keys"):
+            pids = pids["input_ids"]
+        if pids and isinstance(pids[0], (list, tuple)):
+            pids = pids[0]
+        pids = list(pids)
+        resp = cot + "\n\\boxed{" + qans + "}"
+        rids = list(tokenizer(resp, add_special_tokens=False)["input_ids"])
+        eos = tokenizer.eos_token_id
+        if eos is not None:
+            rids = rids + [eos]
+        full = pids + rids
+        if len(full) > MAX_SEQ_LEN:
+            continue
+        mask = [0] * len(pids) + [1] * (len(full) - len(pids))
+        out.append(
+            {
+                "problem_id": "synth_equation",
+                "tokens": full[:-1],
+                "targets": full[1:],
+                "weights": [float(m) for m in mask[1:]],
+            }
+        )
+    print(f"LEVER 3 synth: generated {len(out)} verified equation examples (ratio~{ratio})")
+    return out
 
 
 # %%
@@ -383,9 +515,7 @@ def run_training() -> None:
     cc = torch.cuda.get_device_capability(0)
     print(f"GPU: {torch.cuda.get_device_name(0)}, sm_{cc[0] * 10 + cc[1]}")
     print(f"torch={torch.__version__}, cuda={torch.version.cuda}")
-    print(
-        f"mamba_ssm={mamba_ssm.__version__}, causal_conv1d={causal_conv1d.__version__}"
-    )
+    print(f"mamba_ssm={mamba_ssm.__version__}, causal_conv1d={causal_conv1d.__version__}")
     print(f"VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
     assert cc == (12, 0), f"Expected sm_120 (RTX PRO 6000), got sm_{cc[0] * 10 + cc[1]}"
     from causal_conv1d import causal_conv1d_fn
@@ -413,16 +543,11 @@ def run_training() -> None:
                 continue
             seen.add(pid)
             ordered_ids.append(pid)
-    print(
-        f"Loaded {len(ordered_ids)} problem_ids in training order from "
-        f"{TRAIN_ORDER_PATH}"
-    )
+    print(f"Loaded {len(ordered_ids)} problem_ids in training order from {TRAIN_ORDER_PATH}")
 
     for sid in ordered_ids:
         seg_path = os.path.join(CORPUS_PATH, sid, "synthetic.json")
-        assert os.path.isfile(seg_path), (
-            f"problem_id {sid} from training order missing in corpus: {seg_path}"
-        )
+        assert os.path.isfile(seg_path), f"problem_id {sid} from training order missing in corpus: {seg_path}"
         with open(seg_path) as f:
             rec = json.load(f)
         tokens = rec["tokens"]
@@ -444,18 +569,13 @@ def run_training() -> None:
         )
     total_unmasked = sum(sum(e["weights"]) for e in examples)
     total_tokens = sum(len(e["tokens"]) for e in examples)
-    print(
-        f"Loaded {len(examples)} examples, {total_tokens:,} tokens "
-        f"(unmasked={total_unmasked:,.0f})"
-    )
+    print(f"Loaded {len(examples)} examples, {total_tokens:,} tokens (unmasked={total_unmasked:,.0f})")
 
     assert len(ordered_ids) >= MIN_CORPUS_EXAMPLES, (
-        f"Corpus order is unexpectedly small: {len(ordered_ids)} ids; "
-        f"expected at least {MIN_CORPUS_EXAMPLES}."
+        f"Corpus order is unexpectedly small: {len(ordered_ids)} ids; expected at least {MIN_CORPUS_EXAMPLES}."
     )
     assert len(examples) >= MIN_CORPUS_EXAMPLES, (
-        f"Corpus produced only {len(examples)} examples; "
-        f"expected at least {MIN_CORPUS_EXAMPLES}."
+        f"Corpus produced only {len(examples)} examples; expected at least {MIN_CORPUS_EXAMPLES}."
     )
 
     # -- Load base model ----------------------------------------------
@@ -486,9 +606,7 @@ def run_training() -> None:
         # apply_chat_template(tokenize=True) returns a BatchEncoding, so
         # len(full_ids) <= len(prompt_ids) compared DICT KEY COUNTS (2 <= 2)
         # and silently skipped every row. Unwrap to a flat token list.
-        out = tokenizer.apply_chat_template(
-            msgs, tokenize=True, add_generation_prompt=add_gen
-        )
+        out = tokenizer.apply_chat_template(msgs, tokenize=True, add_generation_prompt=add_gen)
         if hasattr(out, "keys"):
             out = out["input_ids"]
         if out and isinstance(out[0], (list, tuple)):
@@ -509,8 +627,7 @@ def run_training() -> None:
             if not _first_row_logged:
                 _first_row_logged = True
                 print(
-                    f"replay row 0: keys={sorted(row.keys())}, "
-                    f"prompt_ids={len(prompt_ids)}, full_ids={len(full_ids)}"
+                    f"replay row 0: keys={sorted(row.keys())}, prompt_ids={len(prompt_ids)}, full_ids={len(full_ids)}"
                 )
             if len(full_ids) <= len(prompt_ids):
                 replay_skipped += 1
@@ -537,9 +654,7 @@ def run_training() -> None:
             if replay_answer_tokens >= TARGET_REPLAY_ANSWER_TOKENS:
                 break
 
-    assert len(replay_examples) >= MIN_REPLAY_EXAMPLES, (
-        f"Only {len(replay_examples)} replay examples were tokenized."
-    )
+    assert len(replay_examples) >= MIN_REPLAY_EXAMPLES, f"Only {len(replay_examples)} replay examples were tokenized."
     assert replay_answer_tokens >= MIN_REPLAY_ANSWER_TOKENS, (
         f"Only {replay_answer_tokens:,} supervised replay answer tokens; "
         f"expected at least {MIN_REPLAY_ANSWER_TOKENS:,}."
@@ -561,19 +676,14 @@ def run_training() -> None:
         f"{replay_answer_tokens:,} supervised answer tokens, "
         f"skipped={replay_skipped}, truncated={replay_truncated}"
     )
-    print(
-        f"Replay inserted every ~{replay_every} Huikang examples; "
-        f"mixed total={len(examples)}"
-    )
+    print(f"Replay inserted every ~{replay_every} Huikang examples; mixed total={len(examples)}")
 
     # LEVER 3 (scaffold, default OFF): statistics-matched synthetic data.
     if SYNTH_RATIO > 0:
         synth_examples = build_synth_examples(tokenizer, SYNTH_RATIO)
         # LB92: synthetic FIRST, then original. Keep dose gated by the T12 result.
         examples = synth_examples + examples
-        print(
-            f"synthetic woven: {len(synth_examples)} (ratio~{SYNTH_RATIO}); total={len(examples)}"
-        )
+        print(f"synthetic woven: {len(synth_examples)} (ratio~{SYNTH_RATIO}); total={len(examples)}")
 
     # -- Wrap in LoRA -------------------------------------------------
     model = FastLanguageModel.get_peft_model(
@@ -624,14 +734,10 @@ def run_training() -> None:
 
     for name, param in model.named_parameters():
         if ".lora_" in name:
-            assert param.dtype == torch.float32, (
-                f"LoRA param {name} expected fp32, got {param.dtype}"
-            )
+            assert param.dtype == torch.float32, f"LoRA param {name} expected fp32, got {param.dtype}"
             continue
 
-        is_router = (
-            ".mixer.gate." in name
-        )  # NemotronHTopkRouter.weight + e_score_correction_bias
+        is_router = ".mixer.gate." in name  # NemotronHTopkRouter.weight + e_score_correction_bias
         # Nemotron-H loads the MoE router (`mixer.gate`) in fp32 on purpose.
         # Ref: transformers/src/transformers/models/nemotron_h/modeling_nemotron_h.py
         #
@@ -652,14 +758,10 @@ def run_training() -> None:
         # The per-forward fp32 cast on `self.weight` plus the strict list entry
         # mean the gate weight is promoted to fp32 at load time.
         if is_router:
-            assert param.dtype == torch.float32, (
-                f"param {name} expected fp32, got {param.dtype}"
-            )
+            assert param.dtype == torch.float32, f"param {name} expected fp32, got {param.dtype}"
             continue
 
-        assert param.dtype == torch.bfloat16, (
-            f"param {name} expected bf16, got {param.dtype}"
-        )
+        assert param.dtype == torch.bfloat16, f"param {name} expected bf16, got {param.dtype}"
         continue
 
     print("Verified: LoRA params fp32, base params bf16 (MoE router fp32)")
@@ -673,17 +775,11 @@ def run_training() -> None:
     while hasattr(_base, "model"):
         _base = _base.model
 
-    def _patched_causal_forward(
-        input_ids=None, attention_mask=None, labels=None, **kwargs
-    ):
+    def _patched_causal_forward(input_ids=None, attention_mask=None, labels=None, **kwargs):
         backbone_out = _base.backbone(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k in ("position_ids", "past_key_values", "use_cache")
-            },
+            **{k: v for k, v in kwargs.items() if k in ("position_ids", "past_key_values", "use_cache")},
         )
         hidden_states = backbone_out[0]
         lm_head = _base.lm_head
@@ -693,9 +789,7 @@ def run_training() -> None:
         scaling = lm_head.scaling["default"]
         lm_weight = base_w + scaling * lora_B @ lora_A
         if labels is not None:
-            per_token_ce = linear_cross_entropy(
-                hidden_states, lm_weight, labels, reduction="none"
-            )
+            per_token_ce = linear_cross_entropy(hidden_states, lm_weight, labels, reduction="none")
             loss = per_token_ce.mean()
         else:
             per_token_ce = None
@@ -709,13 +803,10 @@ def run_training() -> None:
     # Fresh initialization is intentional; no adapter is loaded here.
     print("Fresh rank-32 LoRA initialization confirmed")
 
-    trainable_names = [
-        name for name, param in model.named_parameters() if param.requires_grad
-    ]
+    trainable_names = [name for name, param in model.named_parameters() if param.requires_grad]
     assert trainable_names, "No trainable LoRA parameters found"
     assert all(".lora_" in name for name in trainable_names), (
-        "Unexpected non-LoRA trainable tensors: "
-        f"{[name for name in trainable_names if '.lora_' not in name][:20]}"
+        f"Unexpected non-LoRA trainable tensors: {[name for name in trainable_names if '.lora_' not in name][:20]}"
     )
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     frozen_params = sum(p.numel() for p in model.parameters() if not p.requires_grad)
@@ -788,9 +879,7 @@ def run_training() -> None:
     device = next(model.parameters()).device
     optimizer: torch.optim.AdamW | None = None
 
-    assert examples, (
-        "No Huikang training examples loaded from the required token corpus."
-    )
+    assert examples, "No Huikang training examples loaded from the required token corpus."
     indices = list(range(len(examples)))
     if SHUFFLE_DATASET:
         rng = random.Random(0)
@@ -816,8 +905,7 @@ def run_training() -> None:
         num_steps = max_steps
 
     _log(
-        f"Training: {num_steps} steps, batch_size={BATCH_SIZE}, "
-        f"micro_batch_size={MICRO_BATCH_SIZE}, lr={LEARNING_RATE}"
+        f"Training: {num_steps} steps, batch_size={BATCH_SIZE}, micro_batch_size={MICRO_BATCH_SIZE}, lr={LEARNING_RATE}"
     )
 
     step = 0
@@ -854,25 +942,15 @@ def run_training() -> None:
             max_len = max(len(t) for t in mb_toks)
             total_len = sum(len(t) for t in mb_toks)
 
-            padded_input = torch.zeros(
-                n_micro, max_len, dtype=torch.long, device=device
-            )
-            padded_targets = torch.zeros(
-                n_micro, max_len, dtype=torch.long, device=device
-            )
-            padded_weights = torch.zeros(
-                n_micro, max_len, dtype=torch.float32, device=device
-            )
-            attention_mask = torch.zeros(
-                n_micro, max_len, dtype=torch.long, device=device
-            )
+            padded_input = torch.zeros(n_micro, max_len, dtype=torch.long, device=device)
+            padded_targets = torch.zeros(n_micro, max_len, dtype=torch.long, device=device)
+            padded_weights = torch.zeros(n_micro, max_len, dtype=torch.float32, device=device)
+            attention_mask = torch.zeros(n_micro, max_len, dtype=torch.long, device=device)
             for i in range(n_micro):
                 seq_len = len(mb_toks[i])
                 padded_input[i, :seq_len] = torch.tensor(mb_toks[i], dtype=torch.long)
                 padded_targets[i, :seq_len] = torch.tensor(mb_tgts[i], dtype=torch.long)
-                padded_weights[i, :seq_len] = torch.tensor(
-                    mb_wts[i], dtype=torch.float32
-                )
+                padded_weights[i, :seq_len] = torch.tensor(mb_wts[i], dtype=torch.float32)
                 attention_mask[i, :seq_len] = 1
 
             t0 = time.time()
@@ -887,9 +965,7 @@ def run_training() -> None:
                 weighted_loss = per_token_ce * padded_weights
                 weight_sum_t = padded_weights.sum()
                 loss_sum_t = weighted_loss.sum()
-                loss = (
-                    loss_sum_t / weight_sum_t if weight_sum_t > 0 else loss_sum_t * 0.0
-                )
+                loss = loss_sum_t / weight_sum_t if weight_sum_t > 0 else loss_sum_t * 0.0
                 assert torch.isfinite(loss), f"Non-finite loss at step {step}"
 
             (loss / n_accum).backward()
@@ -932,14 +1008,9 @@ def run_training() -> None:
         optimizer.zero_grad()
         loss_mean = total_loss_sum / total_weight_sum if total_weight_sum > 0 else 0
         step += 1
-        _log(
-            f"  step {step}/{num_steps}: "
-            f"loss:mean={loss_mean:.6f}, grad_norm={grad_norm:.4f}, lr={lr:.2e}"
-        )
+        _log(f"  step {step}/{num_steps}: loss:mean={loss_mean:.6f}, grad_norm={grad_norm:.4f}, lr={lr:.2e}")
 
-    print(
-        f"\nTraining complete. Peak VRAM: {torch.cuda.max_memory_allocated() / 1e9:.1f} GB"
-    )
+    print(f"\nTraining complete. Peak VRAM: {torch.cuda.max_memory_allocated() / 1e9:.1f} GB")
 
     # -- Save adapter + rename lm_head keys (identical on both sides) --
     from safetensors.torch import load_file, save_file
@@ -953,8 +1024,7 @@ def run_training() -> None:
     st_path = os.path.join(save_dir, "adapter_model.safetensors")
     tensors = load_file(st_path)
     renamed = {
-        k.replace("base_model.model.lm_head.", "base_model.model.backbone.lm_head."): v
-        for k, v in tensors.items()
+        k.replace("base_model.model.lm_head.", "base_model.model.backbone.lm_head."): v for k, v in tensors.items()
     }
     save_file(renamed, st_path)
 
@@ -1000,10 +1070,7 @@ def run_training() -> None:
         os.remove(os.path.join(save_dir, filename))
 
     print(f"Wrote {submission_zip}")
-    print(
-        "Submission validation OK: root files only, "
-        f"rank={LORA_RANK}, alpha={LORA_ALPHA}"
-    )
+    print(f"Submission validation OK: root files only, rank={LORA_RANK}, alpha={LORA_ALPHA}")
     print(f"submission.zip sha256={digest.hexdigest()}")
     print("Training complete.")
 
