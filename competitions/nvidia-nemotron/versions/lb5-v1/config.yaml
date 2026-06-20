@@ -1,0 +1,87 @@
+# lb5-v1 version config — single source of truth for the reproducible pipeline.
+# Derived from external/LB5/analysis/next_version_plan.md + the LB5 (5th place) writeup.
+# Competition CLOSED 2026-06-15; GPU-gated values are for a future authorized
+# down-scaled method-validation run (NOT executed here). CPU steps run now.
+
+version_id: lb5-v1
+display_name: Post-LB5 v1
+base_model: nvidia/Nemotron-3-Nano-30B-A3B
+competition_slug: nvidia-nemotron-model-reasoning-challenge
+
+data:
+  # real competition data — VALIDATION ONLY (LB5 no-leakage discipline; never trained on)
+  train_csv: ~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/data/train.csv
+  download_cmd: >-
+    kaggle competitions download -c nvidia-nemotron-model-reasoning-challenge -p <dir>
+  policy: validation_only   # synthesize ALL training data; train.csv only for CV
+
+# No-leakage statistics-matched generator (the LB5 honest-CV lever).
+synth:
+  generator: no_leakage_statistics_matched
+  noise: true
+  unique_answer_guaranteed: true
+  bit_heavy_early: true       # LB5 bit 5k->36k; equation spikes phase 3 (24k-30k)
+  downscaled_examples_per_iter: 8000   # LB5 13k-78k/iter; down-scaled for method validation
+  full_reference_tokens: 2_000_000_000  # LB5 ~2B tokens over 15 iterations
+
+# Solvers (CPU). LB5 explicitly uses RAW BITS, not hex (merged tokens broke the model).
+solvers:
+  bit:
+    style: ternary_byte_level
+    primitives: 15            # 8 binary + 7 ternary (MAJ3/CHOICE/XOR_NOT_OR/...)
+    encoding: raw_bits        # NOT hex/merged (tokenizer_probe.py guards this)
+    example_cut: 7            # use ~7 of 7-10 examples (token budget)
+  equation:
+    style: two_world_four_family_thirteen_rule
+    worlds: [REVERSE, NORMAL]            # priority REVERSE > NORMAL
+    families: [SUB, ADD, MUL, MIX]       # <=1 rule/family per prompt
+    intra_sub_priority: [subab, posabs, negabs, subba, mod]
+    family_guessing: true
+  cryptarithm:
+    status: deprioritized     # LB5 hit 0.90 with cryptarithm 7.9%; lever lives in lb1-v1/lb3-v1
+
+prompt:
+  finality_line: "</think>\\n\\boxed{...}"
+  cot: full_logical          # short/guess CoT fails (LB5)
+  avoid: merged_token_encodings   # the LB5 negative lesson
+  preserve: [binary_leading_zeros, exact_strings, numeric_precision]
+
+# GPU-gated (NOT run here). LoRA rank<=32 hard cap (compliance red line).
+training:
+  trainer: huikang           # no quantization, no packing (4-bit+packing broke Nemotron Mamba SSM)
+  no_quant: true
+  no_packing: true
+  no_dora: true              # vLLM-unsupported; DoRA->LoRA lossy
+  lora_rank: 32
+  lora_alpha: 32
+  lr_start: 1.0e-4
+  lr_end: 2.0e-4
+  lr_schedule: linear
+  grad_clip: 1.0
+  phase1_rounds: 6           # multi-round high-LR SFT (all categories each round)
+  phase2_lora_averaging: true   # average adapter before/after each step (regularizer)
+  phase3_seeds: 3            # multi-seed soup from one checkpoint
+  iterations_reference: 15   # LB5 full
+  wall_clock_guard_hours: 8
+  downscaled_gpu_hours_estimate: "10-25h on RTX Pro 6000 (method validation only)"
+
+validation:
+  official_metric: ../../eval/official_metric.py
+  primary_offline_metric: no_leakage_generator_vs_train_csv   # honest CV -> tracks PRIVATE LB
+  hard_val: ../../eval/hard_val_ids.json   # hard-tail HINT only (INS-002)
+  max_tokens: 7680
+  greedy: true
+  temp: 0.0
+  soup_stability_target: 0.01   # phase 2/3 run-to-run variance < 1% (LB5 claim)
+  note: >-
+    LB5's central finding: validating ONLY on train.csv (synthetic for training) makes
+    the CV track the PRIVATE LB while public plateaus ~0.88. Select on this CV.
+
+submit:
+  require_preflight_pass: true
+  message: "postlb5-v1: post-writeup implementation with guarded submit"
+  status: COMPETITION_CLOSED    # deadline 2026-06-15; no live submission possible now
+  hold_best:
+    - {name: soup, public: 0.86, private: 0.85}
+    - {name: eq-aug, public: 0.86, private: 0.86}
+  target_reference: {place: 5, private_lb: 0.900}   # LB5 / 5th place (method source)

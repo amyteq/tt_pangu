@@ -171,6 +171,26 @@
 ## 合规红线
 rank≤32;真实训练(不 repack);双账号 = 真实注册队友(已确认),只买**并发 session**,提交共享 per-team/day;不打印/提交 credentials。
 
+## lb5-v1 — LB5(第5名)方法实现(2026-06-20)
+
+> 分支 `exp/nemo-postlb5-v1`,代码在 `versions/lb5-v1/`,纯 CPU 复现 LB5(Private 0.900,
+> "无限生成器 + 迭代 LoRA 平均")方法。**比赛已于 2026-06-15 截止**,故**未做线上提交**:
+> guarded submit 经真实 `kca kaggle submit` 执行并被 preflight 门正确拦截,BLOCKED 决策已写入
+> `.agent/kca/audit.jsonl`。本版只验证*机制*。已保护最佳成绩:soup 0.86/0.85、eq-aug 0.86/0.86。
+
+实测结果:
+- **equation 重测(真实 train.csv,732 题)**:deduce 566/596 = **95.0%**,guess 47.8%
+  → **第三次**独立反驳"全局密码"结论(继 LB1 95.5%、LB3 93.3%)。
+- **LB5 方程求解器**(2-world/4-family/13-rule,合成 n=300):deduce **99.7%**(guess 20.7%,合成偏难)。
+- **三元 raw-bit 求解器**(15 原语 = 8 二元 + 7 三元):binary/ternary 均 **100%**;**7-example 截断不掉点**。
+- **tokenizer 探针**:合并 token 编码(`5A`/`AB`)判为高风险 → 用 raw bits(LB5 负面教训)。
+- **无泄漏生成器**:拟合 train 统计(bit 1602 / eq 1555),无泄漏校验 PASS(vs 9500 prompts)。
+- **私有榜对齐(无泄漏)验证**自检通过(soup 稳定性代理确定性 + adapter rank≤32/zip 结构)。
+
+LB5 与 LB1/LB3 的区别:**不靠 cryptarithm**(7.9%)也能到 0.90,靠把 bit(三元)+ equation + 简单类
+做满 + 迭代 LoRA 平均/多种子 soup 稳定化;到 0.92 的差距仍是 cryptarithm。GPU 三阶段训练为 handoff
+(`versions/lb5-v1/train_phases.py`,GPU-gated)。
+
 
 
 
