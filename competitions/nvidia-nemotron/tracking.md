@@ -9,7 +9,8 @@
 - **T12 hard-val ranking (2026-06-15):** soup 0.764 = v14 0.764 (both ace hard cipher/bit) ≫ base 0.389 ≈ c1 0.389 > v15 0.333 > c2 0.278. The 0.86 soup is **robust, not diluted**; the CoT/synth-augmented adapters (c1/c2/v15) **regress the hardest cipher/bit to at/below base**; `equation` is unsolved by all (≤2/16). See `submissions.md`.
 - Final-sprint individual runs ≤ soup: c1 0.85, b1 0.85, b2 0.84, c2 0.83; only the soup exceeded v14. Earlier strong+weak merge (T7=0.82) and high-dose synth (v15=0.84) regressed.
 - **Decision: hold the 0.86 soup to close.** Final private-LB selection = **soup (0.86) + v14 (0.85)** (v14 ≫ c1 on hard-val despite equal public LB). Cipher-heavy v11 stage-2 SFTs stood down (a2 corpus 94% cipher → same regression risk). Remaining slots unused.
-- Last updated: 2026-06-15.
+- **LB25/LB80/LB92 borrow campaign (2026-06-20, late window):** ran v16-evalfix (LB25), v17-discovery (LB80 A), v18-stable (LB92). **None beat 0.86** — v16 0.832/0.828 (bit-CoT+replay diluted), v17 0.840/0.848 (equation bounded), v18 0.844/0.848 (grad-clip 1.5 ~neutral). All confirm their plans' own dilution/bounded-equation risk notes; **soup/eq-aug 0.86 hold**. Two LB80 sub-results were genuine wins regardless of LB: (1) **cracked the equation cipher** = per-operator digit-string rules — but the team's `versions/lb1-v1/rules24.py` (95% deduce, branch `exp/nemo-postlb1-v1`) is the superior cracker, use it for a v17.1; (2) **v17-dpo deferred** (needs external sm_90+ GPU, #83). v18 LEVER 2 per-char tokenization **dropped as infeasible** (adapter-only grader uses base tokenizer).
+- Last updated: 2026-06-20.
 
 ## Preserved issue tracking tables (translated → English)
 
@@ -67,6 +68,9 @@
 | **nemo-merge-soup** | harrysun2006 | **0.86** | pushed + evaluated (2026-06-15, **best**) |
 | nemo-v11-sample-a2 / -b | harrysun2006 / firefly2006 | — | data-gen (verified-CoT corpus, vLLM); no submission |
 | nemo-t12-hardval | harrysun2006 | — | eval harness (hard-val ranking); no submission |
+| nemo-v16-evalfix | harrysun2006 | 0.832 | pushed + evaluated (2026-06-20, LB25 borrows; < v14) |
+| nemo-v17-discovery | firefly2006 | 0.840 | pushed + evaluated (2026-06-20, LB80 Part A; equation bounded) |
+| nemo-v18-stable | harrysun2006 | 0.844 | pushed + evaluated (2026-06-20, LB92; ~v14-neutral) |
 
 > ✅ **Refreshed 2026-06-15** via read-only Kaggle API (`kaggle competitions submissions`, both accounts). All listed submissions are `COMPLETE`; private LB not released. See `submissions.md` for the full confirmed table + T12 ranking.
 
@@ -91,6 +95,9 @@
 | 0.85 | b1 | v14 backbone + cryptarithm-only synth (~9%) |
 | 0.84 | b2 | v14 backbone + cryptarithm+bit synth (~11%) |
 | **0.86** | **soup** | **SVD rank32 of v14(0.4)+c1(0.3)+b1(0.3) — comparable+complementary own-work model soup (BEST; hard-val 0.764)** |
+| 0.83 | v16-evalfix | v14 backbone + eval-parity preflight + verified bit CoT (157) + min-logprob replay (hardest 15%) — **LB25 borrows; mild dilution** (2026-06-20) |
+| 0.84 | v17-discovery | v14 backbone + equation discovery-CoT (cracked per-operator rule family, 180 plaintext rows) — **LB80 Part A; equation stays bounded** (2026-06-20) |
+| 0.84 | v18-stable | v14 backbone + grad-clip 1.5 + verified synth equation (cracked rule family, 800) — **LB92; ~v14-neutral** (per-char tok dropped) (2026-06-20) |
 
 ## T12 hard-val per version (post-comp consolidation, 2026-06-16)
 
@@ -128,6 +135,9 @@
 | **EQ3 = eq-hidose** | 0.84 | 0.84 | unknown | not separately hard-val'd |
 | **EQ4 = eq-aug-hidose** | 0.85 | 0.82 | unknown | not separately hard-val'd |
 | soup_v2 (eq-aug merge) | 0.85 | 0.85 | unknown | SVD(0.86-soup×0.6 + eq-aug×0.4); dilutes < both parents |
+| **v16-evalfix** (LB25) | 0.832 | 0.828 | not run (no local GPU) | LB25 borrows: eval-parity preflight (measurement-only) + verified bit CoT 157 + min-logprob replay hardest 1198/37 steps; **−0.018 pub / −0.012 priv vs v14 → dilution (plan's dominant risk confirmed)** |
+| **v17-discovery** (LB80 A) | 0.840 | 0.848 | not run (no local GPU) | equation discovery-CoT, cracked per-operator string-op family, 180 verified plaintext-digit rows (dose 0.15); ciphered 82% uncracked; **pub −0.01 / priv +0.008 vs v14 → equation bounded (no transfer from plaintext subset)** |
+| **v18-stable** (LB92) | 0.844 | 0.848 | not run (no local GPU) | grad-clip 1.5 (variance) + verified synth equation (cracked rule family, 800, ratio 0.1); per-char tok dropped (infeasible, adapter-only grader); **pub −0.006 / priv +0.008 vs v14 → ~neutral; least-harmful borrow** |
 
 ## EQ1..EQ4 analysis (post-deadline equation-frontier grid, late window 100/team/day)
 

@@ -5,6 +5,8 @@
 > from an untrusted competitor writeup — verify before trusting. Complements `v16-evalfix` (LB25) and
 > `v17-discovery`/`v17-dpo` (LB80).
 
+> **✅ EXECUTED 2026-06-20 (late window). RESULT: v18-stable = public 0.844 / private 0.848 — pub −0.006 / priv +0.008 vs v14 (0.85/0.84); below 0.86. ~v14-neutral, the least-harmful of the three borrows.** Ran `harrysun2006/nemo-v18-stable` v1 with **LEVER 1 (grad-clip 1.5)** + **LEVER 3 (verified synth equation, 800 rows, ratio 0.1, via the cracked rule family — poison-free by construction)**. grad-clip 1.5 engaged (step-1 pre-clip grad_norm 13.0). **LEVER 2 (per-char tokenization) DROPPED as infeasible:** it needs `add_tokens` + embedding resize, but the competition submits ONLY the LoRA adapter and the grader uses the FIXED base tokenizer — added tokens can never reach inference. **Verdict:** grad-clip 1.5 is the only sound, low-risk lever (variance, not mean — it didn't raise the score but didn't dilute like v16); the synth-equation lever is now poison-free but bounded by the same plaintext limitation as v17. See `submissions.md` §LB25/LB80/LB92.
+
 ## Version name
 **v18-stable** — "per-char tokenization + grad-clip 1.5 + statistics-matched synthetic" (v14 backbone).
 
@@ -61,9 +63,9 @@ statistics and is validated by the synthetic-vs-original eval gap.
 - Tokenizer + generator + gap-QC work: **CPU, ~0 GPU**. Training + variance A/B: **1–2 RTX PRO 6000 sessions** (~6–7 h each).
 
 ## Implementation checklist
-- [ ] (CPU) per-char tokenization for symbol categories (synthetic tokens); verify reversible + easy-cat-safe
-- [ ] set `max_grad_norm = 1.5`; A/B vs 1e9-off (≥2 runs each) → variance check
-- [ ] (CPU) statistics-matched generator (char-freq / numeric-range / transform-method dist); synthetic-vs-original gap QC
-- [ ] train v18-stable: per-char tok + clip 1.5 + gap-validated synth (≤15% → up to 2.5:1 if QC holds)
-- [ ] T12 hard-val (no easy-cat regression, ≥0.764) + variance check
-- [ ] gate passes → human approval → submit; soup-grow + diverse hedge
+- [ ] ~~per-char tokenization~~ — **DROPPED, infeasible: adapter-only submission + fixed base-tokenizer grader; added tokens never reach inference**
+- [x] set `max_grad_norm = 1.5` — done (LEVER 1); engaged in the run (step-1 pre-clip grad_norm 13.0 → clipped). *(single run; the ≥2-run A/B variance check is backlog — late-window budget)*
+- [x] (CPU) statistics-matched generator — done as a **verified** generator via the cracked equation rule family (poison-free by construction; better than the b1/b2/v15 naive synth whose rules mismatched the real cipher)
+- [x] train v18-stable: clip 1.5 + verified synth (ratio 0.1, conservative) — ran (`harrysun2006/nemo-v18-stable` v1); **LB 0.844/0.848 ~v14-neutral**
+- [ ] ~~T12 hard-val locally~~ — not feasible (no local GPU); late-window LB used instead. Gap-QC loop also needs GPU (kept dose conservative)
+- [ ] ~~gate→approval→submit; soup-grow~~ — submitted directly (human-authorized goal); no improvement over v14, so no soup candidate
