@@ -1,0 +1,287 @@
+Heuristics for bit, cryptarithm and equations — NVIDIA Nemotron Model Reasoning Challenge
+
+
+NVIDIA Nemotron Model Reasoning Challenge
+Solution Writeup · 109th place · Jun 16, 2026
+
+I've accidentialy found this competition in a few weeks before the deadline. As most of us I tried
+to improve awesome baseline solution by @huikang. Unfortunately, I didn't have enough time to
+make my CoTs short enough, so only one small change actually moved me up in leaderboard.
+But I want to share some thoughts and ideas I came up.
+
+Bit manipulation
+tldr; found set of 3 parameters functions that covers all cases. Search for two-parameter
+functions matches and filter them out looking at bits 0 and 7 of the output and searching where
+input bits 7 and 0 are involved.
+
+If you read definition of the task it is clearly states:
+
+        The transformation involves operations like bit shifts, rotations, XOR, AND, OR,
+        NOT, and possibly majority or choice functions
+
+So, I've decided to search for this 3 argument functions. AND-3 appeared to be useless, it's cases
+are fully covered by Majority.
+
+My final investigator finds solution for each of 1602 tasks (match any). And potentially reasoner
+could solve up to 1577 tasks using only this basis:
+
+    •   XOR: 625
+    •   MAJ: 459
+    •   XOR_OR: 234
+    •   OR: 148
+    •   OR_XNOR: 58
+    •   CHOICE: 53
+
+I've also changed a list of transformations to achieve it. All negation operations should be
+applied before transformations. Instead of Not(Shift(x)), I use Shift(Not(x)), etc.
+Shrinking possible arguments combinations to Rot(1-7), and two Shift(1-7) in any direction still
+giving 1522 correct answers.
+If we add combination like Rot + Rot + Shift, but only for Xor operator - it gives 1576.
+But we still can't just brute-force all possible combinations. Here comes in some additional
+heuristics. Basically there only three cases:
+
+
+
+
+As you can see, in all cases we have some space, where it is guaranteed to have only one- or two-
+parameters function. So we can use the original @huikangs approach to find such spots and try
+to build them one line. I've made a bit broader covering to handle negated operands correctly.
+
+To compress the CoT for additional operators I build also negated-output matching table. It gives
+e.g. if one of AND candidates matched to the negative one, then it is by the De Morgan's low
+Not(A and B) -> Not(A) or Not(B)
+
+After that we have a few groups:
+
+g_xor = XOR, XOR-NOT
+g_or = OR, OR-NOT, NOT-OR, NOT-OR-NOT
+g_and = AND, AND-NOT, NOT-AND, NOT-AND-NOT
+g_iden = Identity, NOT
+content_copy
+
+1) Two left-shifts or two right-shifts
+
+In this case we check what happens on side and what is in the middle.
+
+ Side Middle     Candidate function
+g_iden gxor XOR3, OR_XNOR, XOR_OR
+g_iden g_or OR3, XOR_OR
+g_iden g_and OR_XNOR, CHOICE
+g_iden g_iden CHOICE
+ Side Middle    Candidate function
+C0    g_and MAJ
+
+After that we have a lot of candidates and we try to filter-out as much as possible before final
+brute-force. There are two branches: LShift and RShift but they are quite symmetric.
+
+Lets take a look at LShift+LShift+Rot case in the picture:
+
+
+
+
+We will have at least one identity match on the right side.
+Using the Identity candidate (index 2 in this case), we can calculate rotation LRot(3) and find the
+first spot spot to the left, where two parameter function matches. We are looking only for
+candidates who has 7 as one of indexes (0 for right shift) and match selected rotation in the same
+position.
+If it is not found - we check the next one. In this picture the perfect candidate would have match
+to 7-7 and three Identity matches in a row to the right of it.
+
+Now we have a few pairs of ROT(const)+LShift(const)+LShift(x) - the last one we can just
+brute-force. But as heuristic we can use the fact, that we must see some amount of two operands
+operations matches in a row. So as the first candidate we should use the spot where it ends (in
+picture 7-6-6).
+
+My problem was here mostly with C0 candidates or AND operations, because they give too
+much candidates when the output columns are like "000000"
+
+2,3 Left shift + Right shift
+
+This case is easier. You guaranted to see on the both sides some matches. In most cases you can
+easily calculate the Rotation candidate.
+In case (2) a good pair from both sides selected, where on of indexes is X for the left side and X-1
+mod 8 for the right.
+E.g. AND33, XOR26 -> LRot(3), LShift(3), RShift(1).
+Then we calculate where they should overlap and check if the sequence for each function
+continues till that point:
+
+
+
+
+For left-right I also have a table of candidate functions, but now they are divided by sides:
+
+ Left Rght Candidate function
+g_xor g_xor XOR3, OR_XNOR
+g_or g_or OR3, XOR_OR
+g_and g_and MAJ, CHOICE
+ Left Rght Candidate function
+g_xor g_or XOR_OR
+g_and g_xor OR_XNOR
+g_and g_iden CHOICE
+g_and C0     Maj
+
+For the case (3) we can also check the middle for Identity/Constant matches that should be in
+between of shifts.
+
+2 Rotation + Shift
+
+
+
+
+Additional ~50 tasks could be solved if we check such cases with XOR function. And it is quite
+easy to do actually. Lets take a look at XOR-3 ANF:
+
+XOR(A,B,C) = A ⊕ B ⊕ C; then XOR(A,B,C) ⊕ C = A ⊕ B ⊕ C ⊕ C = A ⊕ B
+
+We have a list of all possible XOR(A,B) and Output is XOR(A,B,C). The only thing we have to
+do is to build list of possible XOR(Output, C) and match it on the XOR(A,B) table.
+
+Why it all didn't work
+
+My mistake was, that I've spend too much time trying to reach a perfect solution. I could apply
+e.g. only the XOR3 heuristic, it would already give me some small boost..
+I've implemented everything above, but there were a lot of cases where final brute-force is too
+big and I didn't have enough time how to compress it. I think the good enough solution would be
+to score each potential candidate by length and how much info does it gives. Most of bad cases
+were output columns with 00000 or 111111.
+
+Another approach
+
+I also had another approach in mind that I didn't have time to try. It is the same trick as for XOR
+function. We can write down ANFs for all functions, partially calculate them and then XOR it on
+the output:
+
+OR(x,y,z)=x⊕y⊕z⊕xy⊕xz⊕yz⊕xyz
+
+XOR_OR(x,y,z)=x⊕y⊕z⊕xz⊕yz
+Choice(x,y,z)=z⊕xy⊕xz
+
+Maj(x,y,z)=xy⊕xz⊕yz
+
+XOR(x,y,z)=x⊕y⊕z
+
+OR_XNOR(x,y,z)=1⊕x⊕y⊕z⊕xy
+
+The xyz is a bit problematic, but it could be resolved for only appropriate candidates on the
+edges. Same approach - we make XOR on Output and match on one of pre-calculated tables. I
+think this one was really perspective…
+
+Cryptarythm
+For cryptarythm it was important to understand the restrictions of the dataset itself. It is possible
+to correctly determine the right class of operators in 781 cases out of 823 in total if restrict the
+operations by following classes:
+
+Concatenation -> concat, reverse concat, big\little-endian
+
+Multiplication -> mul + offset{-1,0,1}
+
+Summation -> sum + offset{-1,0,1}
+
+Substraction -> absdiff, signed substraction, negative absdiff, right-left substraction
+
+How to map them? In most cases the meaning is the same as symbols semantic. Like * is mul, +
+is sum, etc.
+But sometime we don't have appropriate symbols. And also sometimes the original symbols
+change meaning. We can check such cases by simple rules:
+
+   •   check for concats first (+ and * are also quite often concats)
+   •   If we don't have *,-,+ we look at right side size (4 -> mul, 1 -> sub, 2-> sum\sub, 3 ->
+       sum\mul).
+   •   for *,-,+ apply by their meaning if there are no contradictions
+   •   If some of the operations are taken, then use another one for yours
+   •   if operator is only in question (guess tasks) - use unused operation. If there multiple - use
+       opposite to the presented one. E.g. * is substraction from exaples, then / in question is
+       summation, etc.
+
+This list is not full, but you got the idea - even for the guess questions there are some deduction
+steps how to find good candidate for the operation.
+Full determenistic search gives 751 right answers in such constraints.
+
+After that I build mappings and write down equations with offsets and substraction branching
+included for big and little endian. Something like this:
+Big-endian mapped formulas:
+E1: 10*A+B+10*C+D+m=100*E+10*C+E # m is offset for multiplication
+E2: (10*F+E)*(10*B+D)+l=1000*E+100*A+10*D+D # l is offset for summation
+E3: 10*G+D+10*G+H+m=100*E+10*I+I
+content_copy
+
+After that I build mod 10 restrictions. It cut many branches early:
+
+Big-endian mod 10 constraints:
+Use full equations modulo 10 before decimal columns.
+M1: B+D+m=1 (mod 10)
+M2: D+l=D (mod 10)
+M3: D+H+m=I (mod 10)
+Combined mod 10 propagation:
+  P1: l in {0}
+content_copy
+
+Then I make equtaions for units, tens, hundreds etc for summation and substraction only. It
+creates carries, which easy to iterate through.
+
+E3: GD+GH+m=1II
+  E3.C1 units: D+H+m=I+10*c3
+  E3.D1: c3 in {-1,0,1}
+  E3.C2 tens: G+G+c3=I+10*c4
+  E3.D2: c4 in {-1,0,1}
+  E3.C3 hundreds: c4=1
+content_copy
+
+And then just brute-force, selecting on each step the smallest set for branching, checking
+constraints and building local ones for branch.
+When there are small enough search field ( < 5000 combinations) I add mod 37 to cut some
+branches quicker.
+Also, mod 11 is helpful for polyndrom numbers like HH, FIIF, etc And mod 100 for
+multiplication.
+I also stop after 13k symbols to keep it shorter then 7k tokens.
+
+I solved this way 391 tasks. But I finished this solution just before the deadline, and didn't have
+time to setup training correctly. It gave me 0,82 result with all other classic samples =\ I think
+overfitting took place here…
+
+Equations (guess)
+I gained like +50 tasks in equations category. I think it is the only reason why I moved from
+1000+ place to 115 in the end :)
+
+
+
+The idea for sign is the same as for cryptarythms:
+    •    if arithmetic sign, use its meaning
+    •    if opposite sign found in samples, use opposite meaning: e.g [ is substraction, then ] is
+         addition
+    •    if all other operations "taken", use unused one
+         ….
+    •    use default fallback
+
+So that's it :)
+
+That was really fun to try to solve such puzzles! Thanks everybody for the competition!
+
+Author
+
+
+Andrey Kulakov
+
+jex398
+
+arrow_drop_up3
+Sharemore_horiz
+
+Citation
+Andrey Kulakov. Heuristics for bit, cryptarithm and equations.
+https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-
+challenge/writeups/heuristics-for-bit-cypher-and-equations. 2026. Kaggle
+
+add_reactionReact
+comment
+This comment will be made public once posted.
+
+attach_filePost Comment
+
+Andrey Kulakov
+
+Topic Author
+
+Would really like to hear what "Solved Bit Manipulation" team did for bit operations! Is it a
+similar approach? @adityap97 @prateekagnihotri @shubham068
+

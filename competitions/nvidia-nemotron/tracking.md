@@ -178,6 +178,33 @@ over-generalized — it holds only for the *guess* (unseen-operator) subset (~48
 decisive remaining gap to 0.900 is the **two-stage memorize→execute training** + cryptarithm
 **volume** (LB3 ~58 GPU-h), reproducible only as a down-scaled GPU method-validation run (handoff).
 
+## lb1-v1 — post-LB1 method implementation (2026-06-20)
+
+> Reproducible CPU implementation of the 1st-place method under
+> `versions/lb1-v1/` (branch `exp/nemo-postlb1-v1`). The competition is closed
+> for ranking; this is method-validation + reusable methodology. LB1 is a
+> *training-data* method, so a real `lb1-v1` LB number needs a GPU-trained
+> rank≤32 adapter — that training + the guarded late-submission are a documented
+> handoff (the preflight gate blocks the submit until a completed run yields a
+> valid `submission.zip`). Held-best protected: soup 0.86/0.85, v14 0.85,
+> eq-aug 0.86/0.86.
+
+| check | result | vs writeup |
+|---|---|---|
+| signature catalog (100×100 × 22 non-join rules) | **4,205 signatures — EXACT**; `ABCCCDD`→15 (add1/flip_add8/flip_add+1 6), slot strings byte-exact | 4,205 ✓ |
+| **equation-numeric re-probe** (real train.csv) | **deduce 566/596 = 95.0%**, guess 65/136 = 47.8%; split 596/136 exact | 95.5% / 52.9% |
+| HEX compression | `1101000001`→`341` exact; ~75% char cut | matches |
+| bit rule-sequence catalog | pure enum **857,692 seqs / 115,826 functions** — overshoots; LB1's 5,238 is **train.csv-tuned**, not prose-reproducible. Repair (Hamming-NN) verified (recovers Hamming-3 corruption). | ≈5,238 (not reproduced) |
+
+**Equation verdict qualified.** The EQ-0/EQ-2′ "global cipher = unsolvable"
+conclusion is **over-generalized**: it holds for the *guess* (unseen-operator)
+subset (~48–53%), but **equation-numeric *deduce* is 95% solvable per-prompt** via
+the 24-rule inventory + Observation 1/2 — not one global function. This matches the
+LB1 coverage table and refutes our frontier call for the deduce subset (cf.
+`gap_analysis.md`, `equation-frontier.md`). The decisive remaining gap to 0.92 is
+cryptarithm + bit *volume* (LB1: 220k+140k synth, ~170h single-GPU), reproducible
+only as a down-scaled method-validation run post-comp.
+
 ## Evidence links
 - GitHub issue #86 (body + comments 0–4) — original hub.
 - `tracking_zh.md` — original Chinese tables verbatim.
