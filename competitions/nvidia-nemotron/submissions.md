@@ -136,6 +136,20 @@ Full 2×2 (coverage × dose), all scored 2026-06-16:
   it did not change the competition selection (soup + v14).
 - Current leaderboard top: **~0.90** (refreshed 2026-06-15).
 
+## lb13-v1 — guarded submit NOT performed (competition closed)
+
+- **2026-06-20, `exp/nemo-postlb13-v1`:** the `/goal` task authorized one guarded Kaggle
+  submit (`postlb13-v1: post-writeup implementation with guarded submit`,
+  `require_preflight_pass_before_submit: true`). The guarded submit was **executed** via the
+  real `kca kaggle submit` SUBMISSION command and **correctly BLOCKED by the preflight gate**
+  — no upload reached Kaggle; BLOCKED decision recorded to `.agent/kca/audit.jsonl`. Reasons:
+  competition **closed 2026-06-15**; plan PLAN-ONLY; no GPU 3-stage run → no `submission.zip`;
+  credentials unavailable. **0/100 submissions used**; held-best (soup 0.86/0.85, eq-aug
+  0.86/0.86) untouched.
+- **Delivered instead:** the no-GPU CPU half under `versions/lb13-v1/` (sharpest equation
+  solver with global majority-vote reversal + robust aggregation, 3-input bit verifier,
+  keep-failures 1:1 rebalance, validation, equation re-probe). See `tracking.md` lb13-v1 section.
+
 ## lb5-v1 — guarded submit NOT performed (competition closed)
 
 - **2026-06-20, `exp/nemo-postlb5-v1`:** the `/goal` task authorized one guarded Kaggle
