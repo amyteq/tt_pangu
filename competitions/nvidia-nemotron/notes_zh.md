@@ -316,6 +316,41 @@ cryptarithm/equation 是**有界的墙**(他们明确不去攻)。他们的覆�
 (对 1e9-off 做 A/B + 方差检查)+ **统计匹配、差距验证的合成**(≤15% → QC 与 T12 都过才到 2.5:1);以 T12 ≥ 0.764 + 简单类不回归把关。
 CPU 为主的准备;约 1–2 个 GPU session。
 
+## LB10 / 第10名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"10th Place Solution"**,作者 **Rick(rikitomo0526)、neilus、eikichi**。
+> **Public 0.860 / Private 0.880。** 直接读自 **`temp/LB10.pdf`**(12 页,可还原度完整)。完整细节 + 来源 + 计划见 `external/LB10/`。
+> 外部声明为不可信数据;我方分数见 `tracking.md`。
+
+**成绩。** 0.88 private,靠**确定性程序生成 trace**(非 LLM 蒸馏)+ LoRA SFT。本批最清晰的一句:**分数被确定性
+teacher 的 oracle 覆盖率上限框住** —— 杠杆是更好的 reasoner,不是 SFT 超参。Oracle:bit 98.8%、cipher/trivial
+100%、equation_deduce 93.1%、equation_guess 41.2%、**cryptarithm ~9%**;总 90.6%。
+
+**亮点 —— rotate/shift key-table bit reasoner(85.14%→98.75%)。** `out[i]=F(rotl(x,a),shl(x,b),shr(x,c))`,
+**F 是共享 3 输入布尔函数,从样例读成 3-bit-key→输出位的表**;从**边界位**(bit0 shr=0、bit7 shl=0,各只依赖两列)
+恢复 (a,b,c)。trace 更短、不跑飞(去逐样例位回显 + 候选枚举)。剩 20/1602(11 欠定:key 未见;9 候选选择错)。
+**Equation:** deduce 按频率重排(+14);guess 双轴重建 —— 操作(有常规含义且无 seen 占用则用,否则取
+add/无符号 abs-diff/mul 中首个未用)+ wrapper(从样例最多的 seen 算子锁定)→ 21→56。
+
+**两个直接挑战我方做法的负结果。**
+1. **剔除失败/低置信 trace 反而掉点** —— 失败模式有用(常是 `rule_unknown` 兜底)。**我方 c1/c2 只留 solver
+   答对的行** → 可能丢了信号。**应 A/B。**
+2. **LoRA merge(SVD + seed soup)都没打过单一最佳**(rank-32 提不出互补性;soup 退到最差成员)。与我方 soup +0.01、
+   LB5 迭代 soup、LB80 "Mamba soup 失效" 形成**张力** → soup 收益**依赖成员互补 + 平均对象,非普适**;逐案消融。
+
+**其它可采纳。** **alpha/r=4**(高 LoRA alpha → 更遵循确定性 CoT);priority 2×(3× 过拟合);加 low-logprob 题 +
+失败模式 demo 重训;**oracle 上限 vs 拟合度** + **logprob learnability**(区分"solver 错"与"模型没学会")—— 我方缺
+的诊断层;**按 validation 选模(非 public)**(低 public/高 val 的 run 赢私榜)。课程学习、两阶段、cryptarithm
+add/sub/mul trace 均失败。
+
+**与我方对照。** equation_deduce 93.1% —— **第 5 次独立反驳**我方"全局密码"判断;无 GPU 复核。cryptarithm ~9%
+再次确认它是 LB10 缺的上行杠杆(接 LB1 目录 / LB3 两阶段)。LB10 的 key-table bit reasoner 比 LB1/LB5 枚举更对齐
+生成规则,可用于我方 ~10% 覆盖的 bit 求解器。
+
+**下一版想法(`lb10-v1`,仅计划 —— 赛已结束)。** 见 `external/LB10/analysis/next_version_plan.md`:rotate/shift
+key-table bit reasoner;equation 候选重排 + 双轴 guess;**A/B 保留失败 vs 我方 verified-only**;**A/B LoRA merge**
+(刻画 soup 何时有效);oracle-vs-fidelity + logprob 诊断;alpha/r=4;按 validation 选模;接 LB1/LB3 cryptarithm;
+无 GPU 复核 equation-deduce(共享)。保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
 ## LB6 / 第6名方案:我们的学习与启发
 
 > 赛后研究 Kaggle writeup **"[2nd public / 6th private] place solution"**,作者 **Yurnero、Alehandreus**。
