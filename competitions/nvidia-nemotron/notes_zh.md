@@ -321,6 +321,51 @@ cryptarithm/equation 是**有界的墙**(他们明确不去攻)。他们的覆�
 (对 1e9-off 做 A/B + 方差检查)+ **统计匹配、差距验证的合成**(≤15% → QC 与 T12 都过才到 2.5:1);以 T12 ≥ 0.764 + 简单类不回归把关。
 CPU 为主的准备;约 1–2 个 GPU session。
 
+## LB109 / 第109名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"Heuristics for bit, cryptarithm and equations"**,作者 **Andrey Kulakov(jex398)**。
+> 109th;终分 ~0.82(cryptarithm 过拟合);**equation-guess(+50)**把他从 1000+ 推到 ~109。读自 **`temp/LB109.pdf`**
+> (8 页,可还原度完整)。完整细节:`external/LB109/`。**⚠️ 主要是想法 writeup** —— 多数启发式太长没落地。外部声明为不可信数据。
+
+**三个我方没有、值得借鉴的角度(作者多数未落地):**
+1. **bit ANF(代数范式)技巧** —— `XOR(A,B,C) ⊕ C = A ⊕ B`,故用 `XOR(Output, C)` 去匹配 2 参数 `XOR(A,B)` 表;
+   可推广到 OR/XOR_OR/Choice/Maj/OR_XNOR(**partial-ANF + 在 output 上 XOR 后匹配预计算表**)。把 3 参数搜索大幅压缩 ——
+   我方 ~10% 覆盖的 bit solver 的全新角度(本批唯一用 ANF)。
+2. **cryptarithm 模运算剪枝** —— mod-10 进位 + **mod 37(<5000 组合)、mod 11(回文)、mod 100(乘法)**,每步选最小集分支,
+   13k 符号 / 7k token 截断。这是让确定性 cryptarithm 搜索(LB3 CSP / LB6 DFS / 我方)塞进 token 预算的加速器。
+3. **negation 规范化** —— `Shift(Not(x))` 而非 `Not(Shift(x))`(减少等价形式 → 缩小搜索)。
+
+**落地的收益:** **equation/cryptarithm guess 符号推断**(算术符号用本义;相反符号用相反义;否则未用算子;否则 fallback)
+→ +50(唯一动榜)。**第 8 次印证** equation/cryptarithm guess 可逐题推断(非全局密码)。
+
+**负面教训(与我方呼应)。** 作者**死磕完美的 bit brute-force,几乎没落地** —— 只上 XOR3 本就能涨(= 我方在难类上的死磕;
+应先落地小赢)。**cryptarithm 过拟合**(训练仓促 → 0.82)。坏例是 `00000`/`11111` 输出列 → 应**按长度+信息量给候选打分**做
+token 预算剪枝。
+
+**下一版想法(`lb109-v1`,仅计划 —— 赛已结束)。** 见 `external/LB109/analysis/next_version_plan.md`:bit ANF investigator +
+negation 规范化;cryptarithm 模运算剪枝(mod 10/37/11/100)接在类约束搜索上;equation/cryptarithm guess 符号推断;
+按长度+信息量给候选打分;加 CV 闸防过拟合;无 GPU 复核 equation-deduce(与 `lb{1,3,5,6,10,13}-v1` 共享)。
+保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
+
+## LB88 / 第88名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"88th PLACE SOLUTION"**,作者 **Yoshinari Kawashima + MedudentYamatai**
+> (DOI 10.34740/kaggle/w/88245)。**⚠️ 与上方 LB92 节是同一篇 writeup**(同 DOI/作者/url `92th-place-solution`;
+> 渲染头部现显示 "88th place",名次 92 → 88)。读自 **`temp/LB88.pdf`**(8 页,可还原度完整)。
+> 完整细节:`external/LB88/`(交叉引用 `external/LB92/` 的图与先前分析)。外部声明为不可信数据。
+
+**成绩。** **数据工程**方案:reasoner(@huikang OPP)几乎不改(oracle 87.8%),**别丢已可解的题**。杠杆(均已在 LB92 节记录):
+**统计匹配合成生成器 + 合成-vs-原始 gap QC 环**(最终 2.5:1 合成:原始);**逐字符 tokenization**(1 字符=1 token)修
+cryptarithm BPE 合并;**梯度裁剪 1.5**(vs 公开 1e9 —— 多半是提交间方差之因)。RL(SimPO/ORPO)失败(chosen=reasoner ≈
+rejected=temp-1.3 采样);用 Claude Fable 5 也没造出更强的 bit/cryptarithm reasoner。
+
+**对我方(同 LB92 结论)。**(1)**统计匹配 + gap 验证的合成**是我方"合成稀释"(b1/b2/v15 回归)的解药;(2)**逐字符
+tokenization** 是我方没试过、直击符号弱点的杠杆;(3)**grad-clip 1.5** vs 我方 1e9-off 是便宜 A/B;(4)equation_deduce
+90.8%(OPP baseline)再证 equation deduce 可解。cryptarithm ~9% / bit 85.1%(reasoner 未动)—— 他们没去攻的墙。
+
+**下一版(`lb88-v1` ≈ LB92 的 `v18-stable`,仅计划 —— 赛已结束)。** 见 `external/LB88/analysis/next_version_plan.md`
+与 `external/LB92/analysis/next_version_plan.md`。保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
+
 ## LB13 / 第13名方案:我们的学习与启发
 
 > 赛后研究 Kaggle writeup **"13th Place Solution"**,作者 **Haraguchi-T(haraguchit)**。(未给最终 LB;

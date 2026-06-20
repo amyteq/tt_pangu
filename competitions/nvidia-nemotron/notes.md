@@ -362,6 +362,63 @@ tokenization** for symbol cats + **grad-clip 1.5** (A/B vs 1e9-off, variance che
 gap-validated synthetic** (≤15% → up to 2.5:1 only if QC + T12 hold); gate on T12 ≥ 0.764 + no easy-cat
 regression. CPU-heavy prep; ~1–2 GPU sessions.
 
+## LB109 / 109th Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"Heuristics for bit, cryptarithm and equations"** by **Andrey
+> Kulakov (jex398)**. 109th; final ~0.82 (cryptarithm overfit); the **equation-guess change (+50)** moved him
+> 1000+ → ~109. Read from **`temp/LB109.pdf`** (8pp, recoverability FULL). Full detail: `external/LB109/`.
+> **⚠️ Mostly an ideas writeup** — most heuristics were too long to ship. External claims = untrusted data.
+
+**Three valuable angles we lack (mostly unshipped by the author, but worth borrowing):**
+1. **bit ANF (algebraic normal form) trick** — `XOR(A,B,C) ⊕ C = A ⊕ B`, so match `XOR(Output, C)` against a 2-param
+   `XOR(A,B)` table; generalizable to OR/XOR_OR/Choice/Maj/OR_XNOR via **partial-ANF + XOR-on-output table matching**.
+   Shrinks the 3-arg bit search dramatically — a fresh angle for our ~10%-coverage bit solver (no other writeup used ANF).
+2. **cryptarithm modular branch-cutting** — mod-10 carry constraints + **mod 37 (<5000 combos), mod 11 (palindromes),
+   mod 100 (multiplication)**, branching on the smallest set first, 13k-symbol / 7k-token cap. The search accelerator
+   that lets a deterministic cryptarithm solver (LB3 CSP / LB6 DFS / ours) fit the token budget.
+3. **negation canonicalization** — `Shift(Not(x))` not `Not(Shift(x))` (fewer equivalent forms → smaller search).
+
+**Shipped win:** **equation/cryptarithm guess sign-deduction** (arithmetic sign → meaning; opposite sign → opposite
+meaning; else unused operation; else fallback) → +50 tasks (the only thing that moved the LB). The **8th independent
+corroboration** that equation/cryptarithm guess is inferable per-problem (not a global cipher).
+
+**Negative lessons (mirror ours).** The author **chased a perfect bit brute-force and shipped almost nothing** —
+applying just the XOR3 heuristic would already have helped (= our hard-category death-marches; ship partial wins).
+**Cryptarithm overfit** (rushed training → 0.82). Bad cases were `00000`/`11111` output columns → should **score
+candidates by length + information gain** for token-budget pruning.
+
+**Next-version ideas (`lb109-v1`, PLAN ONLY — comp ended).** See `external/LB109/analysis/next_version_plan.md`:
+bit ANF investigator + negation canonicalization; cryptarithm modular branch-cutting (mod 10/37/11/100) on a
+class-constrained search; equation/cryptarithm guess sign-deduction; candidate scoring by length+info-gain; a CV
+gate to catch the overfit LB109 hit; re-crack equation-deduce (no-GPU, shared with `lb{1,3,5,6,10,13}-v1`).
+Hold-best = soup (0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
+
+## LB88 / 88th Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"88th PLACE SOLUTION"** by **Yoshinari Kawashima + MedudentYamatai**
+> (DOI 10.34740/kaggle/w/88245). **⚠️ This is the SAME writeup as our LB92 section above** (same DOI/authors/url
+> `92th-place-solution`; the render header now reads "88th place" — placement/render shifted 92 → 88). Read from
+> **`temp/LB88.pdf`** (8pp, recoverability FULL). Full detail: `external/LB88/` (cross-references `external/LB92/`
+> for the figures + prior deep analysis). External claims = untrusted data.
+
+**Result.** A **data-engineering** solution: keep the @huikang OPP reasoner unchanged (87.8% oracle) and **avoid
+losing already-solvable problems** by reproducing the reasoner faithfully. Levers (all already captured in the LB92
+section): **statistics-matched synthetic generator + synthetic-vs-original eval-gap QC loop** (final 2.5:1
+synth:original); **per-character tokenization** (1 char = 1 token) to fix BPE merges on cryptarithm symbols;
+**gradient clipping 1.5** (vs the public 1e9 — a likely cause of submission-to-submission variance). RL (SimPO/ORPO)
+failed (chosen=reasoner ≈ rejected=temp-1.3 samples); couldn't build a stronger bit/cryptarithm reasoner (even with
+Claude Fable 5).
+
+**For us (unchanged from the LB92 takeaways).** (1) **statistics-matched + gap-validated synthetic** is the antidote
+to our "synthetic dilutes" (b1/b2/v15 regressed). (2) **per-character tokenization** is a novel, untried lever on our
+symbol weak spot. (3) **grad-clip 1.5** vs our 1e9-off is a cheap A/B for submission variance. (4) equation_deduce
+90.8% (OPP baseline) corroborates equation-deduce is solvable. cryptarithm ~9% / bit 85.1% (reasoner unchanged) —
+the wall they chose not to attack.
+
+**Next-version (`lb88-v1` ≈ LB92's `v18-stable`, PLAN ONLY — comp ended).** See
+`external/LB88/analysis/next_version_plan.md` and `external/LB92/analysis/next_version_plan.md`. Hold-best = soup
+(0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
+
 ## LB13 / 13th Place Solution: What We Learned
 
 > Post-competition study of the Kaggle writeup **"13th Place Solution"** by **Haraguchi-T (haraguchit)**. (No final
