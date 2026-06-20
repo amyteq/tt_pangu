@@ -136,6 +136,25 @@ Full 2×2 (coverage × dose), all scored 2026-06-16:
   it did not change the competition selection (soup + v14).
 - Current leaderboard top: **~0.90** (refreshed 2026-06-15).
 
+## lb3-v1 — guarded submit NOT performed (competition closed)
+
+- **2026-06-20, `exp/nemo-postlb3-v1`:** the `/goal` task authorized one guarded Kaggle
+  submit (`postlb3-v1: post-writeup implementation with guarded submit`,
+  `require_preflight_pass_before_submit: true`). The submit was **correctly blocked by the
+  preflight gate** and **no submission was attempted**. Reasons, in order:
+  1. the competition **closed 2026-06-15 23:59 UTC** (no live ranking submission possible);
+  2. the plan (`external/LB3/analysis/next_version_plan.md`) is explicitly **PLAN ONLY / no
+     GPU / no submit** (`allow_* = false`) — a conflict with the task front matter, resolved
+     in favor of repo-as-source-of-truth per the task's own conflict clause;
+  3. no GPU two-stage training was run here, so **no `submission.zip` was produced** →
+     preflight items "run completed successfully" and "submission.zip exists" fail.
+- **Delivered instead:** the no-GPU CPU half of the plan under `versions/lb3-v1/` (CSP
+  cryptarithm solver, hex bit compression, 13-op numeric solver, stage-1 drills,
+  private-tracking validation, equation re-probe). See `tracking.md` lb3-v1 section.
+- **For a future live competition**, the authorized flow (GPU train → package → preflight →
+  submit, selecting on the private-tracking offline metric) is documented in
+  `versions/lb3-v1/README.md`.
+
 ## lb1-v1 GPU run (2026-06-20) — IN PROGRESS, guarded late-submission pending
 
 The full GPU pipeline was authorized and launched (post-LB1 method-validation;

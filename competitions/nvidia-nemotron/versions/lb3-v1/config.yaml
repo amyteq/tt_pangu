@@ -1,0 +1,99 @@
+# lb3-v1 version config — single source of truth for the reproducible pipeline.
+# Derived from external/LB3/analysis/next_version_plan.md + the LB3 (3rd place) writeup.
+# The competition CLOSED 2026-06-15; GPU-gated values are for a future authorized
+# down-scaled method-validation run (NOT executed here). CPU steps run now.
+
+version_id: lb3-v1
+display_name: Post-LB3 v1
+base_model: nvidia/Nemotron-3-Nano-30B-A3B
+competition_slug: nvidia-nemotron-model-reasoning-challenge
+
+data:
+  # real competition data (not committed; kaggle data policy)
+  train_csv: ~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/data/train.csv
+  download_cmd: >-
+    kaggle competitions download -c nvidia-nemotron-model-reasoning-challenge -p <dir>
+
+# Multiplication-pattern lookup for the CSP cryptarithm solver (LB3's lighter
+# alternative to LB1's full 4,205-signature catalog).
+catalogs:
+  mul_pattern_lookup:
+    row_cap: 48               # rows per signature (writeup order of magnitude)
+    max_operand: 99           # 2-digit operands
+    kinds: [simple, plus1, minus1]   # a*b, a*b+1, a*b-1 families
+
+# Two-stage training corpus (the headline lever). Down-scaled from LB3's
+# 72,377 samples / 299.4M tokens to validate the METHOD (sample efficiency,
+# recall quality), not the volume.
+synth:
+  protect_backbone: true      # do NOT dilute the huikang replay recipe (b1/b2/v15 lesson)
+  augment_by_resampling: true # resample originals; never free-generate (preserve generator artifacts)
+  downscaled_targets:
+    cryptarithm: 40000        # LB3 48K (the heavy lifter, 59.6% of mix)
+    bit: 6000                 # 3K swap + 3K formula, x2 (HEX-compressed)
+    cipher: 3000
+    numeric: 3000
+    cryptarithm_pattern_drill: 3000   # stage-1 drills retained into stage 2 (LB3 4.1%)
+  full_targets:               # LB3 reference
+    total_samples: 72377
+    total_tokens: 299_400_000
+
+prompt:
+  finality_line: "</think>\\n\\boxed{...}"
+  recall_tags: [RECALL_DOMAINS, RECALL_ROWS]   # explicit memory tags in the trace
+  solver_notation: [Q, C, S, N, Y]
+  preserve: [binary_leading_zeros, exact_strings, numeric_precision]
+
+# GPU-gated (NOT run here). LoRA rank<=32 hard cap (compliance red line).
+training:
+  framework: cce_manual_loop   # Hui Kang's cut-cross-entropy loop (micro-batch 4)
+  lora_rank: 32
+  lora_alpha: 32
+  lora_dropout: 0.0
+  dtype: fp32
+  target_modules: [q_proj, k_proj, v_proj, o_proj, in_proj, out_proj, up_proj, down_proj, gate_proj, lm_head]
+  manual_lm_head_lora: true
+  moe_tie_weights: false       # LB3: MoE tie OFF (A/B vs our v14 MoE-128 tying)
+  effective_batch_size: 4      # LB3: small beats 8/16 (large under-trains); A/B
+  lr: 2.0e-4
+  lr_schedule: linear
+  max_grad_norm: 10
+  seq_len: 8192                 # eval cap 7680
+  seed: 42
+  epochs: 1
+  two_stage:
+    stage1:                     # memorize the lookup table
+      data: cryptarithm_pattern_drill   # <RECALL_*> drills, 16 packed/sample, request masked
+      effective_batch_size: 8
+      lr: 2.0e-4
+      ref_gpu_hours: 25.2       # LB3 full reference
+    stage2:                     # learn to execute the trace; init from stage-1 adapter
+      data: real_traces + 3000_retained_drills
+      effective_batch_size: 4
+      ref_gpu_hours: 32.7       # LB3 full reference
+  wall_clock_guard_hours: 8     # B7: always save+zip before the Kaggle session limit
+  downscaled_gpu_hours_estimate: "10-20h on RTX Pro 6000 (method validation only)"
+
+validation:
+  official_metric: ../../eval/official_metric.py
+  primary_offline_metric: private_tracking_stratified_holdout   # 10%, leakage-excluded
+  holdout_frac: 0.10
+  stratify_by: category
+  leakage_exclusion: true       # drop augments derived from val originals
+  perfect_trace_rate_targets: {bit: 0.85, cipher: 0.95, numeric: 0.95}
+  hard_val: ../../eval/hard_val_ids.json   # hard-tail HINT only (INS-002)
+  max_tokens: 7680
+  greedy: true
+  temp: 0.0
+  note: >-
+    LB3's key finding: a leakage-controlled local val tracks the PRIVATE LB, not the
+    public 0.86 "wall". Select on this offline metric, never on the public LB.
+
+submit:
+  require_preflight_pass: true
+  message: "postlb3-v1: post-writeup implementation with guarded submit"
+  status: COMPETITION_CLOSED    # deadline 2026-06-15; no live submission possible now
+  hold_best:                    # do not regress/overwrite
+    - {name: soup, public: 0.86, private: 0.85}
+    - {name: eq-aug, public: 0.86, private: 0.86}   # best own private (late window)
+  target_reference: {place: 3, private_lb: 0.900}   # LB3 / 3rd place (method source)

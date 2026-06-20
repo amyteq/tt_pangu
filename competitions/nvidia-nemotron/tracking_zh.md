@@ -171,6 +171,23 @@
 ## 合规红线
 rank≤32;真实训练(不 repack);双账号 = 真实注册队友(已确认),只买**并发 session**,提交共享 per-team/day;不打印/提交 credentials。
 
+## lb3-v1 — LB3(第3名)方法实现(2026-06-20)
+
+> 分支 `exp/nemo-postlb3-v1`,代码在 `versions/lb3-v1/`,纯 CPU 复现 LB3(Private 0.900)方法。
+> **比赛已于 2026-06-15 截止**,故**未做线上提交**(preflight 门正确拦截:比赛关闭 + 无完成的 GPU 训练
+> → 无 `submission.zip`)。本版只验证*机制*,不复现 0.900。已保护最佳成绩:soup 0.86/0.85、eq-aug 0.86/0.86。
+
+实测结果:
+- **equation-numeric 重测(真实 train.csv,732 题)**:deduce 566/596 = **95.0%**,guess 65/136 = 47.8%
+  → 第二次独立反驳"全局密码不可解"结论(deduce 子集可解,见 `equation-frontier.md`)。
+- **CSP cryptarithm**(合成 n=150):`*` deduce **100%**(映射全恢复 100%);`+` 98%;`-` 94.7%;`*` guess 94%。
+- **bit HEX+尾2位** 压缩:解 100%,trace token **−23.4%**(LB3 参考 ≈ −25%)。
+- **numeric 13-op**:deduce **98.3%**(guess 11%,合成场景缺少官方生成器的算子族共现结构)。
+- **私有榜对齐验证**自检通过:10% 分层留出 + 防泄漏 + perfect-trace-rate + adapter rank≤32/zip 结构。
+
+剩余到 0.900 的关键差距 = **两阶段(记忆→执行)训练** + cryptarithm 数据量(LB3 ~58 GPU-h),
+需在授权后做降配 GPU 方法验证(已作为 handoff 文档化,见 `versions/lb3-v1/README.md`)。
+
 ## lb1-v1 —— 第一名方法复现(2026-06-20)
 
 > 在 `versions/lb1-v1/`(分支 `exp/nemo-postlb1-v1`)用纯 CPU 复现第一名方法。比赛已结束(不计排名),
