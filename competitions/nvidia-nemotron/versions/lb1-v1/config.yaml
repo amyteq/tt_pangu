@@ -1,0 +1,77 @@
+# lb1-v1 version config — single source of truth for the reproducible pipeline.
+# Derived from external/LB1/analysis/next_version_plan.md + the writeup.
+# The competition is closed for ranking; values marked GPU-gated are for a future
+# authorized down-scaled validation run on an RTX Pro 6000 (NOT executed here).
+
+version_id: lb1-v1
+display_name: Post-LB1 v1
+base_model: nvidia/Nemotron-3-Nano-30B-A3B
+competition_slug: nvidia-nemotron-model-reasoning-challenge
+
+data:
+  # real competition data (not committed; kaggle data policy)
+  train_csv: ~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/data/train.csv
+  download_cmd: >-
+    kaggle competitions download -c nvidia-nemotron-model-reasoning-challenge -p <dir>
+
+catalogs:
+  signature_catalog:
+    enumerate: 100x100 operands x 22 non-join rules
+    target_count: 4205          # EXACT (verified)
+  rule_sequence_catalog:
+    target_count: 5238          # APPROXIMATE — writeup's train.csv-tuned subset; not
+                                # reproducible from prose (pure enum -> ~857k seqs).
+    repair: hamming_nn_over_8_slots
+    repair_k: 32
+
+# Synthetic corpus targets (programmatic; Obs.1/Obs.2 enforced; consistency-filtered).
+# Down-scaled from LB1's 220k main / 140k extra to validate the METHOD, not volume.
+synth:
+  protect_backbone: true        # do NOT dilute the huikang replay recipe (b1/b2/v15 lesson)
+  downscaled_targets:
+    cryptarithm: 40000          # LB1 main 120k; floor 80k for catalog-recall stability
+    bit: 20000                  # LB1 main 40k (HEX-compressed)
+    equation_numeric: 10000     # deduce-weighted
+  full_targets:                 # LB1 reference (RTX Pro 6000, ~119h main)
+    cryptarithm: 120000
+    bit: 40000
+    equation_numeric: 10000
+  bit_trace_token_gate_median: 5000   # after HEX
+
+prompt:
+  finality_line: "</think>\\n\\boxed{...}"   # insights.md convention
+  preserve: [binary_leading_zeros, exact_strings, numeric_precision]
+
+# GPU-gated (NOT run here). LoRA rank<=32 hard cap (compliance red line).
+training:
+  framework: unsloth            # or the CCE replay recipe (compare)
+  lora_rank: 32
+  lora_alpha: 32
+  target_modules: [q_proj, k_proj, v_proj, o_proj, in_proj, out_proj, up_proj, down_proj, gate_proj]
+  # lm_head intentionally dropped (vLLM ignores it at inference — writeup Q&A)
+  optimizer: adamw_bnb_8bit
+  scheduler: cosine
+  main_lr: 2.0e-4
+  main_epochs: 1.0
+  continuation_lr: 1.0e-5       # weighted to the weakest category (bit)
+  effective_batch_size: 16
+  seq_len: 8192                 # eval cap 7680
+  wall_clock_guard_hours: 8     # B7: always save+zip before the Kaggle session limit
+  downscaled_gpu_hours_estimate: "7-14h on RTX Pro 6000"
+
+validation:
+  official_metric: ../../eval/official_metric.py
+  primary_offline_metric: catalog_coverage_within_7680_tokens   # per category, 15% held-out
+  hard_val: ../../eval/hard_val_ids.json   # hard-tail HINT only (INS-002: mispredicts atypical adapters)
+  max_tokens: 7680
+  greedy: true
+  temp: 0.0
+
+submit:
+  require_preflight_pass: true
+  message: "postlb1-v1: post-writeup implementation with guarded submit"
+  hold_best:                    # do not regress/overwrite
+    - {name: soup, public: 0.86, private: 0.85}
+    - {name: v14, public: 0.85}
+    - {name: eq-aug, public: 0.86, private: 0.86}   # best own private (late window)
+  late_window_quota_per_team_per_day: 100
