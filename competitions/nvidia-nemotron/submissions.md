@@ -161,13 +161,24 @@ executed (post-LB1 method-validation; late window, no ranking effect).
   in-run eval — LB is the verdict, per the writeup's own GPU-limited discipline).
 - **Submit:** `kaggle competitions submit -c … -k harrysun2006/nemo-lb1-v1 -v 1
   -f submission.zip -m "postlb1-v1: post-writeup implementation with guarded submit"`
-  → submitted **2026-06-20 22:08:31 UTC**, status PENDING at write time.
-  Public LB: __PENDING__ / Private LB: __PENDING__ (1 of 100 daily late-window slots).
+  → submitted **2026-06-20 22:08:31 UTC** (1 of 100 daily late-window slots).
+  **Public LB 0.828 / Private LB 0.816** — COMPLETE.
 
-Expected: a down-scaled method-validation run (17k synth ≪ LB1's 360k, trained
-only to step 619 before the guard), so likely near/below the replay-backbone
-ceiling — a real datapoint, not a breakthrough. Held-best untouched (soup 0.86/0.85
-+ v14 0.85; eq-aug 0.86/0.86); this late-window submit does not affect ranking.
+**Result reading (honest).** 0.828/0.816 is **below** the held-best (soup 0.86/0.85,
+v14 0.85, eq-aug 0.86/0.86) — as predicted for a down-scaled run. The catalog
+method needs *volume*: LB1 used 220k+140k synth over a full epoch; this run had
+**17k synth** (and crypt under-weighted at 6.3k vs eq 8.3k) trained only to **step
+619/786** before the 7h guard. Per the LB1 Q&A, ~40k cryptarithm is still unstable
+and ~80k is where candidate-count recall stabilises — so at 6.3k crypt the catalog
+lever could not "click", and the small eq-heavy synth mildly diluted the 0.85 replay
+backbone (the b1/b2/v15 dilution lesson, amplified by under-training). **This
+validates the writeup's central claim that volume is the moat**, and the *method*
+itself is reproduced + validated CPU-side (signature catalog 4,205 exact; eq-deduce
+95.0%; HEX exact; repair mechanism verified). Held-best untouched; late window =
+no ranking effect.
+
+Next experiment (if pursued): scale crypt to ≥40k (8–12h CPU gen), drop `lm_head`
+from `target_modules` (shrinks the 1.37GB adapter, no score effect), full epoch.
 
 ## Submission checklist
 - [ ] local validation passed (validate_kernel.py + fail-fast preflight)

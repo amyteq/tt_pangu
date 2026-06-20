@@ -64,14 +64,19 @@ python package_submission.py --dummy --adapter-dir /tmp/a --out /tmp/submission.
 python validate.py --zip /tmp/submission.zip # full preflight gate
 ```
 
-## Submit gate (guarded)
+## Submit gate (guarded) — EXECUTED
 
-`require_preflight_pass_before_submit: true`. A real submission requires a
-GPU-trained adapter; the gate **blocks** the submit until a completed training
-run produces a valid `submission.zip`. Until then, this directory is the
-reproducible method; the GPU training + late submission are handed off with exact
-commands in the implementation PR. Held-best (do not regress/overwrite): soup
-0.86/0.85, v14 0.85, eq-aug 0.86/0.86.
+`require_preflight_pass_before_submit: true`. The full GPU pipeline ran and the one
+guarded late-window submit was executed (2026-06-20): kernel `harrysun2006/nemo-lb1-v1`
+trained on RTX Pro 6000 (step 619/786, 7h B7 guard) → preflight PASS on the real
+1.37 GB rank-32 adapter → submit → **Public LB 0.828 / Private LB 0.816**.
+
+Below the held-best (soup 0.86/0.85, v14 0.85, eq-aug 0.86/0.86) — as predicted for
+a down-scaled run (17k synth ≪ LB1's 360k; crypt under-weighted; partial epoch). The
+*method* is validated CPU-side (4,205 exact, eq-deduce 95.0%); this confirms volume
+is the moat. Held-best untouched (late window = no ranking effect). See
+`../../submissions.md` for the full reading + the scale-up next step. Follow-up: drop
+`lm_head` from `target_modules` to shrink the 1.37 GB adapter (no score effect).
 
 ## Provenance
 
