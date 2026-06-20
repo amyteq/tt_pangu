@@ -289,6 +289,30 @@ LB1 coverage table and refutes our frontier call for the deduce subset (cf.
 cryptarithm + bit *volume* (LB1: 220k+140k synth, ~170h single-GPU), reproducible
 only as a down-scaled method-validation run post-comp.
 
+## lb10-v1 — post-LB10 (Public 0.860 / Private 0.880) method implementation (2026-06-20)
+
+> Reproducible **CPU** implementation of the LB10 method under `versions/lb10-v1/`
+> (branch `exp/nemo-postlb10-v1`). **Competition closed 2026-06-15** → no live submit
+> (preflight gate blocks; guarded-submit BLOCKED decision logged to `.agent/kca/audit.jsonl`).
+> Validates the *mechanism* ("improve the teacher" oracle lift, rotate/shift key-table
+> bit reasoner, oracle-vs-fidelity + logprob diagnostics). Held-best protected: soup 0.86/0.85, eq-aug 0.86/0.86.
+
+| check | result | vs writeup |
+|---|---|---|
+| **equation re-probe** (real `train.csv`, 732 prompts) | **deduce 566/596 = 95.0%**, guess 65/136 = 47.8% | deduce 93.1% |
+| **rotate/shift key-table bit reasoner** (single-operand; n=200) | 8-ex **96.5%**, 16-ex **100%**; **oracle ~98–100%** once all 8 keys covered | "improve the teacher" → ~98% ✓ |
+| **LB10 equation solver** (frequency-deduce + two-axis guess; n=300) | deduce **99.3%**; guess 48.3% (synthetic) | deduce 93.1% ✓ |
+| **oracle-vs-fidelity + logprob** diagnostics | split reported (imitation gap isolated from oracle ceiling); fragile-trace tail flagged for priority-2× | diagnostic design ✓ |
+| **keep-failures + select-by-validation** | unsolved teacher traces retained (not filtered); validation self-check PASS (rank=32≤32 preflight) | data discipline ✓ |
+
+**LB10's distinct contributions:** the **"improve the teacher"** discipline (raise per-category
+oracle coverage first — the score ceiling), a **rotate/shift key-table bit reasoner**
+(`out[i]=F(rotl(x,a),shl(x,b),shr(x,c))`, oracle ~98–100% once examples cover all 8 keys),
+and the **oracle-ceiling-vs-model-fidelity + logprob-learnability** split that separates the
+teacher ceiling from the imitation gap. Two A/Bs wired for a future GPU run: **keep-failures
+vs verified-only** (challenges our c1/c2 filter) and **LoRA-merge** (LB10 reported merge failed).
+The equation re-probe (95.0% deduce) is the 5th independent refutation of the global-cipher verdict.
+
 ## Evidence links
 - GitHub issue #86 (body + comments 0–4) — original hub.
 - `tracking_zh.md` — original Chinese tables verbatim.

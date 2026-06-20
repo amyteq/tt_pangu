@@ -270,8 +270,24 @@ GPU 单轮 Unsloth SFT(BS32/LR3.5e-4)为 handoff(`versions/lb6-v1/train_lb6.py`,
 `equation-frontier.md`)。到 0.92 的关键剩余差距是 cryptarithm + bit 的**数据量**(LB1:220k+140k 合成,
 约 170h 单卡),只能作为赛后缩小规模的方法验证运行来复现。
 
+## lb10-v1 — LB10(public 0.860 / private 0.880)方法实现(2026-06-20)
 
+> 分支 `exp/nemo-postlb10-v1`,代码在 `versions/lb10-v1/`,纯 CPU 复现 LB10 方法。
+> **比赛已于 2026-06-15 截止**,故**未做线上提交**(guarded submit 经真实 `kca kaggle submit` 执行并被
+> preflight 门拦截,BLOCKED 写入 `.agent/kca/audit.jsonl`)。只验证*机制*。已保护:soup 0.86/0.85、eq-aug 0.86/0.86。
 
+实测结果:
+- **equation 重测(真实 train.csv,732 题)**:deduce 566/596 = **95.0%**,guess 47.8% → 第五次反驳"全局密码"。
+- **旋转/移位 key-table bit 推理器**(单操作数 `out[i]=F(rotl(x,a),shl(x,b),shr(x,c))`,n=200):
+  8 例 **96.5%**、16 例 **100%**;**8 个 key 全覆盖后 oracle ~98–100%**("先把 teacher 做强"的天花板)。
+- **LB10 方程求解器**(频率排序 deduce + 双轴 guess;n=300):deduce **99.3%**。
+- **oracle-vs-fidelity + logprob** 诊断:把 teacher 天花板与模仿差距分开;低 logprob 脆弱样本标记优先 2×。
+- **保留失败样本 + 按验证选择**:未解 teacher trace 保留(不过滤);验证自检通过(adapter rank≤32 preflight)。
+
+LB10 独特贡献:**"先把 teacher 做强"**(先抬每类 oracle 覆盖率 = 分数天花板)、**旋转/移位 key-table**
+bit 推理器、**oracle 天花板 vs 模型 fidelity + logprob 可学性**诊断。两个 A/B 留给 GPU 后续:保留失败 vs
+仅保留正确(挑战我们 c1/c2)、LoRA 合并(LB10 报告合并失败)。GPU SFT(alpha/r=4,2 epoch)为 handoff
+(`versions/lb10-v1/train_lb10.py`,GPU-gated)。
 
 
 
