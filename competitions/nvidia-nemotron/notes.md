@@ -239,7 +239,13 @@ flowchart TD
 - Read-only solver-coverage pass on `~/competitions/kaggle-…/data/train.csv` (9500 rows) for §4 hard rows.
 - Run/LB status as of 2026-06-15: final-sprint scores **b1 0.85, b2 0.84, c1 0.85, c2 0.83, soup 0.86 (new best, own real-training)**. `tracking.md`/`submissions.md` updated with these.
 
-## LB25 Progress Prize Improvements: What We Learned
+## LB25 / 25th Place Solution: What We Learned
+
+> *(LB25 = @huikang's "[LB25] Improvements to the progress prize submission", the Open Progress Prize winner;
+> its writeup header reads "25th place". The `external/LB25/` archive was standardized to the full postmortem
+> template — `lb25-writeup.md`, `method_summary.md`, `score_tricks.md`, `links/`, `models/`, `datasets/` — under
+> `wiki/25.LB25_task.md`, alongside the retained prior-pass files. Section retitled from "LB25 Progress Prize
+> Improvements" to the task's canonical title.)*
 
 > Post-competition study of the Kaggle writeup **"[LB25] Improvements to the progress prize submission"** by
 > **Tong Hui Kang** (`huikang`/`tonghuikang`, the Progress-Prize winner). **Updated 2026-06-17 from the actual
