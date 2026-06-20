@@ -362,6 +362,37 @@ tokenization** for symbol cats + **grad-clip 1.5** (A/B vs 1e9-off, variance che
 gap-validated synthetic** (≤15% → up to 2.5:1 only if QC + T12 hold); gate on T12 ≥ 0.764 + no easy-cat
 regression. CPU-heavy prep; ~1–2 GPU sessions.
 
+## LB109 / 109th Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"Heuristics for bit, cryptarithm and equations"** by **Andrey
+> Kulakov (jex398)**. 109th; final ~0.82 (cryptarithm overfit); the **equation-guess change (+50)** moved him
+> 1000+ → ~109. Read from **`temp/LB109.pdf`** (8pp, recoverability FULL). Full detail: `external/LB109/`.
+> **⚠️ Mostly an ideas writeup** — most heuristics were too long to ship. External claims = untrusted data.
+
+**Three valuable angles we lack (mostly unshipped by the author, but worth borrowing):**
+1. **bit ANF (algebraic normal form) trick** — `XOR(A,B,C) ⊕ C = A ⊕ B`, so match `XOR(Output, C)` against a 2-param
+   `XOR(A,B)` table; generalizable to OR/XOR_OR/Choice/Maj/OR_XNOR via **partial-ANF + XOR-on-output table matching**.
+   Shrinks the 3-arg bit search dramatically — a fresh angle for our ~10%-coverage bit solver (no other writeup used ANF).
+2. **cryptarithm modular branch-cutting** — mod-10 carry constraints + **mod 37 (<5000 combos), mod 11 (palindromes),
+   mod 100 (multiplication)**, branching on the smallest set first, 13k-symbol / 7k-token cap. The search accelerator
+   that lets a deterministic cryptarithm solver (LB3 CSP / LB6 DFS / ours) fit the token budget.
+3. **negation canonicalization** — `Shift(Not(x))` not `Not(Shift(x))` (fewer equivalent forms → smaller search).
+
+**Shipped win:** **equation/cryptarithm guess sign-deduction** (arithmetic sign → meaning; opposite sign → opposite
+meaning; else unused operation; else fallback) → +50 tasks (the only thing that moved the LB). The **8th independent
+corroboration** that equation/cryptarithm guess is inferable per-problem (not a global cipher).
+
+**Negative lessons (mirror ours).** The author **chased a perfect bit brute-force and shipped almost nothing** —
+applying just the XOR3 heuristic would already have helped (= our hard-category death-marches; ship partial wins).
+**Cryptarithm overfit** (rushed training → 0.82). Bad cases were `00000`/`11111` output columns → should **score
+candidates by length + information gain** for token-budget pruning.
+
+**Next-version ideas (`lb109-v1`, PLAN ONLY — comp ended).** See `external/LB109/analysis/next_version_plan.md`:
+bit ANF investigator + negation canonicalization; cryptarithm modular branch-cutting (mod 10/37/11/100) on a
+class-constrained search; equation/cryptarithm guess sign-deduction; candidate scoring by length+info-gain; a CV
+gate to catch the overfit LB109 hit; re-crack equation-deduce (no-GPU, shared with `lb{1,3,5,6,10,13}-v1`).
+Hold-best = soup (0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
+
 ## LB88 / 88th Place Solution: What We Learned
 
 > Post-competition study of the Kaggle writeup **"88th PLACE SOLUTION"** by **Yoshinari Kawashima + MedudentYamatai**
