@@ -95,6 +95,41 @@ v15:
   lb: 0.84
   schedule: overnight
 
+# --- v16-evalfix: LB25 borrows on the v14 backbone (post-deadline, harry) ------
+# Eval/submission parity preflight (LEVER 1) + reorganized own-solver-verified bit
+# CoT woven ~2% (LEVER 2) + min-logprob selective replay of the hardest non-replay
+# rows (LEVER 3). Phase A (v14 replay) -> Phase B (short replay pass); all phases
+# wall-clock guarded. Measured on the late-submission window (100/day).
+v16_evalfix:
+  id: harrysun2006/nemo-v16-evalfix
+  title: Nemo V16 Evalfix
+  code_file: nemo-v16-evalfix.ipynb
+  note: "v14 backbone + LB25 borrows: eval-parity preflight, verified bit CoT (~157 rows), min-logprob replay (hardest 15%); LB25 plan"
+  schedule: overnight
+
+# --- v17-discovery: LB80 Part A equation discovery-CoT (post-deadline, may) ----
+# Cracked equation cipher = per-operator digit-string transforms; forward-executable
+# discovery CoT on the plaintext-digit subset (180 verified rows) woven ~2% into the
+# v14 backbone. Glyph-ciphered ~82% skipped (joint crack open). v17-dpo deferred
+# (needs external sm_90+ GPU, #83). On firefly2006 to run concurrently with v16.
+v17_discovery:
+  id: firefly2006/nemo-v17-discovery
+  title: Nemo V17 Discovery
+  code_file: nemo-v17-discovery.ipynb
+  note: "equation discovery-CoT (per-operator string-op crack, 180 verified plaintext-digit rows, dose 0.15) on v14 backbone; LB80 Part A"
+  schedule: overnight
+
+# --- v18-stable: LB92 borrows (post-deadline, harry) --------------------------
+# LEVER 1 grad-clip 1.5 (variance fix) + LEVER 3 verified synthetic equation data
+# (cracked rule family, synth:original 0.1) on the v14 backbone. LEVER 2 per-char
+# tokenization dropped (infeasible for an adapter-only grader).
+v18_stable:
+  id: harrysun2006/nemo-v18-stable
+  title: Nemo V18 Stable
+  code_file: nemo-v18-stable.ipynb
+  note: "v14 backbone + grad-clip 1.5 + verified synth equation (rule-family, ratio 0.1); LB92 plan (per-char tok dropped)"
+  schedule: overnight
+
 # --- t7: multi-adapter SVD merge (CPU passthrough; short, daytime) ------------
 merge_t7:
   id: harrysun2006/nemo-merge-t7
