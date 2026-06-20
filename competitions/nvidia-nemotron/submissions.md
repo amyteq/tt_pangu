@@ -84,6 +84,24 @@ Full 2×2 (coverage × dose), all scored 2026-06-16:
   aggregate) but **not solved** — the unseen-input majority stays uninferable (EQ-2′ strong cipher). **eq-aug
   standalone 0.86 / 0.86 is the practical ceiling** — best own-work private, not improvable by souping.
 
+### Competitor-writeup borrows: LB25 / LB80 / LB92 (2026-06-20)
+
+Borrowing the four LB25 levers (v16-evalfix), the LB80 equation-discovery lever (v17-discovery), and the LB92
+stability levers (v18-stable) onto the v14 backbone. Hypotheses + plans in `external/{LB25,LB80,LB92}/analysis/
+next_version_plan.md`. **Verdict: none beats the 0.86 soup/eq-aug ceiling; all confirm their plans' own risk notes.**
+
+| Date (UTC) | Account | Kernel | Public LB | Private LB | Recipe / verdict |
+|---|---|---|---:|---:|---|
+| 06-20 12:51 | harrysun2006 | **nemo-v16-evalfix** | 0.832 | 0.828 | LB25: eval-parity preflight (measurement-only) + verified bit CoT 157 + min-logprob replay (hardest 1198, 37 steps). **−0.018/−0.012 vs v14 → dilution** (dominant risk confirmed); LEVER 1 can't move the LB (it fixes local↔grader measurement parity, not the model). |
+| 06-20 12:06 | firefly2006 | **nemo-v17-discovery** | 0.840 | 0.848 | LB80 A: equation discovery-CoT. **Cracked the equation cipher** = per-operator digit-string rules (operand-reverse × arith × ±1 × result-reverse, + concat); 180 verified plaintext-digit rows woven (dose 0.15). **−0.01/+0.008 vs v14 → equation bounded**: plaintext-subset rule-discovery does not transfer to the 82% glyph-ciphered queries. |
+| 06-20 16:55 | harrysun2006 | **nemo-v18-stable** | 0.844 | 0.848 | LB92: grad-clip 1.5 (variance) + verified synth equation (cracked rule family, 800, ratio 0.1). **−0.006/+0.008 vs v14 → ~neutral** (least-harmful borrow; grad-clip didn't raise the mean). |
+
+**Borrow-campaign verdict:**
+- **v16 (LB25):** the bit-CoT + min-logprob replay levers *diluted* (the b2/c1/c2/v15 lesson again). The eval/submission **parity preflight is sound but measurement-only** — it can't lift an LB that the grader already scores correctly. No LB headroom there.
+- **v17 (LB80):** the equation cipher is **per-problem per-operator transformation rules**, not the EQ-0 "single global function" — but cracking it for the *plaintext-digit* subset (~18% of equation rows) does **not** lift the LB, because the ~82% glyph-ciphered queries need a *joint cipher+op* crack (still open). **`rules24.py` (`versions/lb1-v1`, branch `exp/nemo-postlb1-v1`) is the superior 95%-deduce cracker — use it for a v17.1** (and reuse it as v18's synth generator). **v17-dpo deferred** (needs external sm_90+ GPU, #83).
+- **v18 (LB92):** grad-clip 1.5 is the only sound, low-risk lever (variance, not mean); **per-char tokenization is infeasible** for an adapter-only submission (grader uses the base tokenizer — added tokens never reach inference). The synth-equation lever is now poison-free (cracked rule family) but still bounded by the same plaintext limitation as v17.
+- **Bottom line: soup 0.86/0.85 + eq-aug 0.86/0.86 remain the held best.** The borrows reproduced the writeups' *methods* but not their LB — our 0.86 ceiling is robust, and equation stays the wall.
+
 ## Real-training campaign (own work — 2026-06-09 → 2026-06-15)
 
 | Date (UTC) | Account | Version | Public LB | Private LB | Status | Description (kernel) |

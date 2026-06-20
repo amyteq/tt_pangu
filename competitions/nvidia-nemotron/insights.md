@@ -52,3 +52,15 @@
   (different data/seed); strong+weak (INS-003) dilutes.
 - literature: Model Soups (2203.05482), LoRA Soups / AdapterSoup (`references.md`).
 - status: validated (this competition); promote to `_shared/skill-candidates.md`.
+
+### INS-005: competitor-writeup *methods* reproduce; their *LB* often doesn't — and three failure modes to pre-screen
+- type: anti-pattern / screening checklist
+- confidence: high (3 independent borrows, all negative/neutral)
+- evidence: 2026-06-20 LB25/LB80/LB92 borrow campaign — v16-evalfix 0.832/0.828, v17-discovery 0.840/0.848, v18-stable 0.844/0.848; none beat the held 0.86 soup/eq-aug. `submissions.md` §LB25/LB80/LB92, `tracking.md`.
+- the three pre-screens (apply BEFORE spending a GPU session on a borrowed lever):
+  1. **Measurement vs model.** A lever that fixes *local↔grader eval parity* (LB25 LEVER 1) corrects your *prediction* of the LB, not the LB itself — it cannot move a score the grader already computes correctly. Worth doing for trustworthy local validation; worth **zero** LB.
+  2. **Submission-format feasibility.** This comp submits ONLY the LoRA adapter; the grader uses the FIXED base model + base tokenizer. So **vocab-changing levers (per-char tokenization / `add_tokens` + resize, LB92 LEVER 2) are infeasible** — added tokens/embeddings never reach inference. Check what the grader actually loads before implementing.
+  3. **Dilution is the default outcome** for added SFT data (bit CoT, synth, discovery CoT) even at ≤15% verified dose (v16 −0.018; b1/b2/c1/c2/v15 before it). Adding rows to an already-near-ceiling adapter regresses more often than it helps; require a local gate you can actually run, or treat the submission itself as the (cheap, late-window) gate.
+- equation corollary: the cipher IS crackable (per-operator digit-string rules; `versions/lb1-v1/rules24.py` = 95% numeric-deduce), but cracking the *plaintext-digit* subset doesn't lift the LB — the ~82% glyph-ciphered queries need a joint cipher+op crack, and even a perfect offline solver is a *training-data* method (base ~0.47), GPU-gated. Equation stays the wall.
+- transfer scope: any code-/adapter-submission competition where you're tempted to port a top writeup's lever. Pre-screen 1–3; default-distrust SFT-data additions; trust the LB aggregate over hard-tail proxies (INS-002).
+- status: validated (this competition).

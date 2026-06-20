@@ -4,6 +4,8 @@
 > resets Saturday; **no GPU/submit/push in this task**). Borrows = huikang's four real LB25 changes; verify
 > before trusting. Synthesises with our recipe (`tracking.md`, `insights.md`, `research.md`).
 
+> **✅ EXECUTED 2026-06-20 (late window). RESULT: v16-evalfix = public 0.832 / private 0.828 — −0.018 pub / −0.012 priv vs v14 (0.85/0.84); below the 0.86 soup ceiling. Hypothesis NOT supported.** All three levers ran (`harrysun2006/nemo-v16-evalfix` v1): LEVER 1 eval/submission parity preflight (OK); LEVER 2 verified bit CoT (157 grader-faithful rows — our stricter `_bit_verify` dropped 1 poison row lib's lax numeric check kept); LEVER 3 min-logprob selective replay (scored 7987 non-replay → replayed hardest 1198 for 37 steps). **Verdict:** LEVER 1 is measurement-only (fixes local↔grader parity, can't move an LB the grader already scores right); LEVER 2+3 *diluted* (the dominant risk the plan flagged — b2/c1/c2/v15 lesson). No LB headroom. See `submissions.md` §LB25/LB80/LB92 + `tracking.md`.
+
 ## Version name
 **v16-evalfix** — "eval/submission parity + targeted bit CoT + min-logprob replay" (v14 backbone).
 (Renamed from `v16-mlp`: the headline lever is now the eval-bug fix, per the writeup.)
@@ -70,11 +72,11 @@ SUFFIX, response-only mask, bounded CoT length so `\boxed{}` always lands < 7,68
 - 1 training kernel ≈ **6–7 h** RTX PRO 6000 + 1 short soup kernel (CPU, ~20 min). Total ≈ **1 GPU session**.
 
 ## Implementation checklist
-- [ ] **eval/submission parity audit** — local prompt + decode == grader; 0 un-boxed / 0 truncated (change #1)
-- [ ] reorganized, own-solver-verified bit CoT corpus (change #4)
-- [ ] min-logprob replay shard (hardest residual bit/cipher rows)
-- [ ] kernel = Phase A (v14) → Phase B (bit CoT + replay, ≤15%)
-- [ ] 7h guard + fail-fast preflight + `validate_kernel.py`
-- [ ] T12 hard-val locally (no quota); require bit ↑, no easy-cat regression, total ≥ 0.764
-- [ ] soup-grow into v14+c1+b1 if local metric improves; select best + diverse hedge
-- [ ] (optional, CPU) test the `A·B−C+D ±1` composite-op hypothesis for the equation cipher (low odds)
+- [x] **eval/submission parity audit** — in-kernel `assert_eval_submission_parity`; preflight OK (change #1)
+- [x] reorganized, own-solver-verified bit CoT corpus (change #4) — 157 grader-faithful rows (embedded solver)
+- [x] min-logprob replay shard (hardest residual bit/cipher rows) — scored 7987 → hardest 1198, 37 replay steps
+- [x] kernel = Phase A (v14) → Phase B (bit CoT + replay, ≤15%) — ran, 259 main + 37 replay steps
+- [x] 7h guard + fail-fast preflight + `validate_kernel.py` — wall-clock guards per phase; ruff E9/F821 clean
+- [ ] ~~T12 hard-val locally~~ — **not feasible (no local GPU for the 30B adapter)**; used the late-window LB as the measurement instead (public 0.832/priv 0.828 < v14)
+- [ ] ~~soup-grow into v14+c1+b1~~ — **skipped: local metric did NOT improve (0.832 < v14 0.85)**, so no soup candidate
+- [ ] ~~(optional) composite-op equation hypothesis~~ — superseded by v17-discovery's per-operator cipher crack (see LB80 plan)

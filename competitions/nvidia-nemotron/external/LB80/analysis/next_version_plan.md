@@ -6,6 +6,10 @@
 > independent parts. Borrows from an untrusted competitor writeup — verify before trusting; mspawar did **not**
 > beat 0.86 with any of this, so set expectations: these target *equation* specifically + are research bets.
 
+> **✅ EXECUTED 2026-06-20 (late window). RESULT: v17-discovery = public 0.840 / private 0.848 — pub −0.01 / priv +0.008 vs v14 (0.85/0.84); below 0.86. Hypothesis NOT supported (equation stays bounded).** Part A only; **v17-dpo DEFERRED** (needs external ~95.6GB sm_90+ GPU, #83 — not in our infra; mspawar rated it lower-EV anyway).
+>
+> **Genuine breakthrough (independent of LB): cracked the equation cipher.** It is NOT the EQ-0 "single global function" — each problem is a set of **per-operator digit-string transformation rules** (line = `A1A2 <op> B1B2 = R`; R = operand-reverse × {add/sub/rsub/mul/absdiff} × ±1 × result-reverse, or ordered concat; the op symbol can act as an output-side sign marker). The kernel's old `A1A2 OP B1B2` 2-digit-arithmetic model cracked <1%; the new solver yields **180 verified forward-executable discovery examples** on the **plaintext-digit subset (~18%)**. **Why no LB lift:** the ~82% **glyph-ciphered** queries need a *joint* cipher+op crack (still open), so plaintext-only rule-discovery doesn't transfer. **The team already has the superior cracker** — `versions/lb1-v1/rules24.py` (LB1's 24-rule inventory, **95% numeric-deduce**, branch `exp/nemo-postlb1-v1`); a **v17.1 should use rules24** instead of my hand-crack (I rediscovered a weaker subset — process note in memory). See `submissions.md` §LB25/LB80/LB92.
+
 ## Version name
 **v17-discovery** (equation) + **v17-dpo** (RL path) — two separable post-Saturday experiments.
 
@@ -79,9 +83,9 @@ variance). DPO sidesteps this by using an **external oracle** as *chosen*: pairs
   session** (~6–7 h). Part B DPO: **external GPU (#83), several sessions** (vLLM-gen + HF-train separate processes).
 
 ## Implementation checklist
-- [ ] (CPU) re-model equation as `A1A2 OP B1B2`; answer-guided solver → ~97.6% offline coverage *(also update EQ-2′/PR #113)*
-- [ ] (CPU) forward-executable discovery CoT; internal-consistency audit (reject leaky/inconsistent traces)
-- [ ] v17-discovery kernel: discovery-CoT ≤15% dose on v14 backbone; gate equation↑ / no regression / ≥0.764
-- [ ] Mamba-2 merge ablation (LoRA-delta SVD vs full-weight avg), T12-gated
-- [ ] (optional, external GPU) v17-dpo: dual-temp pairs, length-norm DPO + easy-cat SFT mix, LoRA-toggle ref
-- [ ] gates pass → request human approval → submit; keep best + diverse hedge
+- [x] (CPU) re-model equation — found it's **per-operator digit-string rules** (NOT `A1A2 OP B1B2` arithmetic, which gave <1%); answer-guided solver = **67% of the plaintext-digit subset (180 rows)**. ⚠️ `rules24.py` (lb1-v1, branch `exp/nemo-postlb1-v1`) already does **95% numeric-deduce** — use it for v17.1.
+- [x] (CPU) forward-executable discovery CoT; internal-consistency audit — 180 verified, 0 dropped as inconsistent
+- [x] v17-discovery kernel: discovery-CoT dose 0.15 on v14 backbone — ran (`firefly2006/nemo-v17-discovery` v1); **LB 0.840/0.848 < v14, equation↑ NOT achieved** (plaintext-only doesn't transfer to ciphered queries)
+- [ ] ~~Mamba-2 merge ablation~~ — not run (out of scope of the 3-goal sprint; backlog)
+- [ ] ~~v17-dpo~~ — **DEFERRED: needs external sm_90+ GPU (#83), not in our infra; core fns were NotImplementedError research stubs**
+- [ ] ~~gate→approval→submit~~ — submitted to the late window directly (human-authorized goal); gate not met (no equation↑), so it stays a research datapoint, not a promotion
