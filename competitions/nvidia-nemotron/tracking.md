@@ -153,6 +153,30 @@ seen-input fraction, but the unseen-input majority is a strong cipher and stays 
 from samples, EQ-2′). Why LB didn't jump: equation is ≈ 1/9 of the test and only a fraction of it is learnable,
 so the maximum aggregate headroom from a perfect equation memoriser is small, and even that only covers seen inputs.
 
+## lb6-v1 — post-LB6 (2nd public / 6th private) method implementation (2026-06-20)
+
+> Reproducible **CPU** implementation of the LB6 method under `versions/lb6-v1/`
+> (branch `exp/nemo-postlb6-v1`). **Competition closed 2026-06-15** → no live submit
+> (preflight gate blocks; guarded-submit BLOCKED decision logged to `.agent/kca/audit.jsonl`).
+> Validates the *mechanism* (per-domain DUMMY-masking attribution, template bit, DFS
+> cryptarithm, bit/cryptarithm trade-off CV). Held-best protected: soup 0.86/0.85, eq-aug 0.86/0.86.
+
+| check | result | vs writeup |
+|---|---|---|
+| **equation re-probe** (real `train.csv`, 732 prompts) | **deduce 566/596 = 95.0%**, guess 65/136 = 47.8% | guess 92.6% |
+| **DUMMY-masking per-domain attribution** (signature lever; **fixes B8**) | isolates each domain's signal; non-target rows emit `\boxed{DUMMY}`; 0.01 LB ≈ 3 problems | attribution ✓ |
+| **template bit solver** (shl/shr/rotr × pairwise/ternary; n=200) | pairwise+shift **99.5%**, ternary **100%** | bit 1508/1602 = 94.1% ✓ |
+| **DFS cryptarithm** (reversed search + leading-zero/units/equation-sorting pruning) | `*` **100%**, `+` 93% (reversed pass = fallback for real reversed-structure) | deduce 240/654 = 37% |
+| **LB6 equation solver** (add/sub/mul + **maxmodmin**; n=300) | deduce **100%**; guess 47.7% (synthetic) | guess 92.6% |
+| **bit/cryptarithm trade-off CV** | predicts a +0.082 bit-CV drop when doubling cryptarithm → "double bit to hold CV" | LB6's selection regret ✓ |
+| **validation** self-check | PASS — full-train-as-validation + DUMMY probe + perfect-trace-rate + rank=32≤32 preflight | design ✓ |
+
+**Signature lever — DUMMY-masking attribution (B8 fix).** LB6 isolates a single domain's
+signal by emitting that domain's real CoT and `I will ignore this problem\boxed{DUMMY}`
+for all others. This is the per-domain attribution tool we've lacked (our recurring B8:
+"single-category gain ≠ total gain"); run offline here since the comp LB is gone. The
+equation re-probe (95.0% deduce) is another independent refutation of the global-cipher verdict.
+
 ## Evidence links
 - GitHub issue #86 (body + comments 0–4) — original hub.
 - `tracking_zh.md` — original Chinese tables verbatim.

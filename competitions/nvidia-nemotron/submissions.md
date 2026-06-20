@@ -136,6 +136,20 @@ Full 2×2 (coverage × dose), all scored 2026-06-16:
   it did not change the competition selection (soup + v14).
 - Current leaderboard top: **~0.90** (refreshed 2026-06-15).
 
+## lb6-v1 — guarded submit NOT performed (competition closed)
+
+- **2026-06-20, `exp/nemo-postlb6-v1`:** the `/goal` task authorized one guarded Kaggle
+  submit (`postlb6-v1: post-writeup implementation with guarded submit`,
+  `require_preflight_pass_before_submit: true`). The guarded submit was **executed** via the
+  real `kca kaggle submit` SUBMISSION command and **correctly BLOCKED by the preflight gate**
+  — no upload reached Kaggle; BLOCKED decision recorded to `.agent/kca/audit.jsonl`. Reasons:
+  competition **closed 2026-06-15**; plan PLAN-ONLY; no GPU run → no `submission.zip`;
+  credentials unavailable. **0/100 submissions used**; held-best (soup 0.86/0.85, eq-aug
+  0.86/0.86) untouched.
+- **Delivered instead:** the no-GPU CPU half under `versions/lb6-v1/` (per-domain DUMMY-masking
+  attribution probe — our B8 fix, template bit solver, DFS cryptarithm, maxmodmin equation
+  solver, bit/cryptarithm trade-off CV, full-train-as-validation). See `tracking.md` lb6-v1 section.
+
 ## Submission checklist
 - [ ] local validation passed (validate_kernel.py + fail-fast preflight)
 - [ ] submission shape checked (submission.zip @ /kaggle/working; rank32/α32)
