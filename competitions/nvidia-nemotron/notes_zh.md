@@ -228,7 +228,12 @@ flowchart TD
 - 对 `~/competitions/kaggle-…/data/train.csv`(9500 行)的只读 solver 覆盖率扫描,用于 §4 难例行。
 - 运行 / LB 状态(截至 2026-06-15):冲刺最终分 **b1 0.85, b2 0.84, c1 0.85, c2 0.83, soup 0.86(新最好,自训练合规)**。**T12 hard-val 排名(2026-06-15)**:soup 0.764 = v14 0.764 ≫ base/c1 0.389 > v15 0.333 > c2 0.278 → 守 0.86 soup,private-LB 最终选 **soup + v14**。`tracking.md`/`submissions.md` 已据此更新。
 
-## LB25 Progress Prize 改进:我们的学习与启发
+## LB25 / 第25名方案:我们的学习与启发
+
+> *(LB25 = @huikang「[LB25] Improvements to the progress prize submission」,Open Progress Prize 获奖者;
+> writeup 头部标注 "25th place"。`external/LB25/` 已按 `wiki/25.LB25_task.md` 标准化为完整模板 ——
+> `lb25-writeup.md`、`method_summary.md`、`score_tricks.md`、`links/`、`models/`、`datasets/`,并保留历史文件。
+> 标题由「LB25 Progress Prize 改进」改为任务规范标题。)*
 
 > 赛后研究 Kaggle writeup **「[LB25] Improvements to the progress prize submission」**,作者 **Tong Hui Kang**
 > (`huikang`/`tonghuikang`,Progress-Prize 冠军)。**2026-06-17 据实际 writeup(`temp/LB25.pdf`)更新** —— 可还原度
@@ -342,6 +347,194 @@ negation 规范化;cryptarithm 模运算剪枝(mod 10/37/11/100)接在类约束�
 按长度+信息量给候选打分;加 CV 闸防过拟合;无 GPU 复核 equation-deduce(与 `lb{1,3,5,6,10,13}-v1` 共享)。
 保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
 
+## LB88 / 第88名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"88th PLACE SOLUTION"**,作者 **Yoshinari Kawashima + MedudentYamatai**
+> (DOI 10.34740/kaggle/w/88245)。**⚠️ 与上方 LB92 节是同一篇 writeup**(同 DOI/作者/url `92th-place-solution`;
+> 渲染头部现显示 "88th place",名次 92 → 88)。读自 **`temp/LB88.pdf`**(8 页,可还原度完整)。
+> 完整细节:`external/LB88/`(交叉引用 `external/LB92/` 的图与先前分析)。外部声明为不可信数据。
+
+**成绩。** **数据工程**方案:reasoner(@huikang OPP)几乎不改(oracle 87.8%),**别丢已可解的题**。杠杆(均已在 LB92 节记录):
+**统计匹配合成生成器 + 合成-vs-原始 gap QC 环**(最终 2.5:1 合成:原始);**逐字符 tokenization**(1 字符=1 token)修
+cryptarithm BPE 合并;**梯度裁剪 1.5**(vs 公开 1e9 —— 多半是提交间方差之因)。RL(SimPO/ORPO)失败(chosen=reasoner ≈
+rejected=temp-1.3 采样);用 Claude Fable 5 也没造出更强的 bit/cryptarithm reasoner。
+
+**对我方(同 LB92 结论)。**(1)**统计匹配 + gap 验证的合成**是我方"合成稀释"(b1/b2/v15 回归)的解药;(2)**逐字符
+tokenization** 是我方没试过、直击符号弱点的杠杆;(3)**grad-clip 1.5** vs 我方 1e9-off 是便宜 A/B;(4)equation_deduce
+90.8%(OPP baseline)再证 equation deduce 可解。cryptarithm ~9% / bit 85.1%(reasoner 未动)—— 他们没去攻的墙。
+
+**下一版(`lb88-v1` ≈ LB92 的 `v18-stable`,仅计划 —— 赛已结束)。** 见 `external/LB88/analysis/next_version_plan.md`
+与 `external/LB92/analysis/next_version_plan.md`。保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
+
+## LB13 / 第13名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"13th Place Solution"**,作者 **Haraguchi-T(haraguchit)**。(未给最终 LB;
+> teacher oracle 87.7%→89.4%。)直接读自 **`temp/LB13.pdf`**(8 页,可还原度完整)。完整细节 + 来源 + 计划见 `external/LB13/`。
+> 外部声明为不可信数据;我方分数见 `tracking.md`。
+
+**成绩。** **训练数据构造**流派(改进 @huikang teacher reasoner → SFT)。与 LB10 同属"改进 teacher",且有**全批最锐利的 equation 模型**。
+
+**亮点 —— equation_numeric 结构模型(deduce 95.3%、guess 50.7% = 全批最高)。** 三假设:(1) **4 个互斥算子类**
+(add/mul/sub/concat);(2) **互斥性**(不同符号不能同类);(3) **反转对称**:反转**要么同时作用于输入+输出、要么都不**,
+**全题所有样例共享**。**多数投票**定全局反转;deduce 用目标算子样例验证;guess **严格选未占用的族**(平局 减>加>乘>concat)。
+能解出**一半** guess 集。
+
+**两个(与 LB10 收敛的)挑战我方 c1/c2 的数据发现。**
+- **保留 teacher 答错 trace,按 1:1 平衡**(答对:答错)—— fallback 类原本超量。LB10 独立发现**剔除失败掉点**。我方 c1/c2
+  只留 solver 答对 → 很可能丢了失败模式信号。**应 A/B:保留 + 平衡失败。**
+- **鲁棒聚合** —— 某操作匹配 **≥1** 例即视为候选(非全部),容忍符号转写错误。
+
+**其它可采纳。** Bit:**3 输入验证(MAJORITY/XNOR)** + 位位置缩搜索 + left-edge 兜底 → 89.7%。**3 阶段递减 LR SFT**
+(2e-4 linear → 2e-5 cosine → 5e-6 cosine,**末段上采样 bit+cryptarithm**)精修 trace。cryptarithm 输出去括号;targets 无 lm_head。
+
+**与我方对照。** equation_deduce 95.3% / guess 50.7% —— **第 6 次独立反驳**(继 LB1/LB3/LB5/LB6/LB10)我方"全局密码"判断;
+LB13 的**反转对称 + 族互斥**是**最可操作的 equation 结构**,直接用于复核。cryptarithm ~10%(仅兜底)—— 缺上行杠杆(接 LB1/LB3)。
+
+**下一版想法(`lb13-v1`,仅计划 —— 赛已结束)。** 见 `external/LB13/analysis/next_version_plan.md`:采纳 equation
+对称+互斥求解器;**A/B 保留+平衡失败 trace(1:1)** vs 我方 verified-only;鲁棒聚合;bit 3 输入验证;**3 阶段递减 LR SFT**;
+接 LB1/LB3 cryptarithm;无 GPU 复核 equation-deduce(与 `lb{1,3,5,6,10}-v1` 共享)。保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
+## LB10 / 第10名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"10th Place Solution"**,作者 **Rick(rikitomo0526)、neilus、eikichi**。
+> **Public 0.860 / Private 0.880。** 直接读自 **`temp/LB10.pdf`**(12 页,可还原度完整)。完整细节 + 来源 + 计划见 `external/LB10/`。
+> 外部声明为不可信数据;我方分数见 `tracking.md`。
+
+**成绩。** 0.88 private,靠**确定性程序生成 trace**(非 LLM 蒸馏)+ LoRA SFT。本批最清晰的一句:**分数被确定性
+teacher 的 oracle 覆盖率上限框住** —— 杠杆是更好的 reasoner,不是 SFT 超参。Oracle:bit 98.8%、cipher/trivial
+100%、equation_deduce 93.1%、equation_guess 41.2%、**cryptarithm ~9%**;总 90.6%。
+
+**亮点 —— rotate/shift key-table bit reasoner(85.14%→98.75%)。** `out[i]=F(rotl(x,a),shl(x,b),shr(x,c))`,
+**F 是共享 3 输入布尔函数,从样例读成 3-bit-key→输出位的表**;从**边界位**(bit0 shr=0、bit7 shl=0,各只依赖两列)
+恢复 (a,b,c)。trace 更短、不跑飞(去逐样例位回显 + 候选枚举)。剩 20/1602(11 欠定:key 未见;9 候选选择错)。
+**Equation:** deduce 按频率重排(+14);guess 双轴重建 —— 操作(有常规含义且无 seen 占用则用,否则取
+add/无符号 abs-diff/mul 中首个未用)+ wrapper(从样例最多的 seen 算子锁定)→ 21→56。
+
+**两个直接挑战我方做法的负结果。**
+1. **剔除失败/低置信 trace 反而掉点** —— 失败模式有用(常是 `rule_unknown` 兜底)。**我方 c1/c2 只留 solver
+   答对的行** → 可能丢了信号。**应 A/B。**
+2. **LoRA merge(SVD + seed soup)都没打过单一最佳**(rank-32 提不出互补性;soup 退到最差成员)。与我方 soup +0.01、
+   LB5 迭代 soup、LB80 "Mamba soup 失效" 形成**张力** → soup 收益**依赖成员互补 + 平均对象,非普适**;逐案消融。
+
+**其它可采纳。** **alpha/r=4**(高 LoRA alpha → 更遵循确定性 CoT);priority 2×(3× 过拟合);加 low-logprob 题 +
+失败模式 demo 重训;**oracle 上限 vs 拟合度** + **logprob learnability**(区分"solver 错"与"模型没学会")—— 我方缺
+的诊断层;**按 validation 选模(非 public)**(低 public/高 val 的 run 赢私榜)。课程学习、两阶段、cryptarithm
+add/sub/mul trace 均失败。
+
+**与我方对照。** equation_deduce 93.1% —— **第 5 次独立反驳**我方"全局密码"判断;无 GPU 复核。cryptarithm ~9%
+再次确认它是 LB10 缺的上行杠杆(接 LB1 目录 / LB3 两阶段)。LB10 的 key-table bit reasoner 比 LB1/LB5 枚举更对齐
+生成规则,可用于我方 ~10% 覆盖的 bit 求解器。
+
+**下一版想法(`lb10-v1`,仅计划 —— 赛已结束)。** 见 `external/LB10/analysis/next_version_plan.md`:rotate/shift
+key-table bit reasoner;equation 候选重排 + 双轴 guess;**A/B 保留失败 vs 我方 verified-only**;**A/B LoRA merge**
+(刻画 soup 何时有效);oracle-vs-fidelity + logprob 诊断;alpha/r=4;按 validation 选模;接 LB1/LB3 cryptarithm;
+无 GPU 复核 equation-deduce(共享)。保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
+## LB6 / 第6名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"[2nd public / 6th private] place solution"**,作者 **Yurnero、Alehandreus**。
+> 直接读自 **`temp/LB6.pdf`**(7 页,可还原度完整)。完整细节 + 来源 + 计划见 `external/LB6/`。
+> 外部声明为不可信数据;我方分数见 `tracking.md`/`submissions.md`。
+
+**成绩。** 2nd public / 6th private,建立在 @huikang OPP 上。三支柱:验证策略、bit/cryptarithm 算法求解器、大规模合成数据。**对我方最有价值的是验证/归因工具。**
+
+1. **逐域 LB 探测(DUMMY 屏蔽)—— 直接解我方 B8。** 目标域用真 CoT;**其它所有域训练模型输出
+   `I will ignore this problem\n\boxed{DUMMY}`** → public LB 返回**纯单域信号**。这正是我方"cryptarithm 单类
+   8%→71% 但总分卡 ~0.86"(B8)时缺的归因工具。推断 test=500(250/250),0.01 ≈ 3 题(-0/-1/-2 记号)。
+2. **全量 train 当验证**(≈10×950 holdout)+ 匹配分布合成 —— 比 10% holdout 可靠(LoRA 连部分 train 都欠拟合)。
+   这是继 LB3 防泄漏留出、LB5 无泄漏生成器之后的第三种验证范式。
+
+**求解器。** Bit:模板集(shl/shr/rotr + 成对 + 三元 MAJ/CH)、遍历移位、**单调 skip**、**hex 计算 + hex 乘法
+cheatsheet**(连 `<=` 都用 hex)→ 1508/1602。Cryptarithm:**按已映射方程数为深度的 DFS** + **反向搜索**
+(~40% 反向解)+ operation-deduction/leading-zero/leading-one/方程排序 → 240/654 deduce(实发轻量版 170 以少伤别域)。
+Equation:550/594 guess(~93%)。
+
+**数据教训 + 选模遗憾。** 加任何单域合成都涨该域、几乎不伤别域,**唯独 bit CV 对任何配比变动都脆** → bit 占
+**69%/66% token**。0.5B 集把 cryptarithm 翻倍(train 解 150→241,本可 2nd-3rd),但**低估了 bit-CV 代价**,
+最终发了 0.25B 的两个种子 ——"这让我们丢了 2nd/3rd"。
+
+**与我方对照。**
+- **DUMMY 逐域探测**是我方一直缺的归因工具(反复栽在 B8)。采纳 —— 赛已结束,改在本地 official-metric 集上做。
+- **bit 数据脆性**解释了我方"合成稀释":b1/b2/v15 很可能正是加别域数据却没加倍 bit 而把 bit 拉低。修法 = **扩数据时加倍 bit 配比**(LB6 ~65-70%)。
+- **equation 前提 —— 第 4 次独立反驳**(继 LB1 95%、LB3 93%、LB5 96%):LB6 family-DFS 解 equation_numeric_guess **~93%**。我方"全局密码"判断在 deduce 子集站不住。无 GPU 复核。
+- **hex 计算**与 LB1/LB3 HEX 一致,但与 LB5"编码搞坏模型"冲突 —— 先验分词。
+
+**下一版想法(`lb6-v1`,仅计划 —— 赛已结束)。** 见 `external/LB6/analysis/next_version_plan.md`:逐域 DUMMY 探测
+(离线)+ 全量验证;模板 bit 求解器(hex+skip,先验分词);DFS cryptarithm + 反向搜索;加倍 bit 配比;校准
+bit/cryptarithm 权衡;把 LB1/LB3 的 cryptarithm 接到 LB6 的验证上;无 GPU 复核 equation-deduce(与 `lb{1,3,5}-v1` 共享)。
+## LB5 / 第5名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"Jack of Trades, Loser of Cryptarithm" — 第 5 名**(队:Darren Amadeus Martin、
+> Alwin Theodoric、Muhammad Yassir Ramadhan、Billy Anggara、Rinnnn_t)。**Private LB 0.900**(最佳但未选中;选中 0.896)。
+> 直接读自 **`temp/LB5.pdf`**(24 页,可还原度完整)。完整细节 + 来源 + 计划见 `external/LB5/`。
+> 外部声明为不可信数据;我方分数见 `tracking.md`/`submissions.md`。
+
+**成绩。** Private 0.90,**不靠 RL、且不解 cryptarithm**(cryptarithm 仅 7.9%)。样样通:bit 94%、equation 96%、
+trivial 100%。两个鲜明手法:
+
+1. **无限合成生成器(无 train 泄漏)→ 诚实、跟踪 private 的 CV。** **完全不用 train.csv 训练**(只验证)。论点:
+   @huikang 的不稳定来自训-验同分布;不在验证分布上训 → CV 跟 **private** 相关 —— phase 2-3 中 **public 卡 ~88%
+   (0.86 墙),而 private + validation 持续上升**。
+2. **迭代 LoRA 平均 / model soup 作训练期正则。** Phase 2:每步把"训练前 + 训练后"平均;Phase 3:从一个 checkpoint
+   用不同题集训 3 个再平均(抵消误差)。跨 15 轮把**不稳定的 0.87 变成稳定的 0.90**(<1% 抖动 vs phase 1 ±1%)。
+
+**其它杠杆。** Bit:在 @huikang **字节级**上加 **三元**(MAJORITY/CHOICE/XOR-NOT_OR)、15 primitive、**记忆
+continuation/sequence**(剪 7500→1500)、**原始比特**(省 token 的**编码搞坏了模型** —— `AB` 被并成单 token)、
+**截到 ~7 个样例** → 94%。Equation:**2-world/4-family/13-rule** 确定性求解 + family guess + phase-3 lookup 串 → 96%。
+训练:@huikang trainer、**不量化不 packing**(Unsloth 4bit+packing **搞坏 Nemotron** Mamba SSM)、**弃 DoRA**(vLLM 不支持)。
+
+**与我方对照(差距约 +0.05 private;LB5 不解 cryptarithm 也到了)。**
+- **迭代 LoRA 平均** 对我方最关键:我方 soup 是**一次性**(+0.01);LB5 把它**迭代地当正则**贯穿训练,正是它把
+  0.87 稳到 0.90。我方应试迭代 / 多种子 soup。
+- **无泄漏生成器 → 跟踪 private 的 CV** 直击我方"随机切高估泛化"与"追 public LB"。与 LB3 的"防泄漏留出"互补
+  (LB3 小心地切;LB5 干脆不碰验证分布)。
+- **equation 前提 —— 第 3 次独立反驳(继 LB1 95%、LB3 93%):** LB5 per-prompt 13-rule 求解器 ~96%。我方"全局密码"
+  判断在 **deduce** 子集上是错的。无 GPU 复核。
+- **cryptarithm 优先级信号:** LB5 用 **7.9%** cryptarithm 就到 0.90 —— 0.90 不需要它,但 0.90→0.92(LB1)**正是**
+  cryptarithm。冲顶时才优先它。
+- **编码张力:** LB1/LB3 用 **HEX 成功**;LB5 编码**搞坏模型**。多半是分词(并成单 token)—— 做 HEX 前先验分词。
+
+**下一版想法(`lb5-v1`,仅计划 —— 赛已结束)。** 见 `external/LB5/analysis/next_version_plan.md`:迭代 LoRA 平均 +
+多种子 soup;无泄漏生成器 → 跟踪 private 的 CV;三元字节级 bit 求解器(原始比特、7 样例截断);2-world/4-family/13-rule
+equation;HEX-vs-原始比特 A/B(分词探针);无 GPU 复核 equation-deduce(与 `lb1-v1`/`lb3-v1` 共享);可把 LB3 的两阶段
+cryptarithm 接到 soup 稳定基上冲 >0.90。保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
+## LB3 / 第3名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"3rd Place Solution"**,作者 **YS-L(liauys)**。**Private LB 0.900**(本地验证 90.46%)。
+> 直接读自 **`temp/LB3.pdf`**(17 页,可还原度完整)。完整细节 + 来源 + 计划见 `external/LB3/`。
+> 外部声明为不可信数据;我方分数见 `tracking.md`/`submissions.md`。
+> (注:`wiki/25.LB3_task.md` 的 `notes_section_en` 把名次误写成「1st Place」;实际是**第 3 名**,故此处用正确标题。)
+
+**成绩。** Private 0.900,**不靠 RL**。在 llkh0a/huikang/youkinasa/kemshim 之上的两个亮点:
+
+1. **两阶段训练(记忆 → 执行)** —— 头号杠杆。第一阶段让模型**回忆查表**(`<RECALL_DOMAINS>`/`<RECALL_ROWS>`
+   drill 补全,每样本打包 16 个、请求 mask 不计 loss);第二阶段以该 adapter 为初始,学**执行** trace(注入 3K
+   drill 保记忆)。sample efficiency ~3×:12K cryptarithm 下**直训解 0、两阶段解 7**(直训要 36K)。第一阶段
+   overall-exact 97.1%。模块化 —— 改 solver/格式可复用第一阶段。
+2. **CSP cryptarithm 求解器** —— 找 MUL 样例 → 从乘法模式查表发射域 + 候选映射 → **多样例交集 / join** →
+   anchor 映射 → **有界回溯**(每方程 ≤2 未知、最少未知优先)。预算内解 24.2%(deduce 27.8%、guess 9.8%)。
+   比 LB1 的 4205 条完整签名目录更轻(LB3 只记乘法模式)。
+
+**其它杠杆。** Bit:**hex + 保留末两比特**的列压缩(**−25% token**)→ 腾预算搜 **MAJ**;OR-NOT 优先(+0.6%)。
+Numeric:**13 算子最小集** + **算子族猜测**(deduce 上限 93.79%)。建模:huikang **CCE 环**、**关闭 MoE tie
+weights**、**小 eff batch(4)**(大了欠训)、手动 LM-head LoRA、rank32/α32、LR 2e-4 linear、grad-norm 10。
+**增广靠复用原题**(非自由生成)以保留官方生成器结构。
+
+**验证(对我方很重要)。** 10% 分层留出,排除验证行**及其派生的增广样本**(防泄漏)。它**很好地跟踪 private
+LB,但不跟踪 public LB** —— 「0.86 的墙」是 public 假象;一个 **public 0.85** 的提交 **private 拿 0.90**。另有
+**perfect-trace-rate** 前瞻指标(bit >85%、cipher/numeric >95%)与**单类别隔离**。
+
+**与我方对照(差距约 +0.05 private)。**
+- 我方既无**两阶段记忆预训练**(完全缺失),也无 **CSP cryptarithm 求解器**;小规模合成(b1/b2/v15/c1/c2)**稀释**了
+  配方。LB3 用规模(48K cryptarithm 主干)+ **复用原题增广** + 防泄漏来根治稀释。
+- **equation 前提 —— 第二次独立反驳(继 LB1 之后):** 我方判 equation 为**全局密码**(EQ-0/EQ-2′);LB3 的 13 算子
+  per-prompt 求解器把 **equation_numeric_deduce 做到本地 93.3%**。equation 是 per-prompt 算子规则(deduce 可解),
+  我方悲观应只适用于 **guess**(LB3 guess 57%)。无 GPU 复核。
+- **验证:** LB3 的 private-tracking 留出比我方又晚又对非典型 adapter 脆的 T12 更可用 —— 也尖锐警示我方**优化了
+  噪声 public LB**。LB1 与 LB3 都用**单一** adapter 夺名次(不 soup;我方 +0.01 soup 只是上限推进器)。
+
+**下一版想法(`lb3-v1`,仅计划 —— 赛已结束)。** 见 `external/LB3/analysis/next_version_plan.md`:两阶段记忆→执行;
+CSP cryptarithm;hex+尾比特 bit trace + MAJ;13 算子 numeric + 族猜测;**private-tracking 防泄漏本地验证** +
+perfect-trace-rate;A/B MoE-tie-off + 小 eff-batch;无 GPU 复核 equation-deduce(与 `lb1-v1` 共享);RTX Pro 6000
+缩小验证(~10–20h)验证*机制*。保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
 ## LB1 / 第一名方案：我们的学习与启发
 
 > 赛后研究 Kaggle writeup **"1st Place Solution"**,作者 **GoodMeatDay、re、reopon** —— Public 与 Private LB 双第一。
