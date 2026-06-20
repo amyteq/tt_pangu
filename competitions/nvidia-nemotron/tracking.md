@@ -153,6 +153,31 @@ seen-input fraction, but the unseen-input majority is a strong cipher and stays 
 from samples, EQ-2′). Why LB didn't jump: equation is ≈ 1/9 of the test and only a fraction of it is learnable,
 so the maximum aggregate headroom from a perfect equation memoriser is small, and even that only covers seen inputs.
 
+## lb5-v1 — post-LB5 (5th place) method implementation (2026-06-20)
+
+> Reproducible **CPU** implementation of the 5th-place method (Private 0.900,
+> *"infinite generator + iterative LoRA averaging"*) under `versions/lb5-v1/`
+> (branch `exp/nemo-postlb5-v1`). **Competition closed 2026-06-15** → no live submit
+> (preflight gate blocks; guarded-submit BLOCKED decision logged to `.agent/kca/audit.jsonl`).
+> Validates the *mechanism* (no-leakage CV, ternary raw-bit lift, 2-world equation solver,
+> soup-stability proxy). Held-best protected: soup 0.86/0.85, eq-aug 0.86/0.86.
+
+| check | result | vs writeup |
+|---|---|---|
+| **equation re-probe** (real `train.csv`, 732 prompts) | **deduce 566/596 = 95.0%**, guess 65/136 = 47.8% | oracle ~95-96% / ~40% |
+| **LB5 equation solver** (2-world/4-family/13-rule; synthetic n=300) | deduce **99.7%**; guess 20.7% (synthetic guess adversarial) | mechanism ✓ |
+| **ternary raw-bit solver** (15 primitives = 8 binary + 7 ternary; n=300) | binary **100%**, ternary **100%**; **7-example cut loses nothing** | bit oracle 94.3% ✓ |
+| **tokenizer probe** (HEX-vs-raw-bits merge risk) | flags merged `5A`/`AB` HIGH; spaced raw bits / spaced hex safe | LB5 negative lesson ✓ |
+| **no-leakage generator** | fits train stats (bit 1602 / eq 1555); no-leakage PASS vs 9500 prompts; unique answers | honest-CV discipline ✓ |
+| **private-tracking validation** self-check | PASS — no-leakage, oracle solvability, soup-stability proxy (deterministic), adapter rank=32≤32 + zip-root preflight | design ✓ |
+
+**Equation premise — 3rd independent refutation.** The real-data re-probe (95.0% deduce)
+is the 3rd confirmation (after LB1 95.5%, LB3 93.3%) that equation-numeric *deduce* is
+per-prompt-operator solvable, not a global cipher; our `equation-frontier.md` verdict holds
+only for the *guess* subset (~48%). LB5's distinct contribution vs LB1/LB3: it reaches 0.90
+**without** cryptarithm (7.9%) by maxing bit (ternary) + equation + trivials and stabilizing
+with **iterative LoRA averaging / multi-seed soup** (the 0.90→0.92 gap remains cryptarithm).
+
 ## lb6-v1 — post-LB6 (2nd public / 6th private) method implementation (2026-06-20)
 
 > Reproducible **CPU** implementation of the LB6 method under `versions/lb6-v1/`
