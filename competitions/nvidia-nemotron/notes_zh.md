@@ -228,7 +228,12 @@ flowchart TD
 - 对 `~/competitions/kaggle-…/data/train.csv`(9500 行)的只读 solver 覆盖率扫描,用于 §4 难例行。
 - 运行 / LB 状态(截至 2026-06-15):冲刺最终分 **b1 0.85, b2 0.84, c1 0.85, c2 0.83, soup 0.86(新最好,自训练合规)**。**T12 hard-val 排名(2026-06-15)**:soup 0.764 = v14 0.764 ≫ base/c1 0.389 > v15 0.333 > c2 0.278 → 守 0.86 soup,private-LB 最终选 **soup + v14**。`tracking.md`/`submissions.md` 已据此更新。
 
-## LB25 Progress Prize 改进:我们的学习与启发
+## LB25 / 第25名方案:我们的学习与启发
+
+> *(LB25 = @huikang「[LB25] Improvements to the progress prize submission」,Open Progress Prize 获奖者;
+> writeup 头部标注 "25th place"。`external/LB25/` 已按 `wiki/25.LB25_task.md` 标准化为完整模板 ——
+> `lb25-writeup.md`、`method_summary.md`、`score_tricks.md`、`links/`、`models/`、`datasets/`,并保留历史文件。
+> 标题由「LB25 Progress Prize 改进」改为任务规范标题。)*
 
 > 赛后研究 Kaggle writeup **「[LB25] Improvements to the progress prize submission」**,作者 **Tong Hui Kang**
 > (`huikang`/`tonghuikang`,Progress-Prize 冠军)。**2026-06-17 据实际 writeup(`temp/LB25.pdf`)更新** —— 可还原度

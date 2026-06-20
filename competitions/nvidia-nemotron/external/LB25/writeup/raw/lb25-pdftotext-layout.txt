@@ -1,0 +1,138 @@
+[LB25] Improvements to the progress prize submission — NVIDIA Nemotron Model Reasoning
+Challenge
+NVIDIA Nemotron Model Reasoning Challenge
+
+
+Solution Writeup · 25th place · Jun 17, 2026
+
+You may have read my progress prize winning submission.
+
+Instead of reading a lot of text first, you can look at the data and get a sense of the changes that I
+have made
+
+https://nemotron.huikang.dev/evaluation.html?logpath=06-07-03-07&problem=021ed764
+
+Changes that I have made
+
+   •     Fix the adapter evaluation notebook (I found out that the prompt is wrong, which caused
+         the answer to not be boxed in validation but in fact it is being boxed on submission)
+   •     Reduce the length of equation_numeric by half (I found out that either both inputs are
+         outputs are reversed, or they are both not reversed)
+   •     Training on synthetic data for cipher, unit conversion, gravity and numeral (I hope to
+         guarantee 100% correctness on these problems)
+   •     Training on additional synthetic data for cipher (as the Nemotron is bad at spelling, I
+         added synthetic data just on the prefixes of the cipher problem)
+   •     Reorganize the chain of thought for bit manipulation.
+
+On the private leaderboard, out of 15 times my submission scored 0.872 4 times, 0.868 8 times,
+0.864 3 times (could have won a solo gold if I selected the "correct" submission, but the same
+can be said for many other teams).
+
+I did not manage to make progress on cryptarithm.
+
+   •     I discovered, 3 days before the deadline, that many problems there is one multiplication,
+         one subtraction and one addition (but each of them could have an additional plus one or
+         minus one)
+   •     I tried to get the chain of thought to guess better than random, but apparently the LLM
+         after training devolves to repeating guesses.
+
+Author
+
+
+Tong Hui Kang
+
+huikang
+
+arrow_drop_up39
+Sharemore_horiz
+
+Project Links
+
+nemotron-adapter-private
+
+16 days ago · Usability 0.7
+
+tenancy
+Kaggle Model
+
+Public
+
+
+[private] Adapter validation notebook
+
+code
+[private] Tinker submission notebook
+
+code
+
+Citation
+Tong Hui Kang. [LB25] Improvements to the progress prize submission.
+https://www.kaggle.com/competitions/nvidia-nemotron-model-reasoning-
+challenge/writeups/lb25-progress-prize-improvements. 2026. Kaggle
+
+1 appreciation comment
+Hotness
+
+
+hongan
+
+
+
+thanks @huikang for your mid-point contribution. Actually it seems to win a gold you just need
+to duplicate the rare buckets in the traces you shared in mid-point prize.
+Tong Hui Kang
+
+
+Topic Author
+
+Posted 3 days ago
+
+· 25th in this Competition
+
+Instead of duplicating, I could have written a generator that generate the rare buckets so that the
+model can train well and not overfit
+
+I was betting that 0.877 is not enough to win gold, but it apparently is :/
+
+hongan
+
+
+· 76th in this Competition
+
+yeah that would be more effective than duplicating! but either way it was a good run. and you at
+least got a spark haha
+
+Navneet
+
+
+
+Barvo for the progress prize @huikang
+
+
+
+Mr.Humy
+
+感谢⼤佬分享，模型微调初学者，正在从头到尾认真研读⼤佬的数据处理、构造、模型训
+练、评估、优化流程🫡
+
+
+9Hash
+
+
+
+so you didn't tried adapter merging from the unsloth? Just one time all in training with eval?
+
+Tong Hui Kang
+
+Topic Author
+It is still one-time training, the dataset is still of a similar size though.
+
+On hindsight I should have built a synthetic dataset for bit manipulation to guarantee I will get
+correct for what I should get correct, this is enough to get gold.
+
+If I understand correctly adapter merging refers to adding multiple different adapters into one
+adapter that you submit. I do not know what this achieves that is not already achievable with
+SFT.
+
+Awesome 👍
+
