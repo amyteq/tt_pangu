@@ -150,6 +150,58 @@ Full 2×2 (coverage × dose), all scored 2026-06-16:
   attribution probe — our B8 fix, template bit solver, DFS cryptarithm, maxmodmin equation
   solver, bit/cryptarithm trade-off CV, full-train-as-validation). See `tracking.md` lb6-v1 section.
 
+## lb3-v1 — guarded submit NOT performed (competition closed)
+
+- **2026-06-20, `exp/nemo-postlb3-v1`:** the `/goal` task authorized one guarded Kaggle
+  submit (`postlb3-v1: post-writeup implementation with guarded submit`,
+  `require_preflight_pass_before_submit: true`). The submit was **correctly blocked by the
+  preflight gate** and **no submission was attempted**. Reasons, in order:
+  1. the competition **closed 2026-06-15 23:59 UTC** (no live ranking submission possible);
+  2. the plan (`external/LB3/analysis/next_version_plan.md`) is explicitly **PLAN ONLY / no
+     GPU / no submit** (`allow_* = false`) — a conflict with the task front matter, resolved
+     in favor of repo-as-source-of-truth per the task's own conflict clause;
+  3. no GPU two-stage training was run here, so **no `submission.zip` was produced** →
+     preflight items "run completed successfully" and "submission.zip exists" fail.
+- **Delivered instead:** the no-GPU CPU half of the plan under `versions/lb3-v1/` (CSP
+  cryptarithm solver, hex bit compression, 13-op numeric solver, stage-1 drills,
+  private-tracking validation, equation re-probe). See `tracking.md` lb3-v1 section.
+- **For a future live competition**, the authorized flow (GPU train → package → preflight →
+  submit, selecting on the private-tracking offline metric) is documented in
+  `versions/lb3-v1/README.md`.
+
+## lb1-v1 GPU run (2026-06-20) — IN PROGRESS, guarded late-submission pending
+
+The full GPU pipeline was authorized and launched (post-LB1 method-validation;
+late window, no ranking effect). Status as of push time:
+
+- **Corpus:** 17,000 consistency-verified catalog-method records (cryptarithm 6,339
+  signature-DFS + bit 2,346 HEX/repair + equation-numeric 8,315 24-rule), generated
+  off-kernel by `versions/lb1-v1/synth_gen.py`; all 17k round-trip through the
+  official extractor, none over the 7,680-token budget.
+- **Dataset:** `harrysun2006/nemo-lb1-v1-synth` (uploaded, status ready).
+- **Kernel:** `harrysun2006/nemo-lb1-v1` v1 pushed (RTX Pro 6000, rank-32 LoRA on
+  the v14 replay backbone + the lb1-v1 synth; ~7h B7 wall-clock guard). Run state at
+  push: RUNNING. Code: `kernels/nemo-lb1-v1.py`.
+- **Submit:** PENDING the run. After COMPLETE: fetch `submission.zip`, run the
+  `versions/lb1-v1/validate.py --zip` preflight gate, then ONE guarded late submit.
+
+Resume commands if this session ends before the run finishes (run from repo root,
+creds in `~/.kaggle/kaggle.json`):
+
+```bash
+kaggle kernels status harrysun2006/nemo-lb1-v1          # wait for COMPLETE
+kaggle kernels output harrysun2006/nemo-lb1-v1 -p ./lb1_out
+python competitions/nvidia-nemotron/versions/lb1-v1/validate.py --zip ./lb1_out/submission.zip
+# only if preflight PASSES:
+kaggle competitions submit -c nvidia-nemotron-model-reasoning-challenge \
+  -k harrysun2006/nemo-lb1-v1 -f submission.zip \
+  -m "postlb1-v1: post-writeup implementation with guarded submit"
+```
+
+Expected outcome: a down-scaled method-validation run (17k synth ≪ LB1's 360k), so
+likely near the replay-backbone ceiling (~0.84–0.86), not 0.92 — a real datapoint,
+not a breakthrough. Held-best untouched (soup 0.86/0.85 + v14 0.85; eq-aug 0.86/0.86).
+
 ## Submission checklist
 - [ ] local validation passed (validate_kernel.py + fail-fast preflight)
 - [ ] submission shape checked (submission.zip @ /kaggle/working; rank32/α32)
