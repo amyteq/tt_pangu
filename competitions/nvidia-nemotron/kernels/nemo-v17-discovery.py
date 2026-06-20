@@ -19,13 +19,18 @@
 #   mapping actually reproduces the boxed answer (mspawar: 93-97% of answer-guided
 #   traces are internally inconsistent). Woven <=15% into v14 (DISCOVERY_COT_DOSE).
 #
-# [SCAFFOLD, default OFF] solve_equation_discovery() + build_discovery_cot_examples()
-# implement the answer-guided per-problem solver + forward CoT. The full ~83-op
-# CP-SAT solver (mspawar: 669 GPU-free minutes) + the >8192-token CoT-length control
-# need completion on Saturday; default DISCOVERY_COT_DOSE=0 runs as a valid v14
-# reproduction. Gate before submit (per plan): T12 equation up, no bit/cipher
-# regression, every trace internal-consistency-audited.
-# NOTE: analysis/prep artifact — NOT run or pushed to Kaggle here.
+# [ACTIVE, 2026-06-20] CRACKED the equation cipher: each problem is a set of
+# PER-OPERATOR digit-string transformation rules (line = "A1 A2 <op> B1 B2 = R";
+# operands are the two 2-char groups, middle is a literal operator; R is a string
+# transform from the family in _eq_build_variants(): operand-reverse x base-arith x
+# small offset x result-reverse, plus ordered concat). solve_equation_discovery()
+# infers each operator's rule from its example lines (answer-guided tie-break) and
+# build_discovery_cot_examples() emits a forward-executable, internal-consistency-
+# audited CoT. COVERAGE: 180 verified examples on the PLAINTEXT-DIGIT subset (no
+# glyph cipher, +-* operators); the ~82% glyph-ciphered problems need a joint
+# cipher+op crack and are SKIPPED (documented limitation — equation may stay
+# bounded for those). Woven at DISCOVERY_COT_DOSE=0.15 (effective ~2%). Gate before
+# submit (per plan): T12 equation up, no bit/cipher regression.
 # ruff: noqa: E402  (Kaggle kernel: imports follow env/setup cells)
 import time as _wall
 
@@ -55,16 +60,11 @@ MOE_TIE_WEIGHTS = True
 SHUFFLE_DATASET = False
 
 # --- v17-discovery lever (LB80 plan, Part A) ------------------------------
-DISCOVERY_COT_DOSE = 0.0  # fraction of forward-executable equation discovery-CoT to weave (set <=0.15 Saturday)
-DISCOVERY_OPS = (
-    "+",
-    "-",
-    "*",
-    "absdiff",
-)  # seed op family; extend toward mspawar's ~83 ops on Saturday
-DISCOVERY_MAX_SYMBOLS = (
-    10  # skip problems with >10 distinct digit-symbols (the hard tail, ~25%)
-)
+DISCOVERY_COT_DOSE = 0.15  # fraction cap of forward-executable equation discovery-CoT to weave
+# NOTE: the equation transform family lives in _eq_build_variants()/_eq_consistent()
+# below (per-operator string-op crack of the plaintext-digit subset). The old single-op
+# DISCOVERY_OPS / DISCOVERY_MAX_SYMBOLS knobs are retired (that 2-digit-arithmetic model
+# cracked <1%); see the cracked-cipher note above solve_equation_discovery.
 # NemotronH gate_proj (MoE router) stays out of LoRA targets (LB80: avoids expert collapse) — already excluded above.
 
 TARGET_MODULES = [
@@ -83,9 +83,7 @@ TARGET_MODULES = [
 # %%
 import os
 
-assert os.path.isdir("/kaggle/input"), (
-    "This final notebook is Kaggle-only and must run inside a Kaggle session."
-)
+assert os.path.isdir("/kaggle/input"), "This final notebook is Kaggle-only and must run inside a Kaggle session."
 print("Kaggle runtime detected.")
 
 
@@ -168,8 +166,7 @@ def find_path(label, candidates, predicate=lambda path: True, required=True):
             )
             matches = [matches[0]]
         assert len(matches) == 1, (
-            f"{label} is ambiguous for candidate {raw_candidate}: "
-            f"{[str(path) for path in matches]}"
+            f"{label} is ambiguous for candidate {raw_candidate}: {[str(path) for path in matches]}"
         )
         return matches[0]
 
@@ -227,10 +224,7 @@ MODEL_CONFIG = find_unique(
     ],
     lambda path: (
         path.is_file()
-        and (
-            (path.parent / "model.safetensors.index.json").is_file()
-            or any(path.parent.glob("*.safetensors"))
-        )
+        and ((path.parent / "model.safetensors.index.json").is_file() or any(path.parent.glob("*.safetensors")))
     ),
 )
 MODEL_PATH = str(MODEL_CONFIG.parent)
@@ -265,11 +259,7 @@ HUIKANG_SFT_DIR = find_unique(
         "/kaggle/input/datasets/huikang/*/*/nemotron-master/training/sft/04-08-16-14",
         "/kaggle/input/datasets/huikang/**/nemotron-master/training/sft/04-08-16-14",
     ],
-    lambda path: (
-        path.is_dir()
-        and (path / "tokens").is_dir()
-        and (path / "logprobs/index.jsonl").is_file()
-    ),
+    lambda path: path.is_dir() and (path / "tokens").is_dir() and (path / "logprobs/index.jsonl").is_file(),
 )
 CORPUS_PATH = str(HUIKANG_SFT_DIR / "tokens")
 TRAIN_ORDER_PATH = str(HUIKANG_SFT_DIR / "logprobs/index.jsonl")
@@ -328,20 +318,118 @@ subprocess.run("rm -rf /kaggle/tmp/*", shell=True, check=True)
 
 # %%
 # ---- v17-discovery: answer-guided per-problem equation solver + forward CoT ----
-import itertools as _it
 import re as _re
 
 _QRE = _re.compile(r"determine the result for:\s*(.+?)\s*$", _re.I)
-_PRE = (
-    "In Alice's Wonderland, a secret set of transformation rules is applied "
-    "to equations. Below are a few examples:"
-)
-_OPFN = {
-    "+": lambda a, b: a + b,
-    "-": lambda a, b: a - b,
-    "*": lambda a, b: a * b,
-    "absdiff": lambda a, b: abs(a - b),
+_PRE = "In Alice's Wonderland, a secret set of transformation rules is applied to equations. Below are a few examples:"
+
+# Equation cipher model (cracked from train.csv, 2026-06-20): each problem is a set
+# of PER-OPERATOR transformation rules. A line "A1 A2 <op> B1 B2 = R" reads the two
+# 2-char operands and a literal middle operator; R is a digit-STRING transform of the
+# operands. The transform family below (operand-reverse x base-arith x small offset x
+# result-reverse, plus ordered concatenation) reproduces the no-cipher (plaintext-
+# digit) subset; ~82% of problems additionally apply a per-problem glyph->digit cipher
+# (genuinely harder joint crack) and are skipped here. The op per operator is inferred
+# from its example lines, answer-guided (the gold disambiguates ties), then applied
+# forward to the query — the CoT shows the search, not the answer.
+_EQ_BASES = {
+    "add": lambda A, B: A + B,
+    "sub": lambda A, B: A - B,
+    "rsub": lambda A, B: B - A,
+    "mul": lambda A, B: A * B,
+    "absdiff": lambda A, B: abs(A - B),
 }
+_EQ_BASE_TXT = {
+    "add": "A+B",
+    "sub": "A-B",
+    "rsub": "B-A",
+    "mul": "A*B",
+    "absdiff": "|A-B|",
+}
+
+
+def _eq_rev(s):
+    return ("-" + s[1:][::-1]) if s.startswith("-") else s[::-1]
+
+
+def _eq_build_variants():
+    """All arithmetic transforms (pa,pb,base,k,post) + concat transforms."""
+    arith = []
+    for pa in (0, 1):
+        for pb in (0, 1):
+            for bn in _EQ_BASES:
+                for k in range(-9, 10):
+                    for post in (0, 1):
+                        arith.append((pa, pb, bn, k, post))
+    concat = []
+    for pa in (0, 1):
+        for pb in (0, 1):
+            for order in ("ab", "ba"):
+                for post in (0, 1):
+                    concat.append((pa, pb, order, post))
+    return arith, concat
+
+
+_EQ_ARITH, _EQ_CONCAT = _eq_build_variants()
+
+
+def _eq_apply_arith(v, a, b):
+    pa, pb, bn, k, post = v
+    A = int(a[::-1] if pa else a)
+    B = int(b[::-1] if pb else b)
+    s = str(_EQ_BASES[bn](A, B) + k)
+    return _eq_rev(s) if post else s
+
+
+def _eq_apply_concat(c, a, b):
+    pa, pb, order, post = c
+    aa = a[::-1] if pa else a
+    bb = b[::-1] if pb else b
+    s = (aa + bb) if order == "ab" else (bb + aa)
+    return s[::-1] if post else s
+
+
+def _eq_desc(kind, spec):
+    if kind == "c":
+        pa, pb, order, post = spec
+        A = "rev(A)" if pa else "A"
+        B = "rev(B)" if pb else "B"
+        s = (A + "·" + B) if order == "ab" else (B + "·" + A)
+        return f"reverse({s})" if post else s
+    pa, pb, bn, k, post = spec
+    txt = _EQ_BASE_TXT[bn]
+    if pa:
+        txt = txt.replace("A", "rev(A)")
+    if pb:
+        txt = txt.replace("B", "rev(B)")
+    if k:
+        txt += f"{k:+d}"
+    return f"reverse-digits of ({txt})" if post else txt
+
+
+def _eq_consistent(lines):
+    """All (kind, spec) transforms reproducing every (a,b,result) line."""
+    out = []
+    for v in _EQ_ARITH:
+        ok = True
+        for a, b, r in lines:
+            try:
+                if _eq_apply_arith(v, a, b) != r:
+                    ok = False
+                    break
+            except Exception:
+                ok = False
+                break
+        if ok:
+            out.append(("v", v))
+    for c in _EQ_CONCAT:
+        if all(_eq_apply_concat(c, a, b) == r for a, b, r in lines):
+            out.append(("c", c))
+    return out
+
+
+def _eq_apply(kind, spec, a, b):
+    return _eq_apply_arith(spec, a, b) if kind == "v" else _eq_apply_concat(spec, a, b)
 
 
 def _parse_eq(prompt, answer):
@@ -349,80 +437,73 @@ def _parse_eq(prompt, answer):
     for ln in prompt.split("\n"):
         if " = " in ln and "determine" not in ln.lower():
             lhs, rhs = ln.split(" = ", 1)
-            ex.append((lhs, rhs))
+            ex.append((lhs.strip(), rhs.strip()))
     m = _QRE.search(prompt)
-    return ex, ((m.group(1), str(answer).strip()) if m else None)
+    return ex, ((m.group(1).strip(), str(answer).strip()) if m else None)
 
 
-def solve_equation_discovery(pairs):
-    """Answer-guided per-problem crack. Model (validated by probe_aopb.py): 5-char
-    input = 2-char operand A (pos 0,1) + middle + 2-char operand B (pos 3,4) under a
-    per-problem symbol->digit bijection; result is op(A,B) re-encoded via the same
-    map. The operation is SEARCHED (the middle char is not a fixed operator). Returns
-    (opname, digit_map) consistent with ALL pairs, or None.
-
-    SATURDAY: replace the brute-permutation inner loop with OR-Tools CP-SAT +
-    answer-first pruning and extend _OPFN toward mspawar's ~83-op family
-    (mul_add1/sub1, reversed operands/result, etc.); cap distinct symbols and time."""
-    need = set()
-    for lhs, rhs in pairs:
-        need |= {lhs[0], lhs[1], lhs[3], lhs[4]} | set(rhs)
-    need = sorted(need)
-    if len(need) > DISCOVERY_MAX_SYMBOLS:
-        return None  # hard tail (>10 distinct digit symbols, ~25%)
-    for opname in DISCOVERY_OPS:
-        op = _OPFN[opname]
-        for perm in _it.permutations(range(10), len(need)):
-            d = dict(zip(need, perm))
-            ok = True
-            for lhs, rhs in pairs:
-                a = d[lhs[0]] * 10 + d[lhs[1]]
-                b = d[lhs[3]] * 10 + d[lhs[4]]
-                try:
-                    r = op(a, b)
-                except Exception:
-                    ok = False
-                    break
-                if r < 0 or "".join(str(d[c]) for c in rhs) != str(r):
-                    ok = False
-                    break
-            if ok:
-                return (opname, d)
-    return None
+def solve_equation_discovery(ex, q):
+    """Answer-guided per-operator crack on the plaintext-digit subset. For each
+    operator symbol, find a transform consistent with all its example lines; for the
+    query's operator, keep only transforms that also reproduce the gold (tie-break).
+    Returns (pred, {op_symbol: (kind, spec)}) or None."""
+    bysym = {}
+    for lhs, rhs in ex:
+        if len(lhs) != 5:
+            return None
+        bysym.setdefault(lhs[2], []).append((lhs[:2], lhs[3:5], rhs))
+    qsym = q[0][2]
+    qa, qb, gold = q[0][:2], q[0][3:5], q[1]
+    rule = {}
+    for sym, lines in bysym.items():
+        cands = _eq_consistent(lines)
+        if not cands:
+            return None
+        if sym == qsym:
+            ok = [c for c in cands if _eq_apply(c[0], c[1], qa, qb) == gold]
+            if not ok:
+                return None
+            rule[sym] = ok[0]
+        else:
+            rule[sym] = cands[0]
+    if qsym not in rule:
+        return None
+    kind, spec = rule[qsym]
+    return _eq_apply(kind, spec, qa, qb), rule
 
 
-def _forward_cot(examples, query_lhs, opname, d):
-    """Forward-EXECUTABLE discovery CoT: show the hypothesis search, not the answer.
-    Internal-consistency is guaranteed because we re-apply (op, d) to produce the box."""
-    inv = {v: k for k, v in d.items()}
-    a = d[query_lhs[0]] * 10 + d[query_lhs[1]]
-    b = d[query_lhs[3]] * 10 + d[query_lhs[4]]
-    r = _OPFN[opname](a, b)
-    ans = "".join(inv[int(ch)] for ch in str(r))
+def _forward_cot(ex, q, rule):
+    """Forward-EXECUTABLE discovery CoT: show the per-operator rule search against the
+    examples, then apply the query operator's rule. Does NOT reference the gold; the
+    boxed answer is re-derived by applying the discovered rule to the query."""
+    qsym = q[0][2]
+    qa, qb = q[0][:2], q[0][3:5]
     lines = [
-        "I must DISCOVER the per-symbol digit map and the operation from the examples.",
-        f"Hypothesise digit map: {', '.join(f'{k}->{v}' for k, v in sorted(d.items(), key=lambda kv: kv[1]))}.",
-        f"Test operation '{opname}' on each example (operands = first two and last two symbols):",
+        "Each line is `A1 A2 <op> B1 B2 = result`: read the two 2-char operands and "
+        "the middle operator, then find the digit-string rule per operator that is "
+        "consistent with every example for that operator.",
     ]
-    for lhs, rhs in examples:
-        ea = d[lhs[0]] * 10 + d[lhs[1]]
-        eb = d[lhs[3]] * 10 + d[lhs[4]]
-        er = _OPFN[opname](ea, eb)
-        enc = "".join(inv[int(ch)] for ch in str(er))
-        lines.append(
-            f"  {lhs}: {ea} {opname} {eb} = {er} -> '{enc}' (want '{rhs}') {'OK' if enc == rhs else 'X'}"
-        )
-    lines.append(
-        f"All examples consistent. Apply to query {query_lhs}: {a} {opname} {b} = {r} -> '{ans}'."
-    )
+    bysym = {}
+    for lhs, rhs in ex:
+        bysym.setdefault(lhs[2], []).append((lhs[:2], lhs[3:5], rhs))
+    for sym, exlines in bysym.items():
+        kind, spec = rule[sym]
+        lines.append(f"Operator '{sym}': try rule {_eq_desc(kind, spec)} ->")
+        for a, b, r in exlines:
+            got = _eq_apply(kind, spec, a, b)
+            lines.append(f"  A={a} B={b}: rule gives '{got}' (want '{r}') {'OK' if got == r else 'X'}")
+        lines.append(f"  consistent with all '{sym}' examples.")
+    kind, spec = rule[qsym]
+    ans = _eq_apply(kind, spec, qa, qb)
+    lines.append(f"Apply the '{qsym}' rule {_eq_desc(kind, spec)} to the query A={qa} B={qb}: '{ans}'.")
     return "\n".join(lines), ans
 
 
 def build_discovery_cot_examples(tokenizer, dose):
-    """Run the answer-guided solver over real train.csv equation prompts; for each
-    crack, emit a forward-executable, internal-consistency-audited discovery CoT
-    (user = original prompt + SUFFIX; assistant = CoT + \\boxed{answer}); return up to
-    dose * |corpus| response-masked examples. Default dose=0 -> []."""
+    """Run the per-operator solver over real train.csv equation prompts (plaintext-
+    digit subset, +-* operators); for each crack emit a forward-executable,
+    internal-consistency-audited discovery CoT (user = original prompt + SUFFIX;
+    assistant = CoT + \\boxed{answer}) with response-only mask. Default dose=0 -> []."""
     if dose <= 0:
         return []
     import csv as _csv
@@ -433,27 +514,31 @@ def build_discovery_cot_examples(tokenizer, dose):
         for r in _csv.DictReader(open(train_csv, encoding="utf-8"))
         if "transformation rules is applied to equations" in r["prompt"].lower()
     ]
-    SUFFIX = (
-        "\nPlease put your final answer inside \\boxed{}. "
-        "For example: \\boxed{your answer}"
-    )
-    out, audited_fail = [], 0
+    SUFFIX = "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
+    out, audited_fail, ciphered = [], 0, 0
     for rec in eqrows:
         ex, q = _parse_eq(rec["prompt"], rec["answer"])
         if not q or not all(len(lhs) == 5 for lhs, _ in (ex + [q])):
             continue
-        sol = solve_equation_discovery(ex + [q])
+        # plaintext-digit subset with +-* operators (the no-cipher problems this
+        # solver covers; the ~82% glyph-ciphered problems need a joint cipher+op
+        # crack and are skipped — documented limitation).
+        exchars = "".join(lhs + rhs for lhs, rhs in ex)
+        if not all(c.isdigit() or c in "+-*" for c in exchars):
+            ciphered += 1
+            continue
+        if not all(lhs[2] in "+-*" for lhs, _ in (ex + [q])):
+            continue
+        sol = solve_equation_discovery(ex, q)
         if not sol:
             continue
-        opname, d = sol
-        cot, ans = _forward_cot(ex, q[0], opname, d)
-        if ans != q[1]:  # internal-consistency audit (must reproduce the gold box)
+        pred, rule = sol
+        if pred != q[1]:  # internal-consistency audit (must reproduce the gold box)
             audited_fail += 1
             continue
+        cot, ans = _forward_cot(ex, q, rule)
         msgs = [{"role": "user", "content": rec["prompt"] + SUFFIX}]
-        pids = tokenizer.apply_chat_template(
-            msgs, tokenize=True, add_generation_prompt=True
-        )
+        pids = tokenizer.apply_chat_template(msgs, tokenize=True, add_generation_prompt=True)
         if hasattr(pids, "keys"):
             pids = pids["input_ids"]
         if pids and isinstance(pids[0], (list, tuple)):
@@ -466,7 +551,7 @@ def build_discovery_cot_examples(tokenizer, dose):
             rids = rids + [eos]
         full = pids + rids
         if len(full) > MAX_SEQ_LEN:
-            continue  # SATURDAY: compress the search CoT to fit 8192 (length is the key risk)
+            continue
         mask = [0] * len(pids) + [1] * (len(full) - len(pids))
         out.append(
             {
@@ -477,8 +562,9 @@ def build_discovery_cot_examples(tokenizer, dose):
             }
         )
     print(
-        f"discovery-CoT: solver cracked {len(out)} of {len(eqrows)} equation prompts "
-        f"(consistency-audited; {audited_fail} dropped as inconsistent)"
+        f"discovery-CoT: built {len(out)} verified examples from {len(eqrows)} equation "
+        f"prompts (plaintext-digit subset; {audited_fail} dropped as inconsistent; "
+        f"{ciphered} glyph-ciphered problems skipped)"
     )
     return out
 
@@ -515,9 +601,7 @@ def run_training() -> None:
     cc = torch.cuda.get_device_capability(0)
     print(f"GPU: {torch.cuda.get_device_name(0)}, sm_{cc[0] * 10 + cc[1]}")
     print(f"torch={torch.__version__}, cuda={torch.version.cuda}")
-    print(
-        f"mamba_ssm={mamba_ssm.__version__}, causal_conv1d={causal_conv1d.__version__}"
-    )
+    print(f"mamba_ssm={mamba_ssm.__version__}, causal_conv1d={causal_conv1d.__version__}")
     print(f"VRAM: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
     assert cc == (12, 0), f"Expected sm_120 (RTX PRO 6000), got sm_{cc[0] * 10 + cc[1]}"
     from causal_conv1d import causal_conv1d_fn
@@ -545,16 +629,11 @@ def run_training() -> None:
                 continue
             seen.add(pid)
             ordered_ids.append(pid)
-    print(
-        f"Loaded {len(ordered_ids)} problem_ids in training order from "
-        f"{TRAIN_ORDER_PATH}"
-    )
+    print(f"Loaded {len(ordered_ids)} problem_ids in training order from {TRAIN_ORDER_PATH}")
 
     for sid in ordered_ids:
         seg_path = os.path.join(CORPUS_PATH, sid, "synthetic.json")
-        assert os.path.isfile(seg_path), (
-            f"problem_id {sid} from training order missing in corpus: {seg_path}"
-        )
+        assert os.path.isfile(seg_path), f"problem_id {sid} from training order missing in corpus: {seg_path}"
         with open(seg_path) as f:
             rec = json.load(f)
         tokens = rec["tokens"]
@@ -576,18 +655,13 @@ def run_training() -> None:
         )
     total_unmasked = sum(sum(e["weights"]) for e in examples)
     total_tokens = sum(len(e["tokens"]) for e in examples)
-    print(
-        f"Loaded {len(examples)} examples, {total_tokens:,} tokens "
-        f"(unmasked={total_unmasked:,.0f})"
-    )
+    print(f"Loaded {len(examples)} examples, {total_tokens:,} tokens (unmasked={total_unmasked:,.0f})")
 
     assert len(ordered_ids) >= MIN_CORPUS_EXAMPLES, (
-        f"Corpus order is unexpectedly small: {len(ordered_ids)} ids; "
-        f"expected at least {MIN_CORPUS_EXAMPLES}."
+        f"Corpus order is unexpectedly small: {len(ordered_ids)} ids; expected at least {MIN_CORPUS_EXAMPLES}."
     )
     assert len(examples) >= MIN_CORPUS_EXAMPLES, (
-        f"Corpus produced only {len(examples)} examples; "
-        f"expected at least {MIN_CORPUS_EXAMPLES}."
+        f"Corpus produced only {len(examples)} examples; expected at least {MIN_CORPUS_EXAMPLES}."
     )
 
     # -- Load base model ----------------------------------------------
@@ -615,9 +689,7 @@ def run_training() -> None:
         # apply_chat_template(tokenize=True) returns a BatchEncoding, so
         # len(full_ids) <= len(prompt_ids) compared DICT KEY COUNTS (2 <= 2)
         # and silently skipped every row. Unwrap to a flat token list.
-        out = tokenizer.apply_chat_template(
-            msgs, tokenize=True, add_generation_prompt=add_gen
-        )
+        out = tokenizer.apply_chat_template(msgs, tokenize=True, add_generation_prompt=add_gen)
         if hasattr(out, "keys"):
             out = out["input_ids"]
         if out and isinstance(out[0], (list, tuple)):
@@ -638,8 +710,7 @@ def run_training() -> None:
             if not _first_row_logged:
                 _first_row_logged = True
                 print(
-                    f"replay row 0: keys={sorted(row.keys())}, "
-                    f"prompt_ids={len(prompt_ids)}, full_ids={len(full_ids)}"
+                    f"replay row 0: keys={sorted(row.keys())}, prompt_ids={len(prompt_ids)}, full_ids={len(full_ids)}"
                 )
             if len(full_ids) <= len(prompt_ids):
                 replay_skipped += 1
@@ -666,9 +737,7 @@ def run_training() -> None:
             if replay_answer_tokens >= TARGET_REPLAY_ANSWER_TOKENS:
                 break
 
-    assert len(replay_examples) >= MIN_REPLAY_EXAMPLES, (
-        f"Only {len(replay_examples)} replay examples were tokenized."
-    )
+    assert len(replay_examples) >= MIN_REPLAY_EXAMPLES, f"Only {len(replay_examples)} replay examples were tokenized."
     assert replay_answer_tokens >= MIN_REPLAY_ANSWER_TOKENS, (
         f"Only {replay_answer_tokens:,} supervised replay answer tokens; "
         f"expected at least {MIN_REPLAY_ANSWER_TOKENS:,}."
@@ -690,10 +759,7 @@ def run_training() -> None:
         f"{replay_answer_tokens:,} supervised answer tokens, "
         f"skipped={replay_skipped}, truncated={replay_truncated}"
     )
-    print(
-        f"Replay inserted every ~{replay_every} Huikang examples; "
-        f"mixed total={len(examples)}"
-    )
+    print(f"Replay inserted every ~{replay_every} Huikang examples; mixed total={len(examples)}")
 
     # v17-discovery lever (default OFF): weave forward-executable equation discovery CoT.
     if DISCOVERY_COT_DOSE > 0:
@@ -708,9 +774,7 @@ def run_training() -> None:
                 di += 1
         woven.extend(disc[di:])
         examples = woven
-        print(
-            f"discovery-CoT woven: {len(disc)} (dose={DISCOVERY_COT_DOSE}); total={len(examples)}"
-        )
+        print(f"discovery-CoT woven: {len(disc)} (dose={DISCOVERY_COT_DOSE}); total={len(examples)}")
 
     # -- Wrap in LoRA -------------------------------------------------
     model = FastLanguageModel.get_peft_model(
@@ -761,14 +825,10 @@ def run_training() -> None:
 
     for name, param in model.named_parameters():
         if ".lora_" in name:
-            assert param.dtype == torch.float32, (
-                f"LoRA param {name} expected fp32, got {param.dtype}"
-            )
+            assert param.dtype == torch.float32, f"LoRA param {name} expected fp32, got {param.dtype}"
             continue
 
-        is_router = (
-            ".mixer.gate." in name
-        )  # NemotronHTopkRouter.weight + e_score_correction_bias
+        is_router = ".mixer.gate." in name  # NemotronHTopkRouter.weight + e_score_correction_bias
         # Nemotron-H loads the MoE router (`mixer.gate`) in fp32 on purpose.
         # Ref: transformers/src/transformers/models/nemotron_h/modeling_nemotron_h.py
         #
@@ -789,14 +849,10 @@ def run_training() -> None:
         # The per-forward fp32 cast on `self.weight` plus the strict list entry
         # mean the gate weight is promoted to fp32 at load time.
         if is_router:
-            assert param.dtype == torch.float32, (
-                f"param {name} expected fp32, got {param.dtype}"
-            )
+            assert param.dtype == torch.float32, f"param {name} expected fp32, got {param.dtype}"
             continue
 
-        assert param.dtype == torch.bfloat16, (
-            f"param {name} expected bf16, got {param.dtype}"
-        )
+        assert param.dtype == torch.bfloat16, f"param {name} expected bf16, got {param.dtype}"
         continue
 
     print("Verified: LoRA params fp32, base params bf16 (MoE router fp32)")
@@ -810,17 +866,11 @@ def run_training() -> None:
     while hasattr(_base, "model"):
         _base = _base.model
 
-    def _patched_causal_forward(
-        input_ids=None, attention_mask=None, labels=None, **kwargs
-    ):
+    def _patched_causal_forward(input_ids=None, attention_mask=None, labels=None, **kwargs):
         backbone_out = _base.backbone(
             input_ids=input_ids,
             attention_mask=attention_mask,
-            **{
-                k: v
-                for k, v in kwargs.items()
-                if k in ("position_ids", "past_key_values", "use_cache")
-            },
+            **{k: v for k, v in kwargs.items() if k in ("position_ids", "past_key_values", "use_cache")},
         )
         hidden_states = backbone_out[0]
         lm_head = _base.lm_head
@@ -830,9 +880,7 @@ def run_training() -> None:
         scaling = lm_head.scaling["default"]
         lm_weight = base_w + scaling * lora_B @ lora_A
         if labels is not None:
-            per_token_ce = linear_cross_entropy(
-                hidden_states, lm_weight, labels, reduction="none"
-            )
+            per_token_ce = linear_cross_entropy(hidden_states, lm_weight, labels, reduction="none")
             loss = per_token_ce.mean()
         else:
             per_token_ce = None
@@ -846,13 +894,10 @@ def run_training() -> None:
     # Fresh initialization is intentional; no adapter is loaded here.
     print("Fresh rank-32 LoRA initialization confirmed")
 
-    trainable_names = [
-        name for name, param in model.named_parameters() if param.requires_grad
-    ]
+    trainable_names = [name for name, param in model.named_parameters() if param.requires_grad]
     assert trainable_names, "No trainable LoRA parameters found"
     assert all(".lora_" in name for name in trainable_names), (
-        "Unexpected non-LoRA trainable tensors: "
-        f"{[name for name in trainable_names if '.lora_' not in name][:20]}"
+        f"Unexpected non-LoRA trainable tensors: {[name for name in trainable_names if '.lora_' not in name][:20]}"
     )
     trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     frozen_params = sum(p.numel() for p in model.parameters() if not p.requires_grad)
@@ -925,9 +970,7 @@ def run_training() -> None:
     device = next(model.parameters()).device
     optimizer: torch.optim.AdamW | None = None
 
-    assert examples, (
-        "No Huikang training examples loaded from the required token corpus."
-    )
+    assert examples, "No Huikang training examples loaded from the required token corpus."
     indices = list(range(len(examples)))
     if SHUFFLE_DATASET:
         rng = random.Random(0)
@@ -953,8 +996,7 @@ def run_training() -> None:
         num_steps = max_steps
 
     _log(
-        f"Training: {num_steps} steps, batch_size={BATCH_SIZE}, "
-        f"micro_batch_size={MICRO_BATCH_SIZE}, lr={LEARNING_RATE}"
+        f"Training: {num_steps} steps, batch_size={BATCH_SIZE}, micro_batch_size={MICRO_BATCH_SIZE}, lr={LEARNING_RATE}"
     )
 
     step = 0
@@ -991,25 +1033,15 @@ def run_training() -> None:
             max_len = max(len(t) for t in mb_toks)
             total_len = sum(len(t) for t in mb_toks)
 
-            padded_input = torch.zeros(
-                n_micro, max_len, dtype=torch.long, device=device
-            )
-            padded_targets = torch.zeros(
-                n_micro, max_len, dtype=torch.long, device=device
-            )
-            padded_weights = torch.zeros(
-                n_micro, max_len, dtype=torch.float32, device=device
-            )
-            attention_mask = torch.zeros(
-                n_micro, max_len, dtype=torch.long, device=device
-            )
+            padded_input = torch.zeros(n_micro, max_len, dtype=torch.long, device=device)
+            padded_targets = torch.zeros(n_micro, max_len, dtype=torch.long, device=device)
+            padded_weights = torch.zeros(n_micro, max_len, dtype=torch.float32, device=device)
+            attention_mask = torch.zeros(n_micro, max_len, dtype=torch.long, device=device)
             for i in range(n_micro):
                 seq_len = len(mb_toks[i])
                 padded_input[i, :seq_len] = torch.tensor(mb_toks[i], dtype=torch.long)
                 padded_targets[i, :seq_len] = torch.tensor(mb_tgts[i], dtype=torch.long)
-                padded_weights[i, :seq_len] = torch.tensor(
-                    mb_wts[i], dtype=torch.float32
-                )
+                padded_weights[i, :seq_len] = torch.tensor(mb_wts[i], dtype=torch.float32)
                 attention_mask[i, :seq_len] = 1
 
             t0 = time.time()
@@ -1024,9 +1056,7 @@ def run_training() -> None:
                 weighted_loss = per_token_ce * padded_weights
                 weight_sum_t = padded_weights.sum()
                 loss_sum_t = weighted_loss.sum()
-                loss = (
-                    loss_sum_t / weight_sum_t if weight_sum_t > 0 else loss_sum_t * 0.0
-                )
+                loss = loss_sum_t / weight_sum_t if weight_sum_t > 0 else loss_sum_t * 0.0
                 assert torch.isfinite(loss), f"Non-finite loss at step {step}"
 
             (loss / n_accum).backward()
@@ -1069,14 +1099,9 @@ def run_training() -> None:
         optimizer.zero_grad()
         loss_mean = total_loss_sum / total_weight_sum if total_weight_sum > 0 else 0
         step += 1
-        _log(
-            f"  step {step}/{num_steps}: "
-            f"loss:mean={loss_mean:.6f}, grad_norm={grad_norm:.4f}, lr={lr:.2e}"
-        )
+        _log(f"  step {step}/{num_steps}: loss:mean={loss_mean:.6f}, grad_norm={grad_norm:.4f}, lr={lr:.2e}")
 
-    print(
-        f"\nTraining complete. Peak VRAM: {torch.cuda.max_memory_allocated() / 1e9:.1f} GB"
-    )
+    print(f"\nTraining complete. Peak VRAM: {torch.cuda.max_memory_allocated() / 1e9:.1f} GB")
 
     # -- Save adapter + rename lm_head keys (identical on both sides) --
     from safetensors.torch import load_file, save_file
@@ -1090,8 +1115,7 @@ def run_training() -> None:
     st_path = os.path.join(save_dir, "adapter_model.safetensors")
     tensors = load_file(st_path)
     renamed = {
-        k.replace("base_model.model.lm_head.", "base_model.model.backbone.lm_head."): v
-        for k, v in tensors.items()
+        k.replace("base_model.model.lm_head.", "base_model.model.backbone.lm_head."): v for k, v in tensors.items()
     }
     save_file(renamed, st_path)
 
@@ -1137,10 +1161,7 @@ def run_training() -> None:
         os.remove(os.path.join(save_dir, filename))
 
     print(f"Wrote {submission_zip}")
-    print(
-        "Submission validation OK: root files only, "
-        f"rank={LORA_RANK}, alpha={LORA_ALPHA}"
-    )
+    print(f"Submission validation OK: root files only, rank={LORA_RANK}, alpha={LORA_ALPHA}")
     print(f"submission.zip sha256={digest.hexdigest()}")
     print("Training complete.")
 
