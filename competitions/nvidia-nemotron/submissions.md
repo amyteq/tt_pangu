@@ -216,38 +216,36 @@ next_version_plan.md`. **Verdict: none beats the 0.86 soup/eq-aug ceiling; all c
   submit, selecting on the private-tracking offline metric) is documented in
   `versions/lb3-v1/README.md`.
 
-## lb1-v1 GPU run (2026-06-20) — IN PROGRESS, guarded late-submission pending
+## lb1-v1 GPU run + guarded submit (2026-06-20) — SUBMITTED, Public 0.828 / Private 0.816
 
-The full GPU pipeline was authorized and launched (post-LB1 method-validation;
-late window, no ranking effect). Status as of push time:
+The full GPU pipeline ran end-to-end and the one guarded late-submission was
+executed (post-LB1 method-validation; late window, no ranking effect).
 
 - **Corpus:** 17,000 consistency-verified catalog-method records (cryptarithm 6,339
-  signature-DFS + bit 2,346 HEX/repair + equation-numeric 8,315 24-rule), generated
-  off-kernel by `versions/lb1-v1/synth_gen.py`; all 17k round-trip through the
-  official extractor, none over the 7,680-token budget.
-- **Dataset:** `harrysun2006/nemo-lb1-v1-synth` (uploaded, status ready).
-- **Kernel:** `harrysun2006/nemo-lb1-v1` v1 pushed (RTX Pro 6000, rank-32 LoRA on
-  the v14 replay backbone + the lb1-v1 synth; ~7h B7 wall-clock guard). Run state at
-  push: RUNNING. Code: `kernels/nemo-lb1-v1.py`.
-- **Submit:** PENDING the run. After COMPLETE: fetch `submission.zip`, run the
-  `versions/lb1-v1/validate.py --zip` preflight gate, then ONE guarded late submit.
+  signature-DFS + bit 2,346 HEX/repair + equation-numeric 8,315 24-rule), off-kernel
+  by `versions/lb1-v1/synth_gen.py`; all 17k round-trip through the official
+  extractor, none over the 7,680-token budget. Dataset `harrysun2006/nemo-lb1-v1-synth`.
+- **Kernel run:** `harrysun2006/nemo-lb1-v1` v1 (RTX Pro 6000) — COMPLETE,
+  `failureMessage: null`. Trained the v14 replay backbone + lb1-v1 synth to **step
+  619/786** before the 7h B7 wall-clock guard saved (peak VRAM 96.8 GB, loss ≈ 0.14).
+  In-run validation: "root files only, rank=32, alpha=32".
+- **Artifact:** `submission.zip` **1.37 GB** rank-32 LoRA (large b/c `lm_head` in
+  `target_modules` → `save_embedding_layers=True`; functionally rank-32, vLLM ignores
+  lm_head; b1 precedent). Preflight PASS (exists/non-empty/root-structure/rank-32/
+  no-secrets; hard-val unavailable = LB is the verdict).
+- **Submit:** `… -k harrysun2006/nemo-lb1-v1 -v 1 -f submission.zip` 2026-06-20
+  22:08 UTC → **Public 0.828 / Private 0.816** (COMPLETE; 1/100 daily late slots).
 
-Resume commands if this session ends before the run finishes (run from repo root,
-creds in `~/.kaggle/kaggle.json`):
-
-```bash
-kaggle kernels status harrysun2006/nemo-lb1-v1          # wait for COMPLETE
-kaggle kernels output harrysun2006/nemo-lb1-v1 -p ./lb1_out
-python competitions/nvidia-nemotron/versions/lb1-v1/validate.py --zip ./lb1_out/submission.zip
-# only if preflight PASSES:
-kaggle competitions submit -c nvidia-nemotron-model-reasoning-challenge \
-  -k harrysun2006/nemo-lb1-v1 -f submission.zip \
-  -m "postlb1-v1: post-writeup implementation with guarded submit"
-```
-
-Expected outcome: a down-scaled method-validation run (17k synth ≪ LB1's 360k), so
-likely near the replay-backbone ceiling (~0.84–0.86), not 0.92 — a real datapoint,
-not a breakthrough. Held-best untouched (soup 0.86/0.85 + v14 0.85; eq-aug 0.86/0.86).
+**Result reading (honest).** Below the held-best (soup 0.86/0.85, v14 0.85, eq-aug
+0.86/0.86) — as predicted. The catalog method is **volume-bound**: LB1 used 360k
+synth over a full epoch; this run had 17k (crypt under-weighted 6.3k) trained to only
+619/786 steps — far short of where catalog recall stabilises (~80k crypt, LB1 Q&A),
+so the lever could not "click" and the small eq-heavy synth mildly diluted the 0.85
+backbone (b1/b2/v15 lesson, amplified by under-training). **Confirms volume is the
+moat.** The *method* is reproduced + validated CPU-side (signature catalog 4,205
+exact; eq-deduce 95.0%; HEX exact; repair verified). Held-best untouched; late window
+= no ranking effect. Next: scale crypt ≥40k, drop `lm_head` (shrinks the 1.37 GB
+adapter, no score effect), full epoch.
 
 ## Submission checklist
 - [ ] local validation passed (validate_kernel.py + fail-fast preflight)
