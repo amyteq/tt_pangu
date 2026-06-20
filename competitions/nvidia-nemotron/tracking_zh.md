@@ -171,6 +171,24 @@
 ## 合规红线
 rank≤32;真实训练(不 repack);双账号 = 真实注册队友(已确认),只买**并发 session**,提交共享 per-team/day;不打印/提交 credentials。
 
+## lb6-v1 — LB6(public 第2 / private 第6)方法实现(2026-06-20)
+
+> 分支 `exp/nemo-postlb6-v1`,代码在 `versions/lb6-v1/`,纯 CPU 复现 LB6 方法。
+> **比赛已于 2026-06-15 截止**,故**未做线上提交**(guarded submit 经真实 `kca kaggle submit` 执行并被
+> preflight 门拦截,BLOCKED 写入 `.agent/kca/audit.jsonl`)。只验证*机制*。已保护:soup 0.86/0.85、eq-aug 0.86/0.86。
+
+实测结果:
+- **equation 重测(真实 train.csv,732 题)**:deduce 566/596 = **95.0%**,guess 47.8% → 再次反驳"全局密码"。
+- **DUMMY 掩码逐域归因**(招牌杠杆,**修复 B8** "单类增益≠总增益"):隔离每个域的信号,非目标域输出
+  `\boxed{DUMMY}`;0.01 LB ≈ 3 题。
+- **模板 bit 求解器**(shl/shr/rotr × pairwise/ternary,hex 速查表):pairwise+shift **99.5%**,ternary **100%**。
+- **DFS cryptarithm**(反向搜索 + 前导零/个位/方程排序剪枝):`*` **100%**,`+` 93%(反向 pass 为真实反向结构的回退)。
+- **LB6 方程求解器**(add/sub/mul + **maxmodmin** 族):deduce **100%**(guess 47.7%,合成)。
+- **bit/cryptarithm 取舍 CV**:预测加倍 cryptarithm 使 bit-CV 掉 +0.082 → "需加倍 bit 才能保住 CV"(LB6 选择遗憾)。
+- **验证**自检通过(full-train-as-validation + DUMMY 探针 + perfect-trace-rate + adapter rank≤32 preflight)。
+
+GPU 单轮 Unsloth SFT(BS32/LR3.5e-4)为 handoff(`versions/lb6-v1/train_lb6.py`,GPU-gated)。
+
 ## lb3-v1 — LB3(第3名)方法实现(2026-06-20)
 
 > 分支 `exp/nemo-postlb3-v1`,代码在 `versions/lb3-v1/`,纯 CPU 复现 LB3(Private 0.900)方法。
