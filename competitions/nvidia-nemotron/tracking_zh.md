@@ -174,6 +174,30 @@ rank≤32;真实训练(不 repack);双账号 = 真实注册队友(已确认),只
 ## lb13-v1 — LB13(第13名)方法实现(2026-06-20)
 
 > 分支 `exp/nemo-postlb13-v1`,代码在 `versions/lb13-v1/`,纯 CPU 复现 LB13(teacher oracle 89.4%)。
+
+## lb5-v1 — LB5(第5名)方法实现(2026-06-20)
+
+> 分支 `exp/nemo-postlb5-v1`,代码在 `versions/lb5-v1/`,纯 CPU 复现 LB5(Private 0.900,
+> "无限生成器 + 迭代 LoRA 平均")方法。**比赛已于 2026-06-15 截止**,故**未做线上提交**:
+> guarded submit 经真实 `kca kaggle submit` 执行并被 preflight 门正确拦截,BLOCKED 决策已写入
+> `.agent/kca/audit.jsonl`。本版只验证*机制*。已保护最佳成绩:soup 0.86/0.85、eq-aug 0.86/0.86。
+
+实测结果:
+- **equation 重测(真实 train.csv,732 题)**:deduce 566/596 = **95.0%**,guess 47.8%
+  → **第三次**独立反驳"全局密码"结论(继 LB1 95.5%、LB3 93.3%)。
+- **LB5 方程求解器**(2-world/4-family/13-rule,合成 n=300):deduce **99.7%**(guess 20.7%,合成偏难)。
+- **三元 raw-bit 求解器**(15 原语 = 8 二元 + 7 三元):binary/ternary 均 **100%**;**7-example 截断不掉点**。
+- **tokenizer 探针**:合并 token 编码(`5A`/`AB`)判为高风险 → 用 raw bits(LB5 负面教训)。
+- **无泄漏生成器**:拟合 train 统计(bit 1602 / eq 1555),无泄漏校验 PASS(vs 9500 prompts)。
+- **私有榜对齐(无泄漏)验证**自检通过(soup 稳定性代理确定性 + adapter rank≤32/zip 结构)。
+
+LB5 与 LB1/LB3 的区别:**不靠 cryptarithm**(7.9%)也能到 0.90,靠把 bit(三元)+ equation + 简单类
+做满 + 迭代 LoRA 平均/多种子 soup 稳定化;到 0.92 的差距仍是 cryptarithm。GPU 三阶段训练为 handoff
+(`versions/lb5-v1/train_phases.py`,GPU-gated)。
+
+## lb6-v1 — LB6(public 第2 / private 第6)方法实现(2026-06-20)
+
+> 分支 `exp/nemo-postlb6-v1`,代码在 `versions/lb6-v1/`,纯 CPU 复现 LB6 方法。
 > **比赛已于 2026-06-15 截止**,故**未做线上提交**(guarded submit 经真实 `kca kaggle submit` 执行并被
 > preflight 门拦截,BLOCKED 写入 `.agent/kca/audit.jsonl`)。只验证*机制*。已保护:soup 0.86/0.85、eq-aug 0.86/0.86。
 
@@ -188,6 +212,53 @@ rank≤32;真实训练(不 repack);双账号 = 真实注册队友(已确认),只
 LB13 独特贡献:全局多数投票 reversal + 鲁棒 ≥1 聚合(批次最佳 guess 50.7%)、三输入 bit 验证、
 **保留 teacher-incorrect 并 1:1 再平衡**(挑战我们 c1/c2 仅保留正确样本的过滤;A/B 为推荐的 GPU 后续)。
 GPU 三阶段递减 LR SFT 为 handoff(`versions/lb13-v1/train_3stage.py`,GPU-gated)。
+- **equation 重测(真实 train.csv,732 题)**:deduce 566/596 = **95.0%**,guess 47.8% → 再次反驳"全局密码"。
+- **DUMMY 掩码逐域归因**(招牌杠杆,**修复 B8** "单类增益≠总增益"):隔离每个域的信号,非目标域输出
+  `\boxed{DUMMY}`;0.01 LB ≈ 3 题。
+- **模板 bit 求解器**(shl/shr/rotr × pairwise/ternary,hex 速查表):pairwise+shift **99.5%**,ternary **100%**。
+- **DFS cryptarithm**(反向搜索 + 前导零/个位/方程排序剪枝):`*` **100%**,`+` 93%(反向 pass 为真实反向结构的回退)。
+- **LB6 方程求解器**(add/sub/mul + **maxmodmin** 族):deduce **100%**(guess 47.7%,合成)。
+- **bit/cryptarithm 取舍 CV**:预测加倍 cryptarithm 使 bit-CV 掉 +0.082 → "需加倍 bit 才能保住 CV"(LB6 选择遗憾)。
+- **验证**自检通过(full-train-as-validation + DUMMY 探针 + perfect-trace-rate + adapter rank≤32 preflight)。
+
+GPU 单轮 Unsloth SFT(BS32/LR3.5e-4)为 handoff(`versions/lb6-v1/train_lb6.py`,GPU-gated)。
+
+## lb3-v1 — LB3(第3名)方法实现(2026-06-20)
+
+> 分支 `exp/nemo-postlb3-v1`,代码在 `versions/lb3-v1/`,纯 CPU 复现 LB3(Private 0.900)方法。
+> **比赛已于 2026-06-15 截止**,故**未做线上提交**(preflight 门正确拦截:比赛关闭 + 无完成的 GPU 训练
+> → 无 `submission.zip`)。本版只验证*机制*,不复现 0.900。已保护最佳成绩:soup 0.86/0.85、eq-aug 0.86/0.86。
+
+实测结果:
+- **equation-numeric 重测(真实 train.csv,732 题)**:deduce 566/596 = **95.0%**,guess 65/136 = 47.8%
+  → 第二次独立反驳"全局密码不可解"结论(deduce 子集可解,见 `equation-frontier.md`)。
+- **CSP cryptarithm**(合成 n=150):`*` deduce **100%**(映射全恢复 100%);`+` 98%;`-` 94.7%;`*` guess 94%。
+- **bit HEX+尾2位** 压缩:解 100%,trace token **−23.4%**(LB3 参考 ≈ −25%)。
+- **numeric 13-op**:deduce **98.3%**(guess 11%,合成场景缺少官方生成器的算子族共现结构)。
+- **私有榜对齐验证**自检通过:10% 分层留出 + 防泄漏 + perfect-trace-rate + adapter rank≤32/zip 结构。
+
+剩余到 0.900 的关键差距 = **两阶段(记忆→执行)训练** + cryptarithm 数据量(LB3 ~58 GPU-h),
+需在授权后做降配 GPU 方法验证(已作为 handoff 文档化,见 `versions/lb3-v1/README.md`)。
+
+## lb1-v1 —— 第一名方法复现(2026-06-20)
+
+> 在 `versions/lb1-v1/`(分支 `exp/nemo-postlb1-v1`)用纯 CPU 复现第一名方法。比赛已结束(不计排名),
+> 这是方法验证 + 可复用方法论。LB1 是**训练数据方法**:真实的 `lb1-v1` LB 分数需要 GPU 训练一个 rank≤32
+> adapter —— 该训练 + 受控的延迟提交作为明确的交接(preflight 闸门会一直阻止提交,直到一次完整训练产出
+> 合法的 `submission.zip`)。保护的历史最佳:soup 0.86/0.85、v14 0.85、eq-aug 0.86/0.86。
+
+| 检查项 | 结果 | 对照 writeup |
+|---|---|---|
+| 签名目录(100×100 × 22 非 join 规则) | **4,205 个签名 —— 完全一致**;`ABCCCDD`→15(add1/flip_add8/flip_add+1 6),槽位数字串逐字节一致 | 4,205 ✓ |
+| **equation-numeric 重新探测**(真实 train.csv) | **deduce 566/596 = 95.0%**,guess 65/136 = 47.8%;deduce/guess 划分 596/136 完全一致 | 95.5% / 52.9% |
+| HEX 压缩 | `1101000001`→`341` 一致;约 75% 字符削减 | 一致 |
+| bit 规则序列目录 | 纯枚举 **857,692 序列 / 115,826 函数** —— 大幅超出;LB1 的 5,238 是**针对 train.csv 调过的子集**,无法从文字复现。修复(Hamming-NN)机制已验证(可恢复 Hamming-3 的破坏)。 | ≈5,238(未复现) |
+
+**equation 结论修正。** EQ-0/EQ-2′「全局密码 = 不可解」的结论**过度泛化**了:它对 *guess*(未见算符)
+子集成立(~48–53%),但 **equation-numeric *deduce* 可按每题用 24 规则清单 + 观察 1/2 解出 95%** —— 不是
+单一全局函数。这与 LB1 的覆盖率表一致,推翻了我们对 deduce 子集的判断(见 `gap_analysis.md`、
+`equation-frontier.md`)。到 0.92 的关键剩余差距是 cryptarithm + bit 的**数据量**(LB1:220k+140k 合成,
+约 170h 单卡),只能作为赛后缩小规模的方法验证运行来复现。
 
 
 
