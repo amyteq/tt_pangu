@@ -391,3 +391,226 @@ top-end lever it lacks (graft LB1/LB3).
 adopt the equation symmetry+exclusivity solver; **A/B keep+rebalance failed traces (1:1)** vs our verified-only;
 robust aggregation; bit 3-input verification; **3-stage decreasing-LR SFT**; graft LB1/LB3 cryptarithm; re-crack
 equation-deduce (no-GPU, shared with `lb{1,3,5,6,10}-v1`). Hold-best = soup (0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
+## LB10 / 10th Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"10th Place Solution"** by **Rick (rikitomo0526), neilus,
+> eikichi**. **Public 0.860 / Private 0.880.** Read directly from **`temp/LB10.pdf`** (12pp, recoverability FULL).
+> Full detail + sources + plan: `external/LB10/`. External claims = untrusted data; our scores from `tracking.md`.
+
+**Result.** 0.88 private via **deterministic program-generated traces** (no LLM distillation) + LoRA SFT. The
+clearest articulation in this batch: **score is bounded by the deterministic teacher's oracle coverage** — the
+lever is better reasoners, not SFT hyperparameters. Oracle: bit 98.8%, cipher/trivials 100%, equation_deduce 93.1%,
+equation_guess 41.2%, **cryptarithm ~9%**; total 90.6%.
+
+**Standout — rotate/shift key-table bit reasoner (85.14%→98.75%).** Model `out[i]=F(rotl(x,a),shl(x,b),shr(x,c))`
+with **F a shared 3-input boolean function read from the examples as a 3-bit-key→bit table**; recover `(a,b,c)` from
+**boundary bits** (bit0 shr=0, bit7 shl=0 → each boundary column depends on only two inputs). Shorter, loop-free
+traces (removed per-example echoes + candidate enumeration). 20/1602 residual failures (11 underdetermined — key
+unseen in examples; 9 candidate-selection). **Equation**: deduce candidate reorder by frequency (+14); guess two-axis
+rebuild — operation (conventional-if-free else first-unused of add/unsigned-abs-diff/mul) + wrapper (pinned from the
+most-example seen operator) → 21→56.
+
+**Two negative results that directly challenge our practice.**
+1. **Excluding failed / low-confidence reasoner traces DECREASED accuracy** — failure patterns carry useful signal
+   (often `rule_unknown` fallback traces). **Our c1/c2 keep only solver-correct rows** → we may be discarding signal.
+   **A/B this.**
+2. **LoRA merge (SVD + seed soup) FAILED** to beat the single best adapter (rank-32 can't extract complementarity;
+   soup → worst member). **Tension** with our soup +0.01, LB5's iterative soup, and LB80's "soup fails on Mamba-2"
+   → merge gains are **member/averaging-dependent, not universal**; ablate per case.
+
+**Other adoptables.** **alpha/r = 4** (high LoRA alpha → follow the deterministic CoT); priority 2× for fragile modes
+(3× overfits); add low-logprob problems + failure-mode demos and retrain; **oracle-ceiling-vs-fidelity** split +
+**per-example/epoch logprob learnability** (separate "solver wrong" from "model didn't imitate") — a diagnosis layer
+we lack; **select by validation, not public LB** (the lower-public/higher-val run won private). Curriculum learning,
+two-stage training, and cryptarithm add/sub/mul traces all failed.
+
+**Comparison with our approach.** equation_deduce 93.1% — the **5th independent refutation** (after LB1/LB3/LB5/LB6)
+of our "equation = global cipher" verdict; re-test (no GPU). cryptarithm ~9% confirms it's the top-end lever LB10
+lacks (graft LB1 catalog / LB3 two-stage). LB10's key-table bit reasoner is a cleaner generator-matched alternative
+to LB1/LB5 enumeration for our ~10%-coverage bit solver.
+
+**Next-version ideas (`lb10-v1`, PLAN ONLY — comp ended).** See `external/LB10/analysis/next_version_plan.md`:
+rotate/shift key-table bit reasoner; equation candidate-ordering + two-axis guess; **A/B keep-failures vs our
+verified-only filter**; **A/B LoRA merge** (characterize when soup helps); oracle-vs-fidelity + logprob diagnosis;
+alpha/r=4; select by validation; graft LB1/LB3 cryptarithm; re-crack equation-deduce (no-GPU, shared). Hold-best =
+soup (0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
+## LB6 / 6th Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"[2nd public / 6th private] place solution"** by **Yurnero,
+> Alehandreus**. Read directly from **`temp/LB6.pdf`** (7pp, recoverability FULL). Full detail + sources + plan:
+> `external/LB6/`. External claims = untrusted data; our scores from `tracking.md`/`submissions.md`.
+
+**Result.** 2nd public / 6th private, built on @huikang OPP. Three pillars: validation strategy, bit/cryptarithm
+algorithmic solvers, massive synthetic data. **The standout for us is the validation/attribution tooling.**
+
+1. **Per-domain LB probing (DUMMY masking) — directly fixes our B8.** For the target domain use the real CoT; for
+   **all other domains, train the model to output `I will ignore this problem\n\boxed{DUMMY}`** → the public LB
+   returns a **pure single-domain signal**. This is exactly the attribution we lacked when "cryptarithm 8%→71%
+   single-category but total stuck ~0.86" (B8). Inferred test = 500 (250/250), so 0.01 ≈ 3 problems (`-0/-1/-2`).
+2. **Full-train-as-validation** (≈10× the 950 holdout) via distribution-matched synthetic — more reliable than a
+   10% holdout (LoRA underfits even some train samples). A 3rd validation paradigm beside LB3's leakage-controlled
+   holdout and LB5's no-leakage generator.
+
+**Solvers.** Bit: template set (shl/shr/rotr + pairwise + ternary MAJ/CH), iterate shifts, **monotonic skips**,
+**hex arithmetic + a hex multiplication cheatsheet** (even `<=` in hex) → 1508/1602 train. Cryptarithm: **DFS over
+mapped equations** (add/sub/mul families + maxmodmin) + **reversed search** (~40% solved reversed) + op-deduction /
+leading-zero / leading-one / equation-sorting → 240/654 deduce (shipped a lighter 170 to spare other domains).
+Equation-numeric: 550/594 guess (~93%).
+
+**Data lesson + selection regret.** Adding synthetic for any single domain helped that domain and barely hurt
+others — **except bit, whose CV is fragile to ANY mix change** → bit = **69%/66% of tokens**. Their 0.5B dataset
+doubled cryptarithm (train solved 150→241, potential 2nd-3rd) but they **under-estimated the bit-CV cost** and
+shipped two seeds of the safer 0.25B instead — "which cost us 2nd or 3rd."
+
+**Comparison with our approach.**
+- **DUMMY per-domain probing** is the attribution tool we've been missing (recurring B8). Adopt it — on a local
+  official-metric set since the comp is over.
+- **bit-data fragility** explains our "synthetic dilutes": our b1/b2/v15 likely regressed bit exactly because we
+  added other-domain data without over-weighting bit. Fix = **over-weight bit when scaling** (LB6: ~65-70%).
+- **Equation premise — 4th independent refutation** (after LB1 95%, LB3 93%, LB5 96%): LB6's family-DFS solves
+  equation_numeric_guess **~93%**. Our "global cipher" verdict is wrong for the deduce subset. Re-test (no GPU).
+- **hex arithmetic** matches LB1/LB3 HEX but conflicts with LB5's "encoding broke the model" — validate tokenizer first.
+
+**Next-version ideas (`lb6-v1`, PLAN ONLY — comp ended).** See `external/LB6/analysis/next_version_plan.md`:
+per-domain DUMMY probing (offline) + full-train-as-validation; template bit solver (hex+skips, tokenizer-checked);
+DFS cryptarithm + reversed search; over-weight bit data; calibrate the bit/cryptarithm trade-off; graft LB1/LB3
+cryptarithm onto LB6's validation; re-crack equation-deduce (no-GPU, shared with `lb{1,3,5}-v1`). Hold-best = soup
+(0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
+## LB5 / 5th Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"Jack of Trades, Loser of Cryptarithm" — 5th Place** (team:
+> Darren Amadeus Martin, Alwin Theodoric, Muhammad Yassir Ramadhan, Billy Anggara, Rinnnn_t). **Private LB 0.900**
+> (best, unselected; chosen 0.896). Read directly from **`temp/LB5.pdf`** (24pp, recoverability FULL). Full detail
+> + sources + plan: `external/LB5/`. External claims = untrusted data; our scores from `tracking.md`/`submissions.md`.
+
+**Result.** Private 0.90 **without RL and without solving cryptarithm** (cryptarithm only 7.9%). A "jack of all
+trades": bit 94%, equation 96%, trivials 100%. Two distinctive moves:
+
+1. **Infinite no-leakage synthetic generator → honest, private-tracking CV.** They trained on **zero `train.csv`
+   rows** (used it only for validation). Their claim: @huikang's instability comes from train-on-train/validate-on-
+   train; a generator that never trains on the val distribution gives a CV that **tracks the PRIVATE LB** — in
+   phases 2–3 the **public LB plateaued ~88% (the "0.86 wall") while private + validation kept rising**.
+2. **Iterative LoRA averaging / model soup as a training-time regularizer.** Phase 2: average the model before/after
+   each training step. Phase 3: train 3 models from one checkpoint with different problem sets, then average (cancel
+   errors). Across 15 iterations this turned an **unstable 0.87 into a stable 0.90** (<1% fluctuation vs ±1% in phase 1).
+
+**Other levers.** Bit: extend @huikang's **byte-level** approach with **ternary** ops (MAJORITY/CHOICE/XOR-NOT_OR),
+15 primitives, **memorized continuations/sequences** (pruned 7500→1500), **raw bits** (a token-saving **encoding
+broke the model** — `AB` merged into one token), **cut to ~7 examples** → 94%. Equation: **2-world/4-family/13-rule**
+deterministic solver + family-based guessing + a phase-3 lookup-string → 96%. Training: @huikang trainer, **no
+quant/packing** (Unsloth 4-bit + packing **broke Nemotron**'s Mamba SSM), **DoRA rejected** (vLLM unsupported).
+
+**Comparison with our approach (gap ≈ +0.05 private; LB5 got there WITHOUT cryptarithm).**
+- **Iterative LoRA averaging** is the big one for us: our soup is **one-shot** (+0.01); LB5 uses it **iteratively as a
+  regularizer** across training, which is what stabilized 0.87→0.90. We should try iterative/multi-seed soup.
+- **No-leakage generator → private-tracking CV** directly addresses our "random split overstates generalization" and
+  our public-LB-chasing. Complements LB3's leakage-controlled hold-out (LB3 splits carefully; LB5 never touches the
+  val distribution).
+- **Equation premise — 3rd independent refutation (after LB1 95%, LB3 93%):** LB5's per-prompt 13-rule solver hits
+  **~96%**. Our "global cipher" verdict (EQ-0/EQ-2′) is wrong for the **deduce** subset. Re-test (no GPU).
+- **Cryptarithm priority signal:** LB5 reached 0.90 with **7.9%** cryptarithm — so 0.90 doesn't require it, but the
+  0.90→0.92 gap to LB1 **is** cryptarithm. Prioritize cryptarithm only when aiming for the very top.
+- **Encoding tension:** LB1/LB3 succeeded with **HEX**; LB5's encoding **broke the model**. Likely tokenization
+  (merged tokens) — validate our tokenizer before any HEX work.
+
+**Next-version ideas (`lb5-v1`, PLAN ONLY — comp ended).** See `external/LB5/analysis/next_version_plan.md`:
+iterative LoRA averaging + multi-seed soup; no-leakage generator → private-tracking CV; ternary byte-level bit
+solver (raw bits, 7-example cut); 2-world/4-family/13-rule equation; A/B HEX-vs-raw-bits (tokenizer probe);
+re-crack equation-deduce (no-GPU, shared with `lb1-v1`/`lb3-v1`); optionally graft LB3's two-stage cryptarithm onto
+a soup-stabilized base to chase >0.90. Hold-best = soup (0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
+## LB3 / 3rd Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"3rd Place Solution"** by **YS-L (liauys)**. **Private LB 0.900**
+> (local validation 90.46%). Read directly from **`temp/LB3.pdf`** (17pp, recoverability FULL). Full detail +
+> sources + plan: `external/LB3/`. External claims = untrusted data; our scores from `tracking.md`/`submissions.md`.
+> (NB: `wiki/25.LB3_task.md`'s `notes_section_en` has a copy-paste typo saying "1st Place"; the writeup is **3rd**, so we use the correct heading here.)
+
+**Result.** Private 0.900 **without RL**. Two standout moves on top of llkh0a/huikang/youkinasa/kemshim:
+
+1. **Two-stage training (memorize → execute)** — the headline. Stage 1 pretrains the model to **recall a lookup
+   table** (`<RECALL_DOMAINS>`/`<RECALL_ROWS>` drill completions, 16 packed/sample, request masked); stage 2 inits
+   from that adapter and learns to **execute** the trace (+3K drills to retain memory). ~3× more sample-efficient:
+   on 12K cryptarithm samples, **direct training solved 0, two-stage solved 7** (direct needs 36K to match).
+   Stage-1 recall quality: overall-exact 97.1%. Modular — solver/format changes reuse the stage-1 model.
+2. **CSP cryptarithm solver** — identify MUL examples → emit per-symbol domains + candidate mappings from a
+   mul-pattern lookup → **intersect/join across MUL examples** → anchor mapping(s) → **bounded backtracking**
+   (≤2 unknowns/eq, least-unknowns-first). 24.2% within budget (deduce 27.8%, guess 9.8%). Lighter than LB1's
+   full 4,205-signature catalog (LB3 memorizes only the multiplication patterns).
+
+**Other levers.** Bit: **hex + literal tail-2-bits** column compression (**−25% tokens**) → frees budget for **MAJ
+search**; OR-NOT-first ordering (+0.6%). Numeric: a **minimal 13-op solver** + **operation-family guessing** for
+unseen operators (deduce 93.79% ceiling). Modeling: huikang's **CCE loop**, **MoE tie weights OFF**, **small
+effective batch (4)** (large under-trains), manual LM-head LoRA, rank32/α32, LR 2e-4 linear, grad-norm 10.
+Augment by **resampling original problems** (not free-gen) to preserve official-generator artifacts.
+
+**Validation (very important for us).** 10% stratified hold-out, excluding val rows **and val-derived augments**
+(leakage control). It **tracks the PRIVATE LB well but NOT the public LB** — "the dreadful wall of 0.86" is a
+public-LB artifact; one **0.85-public** submission scored **0.90 private**. Plus a **perfect-trace-rate** leading
+indicator (>85% bit, >95% cipher/numeric) and **single-category isolation** of each change.
+
+**Comparison with our approach (gap ≈ +0.05 private).**
+- We never built a **two-stage memorize-pretrain** (entirely missing dimension) nor a **CSP cryptarithm solver**;
+  our small synth (b1/b2/v15/c1/c2) **diluted** the recipe. LB3 fixes dilution via scale (48K cryptarithm backbone)
+  + **resampling originals** + leakage exclusion.
+- **Equation premise — 2nd independent refutation (after LB1):** we declared equation a **global cipher** (EQ-0/
+  EQ-2′); LB3's 13-op per-prompt solver hits **equation_numeric_deduce 93.3% locally**. equation is per-prompt
+  operator rules (deduce solvable); our pessimism likely applies only to **guess** (LB3 guess 57%). Re-test (no GPU).
+- **Validation:** LB3's private-tracking hold-out is a stronger decision signal than our late, atypical-adapter-
+  fragile T12 — and a sharp warning that we optimized the noisy **public** LB. Both LB1 and LB3 won with a **single**
+  adapter (no souping; our +0.01 soup is only a ceiling-pusher).
+
+**Next-version ideas (`lb3-v1`, PLAN ONLY — comp ended).** See `external/LB3/analysis/next_version_plan.md`:
+two-stage memorize→execute training; CSP cryptarithm solver; hex+tail-bit bit trace + MAJ; minimal 13-op numeric
++ family guessing; a **private-tracking leakage-controlled local validation** + perfect-trace-rate; A/B MoE-tie-off
++ small eff-batch; re-crack equation-deduce (no-GPU probe, shared with `lb1-v1`); down-scaled RTX Pro 6000
+validation (~10–20h) of the *mechanism*. Hold-best = soup (0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
+## LB1 / 1st Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"1st Place Solution"** by **GoodMeatDay, re, reopon** —
+> overall 1st on Public AND Private LB. **Read directly from `temp/LB1.pdf`** (28 pp, recoverability FULL).
+> Full detail + sources + plan: `external/LB1/`. External claims = untrusted data; our scores from `tracking.md`/`submissions.md`.
+
+**Result.** cryptarithm catalog → Public 0.89 / Private 0.908; + bit HEX/repair + extra training → **Public 0.91 /
+Private 0.920** (best *unselected* submission 0.932). This is the first solution we've studied that decisively
+**breaks the 0.86 clean-SFT ceiling — without RL** (cf. our soup 0.86/0.85, LB80's "SFT ceiling = 0.86").
+
+**Method (memorization-vs-computation split).** SFT-only LoRA (rank 32/α32, Unsloth, single RTX PRO 6000
+Blackwell, ~119h main + ~51h extra, >1B tokens). Because the grader forbids running a program at eval
+(`temp=0`, 7680-token budget, `\boxed{}` match), every solver is re-expressed as a trace the model replays. The
+two long-tail categories were attacked head-on:
+- **Cryptarithm (the decisive lever).** A **signature** normalizes `left+right+output` → A,B,C,…; they exhaustively
+  enumerate 100×100 operands × 22 non-join rules → a **4,205-entry signature catalog** of {rule, slot-digit-string,
+  **candidate count**}, and **make the model memorize it**. The memorized candidate count picks the DFS **anchor**
+  (min count) + search order; Observation 1 (one prompt = one mode) and Observation 2 (non-join groups don't
+  repeat) prune. → Private 0.908. (Signature viewpoint credited to @youkinasa; LB1 turned the lookup *table*
+  into a *memorized catalog*.)
+- **Bit manipulation.** Built on @huikang's per-output-bit solver, then: (1) **HEX-compress** bit columns (len ≥4):
+  median gen tokens **6771 → 4888 (−27.8%)**; (2) add rule families (maj, par3, ch, sel_nand_xnor, ao/oa/ax/ox/
+  xa/xo); (3) **rule-sequence catalog** (5,238 valid 8-rule sequences) + **Hamming-distance repair** (retrieve ≤32
+  nearest, apply first matching all 8 bits — rejects `default 1` fallbacks). → Private 0.920.
+- Simple categories (cipher/numeral/unit/gravity) ≈ @huikang as-is; cipher uses the **77-word train vocabulary**.
+
+**Comparison with our approach (gap ≈ +0.07 private, all in cryptarithm + bit).**
+- We synthesized cryptarithm/bit (b1/b2/v15/c1/c2) but had **no memorizable catalog**, **never HEX-compressed**
+  traces, and our augmentation **diluted** the clean replay recipe (regressed the hard slice ≤ base). LB1 used
+  ~100× our synth volume as the **backbone**, not a bolt-on.
+- **Equation premise to re-check (important):** we declared equation-numeric a **global cipher / unrecoverable
+  PRF** (EQ-0/EQ-2′). LB1's coverage table shows **equation-numeric *deduce* (seen operator) ≈ 95% solvable** via
+  per-prompt 24-rule operator inference — our pessimism likely applies only to the *guess* (unseen-operator) subset
+  (their guess ≈ 52%). A cheap no-GPU probe should settle this.
+- **Souping:** LB1 did NOT soup (single continuation adapter); our +0.01 soup is a ceiling-pusher, not a substitute
+  for solving the hard categories. Selection variance bit them too (0.932 unselected vs 0.920 selected) — confirms
+  "submit your true best; trust the LB aggregate" (= INS-002 / T12 caveat).
+
+**Lessons.** (1) The 7680-token budget is the **primary design constraint** — measure "correct within budget."
+(2) Re-express solvers as **memorizable catalogs + short in-trace verification**, not free CoT. (3) **HEX
+compression** is a cheap, generic unblock for long-string traces. (4) Protect the clean recipe; scale synth with
+**rule-enforced consistency** (Obs.1/Obs.2), don't dilute. (5) Novelty audit (`external/LB1/source_index.md`):
+HEX, signature catalog, candidate-count memorization, rule-sequence catalog + Hamming repair are **LB1's
+additions** — absent from @huikang's public code.
+
+**Next-version ideas (`lb1-v1`, PLAN ONLY — comp ended).** See `external/LB1/analysis/next_version_plan.md`:
+signature catalog + candidate-count + staged DFS trace (cryptarithm); HEX + extra rule families + rule-sequence
+catalog + Hamming repair (bit); re-test the equation deduce premise (no-GPU probe first); port "correct within
+7680 tokens" into the local scorer; down-scaled validation on the RTX Pro 6000 (~7–14h) — validate the
+*mechanism*, not LB1's 170h volume. Hold-best = soup (0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
