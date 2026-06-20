@@ -136,38 +136,38 @@ Full 2×2 (coverage × dose), all scored 2026-06-16:
   it did not change the competition selection (soup + v14).
 - Current leaderboard top: **~0.90** (refreshed 2026-06-15).
 
-## lb1-v1 GPU run (2026-06-20) — IN PROGRESS, guarded late-submission pending
+## lb1-v1 GPU run + guarded submit (2026-06-20) — SUBMITTED ✅
 
-The full GPU pipeline was authorized and launched (post-LB1 method-validation;
-late window, no ranking effect). Status as of push time:
+The full GPU pipeline ran end-to-end and the one guarded late-submission was
+executed (post-LB1 method-validation; late window, no ranking effect).
 
 - **Corpus:** 17,000 consistency-verified catalog-method records (cryptarithm 6,339
   signature-DFS + bit 2,346 HEX/repair + equation-numeric 8,315 24-rule), generated
   off-kernel by `versions/lb1-v1/synth_gen.py`; all 17k round-trip through the
-  official extractor, none over the 7,680-token budget.
-- **Dataset:** `harrysun2006/nemo-lb1-v1-synth` (uploaded, status ready).
-- **Kernel:** `harrysun2006/nemo-lb1-v1` v1 pushed (RTX Pro 6000, rank-32 LoRA on
-  the v14 replay backbone + the lb1-v1 synth; ~7h B7 wall-clock guard). Run state at
-  push: RUNNING. Code: `kernels/nemo-lb1-v1.py`.
-- **Submit:** PENDING the run. After COMPLETE: fetch `submission.zip`, run the
-  `versions/lb1-v1/validate.py --zip` preflight gate, then ONE guarded late submit.
+  official extractor, none over the 7,680-token budget. Dataset:
+  `harrysun2006/nemo-lb1-v1-synth`.
+- **Kernel run:** `harrysun2006/nemo-lb1-v1` v1 (RTX Pro 6000) — COMPLETE,
+  `failureMessage: null`. Trained the v14 replay backbone + lb1-v1 synth to **step
+  619/786** before the 7h B7 wall-clock guard fired and saved (peak VRAM 96.8 GB,
+  final loss ≈ 0.14). In-run validation passed: "root files only, rank=32, alpha=32".
+- **Artifact:** `submission.zip` **1.37 GB** (rank-32 LoRA). ⚠ Large because
+  `lm_head` in `target_modules` triggered `save_embedding_layers=True` (full
+  embedding layers saved) — inherited from the b1 recipe; functionally a rank-32
+  LoRA (vLLM ignores lm_head; b1 precedent at 0.85). **Follow-up: drop `lm_head`
+  to shrink the adapter** (config.yaml already specifies this).
+- **Preflight (PASS):** zip exists & non-empty (1.37 GB), root files
+  `[adapter_config.json, adapter_model.safetensors]` (not nested), rank=32, no
+  secrets, run completed; hard-val = unavailable (down-scaled method-validation, no
+  in-run eval — LB is the verdict, per the writeup's own GPU-limited discipline).
+- **Submit:** `kaggle competitions submit -c … -k harrysun2006/nemo-lb1-v1 -v 1
+  -f submission.zip -m "postlb1-v1: post-writeup implementation with guarded submit"`
+  → submitted **2026-06-20 22:08:31 UTC**, status PENDING at write time.
+  Public LB: __PENDING__ / Private LB: __PENDING__ (1 of 100 daily late-window slots).
 
-Resume commands if this session ends before the run finishes (run from repo root,
-creds in `~/.kaggle/kaggle.json`):
-
-```bash
-kaggle kernels status harrysun2006/nemo-lb1-v1          # wait for COMPLETE
-kaggle kernels output harrysun2006/nemo-lb1-v1 -p ./lb1_out
-python competitions/nvidia-nemotron/versions/lb1-v1/validate.py --zip ./lb1_out/submission.zip
-# only if preflight PASSES:
-kaggle competitions submit -c nvidia-nemotron-model-reasoning-challenge \
-  -k harrysun2006/nemo-lb1-v1 -f submission.zip \
-  -m "postlb1-v1: post-writeup implementation with guarded submit"
-```
-
-Expected outcome: a down-scaled method-validation run (17k synth ≪ LB1's 360k), so
-likely near the replay-backbone ceiling (~0.84–0.86), not 0.92 — a real datapoint,
-not a breakthrough. Held-best untouched (soup 0.86/0.85 + v14 0.85; eq-aug 0.86/0.86).
+Expected: a down-scaled method-validation run (17k synth ≪ LB1's 360k, trained
+only to step 619 before the guard), so likely near/below the replay-backbone
+ceiling — a real datapoint, not a breakthrough. Held-best untouched (soup 0.86/0.85
++ v14 0.85; eq-aug 0.86/0.86); this late-window submit does not affect ranking.
 
 ## Submission checklist
 - [ ] local validation passed (validate_kernel.py + fail-fast preflight)
