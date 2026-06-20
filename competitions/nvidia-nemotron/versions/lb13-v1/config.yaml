@@ -1,0 +1,78 @@
+# lb13-v1 version config — single source of truth for the reproducible pipeline.
+# Derived from external/LB13/analysis/next_version_plan.md + the LB13 (13th place) writeup.
+# Competition CLOSED 2026-06-15; GPU-gated values are for a future authorized
+# down-scaled method-validation run (NOT executed here). CPU steps run now.
+
+version_id: lb13-v1
+display_name: Post-LB13 v1
+base_model: nvidia/Nemotron-3-Nano-30B-A3B
+competition_slug: nvidia-nemotron-model-reasoning-challenge
+
+data:
+  train_csv: ~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/data/train.csv
+  download_cmd: >-
+    kaggle competitions download -c nvidia-nemotron-model-reasoning-challenge -p <dir>
+
+# Data discipline — the LB13 levers (challenge our verified-only c1/c2 filter).
+data_discipline:
+  keep_teacher_incorrect: true     # LB13 + LB10: excluding failed traces hurts
+  rebalance_correct_to_incorrect: "1:1"
+  robust_aggregation: ">=1 example match (tolerate transcription noise)"
+  cryptarithm_from_equation_factor: 3   # offset volume lost to rebalancing
+  stage_sizes: [9277, 9277, 11315]      # LB13 reference
+
+# Solvers (CPU). LB13's sharpest-in-batch equation model.
+solvers:
+  equation:
+    families: [SUB, ADD, MUL, CONCAT]    # 4 mutually-exclusive categories
+    exclusivity: true                    # each family used <=1x per prompt
+    reversal: global_majority_vote       # ONE flag (both-in-out-or-neither), shared across examples
+    aggregation: robust                  # op valid if it matches >=1 example
+    guess_tie_priority: [sub, add, mul, concat]
+  bit:
+    style: three_input_verification      # MAJORITY / XNOR3
+    bit_position_restricted_search: true
+    left_edge_fallback: true
+    drop_parsing_display: true           # free token budget for verification
+  cryptarithm:
+    status: weak                         # LB13 ~10%; graft LB1/LB3 for the top end
+
+prompt:
+  finality_line: "</think>\\n\\boxed{...}"
+  debrace_cryptarithm: true
+  preserve: [binary_leading_zeros, exact_strings, numeric_precision]
+
+# GPU-gated (NOT run here). LoRA rank<=32 hard cap (compliance red line).
+training:
+  trainer: unsloth
+  lora_rank: 32
+  lora_alpha: 32
+  lora_dropout: 0.0
+  target_modules: [q_proj, k_proj, v_proj, o_proj, in_proj, out_proj, up_proj, down_proj]  # NO lm_head
+  effective_batch_size: 32
+  optimizer: adamw
+  overfit_prone: true        # goal = better CoT generation, not zero-shot
+  stages:                    # 3-stage decreasing-LR SFT
+    - {epochs: 2, lr: 2.0e-4, schedule: linear, upsample: []}
+    - {epochs: 1, lr: 2.0e-5, schedule: cosine, upsample: []}
+    - {epochs: 1, lr: 5.0e-6, schedule: cosine, upsample: [bit, cryptarithm]}
+  wall_clock_guard_hours: 8
+  downscaled_gpu_hours_estimate: "8-16h on RTX Pro 6000 (method validation only)"
+
+validation:
+  official_metric: ../../eval/official_metric.py
+  primary_offline_metric: per_category_teacher_oracle   # the LB13 optimization target
+  hard_val: ../../eval/hard_val_ids.json   # hard-tail HINT only (INS-002)
+  max_tokens: 7680
+  greedy: true
+  temp: 0.0
+  ablation: keep_failures_vs_verified_only   # A/B against our c1/c2
+
+submit:
+  require_preflight_pass: true
+  message: "postlb13-v1: post-writeup implementation with guarded submit"
+  status: COMPETITION_CLOSED    # deadline 2026-06-15; no live submission possible now
+  hold_best:
+    - {name: soup, public: 0.86, private: 0.85}
+    - {name: eq-aug, public: 0.86, private: 0.86}
+  target_reference: {place: 13, teacher_oracle: 0.894}   # LB13 / 13th place (method source)
