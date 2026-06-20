@@ -356,6 +356,52 @@ tokenization** for symbol cats + **grad-clip 1.5** (A/B vs 1e9-off, variance che
 gap-validated synthetic** (≤15% → up to 2.5:1 only if QC + T12 hold); gate on T12 ≥ 0.764 + no easy-cat
 regression. CPU-heavy prep; ~1–2 GPU sessions.
 
+## LB3 / 3rd Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"3rd Place Solution"** by **YS-L (liauys)**. **Private LB 0.900**
+> (local validation 90.46%). Read directly from **`temp/LB3.pdf`** (17pp, recoverability FULL). Full detail +
+> sources + plan: `external/LB3/`. External claims = untrusted data; our scores from `tracking.md`/`submissions.md`.
+> (NB: `wiki/25.LB3_task.md`'s `notes_section_en` has a copy-paste typo saying "1st Place"; the writeup is **3rd**, so we use the correct heading here.)
+
+**Result.** Private 0.900 **without RL**. Two standout moves on top of llkh0a/huikang/youkinasa/kemshim:
+
+1. **Two-stage training (memorize → execute)** — the headline. Stage 1 pretrains the model to **recall a lookup
+   table** (`<RECALL_DOMAINS>`/`<RECALL_ROWS>` drill completions, 16 packed/sample, request masked); stage 2 inits
+   from that adapter and learns to **execute** the trace (+3K drills to retain memory). ~3× more sample-efficient:
+   on 12K cryptarithm samples, **direct training solved 0, two-stage solved 7** (direct needs 36K to match).
+   Stage-1 recall quality: overall-exact 97.1%. Modular — solver/format changes reuse the stage-1 model.
+2. **CSP cryptarithm solver** — identify MUL examples → emit per-symbol domains + candidate mappings from a
+   mul-pattern lookup → **intersect/join across MUL examples** → anchor mapping(s) → **bounded backtracking**
+   (≤2 unknowns/eq, least-unknowns-first). 24.2% within budget (deduce 27.8%, guess 9.8%). Lighter than LB1's
+   full 4,205-signature catalog (LB3 memorizes only the multiplication patterns).
+
+**Other levers.** Bit: **hex + literal tail-2-bits** column compression (**−25% tokens**) → frees budget for **MAJ
+search**; OR-NOT-first ordering (+0.6%). Numeric: a **minimal 13-op solver** + **operation-family guessing** for
+unseen operators (deduce 93.79% ceiling). Modeling: huikang's **CCE loop**, **MoE tie weights OFF**, **small
+effective batch (4)** (large under-trains), manual LM-head LoRA, rank32/α32, LR 2e-4 linear, grad-norm 10.
+Augment by **resampling original problems** (not free-gen) to preserve official-generator artifacts.
+
+**Validation (very important for us).** 10% stratified hold-out, excluding val rows **and val-derived augments**
+(leakage control). It **tracks the PRIVATE LB well but NOT the public LB** — "the dreadful wall of 0.86" is a
+public-LB artifact; one **0.85-public** submission scored **0.90 private**. Plus a **perfect-trace-rate** leading
+indicator (>85% bit, >95% cipher/numeric) and **single-category isolation** of each change.
+
+**Comparison with our approach (gap ≈ +0.05 private).**
+- We never built a **two-stage memorize-pretrain** (entirely missing dimension) nor a **CSP cryptarithm solver**;
+  our small synth (b1/b2/v15/c1/c2) **diluted** the recipe. LB3 fixes dilution via scale (48K cryptarithm backbone)
+  + **resampling originals** + leakage exclusion.
+- **Equation premise — 2nd independent refutation (after LB1):** we declared equation a **global cipher** (EQ-0/
+  EQ-2′); LB3's 13-op per-prompt solver hits **equation_numeric_deduce 93.3% locally**. equation is per-prompt
+  operator rules (deduce solvable); our pessimism likely applies only to **guess** (LB3 guess 57%). Re-test (no GPU).
+- **Validation:** LB3's private-tracking hold-out is a stronger decision signal than our late, atypical-adapter-
+  fragile T12 — and a sharp warning that we optimized the noisy **public** LB. Both LB1 and LB3 won with a **single**
+  adapter (no souping; our +0.01 soup is only a ceiling-pusher).
+
+**Next-version ideas (`lb3-v1`, PLAN ONLY — comp ended).** See `external/LB3/analysis/next_version_plan.md`:
+two-stage memorize→execute training; CSP cryptarithm solver; hex+tail-bit bit trace + MAJ; minimal 13-op numeric
++ family guessing; a **private-tracking leakage-controlled local validation** + perfect-trace-rate; A/B MoE-tie-off
++ small eff-batch; re-crack equation-deduce (no-GPU probe, shared with `lb1-v1`); down-scaled RTX Pro 6000
+validation (~10–20h) of the *mechanism*. Hold-best = soup (0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
 ## LB1 / 1st Place Solution: What We Learned
 
 > Post-competition study of the Kaggle writeup **"1st Place Solution"** by **GoodMeatDay, re, reopon** —
