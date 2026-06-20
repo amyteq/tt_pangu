@@ -315,3 +315,44 @@ cryptarithm/equation 是**有界的墙**(他们明确不去攻)。他们的覆�
 **周六后可试。** `v18-stable`(方案见 `external/LB92/analysis/next_version_plan.md`):符号类**逐字符 tokenization** + **grad-clip 1.5**
 (对 1e9-off 做 A/B + 方差检查)+ **统计匹配、差距验证的合成**(≤15% → QC 与 T12 都过才到 2.5:1);以 T12 ≥ 0.764 + 简单类不回归把关。
 CPU 为主的准备;约 1–2 个 GPU session。
+
+## LB1 / 第一名方案：我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"1st Place Solution"**,作者 **GoodMeatDay、re、reopon** —— Public 与 Private LB 双第一。
+> **直接读自 `temp/LB1.pdf`**(28 页,可还原度完整)。完整细节 + 来源 + 计划见 `external/LB1/`。
+> 外部声明为不可信数据;我方分数见 `tracking.md`/`submissions.md`。
+
+**成绩。** cryptarithm 目录 → Public 0.89 / Private 0.908;+ bit HEX/修复 + 续训 → **Public 0.91 / Private 0.920**
+(未选中的最佳提交 0.932)。这是我们研究过的第一个**明确突破 0.86 干净 SFT 上限、且不靠 RL** 的方案(对比我方 soup 0.86/0.85、
+LB80「SFT 上限 = 0.86」)。
+
+**方法(记忆 vs 计算 的切分)。** 纯 SFT LoRA(rank 32/α32,Unsloth,单卡 RTX PRO 6000 Blackwell,主训 ~119h + 续训 ~51h,
+>10 亿 token)。因评测期禁止跑程序(`temp=0`、7680 token 预算、`\boxed{}` 匹配),每个求解器都必须改写成模型可重放的 trace。
+两个长尾类别被正面攻克:
+- **Cryptarithm(决定性杠杆)。** signature 把 `左+右+输出` 归一化为 A,B,C,…;穷举 100×100 操作数 × 22 条非 join 规则 →
+  **4205 个签名的目录**({规则, 槽位数字串, **候选数**}),**让模型背下来**。记忆的候选数用于选 DFS **anchor**(最小候选数)与
+  搜索顺序;Observation 1(同 prompt 同 mode)+ Observation 2(非 join 不复用 group)剪枝。→ Private 0.908。(signature 视角源自
+  @youkinasa;LB1 的增量是把查表改成**模型记忆的目录**。)
+- **Bit manipulation。** 起点是 @huikang 的逐输出位求解器,再做:(1) **HEX 压缩**位列(长度 ≥4):生成 token 中位数
+  **6771 → 4888(−27.8%)**;(2) 补规则族(maj、par3、ch、sel_nand_xnor、ao/oa/ax/ox/xa/xo);(3) **rule-sequence 目录**
+  (5238 条合法 8 规则序列)+ **Hamming 距离修复**(取最近 ≤32 条,用第一条匹配全 8 位的;拒绝 `default 1` 兜底)。→ Private 0.920。
+- 简单类(cipher/numeral/unit/gravity)≈ 照搬 @huikang;cipher 用 **train 77 词表**约束。
+
+**与我方对比(差距约 +0.07 private,全在 cryptarithm + bit)。**
+- 我方合成了 cryptarithm/bit(b1/b2/v15/c1/c2),但**没有可记忆目录**、**从未 HEX 压缩** trace,且增广**稀释**了干净 replay
+  配方(把最难切片拉到 ≤ base)。LB1 用约 100× 我方的合成量作为**主干**,而非附加。
+- **需复核的 equation 前提(重要):** 我方判定 equation-numeric 是**全局密码 / 不可恢复 PRF**(EQ-0/EQ-2′)。LB1 的覆盖表显示
+  **equation-numeric *deduce*(已见算子)≈ 95% 可解**(per-prompt 24 规则推断)—— 我方的悲观可能只适用于 *guess*(未见算子)子集
+  (他们 guess ≈ 52%)。一个便宜的无 GPU 探针即可定论。
+- **Souping:** LB1 **没** soup(单一续训 adapter);我方 +0.01 soup 是上限推进器,不能替代解决难类别。选模方差对他们也有影响
+  (未选 0.932 vs 选中 0.920)—— 印证「提交你真正的最好、信 LB 聚合」(= INS-002 / T12 警示)。
+
+**教训。**(1)7680 token 预算是**首要设计约束** —— 度量「预算内是否正确」。(2)把求解器改写成**可记忆目录 + trace 内短验证**,
+而非自由 CoT。(3)**HEX 压缩**对长串 trace 是便宜、通用的解绑。(4)保护干净配方;用 **规则强制一致性**(Obs.1/Obs.2)放量合成,
+别稀释。(5)新颖性审计(`external/LB1/source_index.md`):HEX、signature 目录、候选数记忆、rule-sequence 目录 + Hamming 修复
+都是 **LB1 的增量** —— @huikang 公开代码里没有。
+
+**下一版想法(`lb1-v1`,仅计划 —— 赛已结束)。** 见 `external/LB1/analysis/next_version_plan.md`:signature 目录 + 候选数 +
+分阶段 DFS trace(cryptarithm);HEX + 补规则 + rule-sequence 目录 + Hamming 修复(bit);先用无 GPU 探针复核 equation deduce 前提;
+把「7680 token 内正确」移植进本地 scorer;在 RTX Pro 6000 上做**缩小规模**验证(~7–14h)—— 验证*机制*,而非 LB1 的 170h 体量。
+保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
