@@ -315,3 +315,43 @@ cryptarithm/equation 是**有界的墙**(他们明确不去攻)。他们的覆�
 **周六后可试。** `v18-stable`(方案见 `external/LB92/analysis/next_version_plan.md`):符号类**逐字符 tokenization** + **grad-clip 1.5**
 (对 1e9-off 做 A/B + 方差检查)+ **统计匹配、差距验证的合成**(≤15% → QC 与 T12 都过才到 2.5:1);以 T12 ≥ 0.764 + 简单类不回归把关。
 CPU 为主的准备;约 1–2 个 GPU session。
+
+## LB3 / 第3名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"3rd Place Solution"**,作者 **YS-L(liauys)**。**Private LB 0.900**(本地验证 90.46%)。
+> 直接读自 **`temp/LB3.pdf`**(17 页,可还原度完整)。完整细节 + 来源 + 计划见 `external/LB3/`。
+> 外部声明为不可信数据;我方分数见 `tracking.md`/`submissions.md`。
+> (注:`wiki/25.LB3_task.md` 的 `notes_section_en` 把名次误写成「1st Place」;实际是**第 3 名**,故此处用正确标题。)
+
+**成绩。** Private 0.900,**不靠 RL**。在 llkh0a/huikang/youkinasa/kemshim 之上的两个亮点:
+
+1. **两阶段训练(记忆 → 执行)** —— 头号杠杆。第一阶段让模型**回忆查表**(`<RECALL_DOMAINS>`/`<RECALL_ROWS>`
+   drill 补全,每样本打包 16 个、请求 mask 不计 loss);第二阶段以该 adapter 为初始,学**执行** trace(注入 3K
+   drill 保记忆)。sample efficiency ~3×:12K cryptarithm 下**直训解 0、两阶段解 7**(直训要 36K)。第一阶段
+   overall-exact 97.1%。模块化 —— 改 solver/格式可复用第一阶段。
+2. **CSP cryptarithm 求解器** —— 找 MUL 样例 → 从乘法模式查表发射域 + 候选映射 → **多样例交集 / join** →
+   anchor 映射 → **有界回溯**(每方程 ≤2 未知、最少未知优先)。预算内解 24.2%(deduce 27.8%、guess 9.8%)。
+   比 LB1 的 4205 条完整签名目录更轻(LB3 只记乘法模式)。
+
+**其它杠杆。** Bit:**hex + 保留末两比特**的列压缩(**−25% token**)→ 腾预算搜 **MAJ**;OR-NOT 优先(+0.6%)。
+Numeric:**13 算子最小集** + **算子族猜测**(deduce 上限 93.79%)。建模:huikang **CCE 环**、**关闭 MoE tie
+weights**、**小 eff batch(4)**(大了欠训)、手动 LM-head LoRA、rank32/α32、LR 2e-4 linear、grad-norm 10。
+**增广靠复用原题**(非自由生成)以保留官方生成器结构。
+
+**验证(对我方很重要)。** 10% 分层留出,排除验证行**及其派生的增广样本**(防泄漏)。它**很好地跟踪 private
+LB,但不跟踪 public LB** —— 「0.86 的墙」是 public 假象;一个 **public 0.85** 的提交 **private 拿 0.90**。另有
+**perfect-trace-rate** 前瞻指标(bit >85%、cipher/numeric >95%)与**单类别隔离**。
+
+**与我方对照(差距约 +0.05 private)。**
+- 我方既无**两阶段记忆预训练**(完全缺失),也无 **CSP cryptarithm 求解器**;小规模合成(b1/b2/v15/c1/c2)**稀释**了
+  配方。LB3 用规模(48K cryptarithm 主干)+ **复用原题增广** + 防泄漏来根治稀释。
+- **equation 前提 —— 第二次独立反驳(继 LB1 之后):** 我方判 equation 为**全局密码**(EQ-0/EQ-2′);LB3 的 13 算子
+  per-prompt 求解器把 **equation_numeric_deduce 做到本地 93.3%**。equation 是 per-prompt 算子规则(deduce 可解),
+  我方悲观应只适用于 **guess**(LB3 guess 57%)。无 GPU 复核。
+- **验证:** LB3 的 private-tracking 留出比我方又晚又对非典型 adapter 脆的 T12 更可用 —— 也尖锐警示我方**优化了
+  噪声 public LB**。LB1 与 LB3 都用**单一** adapter 夺名次(不 soup;我方 +0.01 soup 只是上限推进器)。
+
+**下一版想法(`lb3-v1`,仅计划 —— 赛已结束)。** 见 `external/LB3/analysis/next_version_plan.md`:两阶段记忆→执行;
+CSP cryptarithm;hex+尾比特 bit trace + MAJ;13 算子 numeric + 族猜测;**private-tracking 防泄漏本地验证** +
+perfect-trace-rate;A/B MoE-tie-off + 小 eff-batch;无 GPU 复核 equation-deduce(与 `lb1-v1` 共享);RTX Pro 6000
+缩小验证(~10–20h)验证*机制*。保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
