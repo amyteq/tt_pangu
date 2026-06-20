@@ -171,6 +171,24 @@
 ## 合规红线
 rank≤32;真实训练(不 repack);双账号 = 真实注册队友(已确认),只买**并发 session**,提交共享 per-team/day;不打印/提交 credentials。
 
+## lb13-v1 — LB13(第13名)方法实现(2026-06-20)
+
+> 分支 `exp/nemo-postlb13-v1`,代码在 `versions/lb13-v1/`,纯 CPU 复现 LB13(teacher oracle 89.4%)。
+> **比赛已于 2026-06-15 截止**,故**未做线上提交**(guarded submit 经真实 `kca kaggle submit` 执行并被
+> preflight 门拦截,BLOCKED 写入 `.agent/kca/audit.jsonl`)。只验证*机制*。已保护:soup 0.86/0.85、eq-aug 0.86/0.86。
+
+实测结果:
+- **equation 重测(真实 train.csv,732 题)**:deduce 566/596 = **95.0%**,guess 47.8% → **第六次**独立反驳"全局密码"。
+- **LB13 方程求解器**(4 互斥族 + 全局多数投票 reversal;合成 n=300):deduce **100%**;guess 84.7%(合成互斥更干净)。
+- **鲁棒 vs 严格聚合(转写噪声下)**:**鲁棒 100% vs 严格 54%** —— LB13 保留噪声 trace 的关键杠杆,已直接验证。
+- **三输入 bit 验证器**(MAJ/XNOR3 + 位搜索 + 左缘回退;n=300):解 **100%**。
+- **保留失败样本 1:1 再平衡**:4.26:1 → **1.00:1**(全部保留 teacher-incorrect)。
+- **验证**自检通过(teacher oracle、鲁棒>严格、再平衡、perfect-trace-rate、adapter rank≤32 preflight)。
+
+LB13 独特贡献:全局多数投票 reversal + 鲁棒 ≥1 聚合(批次最佳 guess 50.7%)、三输入 bit 验证、
+**保留 teacher-incorrect 并 1:1 再平衡**(挑战我们 c1/c2 仅保留正确样本的过滤;A/B 为推荐的 GPU 后续)。
+GPU 三阶段递减 LR SFT 为 handoff(`versions/lb13-v1/train_3stage.py`,GPU-gated)。
+
 
 
 

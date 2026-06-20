@@ -153,6 +153,31 @@ seen-input fraction, but the unseen-input majority is a strong cipher and stays 
 from samples, EQ-2′). Why LB didn't jump: equation is ≈ 1/9 of the test and only a fraction of it is learnable,
 so the maximum aggregate headroom from a perfect equation memoriser is small, and even that only covers seen inputs.
 
+## lb13-v1 — post-LB13 (13th place) method implementation (2026-06-20)
+
+> Reproducible **CPU** implementation of the 13th-place method (teacher oracle 89.4%)
+> under `versions/lb13-v1/` (branch `exp/nemo-postlb13-v1`). **Competition closed
+> 2026-06-15** → no live submit (preflight gate blocks; guarded-submit BLOCKED decision
+> logged to `.agent/kca/audit.jsonl`). Validates the *mechanism* (sharpest equation
+> structure, robust aggregation, keep-failures rebalance, 3-input bit verify). Held-best
+> protected: soup 0.86/0.85, eq-aug 0.86/0.86.
+
+| check | result | vs writeup |
+|---|---|---|
+| **equation re-probe** (real `train.csv`, 732 prompts) | **deduce 566/596 = 95.0%**, guess 65/136 = 47.8% | 95.3% / 50.7% |
+| **LB13 equation solver** (4-family excl. + global majority-vote reversal; synthetic n=300) | deduce **100%**; guess 84.7% (synthetic exclusivity cleaner than real) | mechanism ✓ |
+| **robust vs strict aggregation under transcription noise** | **robust 100% vs strict 54%** — the LB13 keep-noisy-traces lever, demonstrated | robustness ✓ |
+| **3-input bit verifier** (MAJ/XNOR3 + bit-pos search + left-edge fallback; n=300) | solved **100%** | bit oracle 89.7% ✓ |
+| **keep-failures 1:1 rebalance** | 4.26:1 → **1.00:1** (all teacher-incorrect kept) | data discipline ✓ |
+| **validation** self-check | PASS — teacher oracle, robust>strict, rebalance, perfect-trace-rate, adapter rank=32≤32 preflight | design ✓ |
+
+**Equation premise — 6th independent refutation.** The real-data re-probe (95.0% deduce)
+again confirms equation-numeric *deduce* is per-prompt-operator solvable (after LB1/LB3/LB5,
+plus LB6/LB10). LB13's distinct contributions: the **global majority-vote reversal +
+robust ≥1-match aggregation** equation model (batch-best guess 50.7%), **3-input bit
+verification**, and **keeping teacher-incorrect traces (1:1 rebalance)** — which challenges
+our verified-only c1/c2 filter (A/B is the recommended GPU follow-up).
+
 ## Evidence links
 - GitHub issue #86 (body + comments 0–4) — original hub.
 - `tracking_zh.md` — original Chinese tables verbatim.
