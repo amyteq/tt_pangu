@@ -136,6 +136,20 @@ Full 2×2 (coverage × dose), all scored 2026-06-16:
   it did not change the competition selection (soup + v14).
 - Current leaderboard top: **~0.90** (refreshed 2026-06-15).
 
+## lb1-v1 implementation (2026-06-20) — NO submission made (GPU-gated)
+
+The post-LB1 pipeline (`versions/lb1-v1/`, branch `exp/nemo-postlb1-v1`) was
+implemented and validated on CPU, but **no Kaggle submission was made**: a real
+`lb1-v1` adapter requires a GPU training run (the base model is ~0.47; LB1 is a
+training-data method), and the submission **preflight gate correctly blocked**
+because no completed run produced a `submission.zip`. The CPU preflight (boxed/
+binary extraction, fail-fast, rank≤32, zip-root structure, no-secrets) passes on a
+dummy adapter; the rank-64 and nested-zip cases are correctly rejected. The
+late-submission window (100/team/day) is the intended channel once a real adapter
+exists. Handoff commands are in the implementation PR and `versions/lb1-v1/README.md`.
+This makes **no claim of an LB score** and does not alter the selected best
+(soup 0.86/0.85 + v14 0.85; eq-aug 0.86/0.86 best own private).
+
 ## Submission checklist
 - [ ] local validation passed (validate_kernel.py + fail-fast preflight)
 - [ ] submission shape checked (submission.zip @ /kaggle/working; rank32/α32)
