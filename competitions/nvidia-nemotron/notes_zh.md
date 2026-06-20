@@ -316,6 +316,25 @@ cryptarithm/equation 是**有界的墙**(他们明确不去攻)。他们的覆�
 (对 1e9-off 做 A/B + 方差检查)+ **统计匹配、差距验证的合成**(≤15% → QC 与 T12 都过才到 2.5:1);以 T12 ≥ 0.764 + 简单类不回归把关。
 CPU 为主的准备;约 1–2 个 GPU session。
 
+## LB88 / 第88名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"88th PLACE SOLUTION"**,作者 **Yoshinari Kawashima + MedudentYamatai**
+> (DOI 10.34740/kaggle/w/88245)。**⚠️ 与上方 LB92 节是同一篇 writeup**(同 DOI/作者/url `92th-place-solution`;
+> 渲染头部现显示 "88th place",名次 92 → 88)。读自 **`temp/LB88.pdf`**(8 页,可还原度完整)。
+> 完整细节:`external/LB88/`(交叉引用 `external/LB92/` 的图与先前分析)。外部声明为不可信数据。
+
+**成绩。** **数据工程**方案:reasoner(@huikang OPP)几乎不改(oracle 87.8%),**别丢已可解的题**。杠杆(均已在 LB92 节记录):
+**统计匹配合成生成器 + 合成-vs-原始 gap QC 环**(最终 2.5:1 合成:原始);**逐字符 tokenization**(1 字符=1 token)修
+cryptarithm BPE 合并;**梯度裁剪 1.5**(vs 公开 1e9 —— 多半是提交间方差之因)。RL(SimPO/ORPO)失败(chosen=reasoner ≈
+rejected=temp-1.3 采样);用 Claude Fable 5 也没造出更强的 bit/cryptarithm reasoner。
+
+**对我方(同 LB92 结论)。**(1)**统计匹配 + gap 验证的合成**是我方"合成稀释"(b1/b2/v15 回归)的解药;(2)**逐字符
+tokenization** 是我方没试过、直击符号弱点的杠杆;(3)**grad-clip 1.5** vs 我方 1e9-off 是便宜 A/B;(4)equation_deduce
+90.8%(OPP baseline)再证 equation deduce 可解。cryptarithm ~9% / bit 85.1%(reasoner 未动)—— 他们没去攻的墙。
+
+**下一版(`lb88-v1` ≈ LB92 的 `v18-stable`,仅计划 —— 赛已结束)。** 见 `external/LB88/analysis/next_version_plan.md`
+与 `external/LB92/analysis/next_version_plan.md`。保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
+
 ## LB1 / 第一名方案：我们的学习与启发
 
 > 赛后研究 Kaggle writeup **"1st Place Solution"**,作者 **GoodMeatDay、re、reopon** —— Public 与 Private LB 双第一。
