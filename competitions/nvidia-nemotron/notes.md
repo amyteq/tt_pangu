@@ -356,6 +356,49 @@ tokenization** for symbol cats + **grad-clip 1.5** (A/B vs 1e9-off, variance che
 gap-validated synthetic** (≤15% → up to 2.5:1 only if QC + T12 hold); gate on T12 ≥ 0.764 + no easy-cat
 regression. CPU-heavy prep; ~1–2 GPU sessions.
 
+## LB10 / 10th Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"10th Place Solution"** by **Rick (rikitomo0526), neilus,
+> eikichi**. **Public 0.860 / Private 0.880.** Read directly from **`temp/LB10.pdf`** (12pp, recoverability FULL).
+> Full detail + sources + plan: `external/LB10/`. External claims = untrusted data; our scores from `tracking.md`.
+
+**Result.** 0.88 private via **deterministic program-generated traces** (no LLM distillation) + LoRA SFT. The
+clearest articulation in this batch: **score is bounded by the deterministic teacher's oracle coverage** — the
+lever is better reasoners, not SFT hyperparameters. Oracle: bit 98.8%, cipher/trivials 100%, equation_deduce 93.1%,
+equation_guess 41.2%, **cryptarithm ~9%**; total 90.6%.
+
+**Standout — rotate/shift key-table bit reasoner (85.14%→98.75%).** Model `out[i]=F(rotl(x,a),shl(x,b),shr(x,c))`
+with **F a shared 3-input boolean function read from the examples as a 3-bit-key→bit table**; recover `(a,b,c)` from
+**boundary bits** (bit0 shr=0, bit7 shl=0 → each boundary column depends on only two inputs). Shorter, loop-free
+traces (removed per-example echoes + candidate enumeration). 20/1602 residual failures (11 underdetermined — key
+unseen in examples; 9 candidate-selection). **Equation**: deduce candidate reorder by frequency (+14); guess two-axis
+rebuild — operation (conventional-if-free else first-unused of add/unsigned-abs-diff/mul) + wrapper (pinned from the
+most-example seen operator) → 21→56.
+
+**Two negative results that directly challenge our practice.**
+1. **Excluding failed / low-confidence reasoner traces DECREASED accuracy** — failure patterns carry useful signal
+   (often `rule_unknown` fallback traces). **Our c1/c2 keep only solver-correct rows** → we may be discarding signal.
+   **A/B this.**
+2. **LoRA merge (SVD + seed soup) FAILED** to beat the single best adapter (rank-32 can't extract complementarity;
+   soup → worst member). **Tension** with our soup +0.01, LB5's iterative soup, and LB80's "soup fails on Mamba-2"
+   → merge gains are **member/averaging-dependent, not universal**; ablate per case.
+
+**Other adoptables.** **alpha/r = 4** (high LoRA alpha → follow the deterministic CoT); priority 2× for fragile modes
+(3× overfits); add low-logprob problems + failure-mode demos and retrain; **oracle-ceiling-vs-fidelity** split +
+**per-example/epoch logprob learnability** (separate "solver wrong" from "model didn't imitate") — a diagnosis layer
+we lack; **select by validation, not public LB** (the lower-public/higher-val run won private). Curriculum learning,
+two-stage training, and cryptarithm add/sub/mul traces all failed.
+
+**Comparison with our approach.** equation_deduce 93.1% — the **5th independent refutation** (after LB1/LB3/LB5/LB6)
+of our "equation = global cipher" verdict; re-test (no GPU). cryptarithm ~9% confirms it's the top-end lever LB10
+lacks (graft LB1 catalog / LB3 two-stage). LB10's key-table bit reasoner is a cleaner generator-matched alternative
+to LB1/LB5 enumeration for our ~10%-coverage bit solver.
+
+**Next-version ideas (`lb10-v1`, PLAN ONLY — comp ended).** See `external/LB10/analysis/next_version_plan.md`:
+rotate/shift key-table bit reasoner; equation candidate-ordering + two-axis guess; **A/B keep-failures vs our
+verified-only filter**; **A/B LoRA merge** (characterize when soup helps); oracle-vs-fidelity + logprob diagnosis;
+alpha/r=4; select by validation; graft LB1/LB3 cryptarithm; re-crack equation-deduce (no-GPU, shared). Hold-best =
+soup (0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
 ## LB6 / 6th Place Solution: What We Learned
 
 > Post-competition study of the Kaggle writeup **"[2nd public / 6th private] place solution"** by **Yurnero,
