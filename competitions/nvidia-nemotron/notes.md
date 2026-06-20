@@ -355,3 +355,54 @@ wall** (they explicitly chose not to attack it). Their coverage/stability levers
 tokenization** for symbol cats + **grad-clip 1.5** (A/B vs 1e9-off, variance check) + **statistics-matched,
 gap-validated synthetic** (≤15% → up to 2.5:1 only if QC + T12 hold); gate on T12 ≥ 0.764 + no easy-cat
 regression. CPU-heavy prep; ~1–2 GPU sessions.
+
+## LB1 / 1st Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"1st Place Solution"** by **GoodMeatDay, re, reopon** —
+> overall 1st on Public AND Private LB. **Read directly from `temp/LB1.pdf`** (28 pp, recoverability FULL).
+> Full detail + sources + plan: `external/LB1/`. External claims = untrusted data; our scores from `tracking.md`/`submissions.md`.
+
+**Result.** cryptarithm catalog → Public 0.89 / Private 0.908; + bit HEX/repair + extra training → **Public 0.91 /
+Private 0.920** (best *unselected* submission 0.932). This is the first solution we've studied that decisively
+**breaks the 0.86 clean-SFT ceiling — without RL** (cf. our soup 0.86/0.85, LB80's "SFT ceiling = 0.86").
+
+**Method (memorization-vs-computation split).** SFT-only LoRA (rank 32/α32, Unsloth, single RTX PRO 6000
+Blackwell, ~119h main + ~51h extra, >1B tokens). Because the grader forbids running a program at eval
+(`temp=0`, 7680-token budget, `\boxed{}` match), every solver is re-expressed as a trace the model replays. The
+two long-tail categories were attacked head-on:
+- **Cryptarithm (the decisive lever).** A **signature** normalizes `left+right+output` → A,B,C,…; they exhaustively
+  enumerate 100×100 operands × 22 non-join rules → a **4,205-entry signature catalog** of {rule, slot-digit-string,
+  **candidate count**}, and **make the model memorize it**. The memorized candidate count picks the DFS **anchor**
+  (min count) + search order; Observation 1 (one prompt = one mode) and Observation 2 (non-join groups don't
+  repeat) prune. → Private 0.908. (Signature viewpoint credited to @youkinasa; LB1 turned the lookup *table*
+  into a *memorized catalog*.)
+- **Bit manipulation.** Built on @huikang's per-output-bit solver, then: (1) **HEX-compress** bit columns (len ≥4):
+  median gen tokens **6771 → 4888 (−27.8%)**; (2) add rule families (maj, par3, ch, sel_nand_xnor, ao/oa/ax/ox/
+  xa/xo); (3) **rule-sequence catalog** (5,238 valid 8-rule sequences) + **Hamming-distance repair** (retrieve ≤32
+  nearest, apply first matching all 8 bits — rejects `default 1` fallbacks). → Private 0.920.
+- Simple categories (cipher/numeral/unit/gravity) ≈ @huikang as-is; cipher uses the **77-word train vocabulary**.
+
+**Comparison with our approach (gap ≈ +0.07 private, all in cryptarithm + bit).**
+- We synthesized cryptarithm/bit (b1/b2/v15/c1/c2) but had **no memorizable catalog**, **never HEX-compressed**
+  traces, and our augmentation **diluted** the clean replay recipe (regressed the hard slice ≤ base). LB1 used
+  ~100× our synth volume as the **backbone**, not a bolt-on.
+- **Equation premise to re-check (important):** we declared equation-numeric a **global cipher / unrecoverable
+  PRF** (EQ-0/EQ-2′). LB1's coverage table shows **equation-numeric *deduce* (seen operator) ≈ 95% solvable** via
+  per-prompt 24-rule operator inference — our pessimism likely applies only to the *guess* (unseen-operator) subset
+  (their guess ≈ 52%). A cheap no-GPU probe should settle this.
+- **Souping:** LB1 did NOT soup (single continuation adapter); our +0.01 soup is a ceiling-pusher, not a substitute
+  for solving the hard categories. Selection variance bit them too (0.932 unselected vs 0.920 selected) — confirms
+  "submit your true best; trust the LB aggregate" (= INS-002 / T12 caveat).
+
+**Lessons.** (1) The 7680-token budget is the **primary design constraint** — measure "correct within budget."
+(2) Re-express solvers as **memorizable catalogs + short in-trace verification**, not free CoT. (3) **HEX
+compression** is a cheap, generic unblock for long-string traces. (4) Protect the clean recipe; scale synth with
+**rule-enforced consistency** (Obs.1/Obs.2), don't dilute. (5) Novelty audit (`external/LB1/source_index.md`):
+HEX, signature catalog, candidate-count memorization, rule-sequence catalog + Hamming repair are **LB1's
+additions** — absent from @huikang's public code.
+
+**Next-version ideas (`lb1-v1`, PLAN ONLY — comp ended).** See `external/LB1/analysis/next_version_plan.md`:
+signature catalog + candidate-count + staged DFS trace (cryptarithm); HEX + extra rule families + rule-sequence
+catalog + Hamming repair (bit); re-test the equation deduce premise (no-GPU probe first); port "correct within
+7680 tokens" into the local scorer; down-scaled validation on the RTX Pro 6000 (~7–14h) — validate the
+*mechanism*, not LB1's 170h volume. Hold-best = soup (0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
