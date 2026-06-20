@@ -197,10 +197,21 @@ def gen_bit(rng, core_catalog):
     return {"category": "bit", "prompt": prompt, "answer": answer, "trace": out[1]}
 
 
+# Fast bit catalog for generation: the full CORE_PRIMS (~330k seqs) makes the
+# repair NN ~10x slower per puzzle. Generation samples transforms from the catalog,
+# so a smaller (~50k) catalog only trims bit diversity, not correctness.
+GEN_BIT_PRIMS = (
+    ["x", "not_x"]
+    + [f"shl{k}" for k in range(1, 5)]
+    + [f"shr{k}" for k in range(1, 5)]
+    + [f"rol{k}" for k in range(1, 8)]
+)
+
+
 def build_corpus(n, seed=42, mix=None):
     rng = random.Random(seed)
     catalog = sigcat_mod.build_catalog()
-    core = rseq.build_core_catalog()
+    core = rseq.build_core_catalog(GEN_BIT_PRIMS)
     mix = mix or {"equation_numeric": 0.2, "cryptarithm": 0.5, "bit": 0.3}
     records = []
     attempts = 0
