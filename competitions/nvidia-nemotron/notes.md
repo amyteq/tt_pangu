@@ -362,6 +362,32 @@ tokenization** for symbol cats + **grad-clip 1.5** (A/B vs 1e9-off, variance che
 gap-validated synthetic** (≤15% → up to 2.5:1 only if QC + T12 hold); gate on T12 ≥ 0.764 + no easy-cat
 regression. CPU-heavy prep; ~1–2 GPU sessions.
 
+## LB88 / 88th Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"88th PLACE SOLUTION"** by **Yoshinari Kawashima + MedudentYamatai**
+> (DOI 10.34740/kaggle/w/88245). **⚠️ This is the SAME writeup as our LB92 section above** (same DOI/authors/url
+> `92th-place-solution`; the render header now reads "88th place" — placement/render shifted 92 → 88). Read from
+> **`temp/LB88.pdf`** (8pp, recoverability FULL). Full detail: `external/LB88/` (cross-references `external/LB92/`
+> for the figures + prior deep analysis). External claims = untrusted data.
+
+**Result.** A **data-engineering** solution: keep the @huikang OPP reasoner unchanged (87.8% oracle) and **avoid
+losing already-solvable problems** by reproducing the reasoner faithfully. Levers (all already captured in the LB92
+section): **statistics-matched synthetic generator + synthetic-vs-original eval-gap QC loop** (final 2.5:1
+synth:original); **per-character tokenization** (1 char = 1 token) to fix BPE merges on cryptarithm symbols;
+**gradient clipping 1.5** (vs the public 1e9 — a likely cause of submission-to-submission variance). RL (SimPO/ORPO)
+failed (chosen=reasoner ≈ rejected=temp-1.3 samples); couldn't build a stronger bit/cryptarithm reasoner (even with
+Claude Fable 5).
+
+**For us (unchanged from the LB92 takeaways).** (1) **statistics-matched + gap-validated synthetic** is the antidote
+to our "synthetic dilutes" (b1/b2/v15 regressed). (2) **per-character tokenization** is a novel, untried lever on our
+symbol weak spot. (3) **grad-clip 1.5** vs our 1e9-off is a cheap A/B for submission variance. (4) equation_deduce
+90.8% (OPP baseline) corroborates equation-deduce is solvable. cryptarithm ~9% / bit 85.1% (reasoner unchanged) —
+the wall they chose not to attack.
+
+**Next-version (`lb88-v1` ≈ LB92's `v18-stable`, PLAN ONLY — comp ended).** See
+`external/LB88/analysis/next_version_plan.md` and `external/LB92/analysis/next_version_plan.md`. Hold-best = soup
+(0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
+
 ## LB13 / 13th Place Solution: What We Learned
 
 > Post-competition study of the Kaggle writeup **"13th Place Solution"** by **Haraguchi-T (haraguchit)**. (No final
