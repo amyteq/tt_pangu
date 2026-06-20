@@ -8,6 +8,13 @@
 > (`nemo-merge-soup` = v14+c1+b1 的 SVD 模型汤,合规真训练)。冲刺最终分:b1 0.85 / b2 0.84 /
 > c1 0.85 / c2 0.83 / **soup 0.86(新最好,打破 0.85 天花板)**。今日额度 5/5 用尽,0.86 锁定收官。
 >
+> **⚡ LB25/LB80/LB92 借鉴实验(2026-06-20,延迟提交窗口):** 跑了 v16-evalfix(LB25)、v17-discovery(LB80 A)、
+> v18-stable(LB92)。**均未超过 0.86** —— v16 0.832/0.828(bit CoT + 重放稀释)、v17 0.840/0.848(equation 仍有界)、
+> v18 0.844/0.848(grad-clip 1.5 ~持平)。三者都印证了各自计划里写明的「稀释 / equation 有界」风险;**soup/eq-aug 0.86 保持最好**。
+> 两个与 LB 无关的真实收获:① **破解了 equation 密码** = per-operator 数字串规则;但团队的 `versions/lb1-v1/rules24.py`
+> (deduce 95%,分支 `exp/nemo-postlb1-v1`)是更强的破解器,v17.1 应改用它;② **v17-dpo 推迟**(需外部 sm_90+ GPU,#83)。
+> v18 的 LEVER 2 per-char 分词**判定不可行**(adapter-only 评测器用 base 分词器,新增 token 传不进去)而弃用。
+>
 > **T12 hard-val 排名(2026-06-15,`harrysun2006/nemo-t12-hardval` v2):** 移植官方 metric(greedy
 > `max_tokens=7680, temp=0`,提取 `\boxed{}`/末尾数字,精确或数值 1e-2)+ min-logprob 每类最难题
 > (难题 72 题:bit/equation/cipher 各 16,numeral/gravity/unit 各 8),对各候选 adapter 排名:
@@ -70,6 +77,9 @@
 | **EQ3 = eq-hidose** | 0.84 | 0.84 | unknown | 未单独跑 hard-val |
 | **EQ4 = eq-aug-hidose** | 0.85 | 0.82 | unknown | 未单独跑 hard-val |
 | soup_v2(eq-aug 入汤) | 0.85 | 0.85 | unknown | SVD(0.86-soup×0.6 + eq-aug×0.4);稀释 < 两个父本 |
+| **v16-evalfix**(LB25) | 0.832 | 0.828 | 未跑(本地无 GPU) | LB25 借鉴:eval/submission parity 预检(仅修测量)+ 验证过的 bit CoT 157 条 + min-logprob 选择性重放(最难 1198/37 步);**公 −0.018 / 私 −0.012 vs v14 → 稀释(印证计划首要风险)** |
+| **v17-discovery**(LB80 A) | 0.840 | 0.848 | 未跑(本地无 GPU) | equation 发现式 CoT:破解了 per-operator 数字串规则族,180 条已验证明文数字样本(dose 0.15);82% 符号加密未破;**公 −0.01 / 私 +0.008 vs v14 → equation 仍有界(明文子集不迁移)** |
+| **v18-stable**(LB92) | 0.844 | 0.848 | 未跑(本地无 GPU) | grad-clip 1.5(降方差)+ 验证过的合成 equation(破解的规则族,800 条,ratio 0.1);per-char 分词已弃(adapter-only 评测器不可行);**公 −0.006 / 私 +0.008 vs v14 → ~持平;危害最小的借鉴** |
 
 ### EQ1..EQ4 分析(赛后 equation 前沿网格,延迟提交窗口 100/队/天)
 
