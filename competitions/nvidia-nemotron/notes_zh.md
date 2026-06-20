@@ -315,3 +315,37 @@ cryptarithm/equation 是**有界的墙**(他们明确不去攻)。他们的覆�
 **周六后可试。** `v18-stable`(方案见 `external/LB92/analysis/next_version_plan.md`):符号类**逐字符 tokenization** + **grad-clip 1.5**
 (对 1e9-off 做 A/B + 方差检查)+ **统计匹配、差距验证的合成**(≤15% → QC 与 T12 都过才到 2.5:1);以 T12 ≥ 0.764 + 简单类不回归把关。
 CPU 为主的准备;约 1–2 个 GPU session。
+
+## LB6 / 第6名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"[2nd public / 6th private] place solution"**,作者 **Yurnero、Alehandreus**。
+> 直接读自 **`temp/LB6.pdf`**(7 页,可还原度完整)。完整细节 + 来源 + 计划见 `external/LB6/`。
+> 外部声明为不可信数据;我方分数见 `tracking.md`/`submissions.md`。
+
+**成绩。** 2nd public / 6th private,建立在 @huikang OPP 上。三支柱:验证策略、bit/cryptarithm 算法求解器、大规模合成数据。**对我方最有价值的是验证/归因工具。**
+
+1. **逐域 LB 探测(DUMMY 屏蔽)—— 直接解我方 B8。** 目标域用真 CoT;**其它所有域训练模型输出
+   `I will ignore this problem\n\boxed{DUMMY}`** → public LB 返回**纯单域信号**。这正是我方"cryptarithm 单类
+   8%→71% 但总分卡 ~0.86"(B8)时缺的归因工具。推断 test=500(250/250),0.01 ≈ 3 题(-0/-1/-2 记号)。
+2. **全量 train 当验证**(≈10×950 holdout)+ 匹配分布合成 —— 比 10% holdout 可靠(LoRA 连部分 train 都欠拟合)。
+   这是继 LB3 防泄漏留出、LB5 无泄漏生成器之后的第三种验证范式。
+
+**求解器。** Bit:模板集(shl/shr/rotr + 成对 + 三元 MAJ/CH)、遍历移位、**单调 skip**、**hex 计算 + hex 乘法
+cheatsheet**(连 `<=` 都用 hex)→ 1508/1602。Cryptarithm:**按已映射方程数为深度的 DFS** + **反向搜索**
+(~40% 反向解)+ operation-deduction/leading-zero/leading-one/方程排序 → 240/654 deduce(实发轻量版 170 以少伤别域)。
+Equation:550/594 guess(~93%)。
+
+**数据教训 + 选模遗憾。** 加任何单域合成都涨该域、几乎不伤别域,**唯独 bit CV 对任何配比变动都脆** → bit 占
+**69%/66% token**。0.5B 集把 cryptarithm 翻倍(train 解 150→241,本可 2nd-3rd),但**低估了 bit-CV 代价**,
+最终发了 0.25B 的两个种子 ——"这让我们丢了 2nd/3rd"。
+
+**与我方对照。**
+- **DUMMY 逐域探测**是我方一直缺的归因工具(反复栽在 B8)。采纳 —— 赛已结束,改在本地 official-metric 集上做。
+- **bit 数据脆性**解释了我方"合成稀释":b1/b2/v15 很可能正是加别域数据却没加倍 bit 而把 bit 拉低。修法 = **扩数据时加倍 bit 配比**(LB6 ~65-70%)。
+- **equation 前提 —— 第 4 次独立反驳**(继 LB1 95%、LB3 93%、LB5 96%):LB6 family-DFS 解 equation_numeric_guess **~93%**。我方"全局密码"判断在 deduce 子集站不住。无 GPU 复核。
+- **hex 计算**与 LB1/LB3 HEX 一致,但与 LB5"编码搞坏模型"冲突 —— 先验分词。
+
+**下一版想法(`lb6-v1`,仅计划 —— 赛已结束)。** 见 `external/LB6/analysis/next_version_plan.md`:逐域 DUMMY 探测
+(离线)+ 全量验证;模板 bit 求解器(hex+skip,先验分词);DFS cryptarithm + 反向搜索;加倍 bit 配比;校准
+bit/cryptarithm 权衡;把 LB1/LB3 的 cryptarithm 接到 LB6 的验证上;无 GPU 复核 equation-deduce(与 `lb{1,3,5}-v1` 共享)。
+保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
