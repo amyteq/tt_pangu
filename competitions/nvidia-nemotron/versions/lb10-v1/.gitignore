@@ -1,0 +1,10 @@
+# lb10-v1 runtime artifacts — never commit (CLAUDE.md: keep heavy/generated out of git)
+*.zip
+*.safetensors
+._dummy_adapter/
+_dummy_adapter/
+adapter*/
+*.jsonl
+runs/
+*.log
+__pycache__/

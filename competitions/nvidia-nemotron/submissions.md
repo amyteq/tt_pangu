@@ -249,6 +249,20 @@ Expected outcome: a down-scaled method-validation run (17k synth ≪ LB1's 360k)
 likely near the replay-backbone ceiling (~0.84–0.86), not 0.92 — a real datapoint,
 not a breakthrough. Held-best untouched (soup 0.86/0.85 + v14 0.85; eq-aug 0.86/0.86).
 
+## lb10-v1 — guarded submit NOT performed (competition closed)
+
+- **2026-06-20, `exp/nemo-postlb10-v1`:** the `/goal` task authorized one guarded Kaggle
+  submit (`postlb10-v1: post-writeup implementation with guarded submit`,
+  `require_preflight_pass_before_submit: true`). The guarded submit was **executed** via the
+  real `kca kaggle submit` SUBMISSION command and **correctly BLOCKED by the preflight gate**
+  — no upload reached Kaggle; BLOCKED decision recorded to `.agent/kca/audit.jsonl`. Reasons:
+  competition **closed 2026-06-15**; plan PLAN-ONLY; no GPU run → no `submission.zip`;
+  credentials unavailable. **0/100 submissions used**; held-best (soup 0.86/0.85, eq-aug
+  0.86/0.86) untouched.
+- **Delivered instead:** the no-GPU CPU half under `versions/lb10-v1/` (rotate/shift key-table
+  bit reasoner, frequency-deduce + two-axis-guess equation solver, oracle-vs-fidelity + logprob
+  learnability diagnostics, keep-failures discipline, equation re-probe). See `tracking.md` lb10-v1 section.
+
 ## Submission checklist
 - [ ] local validation passed (validate_kernel.py + fail-fast preflight)
 - [ ] submission shape checked (submission.zip @ /kaggle/working; rank32/α32)
