@@ -196,3 +196,21 @@ eq_aug_hidose:
   code_file: nemo-eq-aug-hidose.ipynb
   note: "coverage x dose corner: full-rotation ~7,814 targets repeated x2"
   schedule: overnight
+
+# --- lb1-v1: post-LB1 catalog-method synth on the v14 replay backbone (post-comp) ---
+# v14/b1 training scaffold UNCHANGED; only the synth corpus differs (loaded from an
+# attached dataset = off-kernel-generated signature-catalog cryptarithm + HEX/repair
+# bit + 24-rule equation-numeric traces). dataset_sources must be listed in full
+# (the metadata merge is shallow): the 4 _base datasets + the lb1-v1 corpus.
+lb1_v1:
+  id: harrysun2006/nemo-lb1-v1
+  title: Nemo LB1 V1
+  code_file: nemo-lb1-v1.ipynb
+  dataset_sources:
+    - mayukh18/nemotron-packages
+    - llkh0a/rtx-wheels
+    - huikang/huikang-nemotron-repository-snapshot
+    - mohamedamr992/replay-math
+    - harrysun2006/nemo-lb1-v1-synth
+  schedule: overnight
+  note: "post-LB1 catalog-method synth (~17k: crypt signature-DFS + bit HEX/repair + eq 24-rule) on v14 backbone; method-validation late-window submit"

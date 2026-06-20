@@ -1,0 +1,82 @@
+# lb6-v1 version config — single source of truth for the reproducible pipeline.
+# Derived from external/LB6/analysis/next_version_plan.md + the LB6 (2nd public / 6th private) writeup.
+# Competition CLOSED 2026-06-15; GPU-gated values are for a future authorized
+# down-scaled method-validation run (NOT executed here). CPU steps run now.
+
+version_id: lb6-v1
+display_name: Post-LB6 v1
+base_model: nvidia/Nemotron-3-Nano-30B-A3B
+competition_slug: nvidia-nemotron-model-reasoning-challenge
+
+data:
+  train_csv: ~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/data/train.csv
+  download_cmd: >-
+    kaggle competitions download -c nvidia-nemotron-model-reasoning-challenge -p <dir>
+  policy: full_train_as_validation   # train on distribution-matched synthetic; validate on train.csv
+
+# Attribution — the signature LB6 lever (fixes our B8 "single-cat gain != total gain").
+attribution:
+  method: dummy_masking
+  dummy_answer: "I will ignore this problem\\n\\boxed{DUMMY}"
+  n_test_inferred: 500       # 250 public / 250 private
+  problems_per_001_lb: 3     # 0.01 LB ~ 3 problems (-0/-1/-2 notation)
+  mode: offline              # comp over -> probe a local labelled set, not the public LB
+
+# Distribution-matched synthetic; over-weight bit (it's fragile to mix changes).
+synth:
+  distribution_matched: true
+  bit_token_share: 0.69      # LB6 0.25B set; 0.66 for the 0.5B set
+  cryptarithm_reroll_until_solvable: true
+  targeted_hallucination_subsets: true
+  full_targets_tokens: 250_000_000   # LB6 0.25B (6th); 0.5B variant doubled cryptarithm
+
+solvers:
+  bit:
+    style: template
+    shifts: [id, shl, shr, rotr]
+    pairwise: [XOR, AND, OR, ANDNOT, ORNOT]
+    ternary: [MAJ, CH]
+    monotonic_skips: true
+    encoding: hex_with_cheatsheet   # after tokenizer check (LB5 caution)
+  cryptarithm:
+    style: dfs
+    reversed_search: true           # ~40% of LB6 solves come from the reversed pass
+    pruning: [leading_zero, leading_one, op_deduction, equation_sorting, units]
+  equation:
+    families: [ADD, SUB, MUL, MAXMODMIN]   # maxmodmin gives LB6 the batch-high guess
+    family_exclusion_guess: true
+
+prompt:
+  finality_line: "</think>\\n\\boxed{...}"
+  dummy_output: "I will ignore this problem\\n\\boxed{DUMMY}"   # for masked domains during probing
+  hex_arithmetic: after_tokenizer_check
+  preserve: [binary_leading_zeros, exact_strings, numeric_precision]
+
+# GPU-gated (NOT run here). LoRA rank<=32 hard cap (compliance red line).
+training:
+  trainer: unsloth            # Tinker optionally for velocity (late LB6 stages)
+  lora_rank: 32
+  lora_alpha: 32
+  effective_batch_size: 32
+  lr: 3.5e-4                  # A/B vs our v14 LR
+  epochs: 1
+  wall_clock_guard_hours: 8
+  downscaled_gpu_hours_estimate: "6-14h on RTX Pro 6000 (method validation only)"
+
+validation:
+  official_metric: ../../eval/official_metric.py
+  primary_offline_metric: full_train_as_validation + per_domain_dummy_probe
+  hard_val: ../../eval/hard_val_ids.json   # hard-tail HINT only (INS-002)
+  max_tokens: 7680
+  greedy: true
+  temp: 0.0
+  calibrate_bit_cryptarithm_tradeoff: true   # predict bit-CV drop BEFORE committing the mix (LB6 regret)
+
+submit:
+  require_preflight_pass: true
+  message: "postlb6-v1: post-writeup implementation with guarded submit"
+  status: COMPETITION_CLOSED    # deadline 2026-06-15; no live submission possible now
+  hold_best:
+    - {name: soup, public: 0.86, private: 0.85}
+    - {name: eq-aug, public: 0.86, private: 0.86}
+  target_reference: {place_public: 2, place_private: 6}   # LB6 (method source)
