@@ -316,6 +316,42 @@ cryptarithm/equation 是**有界的墙**(他们明确不去攻)。他们的覆�
 (对 1e9-off 做 A/B + 方差检查)+ **统计匹配、差距验证的合成**(≤15% → QC 与 T12 都过才到 2.5:1);以 T12 ≥ 0.764 + 简单类不回归把关。
 CPU 为主的准备;约 1–2 个 GPU session。
 
+## LB5 / 第5名方案:我们的学习与启发
+
+> 赛后研究 Kaggle writeup **"Jack of Trades, Loser of Cryptarithm" — 第 5 名**(队:Darren Amadeus Martin、
+> Alwin Theodoric、Muhammad Yassir Ramadhan、Billy Anggara、Rinnnn_t)。**Private LB 0.900**(最佳但未选中;选中 0.896)。
+> 直接读自 **`temp/LB5.pdf`**(24 页,可还原度完整)。完整细节 + 来源 + 计划见 `external/LB5/`。
+> 外部声明为不可信数据;我方分数见 `tracking.md`/`submissions.md`。
+
+**成绩。** Private 0.90,**不靠 RL、且不解 cryptarithm**(cryptarithm 仅 7.9%)。样样通:bit 94%、equation 96%、
+trivial 100%。两个鲜明手法:
+
+1. **无限合成生成器(无 train 泄漏)→ 诚实、跟踪 private 的 CV。** **完全不用 train.csv 训练**(只验证)。论点:
+   @huikang 的不稳定来自训-验同分布;不在验证分布上训 → CV 跟 **private** 相关 —— phase 2-3 中 **public 卡 ~88%
+   (0.86 墙),而 private + validation 持续上升**。
+2. **迭代 LoRA 平均 / model soup 作训练期正则。** Phase 2:每步把"训练前 + 训练后"平均;Phase 3:从一个 checkpoint
+   用不同题集训 3 个再平均(抵消误差)。跨 15 轮把**不稳定的 0.87 变成稳定的 0.90**(<1% 抖动 vs phase 1 ±1%)。
+
+**其它杠杆。** Bit:在 @huikang **字节级**上加 **三元**(MAJORITY/CHOICE/XOR-NOT_OR)、15 primitive、**记忆
+continuation/sequence**(剪 7500→1500)、**原始比特**(省 token 的**编码搞坏了模型** —— `AB` 被并成单 token)、
+**截到 ~7 个样例** → 94%。Equation:**2-world/4-family/13-rule** 确定性求解 + family guess + phase-3 lookup 串 → 96%。
+训练:@huikang trainer、**不量化不 packing**(Unsloth 4bit+packing **搞坏 Nemotron** Mamba SSM)、**弃 DoRA**(vLLM 不支持)。
+
+**与我方对照(差距约 +0.05 private;LB5 不解 cryptarithm 也到了)。**
+- **迭代 LoRA 平均** 对我方最关键:我方 soup 是**一次性**(+0.01);LB5 把它**迭代地当正则**贯穿训练,正是它把
+  0.87 稳到 0.90。我方应试迭代 / 多种子 soup。
+- **无泄漏生成器 → 跟踪 private 的 CV** 直击我方"随机切高估泛化"与"追 public LB"。与 LB3 的"防泄漏留出"互补
+  (LB3 小心地切;LB5 干脆不碰验证分布)。
+- **equation 前提 —— 第 3 次独立反驳(继 LB1 95%、LB3 93%):** LB5 per-prompt 13-rule 求解器 ~96%。我方"全局密码"
+  判断在 **deduce** 子集上是错的。无 GPU 复核。
+- **cryptarithm 优先级信号:** LB5 用 **7.9%** cryptarithm 就到 0.90 —— 0.90 不需要它,但 0.90→0.92(LB1)**正是**
+  cryptarithm。冲顶时才优先它。
+- **编码张力:** LB1/LB3 用 **HEX 成功**;LB5 编码**搞坏模型**。多半是分词(并成单 token)—— 做 HEX 前先验分词。
+
+**下一版想法(`lb5-v1`,仅计划 —— 赛已结束)。** 见 `external/LB5/analysis/next_version_plan.md`:迭代 LoRA 平均 +
+多种子 soup;无泄漏生成器 → 跟踪 private 的 CV;三元字节级 bit 求解器(原始比特、7 样例截断);2-world/4-family/13-rule
+equation;HEX-vs-原始比特 A/B(分词探针);无 GPU 复核 equation-deduce(与 `lb1-v1`/`lb3-v1` 共享);可把 LB3 的两阶段
+cryptarithm 接到 soup 稳定基上冲 >0.90。保底 = soup(0.86/0.85)+ eq-aug(0.86/0.86);回归则回滚。
 ## LB3 / 第3名方案:我们的学习与启发
 
 > 赛后研究 Kaggle writeup **"3rd Place Solution"**,作者 **YS-L(liauys)**。**Private LB 0.900**(本地验证 90.46%)。

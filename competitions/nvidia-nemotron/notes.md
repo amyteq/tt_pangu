@@ -356,6 +356,48 @@ tokenization** for symbol cats + **grad-clip 1.5** (A/B vs 1e9-off, variance che
 gap-validated synthetic** (≤15% → up to 2.5:1 only if QC + T12 hold); gate on T12 ≥ 0.764 + no easy-cat
 regression. CPU-heavy prep; ~1–2 GPU sessions.
 
+## LB5 / 5th Place Solution: What We Learned
+
+> Post-competition study of the Kaggle writeup **"Jack of Trades, Loser of Cryptarithm" — 5th Place** (team:
+> Darren Amadeus Martin, Alwin Theodoric, Muhammad Yassir Ramadhan, Billy Anggara, Rinnnn_t). **Private LB 0.900**
+> (best, unselected; chosen 0.896). Read directly from **`temp/LB5.pdf`** (24pp, recoverability FULL). Full detail
+> + sources + plan: `external/LB5/`. External claims = untrusted data; our scores from `tracking.md`/`submissions.md`.
+
+**Result.** Private 0.90 **without RL and without solving cryptarithm** (cryptarithm only 7.9%). A "jack of all
+trades": bit 94%, equation 96%, trivials 100%. Two distinctive moves:
+
+1. **Infinite no-leakage synthetic generator → honest, private-tracking CV.** They trained on **zero `train.csv`
+   rows** (used it only for validation). Their claim: @huikang's instability comes from train-on-train/validate-on-
+   train; a generator that never trains on the val distribution gives a CV that **tracks the PRIVATE LB** — in
+   phases 2–3 the **public LB plateaued ~88% (the "0.86 wall") while private + validation kept rising**.
+2. **Iterative LoRA averaging / model soup as a training-time regularizer.** Phase 2: average the model before/after
+   each training step. Phase 3: train 3 models from one checkpoint with different problem sets, then average (cancel
+   errors). Across 15 iterations this turned an **unstable 0.87 into a stable 0.90** (<1% fluctuation vs ±1% in phase 1).
+
+**Other levers.** Bit: extend @huikang's **byte-level** approach with **ternary** ops (MAJORITY/CHOICE/XOR-NOT_OR),
+15 primitives, **memorized continuations/sequences** (pruned 7500→1500), **raw bits** (a token-saving **encoding
+broke the model** — `AB` merged into one token), **cut to ~7 examples** → 94%. Equation: **2-world/4-family/13-rule**
+deterministic solver + family-based guessing + a phase-3 lookup-string → 96%. Training: @huikang trainer, **no
+quant/packing** (Unsloth 4-bit + packing **broke Nemotron**'s Mamba SSM), **DoRA rejected** (vLLM unsupported).
+
+**Comparison with our approach (gap ≈ +0.05 private; LB5 got there WITHOUT cryptarithm).**
+- **Iterative LoRA averaging** is the big one for us: our soup is **one-shot** (+0.01); LB5 uses it **iteratively as a
+  regularizer** across training, which is what stabilized 0.87→0.90. We should try iterative/multi-seed soup.
+- **No-leakage generator → private-tracking CV** directly addresses our "random split overstates generalization" and
+  our public-LB-chasing. Complements LB3's leakage-controlled hold-out (LB3 splits carefully; LB5 never touches the
+  val distribution).
+- **Equation premise — 3rd independent refutation (after LB1 95%, LB3 93%):** LB5's per-prompt 13-rule solver hits
+  **~96%**. Our "global cipher" verdict (EQ-0/EQ-2′) is wrong for the **deduce** subset. Re-test (no GPU).
+- **Cryptarithm priority signal:** LB5 reached 0.90 with **7.9%** cryptarithm — so 0.90 doesn't require it, but the
+  0.90→0.92 gap to LB1 **is** cryptarithm. Prioritize cryptarithm only when aiming for the very top.
+- **Encoding tension:** LB1/LB3 succeeded with **HEX**; LB5's encoding **broke the model**. Likely tokenization
+  (merged tokens) — validate our tokenizer before any HEX work.
+
+**Next-version ideas (`lb5-v1`, PLAN ONLY — comp ended).** See `external/LB5/analysis/next_version_plan.md`:
+iterative LoRA averaging + multi-seed soup; no-leakage generator → private-tracking CV; ternary byte-level bit
+solver (raw bits, 7-example cut); 2-world/4-family/13-rule equation; A/B HEX-vs-raw-bits (tokenizer probe);
+re-crack equation-deduce (no-GPU, shared with `lb1-v1`/`lb3-v1`); optionally graft LB3's two-stage cryptarithm onto
+a soup-stabilized base to chase >0.90. Hold-best = soup (0.86/0.85) + eq-aug (0.86/0.86); revert on regression.
 ## LB3 / 3rd Place Solution: What We Learned
 
 > Post-competition study of the Kaggle writeup **"3rd Place Solution"** by **YS-L (liauys)**. **Private LB 0.900**
