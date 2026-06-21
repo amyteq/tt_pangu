@@ -15,6 +15,13 @@
 > (deduce 95%,分支 `exp/nemo-postlb1-v1`)是更强的破解器,v17.1 应改用它;② **v17-dpo 推迟**(需外部 sm_90+ GPU,#83)。
 > v18 的 LEVER 2 per-char 分词**判定不可行**(adapter-only 评测器用 base 分词器,新增 token 传不进去)而弃用。
 >
+> **⚡ v17.1 / lb1-v1(2026-06-21,延迟窗口):** 改用团队更强的破解器 `versions/lb1-v1`(`rules24` 数字 95% +
+> `signature_catalog` cryptarithm DFS)。**在真实数据上验证了密码+运算联合破解:`solve_cryptarithm` 验证通过 546/1555 行,
+> 含完全符号加密题**(是 v17 明文-only 180 的 3 倍)。把 LB1 目录法合成(1500 条已验证 ~16% dose)入 v14 骨干训练
+> → **LB 0.832/0.836,稀释 < v14**。**结论:equation 密码已破,但无论是朴素合成还是已验证的 1st-place 目录法,
+> 合成/CoT 加料都无法把 LB 抬过 v14 骨干 —— synth-on-v14 必稀释**(1st 的 0.92 是从 base 主训目录合成,而非 v14 加料,
+> 是完全不同的配方)。**soup/eq-aug 0.86 仍是最好;equation 仍是 LB 的墙。**
+>
 > **T12 hard-val 排名(2026-06-15,`harrysun2006/nemo-t12-hardval` v2):** 移植官方 metric(greedy
 > `max_tokens=7680, temp=0`,提取 `\boxed{}`/末尾数字,精确或数值 1e-2)+ min-logprob 每类最难题
 > (难题 72 题:bit/equation/cipher 各 16,numeral/gravity/unit 各 8),对各候选 adapter 排名:
@@ -80,6 +87,7 @@
 | **v16-evalfix**(LB25) | 0.832 | 0.828 | 未跑(本地无 GPU) | LB25 借鉴:eval/submission parity 预检(仅修测量)+ 验证过的 bit CoT 157 条 + min-logprob 选择性重放(最难 1198/37 步);**公 −0.018 / 私 −0.012 vs v14 → 稀释(印证计划首要风险)** |
 | **v17-discovery**(LB80 A) | 0.840 | 0.848 | 未跑(本地无 GPU) | equation 发现式 CoT:破解了 per-operator 数字串规则族,180 条已验证明文数字样本(dose 0.15);82% 符号加密未破;**公 −0.01 / 私 +0.008 vs v14 → equation 仍有界(明文子集不迁移)** |
 | **v18-stable**(LB92) | 0.844 | 0.848 | 未跑(本地无 GPU) | grad-clip 1.5(降方差)+ 验证过的合成 equation(破解的规则族,800 条,ratio 0.1);per-char 分词已弃(adapter-only 评测器不可行);**公 −0.006 / 私 +0.008 vs v14 → ~持平;危害最小的借鉴** |
+| **v17.1 / lb1-v1**(LB80 后续) | 0.832 | 0.836 | 未跑(本地无 GPU) | LB1 目录法合成:rules24(数字)+ **签名目录 cryptarithm 密码联合破解**(已验证 546/1555 真实符号加密行)+ bit,1500 条 ~16% dose 入 v14 骨干;**公 −0.018 / 私 −0.004 vs v14 → 稀释**。证明密码可破,但无论破解器多强,合成数据入 v14 都稀释(1st 的 0.92 是**主要**在目录合成上从 base 训练,而非 v14 加料) |
 
 ### EQ1..EQ4 分析(赛后 equation 前沿网格,延迟提交窗口 100/队/天)
 

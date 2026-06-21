@@ -9,8 +9,9 @@
 - **T12 hard-val ranking (2026-06-15):** soup 0.764 = v14 0.764 (both ace hard cipher/bit) ≫ base 0.389 ≈ c1 0.389 > v15 0.333 > c2 0.278. The 0.86 soup is **robust, not diluted**; the CoT/synth-augmented adapters (c1/c2/v15) **regress the hardest cipher/bit to at/below base**; `equation` is unsolved by all (≤2/16). See `submissions.md`.
 - Final-sprint individual runs ≤ soup: c1 0.85, b1 0.85, b2 0.84, c2 0.83; only the soup exceeded v14. Earlier strong+weak merge (T7=0.82) and high-dose synth (v15=0.84) regressed.
 - **Decision: hold the 0.86 soup to close.** Final private-LB selection = **soup (0.86) + v14 (0.85)** (v14 ≫ c1 on hard-val despite equal public LB). Cipher-heavy v11 stage-2 SFTs stood down (a2 corpus 94% cipher → same regression risk). Remaining slots unused.
-- **LB25/LB80/LB92 borrow campaign (2026-06-20, late window):** ran v16-evalfix (LB25), v17-discovery (LB80 A), v18-stable (LB92). **None beat 0.86** — v16 0.832/0.828 (bit-CoT+replay diluted), v17 0.840/0.848 (equation bounded), v18 0.844/0.848 (grad-clip 1.5 ~neutral). All confirm their plans' own dilution/bounded-equation risk notes; **soup/eq-aug 0.86 hold**. Two LB80 sub-results were genuine wins regardless of LB: (1) **cracked the equation cipher** = per-operator digit-string rules — but the team's `versions/lb1-v1/rules24.py` (95% deduce, branch `exp/nemo-postlb1-v1`) is the superior cracker, use it for a v17.1; (2) **v17-dpo deferred** (needs external sm_90+ GPU, #83). v18 LEVER 2 per-char tokenization **dropped as infeasible** (adapter-only grader uses base tokenizer).
-- Last updated: 2026-06-20.
+- **LB25/LB80/LB92 borrow campaign (2026-06-20, late window):** ran v16-evalfix (LB25), v17-discovery (LB80 A), v18-stable (LB92). **None beat 0.86** — v16 0.832/0.828 (bit-CoT+replay diluted), v17 0.840/0.848 (equation bounded), v18 0.844/0.848 (grad-clip 1.5 ~neutral). All confirm their plans' own dilution/bounded-equation risk notes; **soup/eq-aug 0.86 hold**. Two LB80 sub-results were genuine wins regardless of LB: (1) **cracked the equation cipher** = per-operator digit-string rules; (2) **v17-dpo deferred** (needs external sm_90+ GPU, #83). v18 LEVER 2 per-char tokenization **dropped as infeasible** (adapter-only grader uses base tokenizer).
+- **v17.1 / lb1-v1 (2026-06-21, late window):** followed up by reusing the team's superior cracker — `versions/lb1-v1` (`rules24` 95% numeric + `signature_catalog` cryptarithm DFS). **Validated the JOINT cipher+op crack on real data: `solve_cryptarithm` verifies 546/1555 real equation rows, incl. fully glyph-ciphered ones** (3× v17's plaintext-only 180). Trained the LB1 catalog-method synth (1500 verified rec ~16% dose) on the v14 backbone → **LB 0.832/0.836, diluted < v14**. **Conclusion: the equation cipher is solved, but no synth/CoT addition — naive OR the validated 1st-place catalog method — lifts the LB over the v14 backbone; synth-on-v14 dilutes regardless of cracker quality.** (1st-place 0.92 trains *primarily* on catalog synth from base; bolting it onto v14 is a different, diluting recipe.) **soup/eq-aug 0.86 remain the held best; equation stays the LB wall.**
+- Last updated: 2026-06-21.
 
 ## Preserved issue tracking tables (translated → English)
 
@@ -71,6 +72,7 @@
 | nemo-v16-evalfix | harrysun2006 | 0.832 | pushed + evaluated (2026-06-20, LB25 borrows; < v14) |
 | nemo-v17-discovery | firefly2006 | 0.840 | pushed + evaluated (2026-06-20, LB80 Part A; equation bounded) |
 | nemo-v18-stable | harrysun2006 | 0.844 | pushed + evaluated (2026-06-20, LB92; ~v14-neutral) |
+| nemo-lb1-v1 (v17.1) | harrysun2006 | 0.832 | pushed + evaluated (2026-06-21, LB1 catalog cipher-crack synth; diluted < v14) |
 
 > ✅ **Refreshed 2026-06-15** via read-only Kaggle API (`kaggle competitions submissions`, both accounts). All listed submissions are `COMPLETE`; private LB not released. See `submissions.md` for the full confirmed table + T12 ranking.
 
@@ -98,6 +100,7 @@
 | 0.83 | v16-evalfix | v14 backbone + eval-parity preflight + verified bit CoT (157) + min-logprob replay (hardest 15%) — **LB25 borrows; mild dilution** (2026-06-20) |
 | 0.84 | v17-discovery | v14 backbone + equation discovery-CoT (cracked per-operator rule family, 180 plaintext rows) — **LB80 Part A; equation stays bounded** (2026-06-20) |
 | 0.84 | v18-stable | v14 backbone + grad-clip 1.5 + verified synth equation (cracked rule family, 800) — **LB92; ~v14-neutral** (per-char tok dropped) (2026-06-20) |
+| 0.83 | v17.1 / lb1-v1 | v14 backbone + LB1 catalog-method synth (rules24 numeric + signature-catalog cryptarithm **cipher-crack** + bit, 1500 rec ~16% dose) — **cipher crack validated (546/1555 real rows incl. glyph-ciphered) but synth-on-v14 still dilutes** (2026-06-21) |
 
 ## T12 hard-val per version (post-comp consolidation, 2026-06-16)
 
@@ -138,6 +141,7 @@
 | **v16-evalfix** (LB25) | 0.832 | 0.828 | not run (no local GPU) | LB25 borrows: eval-parity preflight (measurement-only) + verified bit CoT 157 + min-logprob replay hardest 1198/37 steps; **−0.018 pub / −0.012 priv vs v14 → dilution (plan's dominant risk confirmed)** |
 | **v17-discovery** (LB80 A) | 0.840 | 0.848 | not run (no local GPU) | equation discovery-CoT, cracked per-operator string-op family, 180 verified plaintext-digit rows (dose 0.15); ciphered 82% uncracked; **pub −0.01 / priv +0.008 vs v14 → equation bounded (no transfer from plaintext subset)** |
 | **v18-stable** (LB92) | 0.844 | 0.848 | not run (no local GPU) | grad-clip 1.5 (variance) + verified synth equation (cracked rule family, 800, ratio 0.1); per-char tok dropped (infeasible, adapter-only grader); **pub −0.006 / priv +0.008 vs v14 → ~neutral; least-harmful borrow** |
+| **v17.1 / lb1-v1** (LB80 fu) | 0.832 | 0.836 | not run (no local GPU) | LB1 catalog-method synth: rules24 (numeric) + **signature-catalog cryptarithm cipher-crack** (validated 546/1555 real glyph-ciphered rows) + bit, 1500 rec ~16% dose on v14; **pub −0.018 / priv −0.004 vs v14 → diluted**. Proves the cipher IS crackable but synth-on-v14 dilutes regardless of cracker quality (1st-place 0.92 trains *primarily* on catalog synth from base, not a v14 add-on) |
 
 ## EQ1..EQ4 analysis (post-deadline equation-frontier grid, late window 100/team/day)
 

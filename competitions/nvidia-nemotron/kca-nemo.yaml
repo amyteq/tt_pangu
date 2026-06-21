@@ -231,3 +231,24 @@ eq_aug_hidose:
   code_file: nemo-eq-aug-hidose.ipynb
   note: "coverage x dose corner: full-rotation ~7,814 targets repeated x2"
   schedule: overnight
+
+# --- lb1-v1 / v17.1: post-LB1 catalog-method synth on the v14 backbone (post-comp) ---
+# rules24 (numeric) + signature-catalog cryptarithm DFS = the JOINT cipher+op crack
+# (validated: solve_cryptarithm verifies 546/1555 real glyph-ciphered equation rows)
+# + bit HEX/repair. Corpus generated off-kernel by versions/lb1-v1/synth_gen.py (1500
+# records ~16% dose), attached as harrysun2006/nemo-lb1-v1-synth. v17.1 = the user's
+# "rules24 + ciphered-equation joint crack" request. NOTE: the kernel nemo-lb1-v1.py +
+# the versions/lb1-v1/ toolkit live on branch exp/nemo-postlb1-v1 (PR #143); this section
+# references them. RESULT (2026-06-21): LB 0.832/0.836 — diluted < v14 (synth-on-v14 lesson).
+lb1_v1:
+  id: harrysun2006/nemo-lb1-v1
+  title: Nemo LB1 V1
+  code_file: nemo-lb1-v1.ipynb
+  dataset_sources:
+    - mayukh18/nemotron-packages
+    - llkh0a/rtx-wheels
+    - huikang/huikang-nemotron-repository-snapshot
+    - mohamedamr992/replay-math
+    - harrysun2006/nemo-lb1-v1-synth
+  schedule: overnight
+  note: "v17.1: catalog-method synth (crypt signature-DFS cipher-crack + eq 24-rule + bit), 1500 rec ~16% dose, on v14 backbone; LB 0.832/0.836 (diluted)"
