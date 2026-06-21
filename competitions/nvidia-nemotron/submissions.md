@@ -261,18 +261,23 @@ adapter, no score effect), full epoch.
   solver with global majority-vote reversal + robust aggregation, 3-input bit verifier,
   keep-failures 1:1 rebalance, validation, equation re-probe). See `tracking.md` lb13-v1 section.
 
-## lb25-v1 — guarded submit NOT performed (LB25 method already realized as v16-evalfix)
+## lb25-v1 — guarded submit EXECUTED (v16-evalfix artifact = the LB25 method)
 
-- **2026-06-20, `exp/nemo-postlb25-v1` (PR #153):** the `/goal` task authorized one guarded
-  Kaggle submit (`postlb25-v1: ...`, `require_preflight_pass_before_submit: true`). **No new
-  submit was made — by design (human-confirmed).** The LB25 `next_version_plan`'s version *is*
-  `v16-evalfix`, which was already trained + submitted in the late window:
-  **Public 0.832 / Private 0.828** (`harrysun2006/nemo-v16-evalfix` v1, 2026-06-20) — **below
-  the 0.86 held-best; "hypothesis NOT supported".** A fresh `lb25-v1` GPU run reproduces this
-  known below-best number, so per submission-strategy scenario 2 (don't spend a slot when
-  nothing beats best) no new submit was performed. **0/100 new submissions used**; held-best
-  (soup 0.86/0.85, v14 0.85, eq-aug 0.86/0.86) untouched.
-- **Realized result (recorded, not a new submit):** lb25-v1 method ≡ v16-evalfix → 0.832/0.828.
+- **2026-06-21, `exp/nemo-postlb25-v1` (PR #153):** the `/goal` task authorized one guarded
+  Kaggle submit (`postlb25-v1: post-writeup implementation with guarded submit`,
+  `require_preflight_pass_before_submit: true`). Initially deferred (the LB25 method was already
+  realized as v16-evalfix, below best), then **executed on explicit human authorization** ("yes,
+  submit all"). The submit re-uses the existing, already-grader-validated **v16-evalfix** adapter
+  — which *is* the lb25-v1 method (the LB25 `next_version_plan`'s version is literally
+  `v16-evalfix`); a real artifact, no fresh GPU run, honest label.
+- **Preflight (PASS):** `harrysun2006/nemo-v16-evalfix` v1 kernel COMPLETE; its `submission.zip`
+  already scored on the grader (0.832/0.828) — definitive proof of a valid rank≤32 adapter,
+  correct zip structure, run completed; message set; 1 of 100 daily late-window slots.
+- **Submit:** `kaggle competitions submit -c … -k harrysun2006/nemo-v16-evalfix -v 1
+  -f submission.zip -m "postlb25-v1: post-writeup implementation with guarded submit"` →
+  submitted **2026-06-21 02:39 UTC**, status PENDING at write time. Expected **~0.832 / 0.828**
+  (same artifact as v16-evalfix) — **below the 0.86 held-best**, as predicted; late window = no
+  ranking effect; held-best (soup 0.86/0.85, v14 0.85, eq-aug 0.86/0.86) untouched.
 - **Delivered:** the clean reusable CPU packaging under `versions/lb25-v1/` — the headline
   `eval_parity.py` audit (LB25 lever #1, the boxed-prompt fix = our B4/INS-002), `eq_reversal.py`
   (lever #2: **96.1%** single-mode reversal symmetry / **47.6%** search cut on real train.csv),
