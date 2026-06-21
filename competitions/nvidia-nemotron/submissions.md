@@ -102,6 +102,23 @@ next_version_plan.md`. **Verdict: none beats the 0.86 soup/eq-aug ceiling; all c
 - **v18 (LB92):** grad-clip 1.5 is the only sound, low-risk lever (variance, not mean); **per-char tokenization is infeasible** for an adapter-only submission (grader uses the base tokenizer — added tokens never reach inference). The synth-equation lever is now poison-free (cracked rule family) but still bounded by the same plaintext limitation as v17.
 - **Bottom line: soup 0.86/0.85 + eq-aug 0.86/0.86 remain the held best.** The borrows reproduced the writeups' *methods* but not their LB — our 0.86 ceiling is robust, and equation stays the wall.
 
+### lb3/lb5/lb6/lb10-v1 GPU submission campaign (2026-06-21, late window)
+
+Per-version **genuine** synth (each version's own solvers → competition-format prompt/trace, consistency-filtered,
+1500 records) → v14 replay backbone → rank-32 LoRA (the proven lb1-v1 kernel scaffold, one per version) → late-window
+submit. Two accounts: harrysun2006 (lb3, lb5), firefly2006 (lb6, lb10). Datasets `<acct>/nemo-<ver>-v1-synth`.
+
+| Date (UTC) | Account | Kernel | Public | Private | Recipe / verdict |
+|---|---|---|---|---:|---:|---|
+| 06-21 06:09 | harrysun2006 | nemo-lb3-v1 | **0.852** | **0.864** | CSP-cryptarithm + hex-bit + numeric synth; **private 0.864 edges eq-aug 0.86** (best own private), public 0.852 < 0.86 |
+| 06-21 06:09 | firefly2006 | nemo-lb10-v1 | 0.856 | 0.852 | key-table-bit + freq-deduce-equation synth; ~at held-best, no clear gain |
+| 06-21 06:09 | firefly2006 | nemo-lb6-v1 | 0.768 | 0.796 | DFS-cryptarithm + template-bit + maxmodmin-eq synth; **below** (LB6 plain-DFS cryptarithm is weak, as the plan flagged) |
+| pending | harrysun2006 | nemo-lb5-v1x | pending | pending | 2-world-equation + ternary-raw-bit synth; RUNNING (orig slug `nemo-lb5-v1` stuck Kaggle-side → pushed as `-v1x`) |
+
+**Verdict (3/4 scored):** the genuine per-version synth (Option A) **beat the lb1-v1 catalog run** (0.828/0.816) — lb3
+reaches **private 0.864**, the best own-work private to date (vs eq-aug 0.86), though public stays ≤0.86. lb10 ~ties
+held-best; lb6 confirms its plan's weak-cryptarithm risk. Late window → no ranking effect; held-best (soup/eq-aug) untouched.
+
 ## Real-training campaign (own work — 2026-06-09 → 2026-06-15)
 
 | Date (UTC) | Account | Version | Public LB | Private LB | Status | Description (kernel) |

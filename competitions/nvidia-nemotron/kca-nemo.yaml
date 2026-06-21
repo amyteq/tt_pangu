@@ -249,3 +249,55 @@ lb1_v1:
     - harrysun2006/nemo-lb1-v1-synth
   schedule: overnight
   note: "post-LB1 catalog-method synth (~17k: crypt signature-DFS + bit HEX/repair + eq 24-rule) on v14 backbone; method-validation late-window submit"
+
+lb3_v1:
+  id: harrysun2006/nemo-lb3-v1
+  title: Nemo LB3 V1
+  code_file: nemo-lb3-v1.ipynb
+  dataset_sources:
+    - mayukh18/nemotron-packages
+    - llkh0a/rtx-wheels
+    - huikang/huikang-nemotron-repository-snapshot
+    - mohamedamr992/replay-math
+    - harrysun2006/nemo-lb3-v1-synth
+  schedule: overnight
+  note: "post-LB3 CSP-cryptarithm + hex-bit + numeric synth (1500 rec) on v14 backbone; method-validation late-window submit"
+
+lb5_v1:
+  id: harrysun2006/nemo-lb5-v1
+  title: Nemo LB5 V1
+  code_file: nemo-lb5-v1.ipynb
+  dataset_sources:
+    - mayukh18/nemotron-packages
+    - llkh0a/rtx-wheels
+    - huikang/huikang-nemotron-repository-snapshot
+    - mohamedamr992/replay-math
+    - harrysun2006/nemo-lb5-v1-synth
+  schedule: overnight
+  note: "post-LB5 2-world equation + ternary raw-bit synth (1500 rec) on v14 backbone; method-validation late-window submit"
+
+lb6_v1:
+  id: firefly2006/nemo-lb6-v1
+  title: Nemo LB6 V1
+  code_file: nemo-lb6-v1.ipynb
+  dataset_sources:
+    - mayukh18/nemotron-packages
+    - llkh0a/rtx-wheels
+    - huikang/huikang-nemotron-repository-snapshot
+    - mohamedamr992/replay-math
+    - firefly2006/nemo-lb6-v1-synth
+  schedule: overnight
+  note: "post-LB6 DFS-cryptarithm + template-bit + maxmodmin-equation synth (1500 rec) on v14 backbone; method-validation late-window submit"
+
+lb10_v1:
+  id: firefly2006/nemo-lb10-v1
+  title: Nemo LB10 V1
+  code_file: nemo-lb10-v1.ipynb
+  dataset_sources:
+    - mayukh18/nemotron-packages
+    - llkh0a/rtx-wheels
+    - huikang/huikang-nemotron-repository-snapshot
+    - mohamedamr992/replay-math
+    - firefly2006/nemo-lb10-v1-synth
+  schedule: overnight
+  note: "post-LB10 key-table-bit + frequency-deduce-equation synth (1500 rec) on v14 backbone; method-validation late-window submit"
