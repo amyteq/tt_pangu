@@ -113,11 +113,13 @@ submit. Two accounts: harrysun2006 (lb3, lb5), firefly2006 (lb6, lb10). Datasets
 | 06-21 06:09 | harrysun2006 | nemo-lb3-v1 | **0.852** | **0.864** | CSP-cryptarithm + hex-bit + numeric synth; **private 0.864 edges eq-aug 0.86** (best own private), public 0.852 < 0.86 |
 | 06-21 06:09 | firefly2006 | nemo-lb10-v1 | 0.856 | 0.852 | key-table-bit + freq-deduce-equation synth; ~at held-best, no clear gain |
 | 06-21 06:09 | firefly2006 | nemo-lb6-v1 | 0.768 | 0.796 | DFS-cryptarithm + template-bit + maxmodmin-eq synth; **below** (LB6 plain-DFS cryptarithm is weak, as the plan flagged) |
-| pending | harrysun2006 | nemo-lb5-v1x | pending | pending | 2-world-equation + ternary-raw-bit synth; RUNNING (orig slug `nemo-lb5-v1` stuck Kaggle-side → pushed as `-v1x`) |
+| 06-21 11:52 | harrysun2006 | nemo-lb5-v1x | **0.860** | 0.840 | 2-world-equation + ternary-raw-bit synth; **public 0.860 ties the 0.86 ceiling**, private 0.840 (orig slug `nemo-lb5-v1` stuck Kaggle-side → pushed as `-v1x`) |
 
-**Verdict (3/4 scored):** the genuine per-version synth (Option A) **beat the lb1-v1 catalog run** (0.828/0.816) — lb3
-reaches **private 0.864**, the best own-work private to date (vs eq-aug 0.86), though public stays ≤0.86. lb10 ~ties
-held-best; lb6 confirms its plan's weak-cryptarithm risk. Late window → no ranking effect; held-best (soup/eq-aug) untouched.
+**Verdict (4/4 scored):** the genuine per-version synth (Option A) **beat the lb1-v1 catalog run** (0.828/0.816)
+on every version except lb6. Highlights: **lb3 private 0.864** = best own-work private to date (edges eq-aug 0.86);
+**lb5 public 0.860** ties the 0.86 public ceiling; lb10 ~ties held-best (0.856/0.852); lb6 0.768/0.796 confirms its
+plan's weak-DFS-cryptarithm risk. No single run beats held-best on BOTH axes, so **soup 0.86/0.85 + eq-aug 0.86/0.86
+remain held-best**. Late window → no ranking effect; held-best untouched. (Per-axis bests this campaign: public 0.860 lb5, private 0.864 lb3.)
 
 ## Real-training campaign (own work — 2026-06-09 → 2026-06-15)
 
