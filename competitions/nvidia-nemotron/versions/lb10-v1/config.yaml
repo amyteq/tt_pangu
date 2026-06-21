@@ -1,0 +1,74 @@
+# lb10-v1 version config — single source of truth for the reproducible pipeline.
+# Derived from external/LB10/analysis/next_version_plan.md + the LB10 (Public 0.860 / Private 0.880) writeup.
+# Competition CLOSED 2026-06-15; GPU-gated values are for a future authorized
+# down-scaled method-validation run (NOT executed here). CPU steps run now.
+
+version_id: lb10-v1
+display_name: Post-LB10 v1
+base_model: nvidia/Nemotron-3-Nano-30B-A3B
+competition_slug: nvidia-nemotron-model-reasoning-challenge
+
+data:
+  train_csv: ~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/data/train.csv
+  download_cmd: >-
+    kaggle competitions download -c nvidia-nemotron-model-reasoning-challenge -p <dir>
+
+# "Improve the teacher" — measure/raise per-category oracle coverage first (the ceiling).
+philosophy: improve_the_teacher
+data_discipline:
+  keep_failed_low_conf_traces: true     # LB10: excluding rule_unknown traces HURT (A/B vs our c1/c2)
+  priority_2x_fragile_modes: true       # upsample low-logprob / failure-mode demos
+  no_lora_merge_assumption: true        # LB10: merge FAILED (A/B vs our +0.01 soup, LB5 iterative soup)
+
+solvers:
+  bit:
+    style: rotate_shift_keytable
+    model: "out[i] = F(rotl(x,a)[i], shl(x,b)[i], shr(x,c)[i])"   # 3-bit-key -> bit table
+    abc_recovery: boundary_bits         # bit0 shr=0, bit7 shl=0 disambiguate (a,b,c)
+    accumulation: conflict_pruned
+    fallback: agreement_majority
+    trace: "key>value (compact; no per-example echo / candidate enumeration)"
+    oracle_target: 0.98
+  equation:
+    deduce: frequency_ordered_candidate_reorder
+    guess: two_axis                     # op = conventional-if-free else first-unused {add, absdiff, mul}; wrapper pinned
+  cryptarithm:
+    status: weak                        # LB10 ~9% (add/sub/mul too jumpy); graft LB1/LB3 for the top end
+
+prompt:
+  finality_line: "</think>\\n\\boxed{...}"
+  compact_cot: true                     # remove per-example echoes + candidate enumeration (avoid runaway loops)
+  max_tokens_filter: 8192
+  preserve: [binary_leading_zeros, exact_strings, numeric_precision]
+
+# GPU-gated (NOT run here). LoRA rank<=32 hard cap (compliance red line).
+training:
+  lora_rank: 32
+  lora_alpha: 128            # LB10 alpha/r = 4
+  target_modules: [q_proj, k_proj, v_proj, o_proj, in_proj, out_proj, up_proj, down_proj, lm_head]
+  lr: 2.0e-4
+  lr_schedule: linear
+  epochs: 2
+  effective_batch_size: 32
+  stratified: true
+  wall_clock_guard_hours: 8
+  downscaled_gpu_hours_estimate: "8-16h on RTX Pro 6000 (method validation only)"
+
+validation:
+  official_metric: ../../eval/official_metric.py
+  primary_offline_metric: heldout_950_per_category + oracle_vs_fidelity + logprob_learnability
+  hard_val: ../../eval/hard_val_ids.json   # hard-tail HINT only (INS-002)
+  max_tokens: 7680
+  greedy: true
+  temp: 0.0
+  select_by: validation     # NEVER the public LB (LB10's core lesson)
+  ablations: [keep_failures_vs_verified_only, lora_merge_when_it_helps]
+
+submit:
+  require_preflight_pass: true
+  message: "postlb10-v1: post-writeup implementation with guarded submit"
+  status: COMPETITION_CLOSED    # deadline 2026-06-15; no live submission possible now
+  hold_best:
+    - {name: soup, public: 0.86, private: 0.85}
+    - {name: eq-aug, public: 0.86, private: 0.86}
+  target_reference: {place: 10, public_lb: 0.860, private_lb: 0.880}   # LB10 (method source)
