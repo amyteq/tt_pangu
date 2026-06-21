@@ -163,30 +163,57 @@ seen-input fraction, but the unseen-input majority is a strong cipher and stays 
 from samples, EQ-2′). Why LB didn't jump: equation is ≈ 1/9 of the test and only a fraction of it is learnable,
 so the maximum aggregate headroom from a perfect equation memoriser is small, and even that only covers seen inputs.
 
-## lb13-v1 — post-LB13 (13th place) method implementation (2026-06-20)
+## lb1-v1 — post-LB1 method implementation (2026-06-20)
 
-> Reproducible **CPU** implementation of the 13th-place method (teacher oracle 89.4%)
-> under `versions/lb13-v1/` (branch `exp/nemo-postlb13-v1`). **Competition closed
-> 2026-06-15** → no live submit (preflight gate blocks; guarded-submit BLOCKED decision
-> logged to `.agent/kca/audit.jsonl`). Validates the *mechanism* (sharpest equation
-> structure, robust aggregation, keep-failures rebalance, 3-input bit verify). Held-best
-> protected: soup 0.86/0.85, eq-aug 0.86/0.86.
+> Reproducible CPU implementation of the 1st-place method under
+> `versions/lb1-v1/` (branch `exp/nemo-postlb1-v1`). The competition is closed
+> for ranking; this is method-validation + reusable methodology. LB1 is a
+> *training-data* method, so a real `lb1-v1` LB number needs a GPU-trained
+> rank≤32 adapter — that training + the guarded late-submission are a documented
+> handoff (the preflight gate blocks the submit until a completed run yields a
+> valid `submission.zip`). Held-best protected: soup 0.86/0.85, v14 0.85,
+> eq-aug 0.86/0.86.
 
 | check | result | vs writeup |
 |---|---|---|
-| **equation re-probe** (real `train.csv`, 732 prompts) | **deduce 566/596 = 95.0%**, guess 65/136 = 47.8% | 95.3% / 50.7% |
-| **LB13 equation solver** (4-family excl. + global majority-vote reversal; synthetic n=300) | deduce **100%**; guess 84.7% (synthetic exclusivity cleaner than real) | mechanism ✓ |
-| **robust vs strict aggregation under transcription noise** | **robust 100% vs strict 54%** — the LB13 keep-noisy-traces lever, demonstrated | robustness ✓ |
-| **3-input bit verifier** (MAJ/XNOR3 + bit-pos search + left-edge fallback; n=300) | solved **100%** | bit oracle 89.7% ✓ |
-| **keep-failures 1:1 rebalance** | 4.26:1 → **1.00:1** (all teacher-incorrect kept) | data discipline ✓ |
-| **validation** self-check | PASS — teacher oracle, robust>strict, rebalance, perfect-trace-rate, adapter rank=32≤32 preflight | design ✓ |
+| signature catalog (100×100 × 22 non-join rules) | **4,205 signatures — EXACT**; `ABCCCDD`→15 (add1/flip_add8/flip_add+1 6), slot strings byte-exact | 4,205 ✓ |
+| **equation-numeric re-probe** (real train.csv) | **deduce 566/596 = 95.0%**, guess 65/136 = 47.8%; split 596/136 exact | 95.5% / 52.9% |
+| HEX compression | `1101000001`→`341` exact; ~75% char cut | matches |
+| bit rule-sequence catalog | pure enum **857,692 seqs / 115,826 functions** — overshoots; LB1's 5,238 is **train.csv-tuned**, not prose-reproducible. Repair (Hamming-NN) verified (recovers Hamming-3 corruption). | ≈5,238 (not reproduced) |
 
-**Equation premise — 6th independent refutation.** The real-data re-probe (95.0% deduce)
-again confirms equation-numeric *deduce* is per-prompt-operator solvable (after LB1/LB3/LB5,
-plus LB6/LB10). LB13's distinct contributions: the **global majority-vote reversal +
-robust ≥1-match aggregation** equation model (batch-best guess 50.7%), **3-input bit
-verification**, and **keeping teacher-incorrect traces (1:1 rebalance)** — which challenges
-our verified-only c1/c2 filter (A/B is the recommended GPU follow-up).
+**Equation verdict qualified.** The EQ-0/EQ-2′ "global cipher = unsolvable"
+conclusion is **over-generalized**: it holds for the *guess* (unseen-operator)
+subset (~48–53%), but **equation-numeric *deduce* is 95% solvable per-prompt** via
+the 24-rule inventory + Observation 1/2 — not one global function. This matches the
+LB1 coverage table and refutes our frontier call for the deduce subset (cf.
+`gap_analysis.md`, `equation-frontier.md`). The decisive remaining gap to 0.92 is
+cryptarithm + bit *volume* (LB1: 220k+140k synth, ~170h single-GPU), reproducible
+only as a down-scaled method-validation run post-comp.
+
+## lb3-v1 — post-LB3 (3rd place) method implementation (2026-06-20)
+
+> Reproducible **CPU** implementation of the 3rd-place method (Private 0.900) under
+> `versions/lb3-v1/` (branch `exp/nemo-postlb3-v1`). **Competition closed 2026-06-15**
+> → no live submission (preflight gate blocks: closed comp + no completed GPU run →
+> no `submission.zip`). This validates the *mechanism* (CSP cryptarithm, hex bit
+> compression, two-stage drills, private-tracking validation, equation-deduce
+> premise), not LB3's full score. Held-best protected: soup 0.86/0.85, eq-aug 0.86/0.86.
+
+| check | result | vs writeup |
+|---|---|---|
+| **equation-numeric re-probe** (real `train.csv`, 732 prompts) | **deduce 566/596 = 95.0%**, guess 65/136 = 47.8% | 93.3% / ~57% |
+| **CSP cryptarithm** (synthetic, n=150; lookup→intersect→anchor→bounded backtracking) | `*` deduce **100%** (full-map recovery 100%); `+` 98%; `-` 94.7%; `*` guess 94% | mechanism ✓ (LB3 within-budget 24.2% on harder real cryptarithm) |
+| **bit HEX+tail-2-bit** compression + solver (n=300) | solved **100%**; **−23.4%** trace tokens | ≈ −25% ✓ |
+| **numeric 13-op** solver (n=300) | deduce **98.3%**; guess 11% (synthetic guess adversarial — no generator family co-occurrence) | deduce 93.8% ✓ |
+| stage-1 **memorize drills** (16 packed/sample, request masked) | 28% chars masked; recall rows rendered as `(a,b)->p` tuples | masked-drill design ✓ |
+| **private-tracking validation** self-check | PASS — stratified 10% hold-out (all cats), leakage exclusion, perfect-trace-rate, adapter rank=32≤32 + zip-root preflight | design ✓ |
+
+**Equation premise — 2nd independent refutation.** The real-data re-probe (95.0% deduce)
+confirms equation-numeric *deduce* is per-prompt-operator solvable, not a global cipher;
+matches LB1 (95.5%) and LB3 (93.3%). Our `equation-frontier.md` EQ-0/EQ-2′ verdict is
+over-generalized — it holds only for the *guess* (unseen-operator) subset (~48%). The
+decisive remaining gap to 0.900 is the **two-stage memorize→execute training** + cryptarithm
+**volume** (LB3 ~58 GPU-h), reproducible only as a down-scaled GPU method-validation run (handoff).
 
 ## lb5-v1 — post-LB5 (5th place) method implementation (2026-06-20)
 
@@ -237,57 +264,30 @@ for all others. This is the per-domain attribution tool we've lacked (our recurr
 "single-category gain ≠ total gain"); run offline here since the comp LB is gone. The
 equation re-probe (95.0% deduce) is another independent refutation of the global-cipher verdict.
 
-## lb3-v1 — post-LB3 (3rd place) method implementation (2026-06-20)
+## lb13-v1 — post-LB13 (13th place) method implementation (2026-06-20)
 
-> Reproducible **CPU** implementation of the 3rd-place method (Private 0.900) under
-> `versions/lb3-v1/` (branch `exp/nemo-postlb3-v1`). **Competition closed 2026-06-15**
-> → no live submission (preflight gate blocks: closed comp + no completed GPU run →
-> no `submission.zip`). This validates the *mechanism* (CSP cryptarithm, hex bit
-> compression, two-stage drills, private-tracking validation, equation-deduce
-> premise), not LB3's full score. Held-best protected: soup 0.86/0.85, eq-aug 0.86/0.86.
-
-| check | result | vs writeup |
-|---|---|---|
-| **equation-numeric re-probe** (real `train.csv`, 732 prompts) | **deduce 566/596 = 95.0%**, guess 65/136 = 47.8% | 93.3% / ~57% |
-| **CSP cryptarithm** (synthetic, n=150; lookup→intersect→anchor→bounded backtracking) | `*` deduce **100%** (full-map recovery 100%); `+` 98%; `-` 94.7%; `*` guess 94% | mechanism ✓ (LB3 within-budget 24.2% on harder real cryptarithm) |
-| **bit HEX+tail-2-bit** compression + solver (n=300) | solved **100%**; **−23.4%** trace tokens | ≈ −25% ✓ |
-| **numeric 13-op** solver (n=300) | deduce **98.3%**; guess 11% (synthetic guess adversarial — no generator family co-occurrence) | deduce 93.8% ✓ |
-| stage-1 **memorize drills** (16 packed/sample, request masked) | 28% chars masked; recall rows rendered as `(a,b)->p` tuples | masked-drill design ✓ |
-| **private-tracking validation** self-check | PASS — stratified 10% hold-out (all cats), leakage exclusion, perfect-trace-rate, adapter rank=32≤32 + zip-root preflight | design ✓ |
-
-**Equation premise — 2nd independent refutation.** The real-data re-probe (95.0% deduce)
-confirms equation-numeric *deduce* is per-prompt-operator solvable, not a global cipher;
-matches LB1 (95.5%) and LB3 (93.3%). Our `equation-frontier.md` EQ-0/EQ-2′ verdict is
-over-generalized — it holds only for the *guess* (unseen-operator) subset (~48%). The
-decisive remaining gap to 0.900 is the **two-stage memorize→execute training** + cryptarithm
-**volume** (LB3 ~58 GPU-h), reproducible only as a down-scaled GPU method-validation run (handoff).
-
-## lb1-v1 — post-LB1 method implementation (2026-06-20)
-
-> Reproducible CPU implementation of the 1st-place method under
-> `versions/lb1-v1/` (branch `exp/nemo-postlb1-v1`). The competition is closed
-> for ranking; this is method-validation + reusable methodology. LB1 is a
-> *training-data* method, so a real `lb1-v1` LB number needs a GPU-trained
-> rank≤32 adapter — that training + the guarded late-submission are a documented
-> handoff (the preflight gate blocks the submit until a completed run yields a
-> valid `submission.zip`). Held-best protected: soup 0.86/0.85, v14 0.85,
-> eq-aug 0.86/0.86.
+> Reproducible **CPU** implementation of the 13th-place method (teacher oracle 89.4%)
+> under `versions/lb13-v1/` (branch `exp/nemo-postlb13-v1`). **Competition closed
+> 2026-06-15** → no live submit (preflight gate blocks; guarded-submit BLOCKED decision
+> logged to `.agent/kca/audit.jsonl`). Validates the *mechanism* (sharpest equation
+> structure, robust aggregation, keep-failures rebalance, 3-input bit verify). Held-best
+> protected: soup 0.86/0.85, eq-aug 0.86/0.86.
 
 | check | result | vs writeup |
 |---|---|---|
-| signature catalog (100×100 × 22 non-join rules) | **4,205 signatures — EXACT**; `ABCCCDD`→15 (add1/flip_add8/flip_add+1 6), slot strings byte-exact | 4,205 ✓ |
-| **equation-numeric re-probe** (real train.csv) | **deduce 566/596 = 95.0%**, guess 65/136 = 47.8%; split 596/136 exact | 95.5% / 52.9% |
-| HEX compression | `1101000001`→`341` exact; ~75% char cut | matches |
-| bit rule-sequence catalog | pure enum **857,692 seqs / 115,826 functions** — overshoots; LB1's 5,238 is **train.csv-tuned**, not prose-reproducible. Repair (Hamming-NN) verified (recovers Hamming-3 corruption). | ≈5,238 (not reproduced) |
+| **equation re-probe** (real `train.csv`, 732 prompts) | **deduce 566/596 = 95.0%**, guess 65/136 = 47.8% | 95.3% / 50.7% |
+| **LB13 equation solver** (4-family excl. + global majority-vote reversal; synthetic n=300) | deduce **100%**; guess 84.7% (synthetic exclusivity cleaner than real) | mechanism ✓ |
+| **robust vs strict aggregation under transcription noise** | **robust 100% vs strict 54%** — the LB13 keep-noisy-traces lever, demonstrated | robustness ✓ |
+| **3-input bit verifier** (MAJ/XNOR3 + bit-pos search + left-edge fallback; n=300) | solved **100%** | bit oracle 89.7% ✓ |
+| **keep-failures 1:1 rebalance** | 4.26:1 → **1.00:1** (all teacher-incorrect kept) | data discipline ✓ |
+| **validation** self-check | PASS — teacher oracle, robust>strict, rebalance, perfect-trace-rate, adapter rank=32≤32 preflight | design ✓ |
 
-**Equation verdict qualified.** The EQ-0/EQ-2′ "global cipher = unsolvable"
-conclusion is **over-generalized**: it holds for the *guess* (unseen-operator)
-subset (~48–53%), but **equation-numeric *deduce* is 95% solvable per-prompt** via
-the 24-rule inventory + Observation 1/2 — not one global function. This matches the
-LB1 coverage table and refutes our frontier call for the deduce subset (cf.
-`gap_analysis.md`, `equation-frontier.md`). The decisive remaining gap to 0.92 is
-cryptarithm + bit *volume* (LB1: 220k+140k synth, ~170h single-GPU), reproducible
-only as a down-scaled method-validation run post-comp.
+**Equation premise — 6th independent refutation.** The real-data re-probe (95.0% deduce)
+again confirms equation-numeric *deduce* is per-prompt-operator solvable (after LB1/LB3/LB5,
+plus LB6/LB10). LB13's distinct contributions: the **global majority-vote reversal +
+robust ≥1-match aggregation** equation model (batch-best guess 50.7%), **3-input bit
+verification**, and **keeping teacher-incorrect traces (1:1 rebalance)** — which challenges
+our verified-only c1/c2 filter (A/B is the recommended GPU follow-up).
 
 ## Evidence links
 - GitHub issue #86 (body + comments 0–4) — original hub.
