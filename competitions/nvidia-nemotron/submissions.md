@@ -275,9 +275,13 @@ adapter, no score effect), full epoch.
   correct zip structure, run completed; message set; 1 of 100 daily late-window slots.
 - **Submit:** `kaggle competitions submit -c … -k harrysun2006/nemo-v16-evalfix -v 1
   -f submission.zip -m "postlb25-v1: post-writeup implementation with guarded submit"` →
-  submitted **2026-06-21 02:39 UTC**, status PENDING at write time. Expected **~0.832 / 0.828**
-  (same artifact as v16-evalfix) — **below the 0.86 held-best**, as predicted; late window = no
-  ranking effect; held-best (soup 0.86/0.85, v14 0.85, eq-aug 0.86/0.86) untouched.
+  submitted **2026-06-21 02:39 UTC** → **Public 0.828 / Private 0.828** (COMPLETE).
+- **Result reading:** below the 0.86 held-best, as predicted (the LB25 method = v16-evalfix
+  underperforms; cryptarithm is the real wall, unsolved even by huikang). Note the **public
+  0.828 vs v16-evalfix's original 0.832** on the *same artifact* — a live demonstration of LB25's
+  own **temp=0 selection-variance** lesson (huikang saw 0.872↔0.864 across re-submits). Private
+  0.828 is identical. Late window = no ranking effect; held-best (soup 0.86/0.85, v14 0.85,
+  eq-aug 0.86/0.86) untouched. 1/100 daily slots used.
 - **Delivered:** the clean reusable CPU packaging under `versions/lb25-v1/` — the headline
   `eval_parity.py` audit (LB25 lever #1, the boxed-prompt fix = our B4/INS-002), `eq_reversal.py`
   (lever #2: **96.1%** single-mode reversal symmetry / **47.6%** search cut on real train.csv),
