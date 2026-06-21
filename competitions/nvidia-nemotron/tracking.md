@@ -313,6 +313,26 @@ robust ≥1-match aggregation** equation model (batch-best guess 50.7%), **3-inp
 verification**, and **keeping teacher-incorrect traces (1:1 rebalance)** — which challenges
 our verified-only c1/c2 filter (A/B is the recommended GPU follow-up).
 
+## lb25-v1 — post-LB25 (huikang Progress-Prize improvements) method implementation (2026-06-20)
+
+> Reproducible CPU packaging of the LB25 method under `versions/lb25-v1/` (branch
+> `exp/nemo-postlb25-v1`). **Already realized:** the LB25 `next_version_plan`'s version is
+> `v16-evalfix`, trained + submitted 2026-06-20 → **Public 0.832 / Private 0.828, below the
+> 0.86 held-best ("hypothesis NOT supported")**; this dir is the clean reusable packaging of
+> the five levers, not a new method expected to beat 0.86. Held-best untouched.
+
+| LB25 lever | module | result |
+|---|---|---|
+| #1 eval/submission parity (headline) | `eval_parity.py` | reusable GPU-free audit of the boxed-prompt bug (= our B4/INS-002); measurement-only |
+| #2 equation reversal symmetry | `eq_reversal.py` | **573/596 = 96.1%** single-mode (Obs.1) on real train.csv; **47.6% search reduction** — the earliest of 7 confirmations equation is per-problem-structured |
+| #3/#4 easy-cat + cipher-prefix synth | `easy_cat_synth.py` | 240/240 extraction round-trip; no-regression guard only (easy cats already ceiling) |
+| #5 reorganized bit CoT | `bit_cot.py` | own-solver-verified, grader-faithful `bit_verify`; the realized v16-evalfix solver |
+| min-logprob replay (ours) | config | hardest-residual replay, ≤15% dose |
+
+Shared pieces (`rules24`, `eq_reprobe`, `hex_compress`, `scorer`, `validate`,
+`package_submission`) reused from the lb1-v1 batch. The LB25 method's real LB result already
+exists (v16-evalfix); a fresh `lb25-v1` GPU run reproduces a known below-best number.
+
 ## Evidence links
 - GitHub issue #86 (body + comments 0–4) — original hub.
 - `tracking_zh.md` — original Chinese tables verbatim.
