@@ -300,3 +300,14 @@ bit 推理器、**oracle 天花板 vs 模型 fidelity + logprob 可学性**诊�
 
 > 分支 `exp/nemo-postlb13-v1`,代码在 `versions/lb13-v1/`,纯 CPU 复现 LB13(teacher oracle 89.4%)。
 
+## lb25-v1 — LB25(huikang Progress-Prize 改进)方法实现(2026-06-20)
+
+> 分支 `exp/nemo-postlb25-v1`,代码在 `versions/lb25-v1/`,纯 CPU 复现 LB25 方法。**已实现:** LB25
+> 的 next_version_plan 版本即 `v16-evalfix`,已于 2026-06-20 训练 + 提交 → **public 0.832 / private
+> 0.828,低于 0.86 历史最佳("假设不成立")**;本目录是这五个 lever 的干净可复用封装,不是预期超过 0.86 的新方法。
+> 五个 lever:#1 eval/submission prompt 一致性审计(`eval_parity.py`,headline,可复用 GPU-free 工具,
+> = 我们的 B4/INS-002);#2 equation 反转对称性(`eq_reversal.py`,真实 train.csv 上 573/596 = 96.1% 单模式,
+> 搜索减少 47.6%);#3/#4 简单类别 + cipher-prefix 合成(`easy_cat_synth.py`,240/240,仅防回归);
+> #5 重组并自验证的 bit CoT(`bit_cot.py`);min-logprob replay(≤15% dose)。共享模块从 lb1-v1 复用。
+> LB25 方法的真实 LB 结果已存在(v16-evalfix);重新 GPU 训练只会复现已知的低于最佳的数值。历史最佳未动。
+

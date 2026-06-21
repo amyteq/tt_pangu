@@ -1,0 +1,7 @@
+# generated artifacts (kept out of git; see CLAUDE.md repo conventions)
+*.jsonl
+*.zip
+*.json.gz
+_dummy_adapter/
+*_adapter/
+catalog*.json

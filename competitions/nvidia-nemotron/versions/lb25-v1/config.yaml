@@ -1,0 +1,70 @@
+# lb25-v1 version config — reproducible packaging of the LB25 (huikang Progress-Prize
+# improvements) method. Derived from external/LB25/analysis/{next_version_plan,
+# method_summary,score_tricks}.md + writeup.
+#
+# IMPORTANT — already realized: the LB25 next_version_plan's version is "v16-evalfix",
+# which was trained + submitted on 2026-06-20 (late window): Public 0.832 / Private
+# 0.828 — BELOW the 0.86 held-best; "hypothesis NOT supported" (LEVER 1 measurement-
+# only; LEVER 2+3 diluted). See ../../submissions.md + the plan. This version dir is
+# the clean, reusable packaging of the LB25 levers (esp. the eval-parity audit tool),
+# NOT a new method expected to beat 0.86.
+
+version_id: lb25-v1
+display_name: Post-LB25 v1
+base_model: nvidia/Nemotron-3-Nano-30B-A3B
+competition_slug: nvidia-nemotron-model-reasoning-challenge
+realized_as: { kernel: harrysun2006/nemo-v16-evalfix, public_lb: 0.832, private_lb: 0.828 }
+
+data:
+  train_csv: ~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/data/train.csv
+  download_cmd: kaggle competitions download -c nvidia-nemotron-model-reasoning-challenge -p <dir>
+
+# The five LB25 levers (huikang Progress-Prize improvements), packaged here.
+levers:
+  eval_parity:            # #1 (HIGH, ~free, measurement) — eval_parity.py
+    desc: local eval prompt + decode byte-identical to the grader (fixes the boxed-prompt bug)
+    suffix: "\nPlease put your final answer inside \\boxed{}. For example: \\boxed{your answer}"
+    decode: { greedy: true, temperature: 0.0, max_tokens: 7680 }
+  eq_reversal:            # #2 (Med-High) — eq_reversal.py (reuses rules24/eq_reprobe)
+    desc: one REVERSE/NORMAL world per prompt (Obs.1) -> halve equation operator search
+  easy_cat_synth:         # #3/#4 (Med) — easy_cat_synth.py (no-regression guard only)
+    desc: cipher/unit/gravity/numeral + cipher-prefix synth; easy cats already ~ceiling
+    dose: low
+  bit_cot:                # #5 (Med) — bit_cot.py (own-solver-verified, reorganized)
+    desc: bounded bit-rule search + per-example verify + boxed; grader-faithful verify only
+  min_logprob_replay:     # ours (LB25 base-pipeline signal)
+    desc: after the main pass, replay the hardest residual rows by min logprob
+    replay_frac: 0.15
+
+# GPU-gated (the LB25 method was already realized as v16-evalfix; a fresh lb25-v1 run
+# reproduces a known below-best result). v14 replay backbone + Phase B levers.
+training:
+  framework: unsloth
+  lora_rank: 32
+  lora_alpha: 32
+  seq_len: 8192
+  learning_rate: 3.5e-4
+  micro_batch_size: 4
+  global_batch_size: 32
+  phase_a: v14 replay backbone (~254 steps / 1 epoch)
+  phase_b: bit-CoT + min-logprob replay (<=15% dose, ~1 short epoch)
+  wall_clock_guard_hours: 7   # B7
+  dilution_dose_cap: 0.15     # b2/v15/c2 lesson
+
+validation:
+  official_metric: ../../eval/official_metric.py
+  hard_val: ../../eval/hard_val_ids.json
+  gate: bit ↑, no easy-cat regression, total hard-val >= 0.764
+  parity_first: true          # the LB25 lesson — run eval_parity BEFORE any submit
+  max_tokens: 7680
+  greedy: true
+  temp: 0.0
+
+submit:
+  require_preflight_pass: true
+  message: "postlb25-v1: post-writeup implementation with guarded submit"
+  hold_best:
+    - { name: soup, public: 0.86, private: 0.85 }
+    - { name: v14, public: 0.85 }
+    - { name: eq-aug, public: 0.86, private: 0.86 }
+  late_window_quota_per_team_per_day: 100
