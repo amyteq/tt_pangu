@@ -154,68 +154,6 @@ next_version_plan.md`. **Verdict: none beats the 0.86 soup/eq-aug ceiling; all c
   it did not change the competition selection (soup + v14).
 - Current leaderboard top: **~0.90** (refreshed 2026-06-15).
 
-## lb13-v1 — guarded submit NOT performed (competition closed)
-
-- **2026-06-20, `exp/nemo-postlb13-v1`:** the `/goal` task authorized one guarded Kaggle
-  submit (`postlb13-v1: post-writeup implementation with guarded submit`,
-  `require_preflight_pass_before_submit: true`). The guarded submit was **executed** via the
-  real `kca kaggle submit` SUBMISSION command and **correctly BLOCKED by the preflight gate**
-  — no upload reached Kaggle; BLOCKED decision recorded to `.agent/kca/audit.jsonl`. Reasons:
-  competition **closed 2026-06-15**; plan PLAN-ONLY; no GPU 3-stage run → no `submission.zip`;
-  credentials unavailable. **0/100 submissions used**; held-best (soup 0.86/0.85, eq-aug
-  0.86/0.86) untouched.
-- **Delivered instead:** the no-GPU CPU half under `versions/lb13-v1/` (sharpest equation
-  solver with global majority-vote reversal + robust aggregation, 3-input bit verifier,
-  keep-failures 1:1 rebalance, validation, equation re-probe). See `tracking.md` lb13-v1 section.
-
-## lb5-v1 — guarded submit NOT performed (competition closed)
-
-- **2026-06-20, `exp/nemo-postlb5-v1`:** the `/goal` task authorized one guarded Kaggle
-  submit (`postlb5-v1: post-writeup implementation with guarded submit`,
-  `require_preflight_pass_before_submit: true`). The guarded submit was **executed** via the
-  real `kca kaggle submit` SUBMISSION command and **correctly BLOCKED by the preflight gate**
-  — no upload reached Kaggle; the BLOCKED decision is recorded to `.agent/kca/audit.jsonl`.
-  Block reasons: (1) competition **closed 2026-06-15**; (2) plan is PLAN-ONLY (`allow_*=false`);
-  (3) no GPU 3-phase run → **no `submission.zip`** (preflight fails); (4) credentials unavailable
-  (task forbids reading them). **0 of 100 submissions used**; held-best (soup 0.86/0.85, eq-aug
-  0.86/0.86) untouched.
-- **Delivered instead:** the no-GPU CPU half of the plan under `versions/lb5-v1/` (2-world/4-family
-  equation solver, ternary raw-bit solver, no-leakage generator, tokenizer probe, private-tracking
-  validation, equation re-probe). See `tracking.md` lb5-v1 section.
-
-## lb6-v1 — guarded submit NOT performed (competition closed)
-
-- **2026-06-20, `exp/nemo-postlb6-v1`:** the `/goal` task authorized one guarded Kaggle
-  submit (`postlb6-v1: post-writeup implementation with guarded submit`,
-  `require_preflight_pass_before_submit: true`). The guarded submit was **executed** via the
-  real `kca kaggle submit` SUBMISSION command and **correctly BLOCKED by the preflight gate**
-  — no upload reached Kaggle; BLOCKED decision recorded to `.agent/kca/audit.jsonl`. Reasons:
-  competition **closed 2026-06-15**; plan PLAN-ONLY; no GPU run → no `submission.zip`;
-  credentials unavailable. **0/100 submissions used**; held-best (soup 0.86/0.85, eq-aug
-  0.86/0.86) untouched.
-- **Delivered instead:** the no-GPU CPU half under `versions/lb6-v1/` (per-domain DUMMY-masking
-  attribution probe — our B8 fix, template bit solver, DFS cryptarithm, maxmodmin equation
-  solver, bit/cryptarithm trade-off CV, full-train-as-validation). See `tracking.md` lb6-v1 section.
-
-## lb3-v1 — guarded submit NOT performed (competition closed)
-
-- **2026-06-20, `exp/nemo-postlb3-v1`:** the `/goal` task authorized one guarded Kaggle
-  submit (`postlb3-v1: post-writeup implementation with guarded submit`,
-  `require_preflight_pass_before_submit: true`). The submit was **correctly blocked by the
-  preflight gate** and **no submission was attempted**. Reasons, in order:
-  1. the competition **closed 2026-06-15 23:59 UTC** (no live ranking submission possible);
-  2. the plan (`external/LB3/analysis/next_version_plan.md`) is explicitly **PLAN ONLY / no
-     GPU / no submit** (`allow_* = false`) — a conflict with the task front matter, resolved
-     in favor of repo-as-source-of-truth per the task's own conflict clause;
-  3. no GPU two-stage training was run here, so **no `submission.zip` was produced** →
-     preflight items "run completed successfully" and "submission.zip exists" fail.
-- **Delivered instead:** the no-GPU CPU half of the plan under `versions/lb3-v1/` (CSP
-  cryptarithm solver, hex bit compression, 13-op numeric solver, stage-1 drills,
-  private-tracking validation, equation re-probe). See `tracking.md` lb3-v1 section.
-- **For a future live competition**, the authorized flow (GPU train → package → preflight →
-  submit, selecting on the private-tracking offline metric) is documented in
-  `versions/lb3-v1/README.md`.
-
 ## lb1-v1 GPU run + guarded submit (2026-06-20) — SUBMITTED, Public 0.828 / Private 0.816
 
 The full GPU pipeline ran end-to-end and the one guarded late-submission was
@@ -246,6 +184,82 @@ moat.** The *method* is reproduced + validated CPU-side (signature catalog 4,205
 exact; eq-deduce 95.0%; HEX exact; repair verified). Held-best untouched; late window
 = no ranking effect. Next: scale crypt ≥40k, drop `lm_head` (shrinks the 1.37 GB
 adapter, no score effect), full epoch.
+
+## lb3-v1 — guarded submit NOT performed (competition closed)
+
+- **2026-06-20, `exp/nemo-postlb3-v1`:** the `/goal` task authorized one guarded Kaggle
+  submit (`postlb3-v1: post-writeup implementation with guarded submit`,
+  `require_preflight_pass_before_submit: true`). The submit was **correctly blocked by the
+  preflight gate** and **no submission was attempted**. Reasons, in order:
+  1. the competition **closed 2026-06-15 23:59 UTC** (no live ranking submission possible);
+  2. the plan (`external/LB3/analysis/next_version_plan.md`) is explicitly **PLAN ONLY / no
+     GPU / no submit** (`allow_* = false`) — a conflict with the task front matter, resolved
+     in favor of repo-as-source-of-truth per the task's own conflict clause;
+  3. no GPU two-stage training was run here, so **no `submission.zip` was produced** →
+     preflight items "run completed successfully" and "submission.zip exists" fail.
+- **Delivered instead:** the no-GPU CPU half of the plan under `versions/lb3-v1/` (CSP
+  cryptarithm solver, hex bit compression, 13-op numeric solver, stage-1 drills,
+  private-tracking validation, equation re-probe). See `tracking.md` lb3-v1 section.
+- **For a future live competition**, the authorized flow (GPU train → package → preflight →
+  submit, selecting on the private-tracking offline metric) is documented in
+  `versions/lb3-v1/README.md`.
+
+## lb5-v1 — guarded submit NOT performed (competition closed)
+
+- **2026-06-20, `exp/nemo-postlb5-v1`:** the `/goal` task authorized one guarded Kaggle
+  submit (`postlb5-v1: post-writeup implementation with guarded submit`,
+  `require_preflight_pass_before_submit: true`). The guarded submit was **executed** via the
+  real `kca kaggle submit` SUBMISSION command and **correctly BLOCKED by the preflight gate**
+  — no upload reached Kaggle; the BLOCKED decision is recorded to `.agent/kca/audit.jsonl`.
+  Block reasons: (1) competition **closed 2026-06-15**; (2) plan is PLAN-ONLY (`allow_*=false`);
+  (3) no GPU 3-phase run → **no `submission.zip`** (preflight fails); (4) credentials unavailable
+  (task forbids reading them). **0 of 100 submissions used**; held-best (soup 0.86/0.85, eq-aug
+  0.86/0.86) untouched.
+- **Delivered instead:** the no-GPU CPU half of the plan under `versions/lb5-v1/` (2-world/4-family
+  equation solver, ternary raw-bit solver, no-leakage generator, tokenizer probe, private-tracking
+  validation, equation re-probe). See `tracking.md` lb5-v1 section.
+
+## lb6-v1 — guarded submit NOT performed (competition closed)
+
+- **2026-06-20, `exp/nemo-postlb6-v1`:** the `/goal` task authorized one guarded Kaggle
+  submit (`postlb6-v1: post-writeup implementation with guarded submit`,
+  `require_preflight_pass_before_submit: true`). The guarded submit was **executed** via the
+  real `kca kaggle submit` SUBMISSION command and **correctly BLOCKED by the preflight gate**
+  — no upload reached Kaggle; BLOCKED decision recorded to `.agent/kca/audit.jsonl`. Reasons:
+  competition **closed 2026-06-15**; plan PLAN-ONLY; no GPU run → no `submission.zip`;
+  credentials unavailable. **0/100 submissions used**; held-best (soup 0.86/0.85, eq-aug
+  0.86/0.86) untouched.
+- **Delivered instead:** the no-GPU CPU half under `versions/lb6-v1/` (per-domain DUMMY-masking
+  attribution probe — our B8 fix, template bit solver, DFS cryptarithm, maxmodmin equation
+  solver, bit/cryptarithm trade-off CV, full-train-as-validation). See `tracking.md` lb6-v1 section.
+
+## lb10-v1 — guarded submit NOT performed (competition closed)
+
+- **2026-06-20, `exp/nemo-postlb10-v1`:** the `/goal` task authorized one guarded Kaggle
+  submit (`postlb10-v1: post-writeup implementation with guarded submit`,
+  `require_preflight_pass_before_submit: true`). The guarded submit was **executed** via the
+  real `kca kaggle submit` SUBMISSION command and **correctly BLOCKED by the preflight gate**
+  — no upload reached Kaggle; BLOCKED decision recorded to `.agent/kca/audit.jsonl`. Reasons:
+  competition **closed 2026-06-15**; plan PLAN-ONLY; no GPU run → no `submission.zip`;
+  credentials unavailable. **0/100 submissions used**; held-best (soup 0.86/0.85, eq-aug
+  0.86/0.86) untouched.
+- **Delivered instead:** the no-GPU CPU half under `versions/lb10-v1/` (rotate/shift key-table
+  bit reasoner, frequency-deduce + two-axis-guess equation solver, oracle-vs-fidelity + logprob
+  learnability diagnostics, keep-failures discipline, equation re-probe). See `tracking.md` lb10-v1 section.
+
+## lb13-v1 — guarded submit NOT performed (competition closed)
+
+- **2026-06-20, `exp/nemo-postlb13-v1`:** the `/goal` task authorized one guarded Kaggle
+  submit (`postlb13-v1: post-writeup implementation with guarded submit`,
+  `require_preflight_pass_before_submit: true`). The guarded submit was **executed** via the
+  real `kca kaggle submit` SUBMISSION command and **correctly BLOCKED by the preflight gate**
+  — no upload reached Kaggle; BLOCKED decision recorded to `.agent/kca/audit.jsonl`. Reasons:
+  competition **closed 2026-06-15**; plan PLAN-ONLY; no GPU 3-stage run → no `submission.zip`;
+  credentials unavailable. **0/100 submissions used**; held-best (soup 0.86/0.85, eq-aug
+  0.86/0.86) untouched.
+- **Delivered instead:** the no-GPU CPU half under `versions/lb13-v1/` (sharpest equation
+  solver with global majority-vote reversal + robust aggregation, 3-input bit verifier,
+  keep-failures 1:1 rebalance, validation, equation re-probe). See `tracking.md` lb13-v1 section.
 
 ## Submission checklist
 - [ ] local validation passed (validate_kernel.py + fail-fast preflight)
