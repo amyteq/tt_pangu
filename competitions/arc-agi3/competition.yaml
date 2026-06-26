@@ -1,0 +1,26 @@
+slug: arc-agi3
+kaggle_slug: arc-prize-2026-arc-agi-3
+title: ARC Prize 2026 - ARC-AGI-3
+aliases: [arc3, arc-agi-3, arcagi3]
+status: active
+phase: research                 # research | baseline | iteration | submission | postmortem
+competition_type: simulation_agent  # interactive turn-based game environments (NOT static grids)
+metric: RHAE — Relative Human Action Efficiency = (human_actions / agent_actions)^2, capped 1.0/level
+deadline: 2026-11-02            # submissions close; entry/team-merge 2026-10-26; winners 2026-12-04
+primary_artifact: agent          # an interactive agent, not a static notebook output
+submission_mode: notebook        # Kaggle notebook, one-click runnable, <12h, no internet at eval
+data_policy: api                 # environments served via the arc-agi API/SDK, not a file download
+last_updated: 2026-06-26
+best:
+  cv_metric: RHAE
+  cv_score: null                 # not yet run
+  public_lb: null
+  private_lb: null
+  submission_id: null
+current_blocker: "research phase — no agent built yet; need Kaggle login to confirm rules/GPU/data tab, and an arc-agi API key (three.arcprize.org) to play the 25 public envs locally"
+next_task: "Stand up the arc-agi SDK harness against the 25 public envs; pick a track (Official vs Community); build a minimal exploration baseline"
+source_notes:
+  - competitions/arc-agi3/research.md           # ARC-AGI-3 research brief (2026-06-26)
+  - competitions/arc-agi3/arc-agi2-research.md  # ARC-AGI-2 + prior-winner research brief
+  - competitions/arc-agi3/cross-competition.md  # AGI-2 <-> AGI-3 transfer analysis
+  - competitions/arc-agi3/references.md

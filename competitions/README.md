@@ -6,6 +6,7 @@
 
 | Competition | Status | Type | Phase | Best CV/local | Best LB/public | Last submit/push | Current blocker | Next task |
 |---|---|---|---|---:|---:|---|---|---|
+| [arc-agi3](arc-agi3/) (arc3) | active | simulation_agent | research | — | — (AI<0.5%, 人类 100%) | 无(尚未建 agent) | 研究期:需 Kaggle 登录确认规则/GPU + `three.arcprize.org` API key 玩 25 公开环境 | 立 SDK harness + 本地 RHAE 指标 + 选赛道(Official/Community)+ 探索基线 |
 | [nvidia-nemotron](nvidia-nemotron/) (nemo) | active | llm | submission | per-kernel held-out | **0.85** (v14 replay) | v15 push 0.84 (2026-06-14); best=v14 0.85 | 0.85 是当前杠杆天花板(T7 merge 0.82 / v15 0.84 均回归);deadline **06-15** 迫近 | 守住 0.85 收官(可选 half-dose cryptarithm synth) |
 | [orbit-wars](orbit-wars/) (orbit) | active | simulation_agent | iteration | suite ~54.8% | own **686** (v3 peak) / attributed **1151** (kuni05) | harry latest-2: kuni05 **1085.4** + v3.2 **660.0** (2026-06-14) | 强档 cliff（0-15% vs evogen/multifocus/kuni05） | v4 Scheduler 下一刀（反击窗/集群重锤）；末 3 天冻结 best-2 |
 
@@ -13,6 +14,7 @@
 > Kaggle 只读刷新（2026-06-14）：nemo own 最好 **0.85**(v14);账号原始公开最大 **0.86**(2026-05-15 public-fork,非自训);榜首 **~0.90**;private LB 未发布。详见 [`nvidia-nemotron/submissions.md`](nvidia-nemotron/submissions.md)。
 
 ## Recently updated
+- **2026-06-26** arc-agi3 — created workspace from sourced research (ARC-AGI-3 + ARC-AGI-2 + cross-competition transfer). Interactive/agentic benchmark (AI<0.5%, 人类 100%); 几乎无技术从 AGI-2 直接迁移(无示例对⇒TTT/程序合成/DSL 全废),可借的是 refine-loop/RL/世界建模/智能体架构/工具箱。详见 [`arc-agi3/cross-competition.md`](arc-agi3/cross-competition.md)。
 - **2026-06-14** nvidia-nemotron — context consolidation into English canonical docs + `tracking.md` + `_zh` sidecars (KCT-002); v15 synth = 0.84, best held at v14 0.85.
 - **2026-06-14** orbit-wars — v4 Scheduler(PR #92);文档集补全(KCT-001)。
 - **2026-06-14** orbit-wars — context consolidation into English canonical docs + `tracking.md` + `_zh` sidecars (KCT-003); ladder refreshed read-only: kuni05 1085.4 / v3.2 660.0, top ~1746.
