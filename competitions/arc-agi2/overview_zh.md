@@ -216,3 +216,31 @@
 
 > 需要你拍板的几件事（见 `tasks.md` 末尾）：开发算力用本地 snorlax(4090) 还是 Kaggle L4x4 还是外部 GPU(#83)？
 > 主攻进步奖（刷分）还是大奖（writeup，保证发放）？现在投入多少 vs 临近 deadline 再发力？
+
+## 十一、当前状态说明 & 下一步
+
+**状态说明**
+
+- 这是**研究阶段**：**没有**任何 Kaggle push/submit，也**还没建** `kca-arc.yaml`（autonomy 配置）——
+  任何线上动作前都会先建它并经人工确认。临近 11-02 截止的最终晋级**人工把关**（提交策略场景 4）。
+- 数据（~9MB）已被 `data/.gitignore` 排除，**不入库**；用 `python eval/fetch_data.py` 重新拉取。
+- 评测环已防住 nemo 的 CV/LB 背离教训：先用 oracle（提交=答案→100%）+ 改坏一题（<100%）证明评分器真的在判对错，
+  再信任本地分。
+
+**已完成（T0/T1）**
+
+- 公榜：榜首 nvbanana 50.56、967 队、账号已报名（§七）。
+- 提交格式：`{task_id: [{attempt_1, attempt_2}]}`（来自 `sample_submission.json`）。
+- 数据：1000 训练 + 120 评测（167 测试输出）。
+- `eval/` 本地 pass@2 工具链：loader / metric / baselines / CLI / viewer / fetch_data；oracle 100%、
+  baselines 0%、8/8 单测、ruff 全绿。
+
+**下一步（按优先级）**
+
+1. **T0.3**（下一步）：读 ARC Prize 2025 技术报告（arXiv:2601.10904）+ NVIDIA NVARC 博客，吃透 TTT 参考配方。
+2. **T2**：scope 并复现一个 TTT 基线，先对齐 ~24–35 梯队，确认能在 12h/无联网/L4x4 跑完（先做单题预检）。
+3. **T1.4**：在公开评测集上给题目分类（符号/组合/上下文/顺序），定位 TTT 解不动的缺口。
+4. **T0.4**：决定 Kaggle 账号 + 建 `kca-arc.yaml`（含 autonomy 屏蔽规则）后再谈任何 push/submit。
+
+**待你拍板**：开发算力（snorlax 4090 / Kaggle L4x4 / 外部 GPU #83）；主攻方向（进步奖刷分 vs 大奖 writeup，
+后者保证发放）；投入节奏（现在发力 vs 临近 deadline）。
