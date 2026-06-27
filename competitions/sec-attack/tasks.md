@@ -16,7 +16,9 @@
 - [x] **T6 Bypass generators (H2):** `kernels/attack_bypass.py` (file-wash + http.post data-blind-spot) →
       **18.0 vs `optimal_public`** (was 0.00); `eval/validate_bypass.py` + `eval/instruction_agent.py`. *(H3 encoded-
       exfil refuted for the sentinel — see strategy.md.)*
-- [ ] **T5 Real-agent run (H6):** validate the bypass chains vs **gpt_oss** on snorlax 4090 (GPU); verify official-page facts.
+- [~] **T5 Real-agent run (H6):** Kaggle submission notebook built + pushed (`kernels/sec-attack-jed.ipynb` →
+      `harrysun2006/sec-attack-jed`); verifies templates against the REAL in-kernel agent (gpt_oss), keeps firing
+      families, fans out across benign sinks. **Pending:** read run score/logs → tune `MAX_CANDIDATES`/phrasing → submit to LB.
 - [ ] **T7 Scale + stack:** grow to ~2000 distinct chains + predicate-stacking (toward 180–1000 raw/200); add best-2000 ranking.
 - [ ] **T8 Robustness:** build a held-out guardrail approximating the private one; both current holes may be closed there.
 
