@@ -33,7 +33,7 @@
 - arXiv 2507.20526 — security challenges in AI agent deployment (related, different contest). **[community]**
 
 ## Internal notes
-- `research.md` (mechanics) · `strategy.md` (ideas/challenges/techniques) · `notes_zh.md` (中文详解) · `rules.md`.
+- `research.md` (mechanics) · `strategy.md` (ideas/challenges/techniques) · `notes.md` (canonical notes) · `notes_zh.md` (中文镜像) · `rules.md`.
 - Reusable: `competitions/_shared/insights.md` (offline gate must match online metric); CLAUDE.md CTF boundary.
 
 ## Memory
