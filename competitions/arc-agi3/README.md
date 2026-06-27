@@ -7,13 +7,22 @@
 > about technique vs ARC-AGI-1/2.
 
 ## Status snapshot
-- status: **active** (research phase)
-- phase: **research** (no agent built yet)
-- current objective: understand the benchmark, stand up the SDK harness, pick a track, build a first exploration baseline
-- best known local/CV: none yet
-- best known LB/public: none yet (frontier LLMs at launch were **< 0.5%**; humans **100%**)
-- current blocker: need Kaggle login (confirm rules/GPU/data tab) + an `arc-agi` API key from `three.arcprize.org` to play the 25 public envs locally
-- next task: `pip install arc-agi`, drive the 25 public environments, decide Official vs Community track, write a minimal random/exploration baseline
+- status: **active** (first submissions in flight)
+- phase: **baseline / submission**
+- current objective: get a non-zero RHAE; 4 candidate agents built, validated locally, pushed to Kaggle
+- best known local/CV: agents run clean vs the 25 public envs (RHAE not yet scored)
+- best known LB/public: **PENDING** (2 submissions scoring; frontier LLMs at launch were < 0.5%, humans 100%)
+- current blocker: **daily limit = 1 submission/account/day** → only 2 of 4 submitted today; rest next day
+- next task: read scored RHAE when reruns finish (~up to 8h); submit arc3-goosenov + arc3-reactive next day; then iterate
+
+## Submissions in flight (2026-06-27)
+| Kernel | Account | Agent | Status |
+|---|---|---|---|
+| arc3-goose (`…-stochasticgoose-cnn`) | harrysun2006 | canonical StochasticGoose CNN | submitted, **PENDING** (id 54111934) |
+| arc3-explore | firefly2006 | frame-diff heuristic | submitted, **PENDING** (id 54111957) |
+| arc3-goosenov | harrysun2006 | CNN + novelty escape | ready, queued (1/day cap) |
+| arc3-reactive | firefly2006 | object-centric heuristic | ready, queued (1/day cap) |
+See `submissions.md` for the log, `kca-arc-agi3.yaml` for the push config, `kernels/agents/` for the agents.
 
 ## What is ARC-AGI-3 (one paragraph)
 135 hand-built, instruction-free, turn-based games on a 64×64 / 16-color grid. The agent gets
