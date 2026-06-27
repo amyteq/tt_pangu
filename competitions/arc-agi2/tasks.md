@@ -9,8 +9,8 @@
 - [x] **T0.2a** `submission.json` schema confirmed from `sample_submission.json`:
       `{task_id: [{"attempt_1": grid, "attempt_2": grid}, ...]}`. `done`
 - [ ] **T0.2b** Confirm per-submission GPU-hour **quota** (beyond the 12h wall-clock) on the Code page. `todo`
-- [ ] **T0.3** Read ARC Prize 2025 Technical Report (arXiv:2601.10904) + NVIDIA NVARC blog for the
-      reference recipe. `todo` ← **next**
+- [x] **T0.3** Read ARC Prize 2025 Tech Report + NVARC + ARChitects 2024 + MindsAI/TRM papers; concrete
+      reproducible recipe distilled into `ttt-recipe.md`. `done`
 - [ ] **T0.4** Decide Kaggle account + create `kca-arc.yaml` (per-comp config + autonomy screen) before
       any push. `todo`
 
@@ -25,9 +25,15 @@
       to know where the gaps are. `todo`
 
 ## Phase 2 — baseline
-- [ ] **T2.1** Reproduce a **TTT baseline** (NVARC/ARChitects family) on a ≤4B base; target ≈ 2025 floor
-      (~20–24%) on the 120 public-eval tasks, offline. `todo`
-- [ ] **T2.2** Add **augmentation + inverted-vote candidate selection** for pass@2; measure delta. `todo`
+- [~] **T2.1** Reproduce a **TTT baseline** (NVARC/ARChitects family). `doing`
+  - [x] **T2.1a** Model-agnostic CPU core (`solver/`): D8+color augmentation w/ exact inverse, grid
+        serialization, leave-one-out TTT-data builder, PoE/vote selection, `solve_task` orchestration.
+        **Validated** (oracle decode→100%, dummy→0% over 120 eval; 23 unit tests). `done`
+  - [ ] **T2.1b** GPU/model layer: implement `DecodeFn` (transformers+peft) — load base model, per-task
+        LoRA TTT (rank 32, ~64 steps, leave-one-out demos), greedy/DFS decode. **Blocked on T0.4 compute
+        decision** (rung-1 Qwen2.5-0.5B on 4090 vs rung-2 8B/4B + offline pretrain). `blocked`
+- [x] **T2.2** Augmentation + de-augmented vote/PoE selection for pass@2 — built in `solver/select.py`
+      (the AIRV invariant is unit-tested). Measure real delta once T2.1b lands. `done (core)`
 - [ ] **T2.3** Confirm the kernel runs inside **12h / no-internet / L4x4** with a single-task preflight. `todo`
 
 ## Phase 3 — levers (one at a time, gated on T1.3 harness)

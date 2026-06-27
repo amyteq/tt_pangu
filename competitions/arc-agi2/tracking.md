@@ -27,6 +27,8 @@
 | 2026-06-26 | baseline-identity | trivial floor | out=in (both attempts) | — | 0.0% | <1s | expected; ARC-2 has no identity tasks |
 | 2026-06-26 | baseline-mcto | constant-output floor | modal train output + input | — | 0.0% | <1s | expected floor |
 | 2026-06-26 | baseline-shape0 | canvas-shape floor | zeros@modal-shape + input | — | 0.0% | <1s | expected floor |
+| 2026-06-27 | ttt-core-oracle | AIRV scaffolding is correctly wired | full augment→infer→deaug→PoE/vote pipeline w/ perfect-augmented-decode oracle | 0 | **100.0%** | ~2s | ✅ pipeline validated end-to-end (167/167) |
+| 2026-06-27 | ttt-core-dummy | pipeline doesn't inflate | same pipeline, decode=echo augmented input | 0 | 0.0% | ~2s | ✅ no false positives |
 
 ## Baselines / reference points (external, for orientation)
 | Source | Score | Constraint context |
@@ -44,3 +46,8 @@
   downloaded (1000 train + 120 eval, gitignored); submission schema confirmed from `sample_submission.json`
   (`{task_id: [{attempt_1, attempt_2}]}`); **local pass@2 harness built + validated** (oracle 100%, baselines
   0%, 8/8 unit tests). Next: read 2025 tech report (T0.3), scope a TTT baseline (T2).
+- 2026-06-27 — declined a request to push 4 kernels: our only candidates were 0% baselines + no kernel
+  infra existed; chose (with human) to **build a real TTT baseline first**.
+- 2026-06-27 — T0.3 done (recipe in `ttt-recipe.md`); **T2.1a done** — model-agnostic TTT core in `solver/`
+  (augment/serialize/ttt_data/select/run) built + validated (oracle 100%, dummy 0%, 31/31 tests, ruff clean).
+  **T2.1b (GPU/model layer) is blocked on the compute decision (T0.4).** Still no Kaggle push/submit.
