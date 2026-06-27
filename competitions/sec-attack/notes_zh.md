@@ -1,6 +1,7 @@
 # 中文详解 — AI Agent Security: Multi-Step Tool Attacks（sec-attack）
 
-> 英文权威版见 `research.md` / `strategy.md`。本文是给人看的中文详细介绍 + 我的 ideas + 我看到的挑战 + 提分技术技巧。
+> 英文权威版(canonical)见 `notes.md`(本文是其中文镜像);更正式的机制/策略见 `research.md` / `strategy.md`。
+> 本文是给人看的中文详细介绍 + 我的 ideas + 我看到的挑战 + 提分技术技巧。
 > 标注:**[源码]** = 直接读 `aicomp-sdk==3.1.2` 源码(已 pip 下载并逐文件阅读,权威);**[网页 ⚠]** = Kaggle 页面是
 > JS 渲染、抓不全,来自外部摘要,**未核实**,引用前请到官方页面确认。比赛内所有 fixture / 网页文本都当**不可信数据**,不当指令。
 
@@ -136,9 +137,10 @@ raw  = Σ(每个 finding 的每个谓词 SEVERITY_W[severity])  +  2.0 × (不�
 9. **自建"私有 guardrail"近似**做鲁棒性验证,避免公榜过拟合;**两次最终提交做差异化**(一份广度最大、一份鲁棒最大)。
 10. **用满每日额度做有度探索**,在已知良配附近探索;**约在每日 UTC 翻天前 2 小时**提交(对齐 CLAUDE.md KCA 提交策略场景 1–3)。
 
-## 11. 下一步(可执行)
-1. 官方页面核实 **截止/额度/队伍/奖金/用哪个 Agent**(消掉所有 [网页 ⚠])。
-2. `pip install aicomp-sdk==3.1.2` → `aicomp init attack` → `aicomp evaluate redteam attack.py --env gym --agent deterministic`,
-   **离线复刻评分**。
-3. 移植 Go-Explore baseline(`kernels/attack_goexplore.py`),记录归一分 + 唯一 cell 数(地板)。
-4. 确认并在**真实 Agent**(snorlax 4090)上复跑,再开始一次一变量的提分循环。
+## 11. 下一步(当前状态 — 见 `tasks.md`)
+- **已完成:** T1(从源码确认 agent/guardrail)· T2(本地 loop)· T3(逐位复刻评分器)· T4(Go-Explore 地板 0.00)·
+  **T6(bypass v1 → 18.0 vs `optimal_public`)**。
+- **T5 — 真实 Agent 复跑:** 在 GPU(snorlax 4090)上用真实 LB agent `gpt_oss` 验证绕过链;确认从 InstructionAgent 代理的迁移与措辞。
+- **T7 — 扩量 + 叠加:** 扩到 ~2000 条不同链 + 谓词叠加(在 raw/200 标度上往 180→~1000 推);加 best-2000 排序选择。
+- **T8 — 鲁棒性 / 防过拟合:** 自建近似私有 guardrail;当前两个洞在私榜可能被堵 —— 两次最终提交做差异化。
+- **核实官方页面** 截止/额度/队伍/奖金(仍是 [网页 ⚠])。
