@@ -131,7 +131,6 @@ if __name__ == "__main__":
     from aicomp_sdk.agents import build_agent
     from aicomp_sdk.attacks.baselines.guardrail_rules import Guardrail
     from aicomp_sdk.core.env.sandbox import SandboxEnv
-    from aicomp_sdk.scoring import score_attack
 
     import aicomp_sdk
 
