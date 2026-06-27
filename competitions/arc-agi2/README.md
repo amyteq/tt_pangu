@@ -3,7 +3,8 @@
 > Canonical language: **English** for facts/strategy; the human-facing 详细介绍 lives in
 > `overview_zh.md`. Aliases: `arc`, `arc-agi2`, `arcprize`.
 > Kaggle slug: `arc-prize-2026-arc-agi-2`.
-> Status: **research / prep** — local env + eval harness built (2026-06-26); no TTT baseline or submission yet.
+> Status: **research / building** — eval harness + TTT recipe + model-agnostic solver core built & validated
+> (2026-06-27); GPU/model layer + first submission still pending (blocked on the compute decision).
 > Numbers are from the 2026-06-26 research scan + a read-only Kaggle API refresh (`references.md` / `tracking.md`).
 
 ## Status snapshot
@@ -16,8 +17,11 @@
 - Kaggle-constrained SOTA (2025 inaugural run): **NVARC 24.03%** (TTT on a ~4B model + synthetic data)
 - human baseline: **66%** individual avg on public eval; calibration panel solves **100%**
 - frontier-LLM-via-API SOTA (NOT Kaggle-eligible — internet off): ~37–85% but at $2–30/task
-- done: live LB confirmed · public data downloaded (1000+120, gitignored) · submission schema confirmed ·
-  **local pass@2 harness built + validated** (oracle 100%, baselines 0%, 8/8 tests). next: TTT baseline (T2).
+- done: live LB confirmed · data downloaded (1000+120, gitignored) · submission schema confirmed · **local
+  pass@2 harness validated** (oracle 100%, baselines 0%) · **TTT recipe distilled** (`ttt-recipe.md`) ·
+  **model-agnostic TTT solver core built + validated** (oracle 100% / dummy 0% over 120 eval; 31/31 tests)
+- **next: GPU/model layer** (`solver/` `DecodeFn`: base model + per-task LoRA TTT + decode) → first real
+  submission. **Blocked on the compute decision** (rung-1 Qwen2.5-0.5B@4090 vs rung-2 8B/4B + offline pretrain).
 
 ## What's in this folder
 | File | Purpose |
@@ -30,8 +34,10 @@
 | `references.md` | every source with URL + trust label |
 | `tasks.md` | concrete next actions (data, baseline, eval harness) |
 | `tracking.md` | experiment / submission log + live-LB snapshot |
+| `ttt-recipe.md` | **reproducible TTT recipe** distilled from 2024/2025 winners (base model, augmentation, TTT loop, decode, compute) |
 | `eval/` | **local pass@2 harness** (loader, metric, baselines, viewer, CLI) + `eval/README.md` |
-| `tests/` | unit tests for the metric (`python -m pytest tests/`) |
+| `solver/` | **model-agnostic TTT core** (augment, serialize, ttt_data, select, run, validate) + `solver/README.md` |
+| `tests/` | unit tests for the metric + solver core (`python -m pytest tests/`) |
 | `data/` | gitignored local data (`python eval/fetch_data.py` to repopulate) |
 
 ## Key facts (cite `references.md`)
