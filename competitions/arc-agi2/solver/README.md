@@ -25,11 +25,14 @@ build 16 augmentations (D8 x color-perm)         augment.py
 | `model.py` | GPU layer: Qwen2.5-0.5B + per-task LoRA TTT + greedy decode → `DecodeFn` | ✅ done (runs on snorlax) |
 | `run_eval.py` | run the solver over a split + score (pass@2) | ✅ done |
 | `debug_decode.py` | dump what the model actually emits (decode-quality probe) | ✅ done |
-| *(offline pretrain)* | give the 0.5B an ARC prior (1000 train tasks / RE-ARC) before TTT | ⏳ **TODO — the missing ingredient** |
+| `pretrain.py` | offline pretrain: 0.5B LoRA on the 1000 train tasks → the ARC-prior adapter | ✅ done |
 
-> **Result so far (rung-1, no pretrain):** 10-task eval sample = **0/10 (0%)**. The model emits well-formed
-> grids after TTT but can't induce rules with no ARC prior. The **offline pretrain** is the next gating step
-> (ironbar's 0.5B reaches ~40% on ARC-1 *with* it; without it, ~0%).
+> **Rung-1 verdict (Qwen2.5-0.5B):** pipeline validated end-to-end, but the eval score is **~0%**, with or
+> without the offline pretrain (no-pretrain 0/10; pretrained 0/20). The pretrain trained fine (loss
+> 0.69→0.29) and the model emits structured grids, but gets dimensions/content wrong — a **model-capacity
+> limit on ARC-AGI-2**, not a bug (the oracle harness scores 100%). The literature agrees: 8B ARChitects
+> got 16.5%, NVARC (4B + massive synthetic + TRM) 24%. **A real score needs rung-2** (4–8B + RE-ARC +
+> DFS/PoE) — the entire `solver/` core is reused unchanged; only `model.py`'s base model + the pretrain scale up.
 
 ## Validation (the scaffolding is correctly wired)
 ```sh
