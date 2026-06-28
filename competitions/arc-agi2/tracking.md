@@ -29,6 +29,7 @@
 | 2026-06-26 | baseline-shape0 | canvas-shape floor | zeros@modal-shape + input | — | 0.0% | <1s | expected floor |
 | 2026-06-27 | ttt-core-oracle | AIRV scaffolding is correctly wired | full augment→infer→deaug→PoE/vote pipeline w/ perfect-augmented-decode oracle | 0 | **100.0%** | ~2s | ✅ pipeline validated end-to-end (167/167) |
 | 2026-06-27 | ttt-core-dummy | pipeline doesn't inflate | same pipeline, decode=echo augmented input | 0 | 0.0% | ~2s | ✅ no false positives |
+| 2026-06-28 | ttt-rung1-sample10 | rung-1 (0.5B+TTT, no pretrain) scores on real eval | Qwen2.5-0.5B-Instruct, per-task LoRA TTT 64 steps, 8-aug AIRV, on snorlax 4090 | 0 | **0.0%** (0/10) | ~15min/10 tasks (11–182s/task) | model emits well-formed grids but wrong; **0% = missing offline pretrain** (no ARC prior). GPU layer itself validated. |
 
 ## Baselines / reference points (external, for orientation)
 | Source | Score | Constraint context |
@@ -51,3 +52,9 @@
 - 2026-06-27 — T0.3 done (recipe in `ttt-recipe.md`); **T2.1a done** — model-agnostic TTT core in `solver/`
   (augment/serialize/ttt_data/select/run) built + validated (oracle 100%, dummy 0%, 31/31 tests, ruff clean).
   **T2.1b (GPU/model layer) is blocked on the compute decision (T0.4).** Still no Kaggle push/submit.
+- 2026-06-28 — **T2.1b GPU layer built + run on snorlax 4090** (rung-1: Qwen2.5-0.5B + per-task LoRA TTT,
+  `solver/model.py` + `run_eval.py`). Fixed OOM (bs1 + grad-checkpoint + seq filter) and a parser bug
+  (ragged-row normalization). End-to-end works; **10-task sample = 0/10 (0%)**. **Key finding:** rung-1
+  WITHOUT an offline pretrain has no ARC prior → 0%. The offline pretrain (RE-ARC or the 1000 public train
+  tasks) is the missing essential step (ironbar's 0.5B got ~40% on ARC-1 *with* it). Decision pending:
+  add the pretrain (T2.1c) vs full-120 anyway (~3h, ~0%) vs escalate to rung-2. No Kaggle push/submit.

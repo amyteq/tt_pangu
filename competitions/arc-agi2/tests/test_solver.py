@@ -21,7 +21,8 @@ from solver.augment import (  # noqa: E402
     rot_ccw,
     rot_cw,
 )
-from solver.select import Candidate, select_top2, to_submission_entry  # noqa: E402
+from solver.model import parse_generated_grid  # noqa: E402
+from solver.selection import Candidate, select_top2, to_submission_entry  # noqa: E402
 from solver.serialize import format_task_prompt, grid_to_str, str_to_grid  # noqa: E402
 from solver.ttt_data import build_inference_prompts, build_ttt_examples  # noqa: E402
 
@@ -162,6 +163,25 @@ def test_vote_fallback_without_logprobs():
         Candidate(aug=a, grid=a.apply(other)),
     ]
     assert select_top2(cands)[0] == truth
+
+
+def test_parse_clean_grid():
+    assert parse_generated_grid("01\n23") == [[0, 1], [2, 3]]
+
+
+def test_parse_stops_at_non_digit():
+    assert parse_generated_grid("01\n23\nthe answer is above") == [[0, 1], [2, 3]]
+
+
+def test_parse_empty_on_no_digits():
+    assert parse_generated_grid("here is a grid:") == []
+
+
+def test_parse_normalises_ragged_to_modal_width():
+    # rows of width 3,3,2 -> modal width 3; the short row is padded with 0
+    assert parse_generated_grid("123\n456\n78") == [[1, 2, 3], [4, 5, 6], [7, 8, 0]]
+    # rows of width 2,3,3 -> modal 3; the long-short mix truncates/pads to 3
+    assert parse_generated_grid("12\n345\n678") == [[1, 2, 0], [3, 4, 5], [6, 7, 8]]
 
 
 def test_submission_entry_always_two_attempts():
