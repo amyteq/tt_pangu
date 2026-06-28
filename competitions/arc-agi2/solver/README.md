@@ -27,12 +27,14 @@ build 16 augmentations (D8 x color-perm)         augment.py
 | `debug_decode.py` | dump what the model actually emits (decode-quality probe) | ✅ done |
 | `pretrain.py` | offline pretrain: 0.5B LoRA on the 1000 train tasks → the ARC-prior adapter | ✅ done |
 
-> **Rung-1 verdict (Qwen2.5-0.5B):** pipeline validated end-to-end, but the eval score is **~0%**, with or
-> without the offline pretrain (no-pretrain 0/10; pretrained 0/20). The pretrain trained fine (loss
-> 0.69→0.29) and the model emits structured grids, but gets dimensions/content wrong — a **model-capacity
-> limit on ARC-AGI-2**, not a bug (the oracle harness scores 100%). The literature agrees: 8B ARChitects
-> got 16.5%, NVARC (4B + massive synthetic + TRM) 24%. **A real score needs rung-2** (4–8B + RE-ARC +
-> DFS/PoE) — the entire `solver/` core is reused unchanged; only `model.py`'s base model + the pretrain scale up.
+> **Verdict (rung-1 0.5B and rung-2 4B):** the pipeline is validated end-to-end (oracle 100%), but eval
+> score is **~0% at both rungs** — rung-1 0/10 & 0/20, rung-2 (Qwen3-4B + pretrain) **0/20**. The 4B
+> pretrain fit the *training* distribution well (loss 0.16 vs the 0.5B's 0.29) yet still scored 0% on eval.
+> **Conclusion: model size is not the bottleneck — the DATA pipeline is.** The 2025 winners (16–24%) got
+> their score from **RE-ARC** (procedural rule regeneration → teaches rule *execution*) + large synthetic
+> data + DFS decode, not from a bigger base on the same tasks. Pretraining on just the 1000 ARC-2 train
+> tasks teaches memorization, which ARC-2 eval is explicitly designed to defeat. Next lever = T2.5 (RE-ARC),
+> a multi-day build. The `solver/` core is reused unchanged regardless.
 
 ## Validation (the scaffolding is correctly wired)
 ```sh

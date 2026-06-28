@@ -32,6 +32,8 @@
 | 2026-06-28 | ttt-rung1-sample10 | rung-1 (0.5B+TTT, no pretrain) scores on real eval | Qwen2.5-0.5B-Instruct, per-task LoRA TTT 64 steps, 8-aug AIRV, on snorlax 4090 | 0 | **0.0%** (0/10) | ~15min/10 tasks (11–182s/task) | model emits well-formed grids but wrong; **0% = missing offline pretrain** (no ARC prior). GPU layer itself validated. |
 | 2026-06-28 | rung1-pretrain | offline pretrain on 1000 train tasks (the ARC prior) | Qwen2.5-0.5B LoRA r32, 12.1k aug examples, 1 epoch | 0 | train loss 0.69→0.29 | 861s (14min) on 4090 | adapter learns the grid format/mappings on train distribution |
 | 2026-06-28 | ttt-rung1-pretrained-sample20 | does the pretrain lift eval score? | pretrained adapter + per-task TTT 64 + 8-aug AIRV | 0 | **0.0%** (0/20) | ~25min | **rung-1 ceiling ≈ 0% on ARC-2 eval.** Decode probe: structured grids but WRONG dims (14×6 vs 18×8) + wrong content; rotated view degenerates. Capacity limit, not a bug (oracle=100%). Matches lit: 8B→16.5%, NVARC 4B+synth+TRM→24%. |
+| 2026-06-29 | rung2-pretrain-4b | bigger base learns the prior better | Qwen3-4B-Base LoRA r32, 12.1k aug examples, 1 epoch | 0 | train loss 0.37→**0.16** | 2994s (50min) on 4090 | 4B fits 24GB bf16 (12.8GB); learns training distribution much better than 0.5B (0.16 vs 0.29) |
+| 2026-06-29 | ttt-rung2-4b-sample20 | does a 4B + pretrain score on eval? | Qwen3-4B-Base + pretrained adapter + TTT 64 + 8-aug AIRV | 0 | **0.0%** (0/20) | ~55min (32–372s/task) | **Still 0%.** 4B fits training (loss 0.16) but ARC-2 eval needs rule *generalization*, not task memorization. **The lever is the DATA pipeline (RE-ARC + synthetic), not model size.** Per-task ~2.5min → full 120 ≈ 5h. |
 
 ## Baselines / reference points (external, for orientation)
 | Source | Score | Constraint context |
@@ -64,3 +66,10 @@
   2025 results (8B ARChitects 16.5%, NVARC 4B+synth+TRM 24%). **Recommend escalating to rung-2** (4–8B +
   RE-ARC pretrain + DFS/PoE) for any non-trivial score, or pivoting to the Grand-Prize/writeup angle.
   No Kaggle push/submit. snorlax powered down to save cost pending the rung decision.
+- 2026-06-29 — **rung-2 (Qwen3-4B) run on snorlax** (per owner decision). 4B pretrain on 1000 train tasks
+  reached loss 0.16 (vs 0.5B's 0.29) and fits 24GB bf16, but **eval = 0/20 (0%) again.** Verdict: model
+  size is NOT the bottleneck — the winners' lever is the **data pipeline** (RE-ARC procedural rule
+  regeneration + large synthetic data, which teach rule *execution*; we only pretrained on the 1000 ARC-2
+  train tasks → task-fit, not generalization). Closing the gap = a multi-day RE-ARC/synthetic build (+ DFS
+  decode), not just a bigger model. Reported to owner; snorlax shut down per request pending direction.
+  Full validated pipeline + all findings in PR #159.
