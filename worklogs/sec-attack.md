@@ -16560,3 +16560,436 @@ built firefly2006/sec-attack-jed-x: families=('filewash', 'direct') max=24 fanou
 === verify stub cell present ===
 submission.csv stub
 ```
+
+```bash
+$ cd /home/harry/test/tt_pangu
+BASE=/tmp/claude-1000/secattack/variants
+echo "=== re-push harry ===" 
+kaggle kernels push -p "$BASE/v1" 2>&1 | grep -iv "Warning: Look\|consider upgrading"
+kaggle kernels push -p "$BASE/v2" 2>&1 | grep -iv "Warning: Look\|consider upgrading"
+echo "=== re-push firefly ===" 
+set -a; . ./.vscode/.env.may; set +a; export KAGGLE_CONFIG_DIR=/tmp/claude-1000/secattack/kcfg_firefly
+kaggle kernels push -p "$BASE/v3" 2>&1 | grep -iv "Warning: Look\|consider upgrading"
+kaggle kernels push -p "$BASE/v4" 2>&1 | grep -iv "Warning: Look\|consider upgrading"
+```
+
+```
+=== re-push harry ===
+Kernel version 4 successfully pushed.  Please check progress at https://www.kaggle.com/code/harrysun2006/sec-attack-jed
+Kernel version 3 successfully pushed.  Please check progress at https://www.kaggle.com/code/harrysun2006/sec-attack-jed-x
+=== re-push firefly ===
+Kernel version 3 successfully pushed.  Please check progress at https://www.kaggle.com/code/firefly2006/sec-attack-jed
+Kernel version 3 successfully pushed.  Please check progress at https://www.kaggle.com/code/firefly2006/sec-attack-jed-x
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/sec-attack-setup
+```
+
+### 🤖 Assistant: *All 4 re-pushed with the stub cell (harry…*
+
+**`2026-06-28`** `08:35:09`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All 4 re-pushed with the stub cell (harry v4/v3, firefly v3/v3). Let me wait for completion, verify `submission.csv` is now in the output, then submit.
+
+#### 💻 Bash: *Poll statuses and verify stub submission.csv in output*
+
+`08:35:16`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+sleep 70
+echo "=== statuses ===" 
+for k in harrysun2006/sec-attack-jed harrysun2006/sec-attack-jed-x; do echo -n "$k -> "; kaggle kernels status "$k" 2>&1 | grep -iv "Warning: Look\|consider upgrading" | tail -1; done
+set -a; . ./.vscode/.env.may; set +a; export KAGGLE_CONFIG_DIR=/tmp/claude-1000/secattack/kcfg_firefly
+for k in firefly2006/sec-attack-jed firefly2006/sec-attack-jed-x; do echo -n "$k -> "; kaggle kernels status "$k" 2>&1 | grep -iv "Warning: Look\|consider upgrading" | tail -1; done
+echo "=== verify submission.csv in harry output ===" 
+unset KAGGLE_CONFIG_DIR; unset KAGGLE_USERNAME; unset KAGGLE_KEY
+OUT=/tmp/claude-1000/secattack/klog2; mkdir -p "$OUT"
+kaggle kernels output harrysun2006/sec-attack-jed -p "$OUT" 2>&1 | grep -iv "Warning: Look\|consider upgrading" | tail -2
+ls "$OUT" | head; echo "--- submission.csv ---"; cat "$OUT/submission.csv" 2>/dev/null
+```
+
+```
+Exit code 1
+=== statuses ===
+harrysun2006/sec-attack-jed -> harrysun2006/sec-attack-jed has status "KernelWorkerStatus.COMPLETE"
+harrysun2006/sec-attack-jed-x -> harrysun2006/sec-attack-jed-x has status "KernelWorkerStatus.COMPLETE"
+firefly2006/sec-attack-jed -> firefly2006/sec-attack-jed has status "KernelWorkerStatus.COMPLETE"
+firefly2006/sec-attack-jed-x -> firefly2006/sec-attack-jed-x has status "KernelWorkerStatus.COMPLETE"
+=== verify submission.csv in harry output ===
+Cannot access kernel 'harrysun2006/sec-attack-jed' (Permission 'kernels.get' was denied). The most likely cause is a wrong kernel slug. The benchmark_task_slug returned by get_benchmark_leaderboard differs from the actual kernel slug — use the slug from the notebook URL (kaggle.com/code/owner/KERNEL-SLUG), not from the leaderboard. It can also occur if the notebook is private.
+--- submission.csv ---
+```
+
+### 🤖 Assistant: *The injection-flagged text was just a kaggle…*
+
+`08:36:48`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The injection-flagged text was just a kaggle CLI error string (third-party content), not a user instruction — it didn't mislead me; continuing with the actual task.
+> 
+> All 4 kernels are COMPLETE. Rather than fight the `kernels output` quirk, let me just attempt the submission directly (the real test of whether the stub worked):
+
+#### 💻 Bash: *Submit harry sec-attack-jed v4 with stub*
+
+`08:36:53`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+C=ai-agent-security-multi-step-tool-attacks
+# ensure clean harry auth (default ~/.kaggle/kaggle.json)
+unset KAGGLE_CONFIG_DIR KAGGLE_USERNAME KAGGLE_KEY
+echo "=== submit harrysun2006/sec-attack-jed v4 ===" 
+kaggle competitions submit "$C" -k harrysun2006/sec-attack-jed -v 4 -f submission.csv -m "balanced deputy+direct+filewash (max30)" 2>&1 | grep -iv "Warning: Look\|consider upgrading" | tail -2
+```
+
+```
+=== submit harrysun2006/sec-attack-jed v4 ===
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/sec-attack-setup
+```
+
+### 🤖 Assistant: *No error — the stub worked.*
+
+`08:37:11`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> No error — the stub worked. Let me confirm it landed, then submit the other three.
+
+#### 💻 Bash: *Confirm submission and submit harry-x*
+
+`08:37:14`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+C=ai-agent-security-multi-step-tool-attacks
+unset KAGGLE_CONFIG_DIR KAGGLE_USERNAME KAGGLE_KEY
+echo "=== harry submissions ===" && kaggle competitions submissions "$C" 2>&1 | grep -iv "Warning: Look\|consider upgrading" | head -6
+echo "=== submit harry sec-attack-jed-x v3 ===" 
+kaggle competitions submit "$C" -k harrysun2006/sec-attack-jed-x -v 3 -f submission.csv -m "fast-breadth direct+deputy (max40)" 2>&1 | grep -iv "Warning: Look\|consider upgrading" | tail -1
+echo "done harry-x"
+```
+
+```
+=== harry submissions ===
+     ref  fileName        date                        description                                            status                    publicScore  privateScore  
+--------  --------------  --------------------------  -----------------------------------------------------  ------------------------  -----------  ------------  
+54134273  submission.csv  2026-06-28 08:37:07.293000  balanced deputy+direct+filewash (max30)                SubmissionStatus.PENDING                             
+54132637  submission.csv  2026-06-28 07:31:16.077000  Notebook Agent-Security Attack Submission | Version 1  SubmissionStatus.PENDING                             
+=== submit harry sec-attack-jed-x v3 ===
+done harry-x
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/sec-attack-setup
+```
+
+### 🤖 Assistant: *Harry's submission landed (54134273, PENDING…*
+
+`08:37:35`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Harry's submission landed (54134273, PENDING — scored rerun running) and harry-x submitted. Now firefly's two with `.env.may` creds:
+
+#### 💻 Bash: *Submit firefly kernels*
+
+`08:37:40`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+C=ai-agent-security-multi-step-tool-attacks
+set -a; . ./.vscode/.env.may; set +a; export KAGGLE_CONFIG_DIR=/tmp/claude-1000/secattack/kcfg_firefly
+echo "active: ${KAGGLE_USERNAME}"
+echo "=== submit firefly sec-attack-jed v3 ===" 
+kaggle competitions submit "$C" -k firefly2006/sec-attack-jed -v 3 -f submission.csv -m "balanced deputy+direct+filewash (max30)" 2>&1 | grep -iv "Warning: Look\|consider upgrading" | tail -1
+echo "=== submit firefly sec-attack-jed-x v3 ===" 
+kaggle competitions submit "$C" -k firefly2006/sec-attack-jed-x -v 3 -f submission.csv -m "filewash+direct (max24)" 2>&1 | grep -iv "Warning: Look\|consider upgrading" | tail -1
+echo "=== firefly submissions ===" && kaggle competitions submissions "$C" 2>&1 | grep -iv "Warning: Look\|consider upgrading" | head -5
+```
+
+```
+active: firefly2006
+=== submit firefly sec-attack-jed v3 ===
+=== submit firefly sec-attack-jed-x v3 ===
+=== firefly submissions ===
+     ref  fileName        date                        description                              status                    publicScore  privateScore  
+--------  --------------  --------------------------  ---------------------------------------  ------------------------  -----------  ------------  
+54134299  submission.csv  2026-06-28 08:38:02.290000  filewash+direct (max24)                  SubmissionStatus.PENDING                             
+54134296  submission.csv  2026-06-28 08:37:59.880000  balanced deputy+direct+filewash (max30)  SubmissionStatus.PENDING
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/sec-attack-setup
+```
+
+### 🤖 Assistant: *All 4 submitted and PENDING (scored rerun…*
+
+`08:38:28`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All 4 submitted and PENDING (scored rerun running). Summary of submissions:
+> - **harrysun2006**: `sec-attack-jed` v4 (54134273), `sec-attack-jed-x` v3
+> - **firefly2006**: `sec-attack-jed` v3 (54134296), `sec-attack-jed-x` v3 (54134299)
+> 
+> The errors are fixed (P100→T4 GPU; missing output→`submission.csv` stub). Let me commit the kernel-code changes (repo hygiene, PR #157 is merged) and open a follow-up PR, then monitor the scored reruns.
+
+#### 💻 Bash: *Stage parameterized kernel changes*
+
+`08:38:33`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/sec-attack-setup
+# refresh the canonical committed notebook+metadata to match what was pushed (harry balanced variant)
+cp /tmp/claude-1000/secattack/variants/v1/sec-attack-jed.ipynb competitions/sec-attack/kernels/sec-attack-jed.ipynb
+cp /tmp/claude-1000/secattack/variants/v1/kernel-metadata.json competitions/sec-attack/kernels/kernel-metadata.json
+git add competitions/sec-attack/kernels
+git status --short | head
+```
+
+```
+M  competitions/sec-attack/kernels/attack_kaggle.py
+M  competitions/sec-attack/kernels/build_kaggle_nb.py
+M  competitions/sec-attack/kernels/kernel-metadata.json
+M  competitions/sec-attack/kernels/sec-attack-jed.ipynb
+?? .claude/launch.json
+?? .claude/routines
+?? .claude/workflows
+```
+
+### 🤖 Assistant: *Let me record the submissions in the tracker…*
+
+`08:38:45`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me record the submissions in the tracker and lint before committing:
+
+#### ✏️  Edit `submissions.md`
+
+`08:38:56`
+
+```diff
+@@ -1,2 +1,19 @@ > normalized = raw/200. bypass v1 = 200×(16 EXFIL + 2 cell) = 3600 raw → 18.0. Scale toward the 2000-cap + add
+-> predicate-stacking to push higher. **Not yet submitted to Kaggle; not yet validated on real gpt_oss (T5).**
++> predicate-stacking to push higher.
++
++## Kaggle LB submissions (2026-06-28) — `kernels/attack_kaggle.py` via `sec-attack-jed*` notebooks
++Real scored rerun = gpt_oss + gemma × public(`optimal_public`)+private guardrails; submission.csv `Id,Score` rows
++(`gpt_oss_public/private`, `gemma_public/private`). Submit: `kaggle competitions submit <comp> -k <user>/<slug> -v <ver> -f submission.csv`.
++
++| Account | Kernel (ver) | families | max/fanout | sub id | status |
++|---|---|---|---|---|---|
++| harrysun2006 | sec-attack-jed (v4) | deputy,direct,filewash | 30/12 | 54134273 | PENDING |
++| harrysun2006 | sec-attack-jed-x (v3) | direct,deputy | 40/20 | — | PENDING |
++| firefly2006 | sec-attack-jed (v3) | deputy,direct,filewash | 30/12 | 54134296 | PENDING |
++| firefly2006 | sec-attack-jed-x (v3) | filewash,direct | 24/12 | 54134299 | PENDING |
++
++**Fixes applied to make code submission work:** kernel must use **T4** (`machine_shape: NvidiaTeslaT4` + BYOD docker image;
++P100 is rejected); the notebook writes a schema-valid **`submission.csv` stub** during Save&Run (serve() only emits the
++real file during the scored rerun) to pass the code-submission precondition. The attack verifies templates against the
++**real in-kernel agent** and keeps only firing families (conservative count to stay under the 9000s/phase replay budget,
++which hard-fails the whole submission on timeout).
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/sec-attack-setup/competitions/sec-attack/submissions.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### 💻 Bash: *Lint, compile, commit variant changes*
+
+`08:39:09`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/sec-attack-setup
+export PYTHONPATH="/tmp/claude-1000/secattack/deps"
+python3 -m pyflakes competitions/sec-attack/kernels/attack_kaggle.py competitions/sec-attack/kernels/build_kaggle_nb.py 2>&1 || echo "(clean)"
+python3 -m py_compile competitions/sec-attack/kernels/attack_kaggle.py competitions/sec-attack/kernels/build_kaggle_nb.py && echo "compile OK"
+git add competitions/sec-attack/submissions.md competitions/sec-attack/kernels
+git commit -q -F - <<'EOF'
+feat(sec-attack): parameterized Kaggle variants + T4/submission.csv fixes; submit 4 (2 per account)
+
+- attack_kaggle.py: add FAMILIES selector (deputy/direct/filewash) so one source drives variants;
+  verify-then-fanout against the real in-kernel agent, bounded candidate count.
+- build_kaggle_nb.py: --user/--slug/--families/--max/--fanout; bake CONFIG per variant; set T4
+  (machine_shape NvidiaTeslaT4 + BYOD docker image — P100 is rejected by the competition); write a
+  schema-valid submission.csv stub during Save&Run so code submission passes the output-file
+  precondition (the scored rerun overwrites it).
+- Pushed + submitted 4 variants: harrysun2006/{sec-attack-jed v4, sec-attack-jed-x v3} +
+  firefly2006/{sec-attack-jed v3, sec-attack-jed-x v3}. All COMPLETE, no run errors; LB rerun PENDING.
+- submissions.md: record the 4 submissions + the T4/stub fixes.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01NTSFnStMLwna8Fb31ytU3P
+EOF
+echo "exit=$?" && git log --oneline -1
+```
+
+```
+compile OK
+exit=0
+3e6deab feat(sec-attack): parameterized Kaggle variants + T4/submission.csv fixes; submit 4 (2 per account)
+```
+
+````bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/sec-attack-setup
+git push 2>&1 | tail -3
+echo "=== open follow-up PR ===" 
+cat > /tmp/claude-1000/secattack/pr2.md <<'EOF'
+## Summary
+
+Follow-up to #157. Parameterizes the sec-attack Kaggle submission and makes **code submission actually work**, then pushes + submits **4 variants across two accounts** (per request).
+
+- `kernels/attack_kaggle.py`: `FAMILIES` selector (deputy / direct / filewash) so one source drives all variants; verifies each template against the **real in-kernel agent** and keeps only firing families (bounded count).
+- `kernels/build_kaggle_nb.py`: CLI (`--user/--slug/--families/--max/--fanout`); bakes CONFIG per variant; **sets T4** (`machine_shape: NvidiaTeslaT4` + BYOD docker image — the competition rejects P100); writes a **schema-valid `submission.csv` stub** during Save&Run so the code-submission precondition passes (the scored rerun overwrites it).
+
+## Tests run
+
+```
+python -m pyflakes kernels/attack_kaggle.py kernels/build_kaggle_nb.py   # clean
+python -m py_compile  kernels/*.py                                        # OK
+# 4 kernels pushed + ran COMPLETE (no errors) on T4; LB scored rerun PENDING
+```
+- ruff F-check: verified via pyflakes (same F-rule set); CI `ruff check .` is the gate.
+- No app code changed; pytest/pnpm N/A.
+
+## Evidence
+
+- 4 submissions accepted (PENDING): harrysun2006/{sec-attack-jed v4 = 54134273, sec-attack-jed-x v3}; firefly2006/{sec-attack-jed v3 = 54134296, sec-attack-jed-x v3 = 54134299}.
+- Root-causes fixed, from the competition's own `kaggle_evaluation` gateway code: P100→T4; `serve()` only emits `submission.csv` during the rerun (`KAGGLE_IS_COMPETITION_RERUN`), so a stub is written at commit time; 9000s/phase replay budget hard-fails on timeout → conservative candidate counts.
+- `competitions/sec-attack/submissions.md` updated.
+
+## Schema / RLS / secrets impact
+
+- [x] No DB migration. No new secret surface (firefly creds read from `.vscode/.env.may` per existing dev-phase policy; never printed).
+- [x] Security/red-team tooling — `area:security`.
+
+## Remote side effects
+
+- [x] **Live Kaggle**: 4 kernel pushes + 4 LB submissions (2 per account), explicitly requested by the user in-session.
+
+## Risks and follow-ups
+
+- Scores PENDING (rerun loads gpt_oss + gemma 20B on T4 across public+private guardrails — slow). Will read scores when available and tune `MAX_CANDIDATES`/families/phrasing.
+- Attacks validated locally only on an instruction-following proxy; real-agent yield is what these submissions measure (T5). Private guardrail may close the current holes (T8).
+
+---
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+EOF
+gh pr create --base main --head worktree-sec-attack-setup --title "feat(sec-attack): parameterized Kaggle variants + working code submission (4 subs, 2 accounts)" --body-file /tmp/claude-1000/secattack/pr2.md 2>&1 | tail -3
+````
+
+```
+To github.com:amyteq/tt_pangu.git
+   18f508e..3e6deab  worktree-sec-attack-setup -> worktree-sec-attack-setup
+=== open follow-up PR ===
+https://github.com/amyteq/tt_pangu/pull/161
+```
+
+### 🤖 Assistant: *Follow-up \*\*PR #161\*\* opened.*
+
+`08:39:44`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Follow-up **PR #161** opened. Let me check the scored-rerun status once more.
+
+#### 💻 Bash: *Check submission scores/status both accounts*
+
+`08:39:48`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+C=ai-agent-security-multi-step-tool-attacks
+echo "=== harrysun2006 ===" && unset KAGGLE_CONFIG_DIR KAGGLE_USERNAME KAGGLE_KEY
+kaggle competitions submissions "$C" 2>&1 | grep -iv "Warning: Look\|consider upgrading" | head -5
+echo "=== firefly2006 ===" && set -a; . ./.vscode/.env.may; set +a; export KAGGLE_CONFIG_DIR=/tmp/claude-1000/secattack/kcfg_firefly
+kaggle competitions submissions "$C" 2>&1 | grep -iv "Warning: Look\|consider upgrading" | head -5
+```
+
+```
+=== harrysun2006 ===
+     ref  fileName        date                        description                                            status                    publicScore  privateScore  
+--------  --------------  --------------------------  -----------------------------------------------------  ------------------------  -----------  ------------  
+54134283  submission.csv  2026-06-28 08:37:27.603000  fast-breadth direct+deputy (max40)                     SubmissionStatus.PENDING                             
+54134273  submission.csv  2026-06-28 08:37:07.293000  balanced deputy+direct+filewash (max30)                SubmissionStatus.PENDING                             
+54132637  submission.csv  2026-06-28 07:31:16.077000  Notebook Agent-Security Attack Submission | Version 1  SubmissionStatus.PENDING                             
+=== firefly2006 ===
+     ref  fileName        date                        description                              status                    publicScore  privateScore  
+--------  --------------  --------------------------  ---------------------------------------  ------------------------  -----------  ------------  
+54134299  submission.csv  2026-06-28 08:38:02.290000  filewash+direct (max24)                  SubmissionStatus.PENDING                             
+54134296  submission.csv  2026-06-28 08:37:59.880000  balanced deputy+direct+filewash (max30)  SubmissionStatus.PENDING
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/sec-attack-setup
+```
+
+### 🤖 Assistant: *All four submissions are accepted and \*\*PENDING…*
+
+`08:40:18`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All four submissions are accepted and **PENDING** (the scored rerun loads gpt_oss + gemma 20B on T4 across public+private guardrails — it takes a while). Here's where everything stands.
+> 
+> ## Done
+> 
+> **Merged:** PR #157 (squash) → `main`.
+> 
+> **4 kernels pushed (2 per account), all ran COMPLETE with no errors:**
+> | Account | Kernel | Variant |
+> |---|---|---|
+> | harrysun2006 | [sec-attack-jed](https://www.kaggle.com/code/harrysun2006/sec-attack-jed) | deputy+direct+filewash (max30) |
+> | harrysun2006 | [sec-attack-jed-x](https://www.kaggle.com/code/harrysun2006/sec-attack-jed-x) | fast-breadth direct+deputy (max40) |
+> | firefly2006 | [sec-attack-jed](https://www.kaggle.com/code/firefly2006/sec-attack-jed) | deputy+direct+filewash (max30) |
+> | firefly2006 | [sec-attack-jed-x](https://www.kaggle.com/code/firefly2006/sec-attack-jed-x) | filewash+direct (max24) |
+> 
+> **Checked results & fixed errors until clean — two real blockers surfaced and were fixed** (root-caused from the competition's own `kaggle_evaluation` gateway code I pulled):
+> 1. **P100 GPU rejected** → set `machine_shape: NvidiaTeslaT4` + the BYOD docker image (matching the official notebook).
+> 2. **"Did not find Notebook Output File"** → `serve()` only writes `submission.csv` during the *scored rerun*, so the notebook now writes a schema-valid `submission.csv` stub at Save&Run (the rerun overwrites it).
+> 
+> **Submitted all 4** — accepted, status PENDING:
+> - harrysun2006: `54134273`, `54134283`
+> - firefly2006: `54134296`, `54134299`
+> 
+> **Repo:** follow-up **PR #161** opened with the parameterized builder (`--families/--max/--fanout`), the T4 + stub fixes, and the submissions log.
+> 
+> ## Design notes baked into the kernels
+> - Each kernel **verifies templates against the real in-kernel agent** (gpt_oss) and keeps only families that actually fire — so a family the LLM refuses is dropped, not submitted blind.
+> - Candidate counts are deliberately **conservative**: the gateway gives 9000s/phase but a phase timeout fails the *whole* submission, and per-candidate exceptions re-raise — so I sized to stay well under budget and limited the slow 7-message file-wash chains.
+> 
+> ## What's left
+> The scores aren't in yet (reruns are slow). I can't keep a process blocked for the hours this may take, so they're PENDING for now. **Say the word and I'll re-poll** all four; once scores land I'll read the per-row breakdown (`gpt_oss_public/private`, `gemma_public/private`), and if any come back 0 or errored, tune the families/phrasing/counts and resubmit. Note today's submission tally: harrysun2006 has 3 (incl. one auto-queued earlier), firefly2006 has 2 — mind the 5/day team limit if we iterate today.
+
+### Recap
+
+`08:40:42`
+
+📝 Recap: Goal: get our sec-attack red-team attacks scored on Kaggle. All 4 kernels (2 on harrysun2006, 2 on firefly2006) are pushed, fixed, and submitted, now PENDING scoring. Next: re-poll for scores when you're ready.
