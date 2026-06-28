@@ -29,9 +29,13 @@
   - [x] **T2.1a** Model-agnostic CPU core (`solver/`): D8+color augmentation w/ exact inverse, grid
         serialization, leave-one-out TTT-data builder, PoE/vote selection, `solve_task` orchestration.
         **Validated** (oracle decode→100%, dummy→0% over 120 eval; 23 unit tests). `done`
-  - [ ] **T2.1b** GPU/model layer: implement `DecodeFn` (transformers+peft) — load base model, per-task
-        LoRA TTT (rank 32, ~64 steps, leave-one-out demos), greedy/DFS decode. **Blocked on T0.4 compute
-        decision** (rung-1 Qwen2.5-0.5B on 4090 vs rung-2 8B/4B + offline pretrain). `blocked`
+  - [x] **T2.1b** GPU/model layer (`solver/model.py` + `run_eval.py`): `DecodeFn` w/ per-task LoRA TTT
+        (rank 32, 64 steps, leave-one-out) + greedy decode + AIRV de-aug/PoE. Ran on snorlax 4090; fixed
+        OOM (bs1+grad-ckpt+seq-filter) + ragged-grid parse. End-to-end works. `done`
+  - [ ] **T2.1c** **Offline pretrain (the missing ARC prior).** rung-1 with NO pretrain = **0/10 (0%)** —
+        a 0.5B instruct model can't induce rules from demos+TTT alone. Pretrain Qwen2.5-0.5B LoRA on the
+        1000 public train tasks (heavily augmented; RE-ARC optional later), save the adapter, use it as the
+        TTT init. This is what lifts ironbar's 0.5B to ~40% on ARC-1. **Next gating step for any real score.** `todo`
 - [x] **T2.2** Augmentation + de-augmented vote/PoE selection for pass@2 — built in `solver/select.py`
       (the AIRV invariant is unit-tested). Measure real delta once T2.1b lands. `done (core)`
 - [ ] **T2.3** Confirm the kernel runs inside **12h / no-internet / L4x4** with a single-task preflight. `todo`

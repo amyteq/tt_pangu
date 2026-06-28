@@ -16,7 +16,7 @@ from __future__ import annotations
 from typing import Callable
 
 from .augment import build_augmentations
-from .select import Candidate, select_top2, to_submission_entry
+from .selection import Candidate, select_top2, to_submission_entry
 from .ttt_data import build_inference_prompts
 
 Grid = list

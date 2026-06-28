@@ -9,7 +9,7 @@ compute decision (base model + where it runs).
 build 16 augmentations (D8 x color-perm)         augment.py
   -> per-task LoRA TTT on leave-one-out demos    ttt_data.py  +  [GPU layer: TODO]
   -> decode each augmented test prompt           serialize.py +  [GPU layer: TODO]
-  -> de-augment predictions + PoE/vote -> top-2  select.py
+  -> de-augment predictions + PoE/vote -> top-2  selection.py
   -> {attempt_1, attempt_2} per test input       run.solve_task
 ```
 
@@ -19,10 +19,17 @@ build 16 augmentations (D8 x color-perm)         augment.py
 | `augment.py` | D8 transforms + color perms, exact inverses; `build_augmentations(16)` | ✅ done |
 | `serialize.py` | grid <-> compact string, task-prompt formatting | ✅ done |
 | `ttt_data.py` | leave-one-out augmented TTT examples; inference prompts | ✅ done |
-| `select.py` | PoE / vote selection of the 2 pass@2 candidates | ✅ done |
+| `selection.py` | PoE / vote selection of the 2 pass@2 candidates | ✅ done |
 | `run.py` | `solve_task(train, tests, decode_fn)` — orchestration; model injected as `DecodeFn` | ✅ done |
 | `validate.py` | oracle/dummy end-to-end check on the public eval set | ✅ done |
-| *(GPU layer)* | load base model, per-task LoRA TTT loop, DFS decode → a real `DecodeFn` | ⏳ **TODO (needs compute decision)** |
+| `model.py` | GPU layer: Qwen2.5-0.5B + per-task LoRA TTT + greedy decode → `DecodeFn` | ✅ done (runs on snorlax) |
+| `run_eval.py` | run the solver over a split + score (pass@2) | ✅ done |
+| `debug_decode.py` | dump what the model actually emits (decode-quality probe) | ✅ done |
+| *(offline pretrain)* | give the 0.5B an ARC prior (1000 train tasks / RE-ARC) before TTT | ⏳ **TODO — the missing ingredient** |
+
+> **Result so far (rung-1, no pretrain):** 10-task eval sample = **0/10 (0%)**. The model emits well-formed
+> grids after TTT but can't induce rules with no ARC prior. The **offline pretrain** is the next gating step
+> (ironbar's 0.5B reaches ~40% on ARC-1 *with* it; without it, ~0%).
 
 ## Validation (the scaffolding is correctly wired)
 ```sh
