@@ -39,6 +39,7 @@ def main(argv=None):
     ap.add_argument("--lr", type=float, default=1e-4)
     ap.add_argument("--max-new-tokens", type=int, default=1024)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--pretrained-adapter", default=None, help="dir of an offline-pretrained LoRA")
     ap.add_argument("--device", default="cuda")
     ap.add_argument("--out", help="write submission.json here")
     args = ap.parse_args(argv)
@@ -57,6 +58,7 @@ def main(argv=None):
         n_augmentations=args.n_aug,
         max_new_tokens=args.max_new_tokens,
         seed=args.seed,
+        pretrained_adapter=args.pretrained_adapter,
     )
     print(f"loading {cfg.model_name} on {args.device} ...", flush=True)
     t0 = time.time()

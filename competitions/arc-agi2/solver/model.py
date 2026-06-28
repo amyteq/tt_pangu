@@ -72,6 +72,7 @@ class TTTConfig:
     max_new_tokens: int = 1024
     seed: int = 0
     dtype: str = "bfloat16"
+    pretrained_adapter: str | None = None  # dir of an offline-pretrained LoRA to init TTT from
 
 
 class TTTSolver:
@@ -84,7 +85,7 @@ class TTTSolver:
 
     def _load(self):
         import torch
-        from peft import LoraConfig, get_peft_model
+        from peft import LoraConfig, PeftModel, get_peft_model
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         cfg = self.cfg
@@ -96,14 +97,18 @@ class TTTSolver:
             base = AutoModelForCausalLM.from_pretrained(cfg.model_name, dtype=dtype)
         except TypeError:
             base = AutoModelForCausalLM.from_pretrained(cfg.model_name, torch_dtype=dtype)
-        lora = LoraConfig(
-            r=cfg.lora_rank,
-            lora_alpha=cfg.lora_alpha,
-            lora_dropout=cfg.lora_dropout,
-            target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
-            task_type="CAUSAL_LM",
-        )
-        self.model = get_peft_model(base, lora).to(self.device)
+        if cfg.pretrained_adapter:
+            # start every task's TTT from the offline-pretrained adapter (the ARC prior)
+            self.model = PeftModel.from_pretrained(base, cfg.pretrained_adapter, is_trainable=True).to(self.device)
+        else:
+            lora = LoraConfig(
+                r=cfg.lora_rank,
+                lora_alpha=cfg.lora_alpha,
+                lora_dropout=cfg.lora_dropout,
+                target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+                task_type="CAUSAL_LM",
+            )
+            self.model = get_peft_model(base, lora).to(self.device)
         # gradient checkpointing keeps the long-sequence training forward within 24GB.
         # enable_input_require_grads is required for checkpointing with a frozen base + LoRA.
         self.model.gradient_checkpointing_enable()

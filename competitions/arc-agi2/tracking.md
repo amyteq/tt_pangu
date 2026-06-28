@@ -30,6 +30,8 @@
 | 2026-06-27 | ttt-core-oracle | AIRV scaffolding is correctly wired | full augment→infer→deaug→PoE/vote pipeline w/ perfect-augmented-decode oracle | 0 | **100.0%** | ~2s | ✅ pipeline validated end-to-end (167/167) |
 | 2026-06-27 | ttt-core-dummy | pipeline doesn't inflate | same pipeline, decode=echo augmented input | 0 | 0.0% | ~2s | ✅ no false positives |
 | 2026-06-28 | ttt-rung1-sample10 | rung-1 (0.5B+TTT, no pretrain) scores on real eval | Qwen2.5-0.5B-Instruct, per-task LoRA TTT 64 steps, 8-aug AIRV, on snorlax 4090 | 0 | **0.0%** (0/10) | ~15min/10 tasks (11–182s/task) | model emits well-formed grids but wrong; **0% = missing offline pretrain** (no ARC prior). GPU layer itself validated. |
+| 2026-06-28 | rung1-pretrain | offline pretrain on 1000 train tasks (the ARC prior) | Qwen2.5-0.5B LoRA r32, 12.1k aug examples, 1 epoch | 0 | train loss 0.69→0.29 | 861s (14min) on 4090 | adapter learns the grid format/mappings on train distribution |
+| 2026-06-28 | ttt-rung1-pretrained-sample20 | does the pretrain lift eval score? | pretrained adapter + per-task TTT 64 + 8-aug AIRV | 0 | **0.0%** (0/20) | ~25min | **rung-1 ceiling ≈ 0% on ARC-2 eval.** Decode probe: structured grids but WRONG dims (14×6 vs 18×8) + wrong content; rotated view degenerates. Capacity limit, not a bug (oracle=100%). Matches lit: 8B→16.5%, NVARC 4B+synth+TRM→24%. |
 
 ## Baselines / reference points (external, for orientation)
 | Source | Score | Constraint context |
@@ -54,7 +56,11 @@
   **T2.1b (GPU/model layer) is blocked on the compute decision (T0.4).** Still no Kaggle push/submit.
 - 2026-06-28 — **T2.1b GPU layer built + run on snorlax 4090** (rung-1: Qwen2.5-0.5B + per-task LoRA TTT,
   `solver/model.py` + `run_eval.py`). Fixed OOM (bs1 + grad-checkpoint + seq filter) and a parser bug
-  (ragged-row normalization). End-to-end works; **10-task sample = 0/10 (0%)**. **Key finding:** rung-1
-  WITHOUT an offline pretrain has no ARC prior → 0%. The offline pretrain (RE-ARC or the 1000 public train
-  tasks) is the missing essential step (ironbar's 0.5B got ~40% on ARC-1 *with* it). Decision pending:
-  add the pretrain (T2.1c) vs full-120 anyway (~3h, ~0%) vs escalate to rung-2. No Kaggle push/submit.
+  (ragged-row normalization). End-to-end works; **10-task sample = 0/10 (0%)**.
+- 2026-06-28 — **T2.1c offline pretrain done** (`solver/pretrain.py`): 0.5B LoRA on 1000 train tasks
+  (12.1k aug examples, loss 0.69→0.29, 14min). **Eval WITH the pretrained adapter still = 0/20 (0%).**
+  Decode probe shows structured-but-wrong grids (wrong dims/content). **Conclusion: rung-1 (0.5B) ceiling
+  on ARC-AGI-2 eval is ~0% — a model-capacity limit, not a bug** (oracle harness = 100%). Consistent with
+  2025 results (8B ARChitects 16.5%, NVARC 4B+synth+TRM 24%). **Recommend escalating to rung-2** (4–8B +
+  RE-ARC pretrain + DFS/PoE) for any non-trivial score, or pivoting to the Grand-Prize/writeup angle.
+  No Kaggle push/submit. snorlax powered down to save cost pending the rung decision.

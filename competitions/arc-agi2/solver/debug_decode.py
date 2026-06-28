@@ -31,6 +31,7 @@ def main(argv=None):
     ap.add_argument("--n-aug", type=int, default=8)
     ap.add_argument("--ttt-steps", type=int, default=32)
     ap.add_argument("--max-new-tokens", type=int, default=512)
+    ap.add_argument("--pretrained-adapter", default=None)
     args = ap.parse_args(argv)
 
     tasks = load_github_split(args.split)
@@ -41,7 +42,12 @@ def main(argv=None):
         f"{len(t.test_outputs[0])}x{len(t.test_outputs[0][0])}"
     )
 
-    cfg = TTTConfig(n_augmentations=args.n_aug, ttt_steps=args.ttt_steps, max_new_tokens=args.max_new_tokens)
+    cfg = TTTConfig(
+        n_augmentations=args.n_aug,
+        ttt_steps=args.ttt_steps,
+        max_new_tokens=args.max_new_tokens,
+        pretrained_adapter=args.pretrained_adapter,
+    )
     solver = TTTSolver(cfg)
     solver._reset_adapter()
     solver._train_on_task(t.train)

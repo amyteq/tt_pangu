@@ -32,10 +32,16 @@
   - [x] **T2.1b** GPU/model layer (`solver/model.py` + `run_eval.py`): `DecodeFn` w/ per-task LoRA TTT
         (rank 32, 64 steps, leave-one-out) + greedy decode + AIRV de-aug/PoE. Ran on snorlax 4090; fixed
         OOM (bs1+grad-ckpt+seq-filter) + ragged-grid parse. End-to-end works. `done`
-  - [ ] **T2.1c** **Offline pretrain (the missing ARC prior).** rung-1 with NO pretrain = **0/10 (0%)** —
-        a 0.5B instruct model can't induce rules from demos+TTT alone. Pretrain Qwen2.5-0.5B LoRA on the
-        1000 public train tasks (heavily augmented; RE-ARC optional later), save the adapter, use it as the
-        TTT init. This is what lifts ironbar's 0.5B to ~40% on ARC-1. **Next gating step for any real score.** `todo`
+  - [x] **T2.1c** Offline pretrain (`solver/pretrain.py`): 0.5B LoRA on 1000 train tasks, loss 0.69→0.29.
+        **But eval WITH it still = 0/20 (0%).** Decode = structured-but-wrong grids. **Finding: rung-1 (0.5B)
+        ceiling on ARC-2 eval ≈ 0% — capacity limit, not a bug** (oracle harness=100%). `done`
+- **Rung-1 verdict:** the full TTT pipeline is built + validated end-to-end, but a 0.5B base is too weak for
+  ARC-AGI-2 (lit: 8B→16.5%, NVARC 4B+synth+TRM→24%). **Next: rung-2** (T2.4) or pivot to the writeup angle.
+
+## Phase 2b — rung-2 (the score lever)
+- [ ] **T2.4** Escalate base model: Qwen3-4B or Mistral-NeMo-8B (4-bit) + RE-ARC offline pretrain +
+      per-task TTT + DFS/PoE decode. Reuses the entire `solver/` core unchanged (just a bigger model in
+      `model.py`). Needs more compute (one-time RE-ARC pretrain: rent an H100 ~$100-150, or days on the 4090).
 - [x] **T2.2** Augmentation + de-augmented vote/PoE selection for pass@2 — built in `solver/select.py`
       (the AIRV invariant is unit-tested). Measure real delta once T2.1b lands. `done (core)`
 - [ ] **T2.3** Confirm the kernel runs inside **12h / no-internet / L4x4** with a single-task preflight. `todo`
