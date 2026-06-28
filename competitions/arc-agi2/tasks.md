@@ -39,9 +39,15 @@
   ARC-AGI-2 (lit: 8B→16.5%, NVARC 4B+synth+TRM→24%). **Next: rung-2** (T2.4) or pivot to the writeup angle.
 
 ## Phase 2b — rung-2 (the score lever)
-- [ ] **T2.4** Escalate base model: Qwen3-4B or Mistral-NeMo-8B (4-bit) + RE-ARC offline pretrain +
-      per-task TTT + DFS/PoE decode. Reuses the entire `solver/` core unchanged (just a bigger model in
-      `model.py`). Needs more compute (one-time RE-ARC pretrain: rent an H100 ~$100-150, or days on the 4090).
+- [x] **T2.4** Escalate base model to **Qwen3-4B-Base** on snorlax (fits 24GB bf16). Pretrained on the 1000
+      train tasks (loss 0.16) + per-task TTT + 8-aug AIRV. **Eval = 0/20 (0%).** `done`
+- **Rung-2 verdict:** model size is NOT the bottleneck. 4B fits the training distribution (loss 0.16) but
+  scores 0% on eval — ARC-2 needs rule *generalization*, which our 1000-task pretrain doesn't teach. **The
+  real lever is the DATA pipeline**, not scale.
+- [ ] **T2.5** **RE-ARC + synthetic data pipeline** (the actual winning lever). Integrate Michael Hodel's
+      re-arc generator (procedural regeneration of the 400 ARC-1 tasks w/ known rules → teaches rule
+      *execution*, not memorization) + ConceptARC/ARC-Heavy; pretrain at RE-ARC scale (256× aug), add DFS
+      decode. This is the 16–24% recipe. **Multi-day build + heavier compute (rent H100, or days on 4090).** `todo`
 - [x] **T2.2** Augmentation + de-augmented vote/PoE selection for pass@2 — built in `solver/select.py`
       (the AIRV invariant is unit-tested). Measure real delta once T2.1b lands. `done (core)`
 - [ ] **T2.3** Confirm the kernel runs inside **12h / no-internet / L4x4** with a single-task preflight. `todo`
