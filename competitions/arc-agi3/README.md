@@ -33,8 +33,10 @@ per level (capped 1.0), so over-exploration is punished quadratically. Action sp
 (leaderboard) / 55 fully private (final scoring). See `research.md` for full detail + sources.
 
 ## Key links
+- **how it works (agent logic + submission flow, mermaid)**: ./how-it-works.md
 - rules (evidence-based, ⚠ flags unknowns): ./rules.md
 - ARC-AGI-3 research brief: ./research.md
+- owner research report (中文, full): ./research_report_zh.md · Q&A: ./explore.md
 - ARC-AGI-2 + prior-winner research brief: ./arc-agi2-research.md
 - **cross-competition (AGI-2 ↔ AGI-3) transfer**: ./cross-competition.md
 - strategy / ideas / hypotheses / challenges: ./strategy.md
