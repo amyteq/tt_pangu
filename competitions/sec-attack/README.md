@@ -27,6 +27,7 @@ exfiltration, destructive write, confused-deputy email, untrusted→action) **as
 - rules: ./rules.md
 - strategy (direction · ideas · challenges · techniques): ./strategy.md
 - research (full mechanics deep-dive, source-verified): ./research.md
+- how it works (code/notebook flow + attack principles, mermaid): ./how-it-works.md
 - notes (intro · ideas · challenges · techniques): ./notes.md · zh: ./notes_zh.md
 - tasks: ./tasks.md
 - submissions: ./submissions.md
