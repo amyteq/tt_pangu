@@ -3,9 +3,9 @@
 > Canonical language: **English** for facts/strategy; the human-facing 详细介绍 lives in
 > `overview_zh.md`. Aliases: `arc`, `arc-agi2`, `arcprize`.
 > Kaggle slug: `arc-prize-2026-arc-agi-2`.
-> Status: **research / building** — eval harness + TTT recipe + model-agnostic solver core built & validated
-> (2026-06-27); GPU/model layer + first submission still pending (blocked on the compute decision).
-> Numbers are from the 2026-06-26 research scan + a read-only Kaggle API refresh (`references.md` / `tracking.md`).
+> Status: **research / baseline** — full TTT pipeline built + validated and run on snorlax through two model
+> rungs (0.5B, 4B); both score **~0%** on eval (the lever is data, not scale — see `how-it-works.md` §5).
+> Numbers are from the 2026-06-26 research scan + Kaggle API refresh + the snorlax runs (`tracking.md`).
 
 ## Status snapshot
 - status: **research** (prep phase) — competition launched **2026-03-25**, final submission **2026-11-02**
@@ -20,8 +20,12 @@
 - done: live LB confirmed · data downloaded (1000+120, gitignored) · submission schema confirmed · **local
   pass@2 harness validated** (oracle 100%, baselines 0%) · **TTT recipe distilled** (`ttt-recipe.md`) ·
   **model-agnostic TTT solver core built + validated** (oracle 100% / dummy 0% over 120 eval; 31/31 tests)
-- **next: GPU/model layer** (`solver/` `DecodeFn`: base model + per-task LoRA TTT + decode) → first real
-  submission. **Blocked on the compute decision** (rung-1 Qwen2.5-0.5B@4090 vs rung-2 8B/4B + offline pretrain).
+- **GPU layer + both rungs run on snorlax (done):** rung-1 Qwen2.5-0.5B (0/10→0/20) and rung-2 Qwen3-4B +
+  pretrain (loss 0.16, **0/20**) both score ~0% on eval. **Verdict: model size isn't the lever — the data
+  pipeline is** (RE-ARC + synthetic teach rule *execution*; training-task pretrain only memorizes). See
+  `how-it-works.md` §5 + `tracking.md`.
+- **next: T2.5** RE-ARC + synthetic data pipeline (the 16–24% recipe; multi-day + heavier compute) **or**
+  pivot to the Grand-Prize writeup. No Kaggle submit yet.
 
 ## What's in this folder
 | File | Purpose |
@@ -33,8 +37,10 @@
 | `strategy.md` | candidate directions, hypotheses, ideas-to-try, what to avoid |
 | `references.md` | every source with URL + trust label |
 | `tasks.md` | concrete next actions (data, baseline, eval harness) |
-| `tracking.md` | experiment / submission log + live-LB snapshot |
+| `tracking.md` | experiment / submission log + live-LB snapshot + run verdicts |
 | `ttt-recipe.md` | **reproducible TTT recipe** distilled from 2024/2025 winners (base model, augmentation, TTT loop, decode, compute) |
+| `how-it-works.md` | **solver logic + TTT principles, with mermaid flow diagrams** (pipeline, AIRV, why it scores 0%) |
+| `overview_zh.md` / `research_report_zh.md` / `explore.md` | 中文介绍 + 444-行中文研究报告 + 早期研究问答 |
 | `eval/` | **local pass@2 harness** (loader, metric, baselines, viewer, CLI) + `eval/README.md` |
 | `solver/` | **model-agnostic TTT core** (augment, serialize, ttt_data, select, run, validate) + `solver/README.md` |
 | `tests/` | unit tests for the metric + solver core (`python -m pytest tests/`) |
