@@ -1,0 +1,4 @@
+# Local ARC-AGI-2 data + downloads — never commit (per CLAUDE.md: keep datasets out of git).
+# Re-fetch with:  python competitions/arc-agi2/eval/fetch_data.py
+*
+!.gitignore
