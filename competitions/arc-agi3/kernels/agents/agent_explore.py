@@ -20,7 +20,7 @@ from typing import Any
 import numpy as np
 
 from agents.agent import Agent
-from arcengine import FrameData, GameAction, GameState
+from arcengine import GameAction, GameState
 
 SIMPLE = [GameAction.ACTION1, GameAction.ACTION2, GameAction.ACTION3,
           GameAction.ACTION4, GameAction.ACTION5]
