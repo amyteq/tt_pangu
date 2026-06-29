@@ -10,18 +10,18 @@
 - status: **active** (first submissions in flight)
 - phase: **baseline / submission**
 - current objective: get a non-zero RHAE; 4 candidate agents built, validated locally, pushed to Kaggle
-- best known local/CV: agents run clean vs the 25 public envs (RHAE not yet scored)
-- best known LB/public: **PENDING** (2 submissions scoring; frontier LLMs at launch were < 0.5%, humans 100%)
+- best known local/CV: agents run clean vs the 25 public envs
+- best known LB/public: **explore 0.18 / goose 0.07** (both >> the <0.005 frontier-LLM baseline; humans 1.0)
 - current blocker: **daily limit = 1 submission/account/day** → only 2 of 4 submitted today; rest next day
-- next task: read scored RHAE when reruns finish (~up to 8h); submit arc3-goosenov + arc3-reactive next day; then iterate
+- next task: submit arc3-goosenov + arc3-reactive next day; port explore's action-efficiency into the CNN's exploration
 
-## Submissions in flight (2026-06-27)
-| Kernel | Account | Agent | Status |
-|---|---|---|---|
-| arc3-goose (`…-stochasticgoose-cnn`) | harrysun2006 | canonical StochasticGoose CNN | submitted, **PENDING** (id 54111934) |
-| arc3-explore | firefly2006 | frame-diff heuristic | submitted, **PENDING** (id 54111957) |
-| arc3-goosenov | harrysun2006 | CNN + novelty escape | ready, queued (1/day cap) |
-| arc3-reactive | firefly2006 | object-centric heuristic | ready, queued (1/day cap) |
+## Submissions — scored (2026-06-27)
+| Kernel | Account | Agent | Status | LB |
+|---|---|---|---|---|
+| arc3-explore | firefly2006 | frame-diff heuristic | COMPLETE (id 54111957) | **0.18** ← beat the CNN |
+| arc3-goose (`…-stochasticgoose-cnn`) | harrysun2006 | canonical StochasticGoose CNN | COMPLETE (id 54111934) | **0.07** |
+| arc3-goosenov | harrysun2006 | CNN + novelty escape | ready, queued (1/day cap) | — |
+| arc3-reactive | firefly2006 | object-centric heuristic | ready, queued (1/day cap) | — |
 See `submissions.md` for the log, `kca-arc-agi3.yaml` for the push config, `kernels/agents/` for the agents.
 
 ## What is ARC-AGI-3 (one paragraph)
