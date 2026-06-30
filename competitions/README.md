@@ -9,11 +9,18 @@
 | [nvidia-nemotron](nvidia-nemotron/) (nemo) | active | llm | submission | per-kernel held-out | **0.85** (v14 replay) | v15 push 0.84 (2026-06-14); best=v14 0.85 | 0.85 是当前杠杆天花板(T7 merge 0.82 / v15 0.84 均回归);deadline **06-15** 迫近 | 守住 0.85 收官(可选 half-dose cryptarithm synth) |
 | [orbit-wars](orbit-wars/) (orbit) | active | simulation_agent | iteration | suite ~54.8% | own **686** (v3 peak) / attributed **1151** (kuni05) | harry latest-2: kuni05 **1085.4** + v3.2 **660.0** (2026-06-14) | 强档 cliff（0-15% vs evogen/multifocus/kuni05） | v4 Scheduler 下一刀（反击窗/集群重锤）；末 3 天冻结 best-2 |
 | [sec-attack](sec-attack/) | active | submission | submission | **18.0** (bypass vs `optimal_public`, LLM-proxy) | LB 评分 **PENDING** | **4 kernels submitted 2026-06-28** (2× harrysun2006 + 2× firefly2006) | 等待 LB 评分回填(scored rerun 慢:gpt_oss+gemma × public/private);绕过仅 LLM 代理验证;私有 guardrail 未知 | 读回 LB 分→调 families/数量/措辞重提;扩量+谓词叠加;建保留 guardrail 测鲁棒 |
+| [arc-agi2](arc-agi2/) (arc) | active | reasoning (abstraction) | baseline | **0%** (oracle harness 100%; TTT 0/20) | none yet — LB top **50.56** (nvbanana), 967 队, 账号已报名 | none yet (no Kaggle submit) | rung-1 (0.5B) **和** rung-2 (Qwen3-4B)+train-task pretrain 均 **0%** eval —— 杠杆是 **RE-ARC/合成数据**(教规则执行),非模型大小 | T2.5 RE-ARC+合成数据 pipeline(多日,需更多算力)**或**转 Grand-Prize writeup |
 
 > LB 说明:nemo 最好 **0.85**(`nemo-replay-v14`,issue #86 comment 2 确认);两次冲 0.85+ 均回归(T7 merge 0.82、v15 synth 0.84)。orbit（Kaggle API 2026-06-14 确认):attributed adapted-kuni05 当前 **1085.4**(峰值 1151）、自研 v3.2 **660.0**;榜首 ~1746。详见 [`nvidia-nemotron/tracking.md`](nvidia-nemotron/tracking.md) · [`orbit-wars/tracking.md`](orbit-wars/tracking.md)。
 > Kaggle 只读刷新（2026-06-14）：nemo own 最好 **0.85**(v14);账号原始公开最大 **0.86**(2026-05-15 public-fork,非自训);榜首 **~0.90**;private LB 未发布。详见 [`nvidia-nemotron/submissions.md`](nvidia-nemotron/submissions.md)。
 
 ## Recently updated
+- **2026-06-29** arc-agi2 — **full TTT pipeline built + validated, but rung-1/rung-2 score ~0%.** Model-agnostic
+  core (augment/serialize/ttt_data/selection/run, 35 tests, oracle decode→100%) + GPU layer (per-task LoRA TTT)
+  + offline pretrain, run on snorlax. Qwen2.5-0.5B 0/10→0/20; **Qwen3-4B + pretrain (loss 0.16) still 0/20.**
+  Finding: **model size isn't the lever — the data pipeline is** (RE-ARC + synthetic teach rule *execution*;
+  training-task pretrain only memorizes, which ARC-2 eval defeats). `how-it-works.md` has the mermaid flows.
+  No Kaggle submit. PR #159.
 - **2026-06-28** sec-attack — **submitted 4 Kaggle kernels (2 per account)** to the LB: `harrysun2006/{sec-attack-jed,
   sec-attack-jed-x}` + `firefly2006/{sec-attack-jed, sec-attack-jed-x}` (sub ids 54134273/54134283 · 54134296/54134299).
   All ran COMPLETE, no errors; scored rerun **PENDING**. Fixed two code-submission blockers: GPU must be **T4** (P100
