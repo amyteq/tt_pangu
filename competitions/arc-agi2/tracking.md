@@ -34,6 +34,8 @@
 | 2026-06-28 | ttt-rung1-pretrained-sample20 | does the pretrain lift eval score? | pretrained adapter + per-task TTT 64 + 8-aug AIRV | 0 | **0.0%** (0/20) | ~25min | **rung-1 ceiling ≈ 0% on ARC-2 eval.** Decode probe: structured grids but WRONG dims (14×6 vs 18×8) + wrong content; rotated view degenerates. Capacity limit, not a bug (oracle=100%). Matches lit: 8B→16.5%, NVARC 4B+synth+TRM→24%. |
 | 2026-06-29 | rung2-pretrain-4b | bigger base learns the prior better | Qwen3-4B-Base LoRA r32, 12.1k aug examples, 1 epoch | 0 | train loss 0.37→**0.16** | 2994s (50min) on 4090 | 4B fits 24GB bf16 (12.8GB); learns training distribution much better than 0.5B (0.16 vs 0.29) |
 | 2026-06-29 | ttt-rung2-4b-sample20 | does a 4B + pretrain score on eval? | Qwen3-4B-Base + pretrained adapter + TTT 64 + 8-aug AIRV | 0 | **0.0%** (0/20) | ~55min (32–372s/task) | **Still 0%.** 4B fits training (loss 0.16) but ARC-2 eval needs rule *generalization*, not task memorization. **The lever is the DATA pipeline (RE-ARC + synthetic), not model size.** Per-task ~2.5min → full 120 ≈ 5h. |
+| 2026-06-30 | rung2-rearc-pretrain | RE-ARC rule-execution prior | Qwen3-4B-Base LoRA r32 on RE-ARC corpus (4800 tasks) | 0 | train loss →~0.29 | 2297s (38min); **only 6206/30000 examples fit the 1536-tok filter** (4-demo RE-ARC prompts are long) | corpus + pretrain ran clean end-to-end |
+| 2026-06-30 | ttt-rung2-rearc-sample20 | does RE-ARC data lift eval off 0%? | Qwen3-4B-Base + RE-ARC adapter + TTT 64 + 8-aug AIRV | 0 | **0.0%** (0/20) | ~50min | **Still 0% at this scale.** Lever is right but **dose is ~100× too small**: winners use RE-ARC at 256× aug / ~98 H100-h + DFS decode + 8B; we did 1 epoch / 6206 ex / 38min / greedy on a 4090. Reaching >0% needs full-recipe scale (multi-day, multi-GPU), not another small run. |
 
 ## Baselines / reference points (external, for orientation)
 | Source | Score | Constraint context |
@@ -79,3 +81,13 @@
   runs locally.** Validated: 5 unit tests (fake gens), sample 5 keys×8 = 40 tasks load clean, full 400-key
   corpus generated. **Next (T2.5b): pretrain Qwen3-4B on the RE-ARC corpus on snorlax + eval** — the test of
   whether rule-execution data lifts eval off 0%. No Kaggle push/submit; corpus + re-arc clone gitignored.
+- 2026-06-30 — **T2.5b run on snorlax** (owner fixed vllm-coder's `--dtype half`→`bfloat16` so gpt-oss-20b
+  serves again, then stopped vllm-coder to free the GPU for the eval). Pipeline ran clean end-to-end:
+  corpus 4800 tasks → 4B RE-ARC pretrain (38min, loss ~0.29) → eval. **Eval = 0/20 (0%) again.** Verdict:
+  the RE-ARC lever is correct but our **dose is ~100× under the winning recipe** (256× aug / ~98 H100-h +
+  DFS decode + 8B vs our 1 epoch / 6206 ex / 38min / greedy on one 4090; the 1536-tok filter also dropped
+  ~80% of RE-ARC examples). **Honest conclusion: a non-zero ARC-AGI-2 score needs full-recipe SCALE**
+  (large RE-ARC pretrain + DFS/PoE decode + ideally 8B), a multi-day / multi-GPU effort — not another small
+  4090 run. The complete, validated pipeline (data + pretrain + TTT + AIRV + eval) is the deliverable; the
+  remaining gap is compute, not engineering. Reported to owner. (Aside: discovered + flagged that
+  vllm-coder's gpt-oss-20b was crash-looping on a pre-existing `--dtype half` mxfp4 bug — unrelated to ARC.)
