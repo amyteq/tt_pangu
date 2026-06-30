@@ -1,0 +1,54 @@
+# kca-arc-agi3.yaml — ARC-AGI-3 kernel push/submit config (single source of truth)
+# Modelled on competitions/nvidia-nemotron/kca-nemo.yaml. Each kernel embeds ONE
+# agent (the MyAgent class) into the official 4-cell submission skeleton. Build the
+# .ipynb with kernels/build_notebooks.py against the official sample submission.
+#
+# Submission contract (from the official sample, confirmed 2026-06-27):
+#   - Kaggle notebook, enable_internet:false, competition_sources:[arc-prize-2026-arc-agi-3]
+#   - The competition is forced into arc_agi OperationMode.COMPETITION. During the
+#     scored rerun (KAGGLE_IS_COMPETITION_RERUN) cell 2 runs ARC-AGI-3-Agents
+#     main.py --agent myagent against a LOCAL gateway:8001 (no external internet).
+#   - Daily submission limit: 1 per account per day (verified 2026-06-27; the
+#     retroactive "Team AIRIS" change). Submit best candidate first.
+#   - gateway sends available_actions as raw ints [1..6]; `score` absent -> use
+#     levels_completed. Agents must handle both.
+
+_base:
+  competition: arc-prize-2026-arc-agi-3
+  code_file: "{name}.ipynb"
+  kernel_type: notebook
+  language: python
+  is_private: true
+  enable_internet: false
+  competition_sources: [arc-prize-2026-arc-agi-3]
+  docker_image: "gcr.io/kaggle-private-byod/python@sha256:00377cd1b3d470a605bc5b0ceca79969e369644e9b36802242a1c70e627372f9"
+  submission_file: submission.parquet
+  build: "python competitions/arc-agi3/kernels/build_notebooks.py <sample.ipynb> <out>"
+
+kernels:
+  arc3-goose:
+    id: harrysun2006/arc3-goose-stochasticgoose-cnn   # actual slug (title-slug on first push)
+    account: harrysun2006
+    agent: kernels/agents/agent_goose.py
+    enable_gpu: true
+    machine_shape: NvidiaTeslaT4
+    summary: "Canonical StochasticGoose CNN (Tufa Labs) — frame-change predictor + per-level reset. Proven best public baseline (12.58% on known envs)."
+  arc3-goosenov:
+    id: harrysun2006/arc3-goosenov
+    account: harrysun2006
+    agent: kernels/agents/agent_goosenov.py
+    enable_gpu: true
+    machine_shape: NvidiaTeslaT4
+    summary: "StochasticGoose CNN + count-based novelty anti-stall escape (epsilon ramps when frames stop being novel)."
+  arc3-explore:
+    id: firefly2006/arc3-explore
+    account: firefly2006
+    agent: kernels/agents/agent_explore.py
+    enable_gpu: false
+    summary: "Heuristic frame-diff explorer (no NN): epsilon-greedy on per-action change-rate + ACTION6 lattice sweep. GPU-free hedge."
+  arc3-reactive:
+    id: firefly2006/arc3-reactive
+    account: firefly2006
+    agent: kernels/agents/agent_reactive.py
+    enable_gpu: false
+    summary: "Heuristic object-centric explorer (no NN): clicks object centroids (objectness prior) + recency-novelty over simple actions."

@@ -1,0 +1,144 @@
+"""Offline pretrain — give Qwen2.5-0.5B an ARC prior before per-task TTT.
+
+Fine-tunes a LoRA adapter on the 1,000 public TRAINING tasks, formatted exactly like the TTT
+/ inference prompts (demos as context -> predict an output grid) and multiplied by the D8 +
+color augmentations. The saved adapter is then loaded as the *initial* adapter for per-task
+TTT (`model.TTTConfig.pretrained_adapter`), so each eval task starts from a model that already
+knows the ARC grid task format + common transformations instead of a blank instruct model.
+
+This is the step ironbar's 0.5B uses to reach ~40% on ARC-AGI-1; skipping it gave 0% (see
+tracking.md). RE-ARC can be added later for more volume; the 1,000 train tasks are the prior.
+
+    python solver/pretrain.py --out adapters/qwen05b_arc --epochs 1 --n-aug 6 --max-examples 16000
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+import time
+from pathlib import Path
+
+_COMP = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_COMP))
+sys.path.insert(0, str(_COMP / "eval"))
+
+from arc_io import load_github_split  # noqa: E402
+
+from solver.augment import build_augmentations  # noqa: E402
+from solver.serialize import format_task_prompt, grid_to_str  # noqa: E402
+from solver.ttt_data import build_ttt_examples  # noqa: E402
+
+
+def build_pretrain_examples(tasks, n_aug, seed, max_examples):
+    """(prompt, target) text pairs across all training tasks: leave-one-out over demos PLUS
+    the real (demos -> test output) example, each under `n_aug` augmentations."""
+    augs = build_augmentations(n=n_aug, seed=seed)
+    examples = []
+    for _tid, t in tasks.items():
+        # leave-one-out over the demo pairs (reuses the TTT builder)
+        for ex in build_ttt_examples(t.train, augs, seed=seed):
+            examples.append((ex.prompt, ex.target))
+        # the actual task: predict each test output from all demos
+        if t.test_outputs is not None:
+            for aug in augs:
+                aug_pairs = [{"input": aug.apply(p["input"]), "output": aug.apply(p["output"])} for p in t.train]
+                for ti, test_in in enumerate(t.test_inputs):
+                    prompt = format_task_prompt(aug_pairs, aug.apply(test_in))
+                    examples.append((prompt, grid_to_str(aug.apply(t.test_outputs[ti]))))
+    # deterministic shuffle + cap
+    import random
+
+    random.Random(seed).shuffle(examples)
+    if max_examples and len(examples) > max_examples:
+        examples = examples[:max_examples]
+    return examples
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--out", required=True, help="dir to save the pretrained adapter")
+    ap.add_argument("--model", default="Qwen/Qwen2.5-0.5B-Instruct")
+    ap.add_argument("--lora-rank", type=int, default=32)
+    ap.add_argument("--lora-alpha", type=int, default=16)
+    ap.add_argument("--epochs", type=float, default=1.0)
+    ap.add_argument("--n-aug", type=int, default=6)
+    ap.add_argument("--max-examples", type=int, default=16000)
+    ap.add_argument("--lr", type=float, default=2e-4)
+    ap.add_argument("--max-seq-len", type=int, default=1536)
+    ap.add_argument("--grad-accum", type=int, default=8)
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--save-every", type=int, default=2000, help="checkpoint the adapter every N steps")
+    args = ap.parse_args(argv)
+
+    import torch
+    from peft import LoraConfig, get_peft_model
+    from torch.optim import AdamW
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    tok = AutoTokenizer.from_pretrained(args.model)
+    if tok.pad_token is None:
+        tok.pad_token = tok.eos_token
+
+    print("building pretrain examples ...", flush=True)
+    tasks = load_github_split("training")
+    raw = build_pretrain_examples(tasks, args.n_aug, args.seed, args.max_examples)
+    data = []
+    for prompt, target in raw:
+        p_ids = tok(prompt, add_special_tokens=False)["input_ids"]
+        t_ids = tok(target, add_special_tokens=False)["input_ids"] + [tok.eos_token_id]
+        if len(p_ids) + len(t_ids) <= args.max_seq_len:
+            data.append((p_ids, t_ids))
+    print(f"{len(data)} examples (<= {args.max_seq_len} tok) from {len(tasks)} tasks", flush=True)
+
+    try:
+        base = AutoModelForCausalLM.from_pretrained(args.model, dtype=torch.bfloat16)
+    except TypeError:
+        base = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype=torch.bfloat16)
+    lora = LoraConfig(
+        r=args.lora_rank,
+        lora_alpha=args.lora_alpha,
+        lora_dropout=0.0,
+        target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+        task_type="CAUSAL_LM",
+    )
+    model = get_peft_model(base, lora).to("cuda")
+    model.gradient_checkpointing_enable()
+    model.enable_input_require_grads()
+    model.config.use_cache = False
+    model.train()
+
+    opt = AdamW([p for p in model.parameters() if p.requires_grad], lr=args.lr)
+    n = len(data)
+    total_steps = int(n * args.epochs)
+    rng = torch.Generator().manual_seed(args.seed)
+    order = torch.randperm(n, generator=rng).tolist()
+    print(f"training {total_steps} steps (grad-accum {args.grad_accum}) ...", flush=True)
+    t0 = time.time()
+    running = 0.0
+    opt.zero_grad(set_to_none=True)
+    for step in range(total_steps):
+        p_ids, t_ids = data[order[step % n]]
+        ids = torch.tensor([p_ids + t_ids], device="cuda")
+        lab = torch.tensor([[-100] * len(p_ids) + t_ids], device="cuda")
+        loss = model(input_ids=ids, labels=lab).loss / args.grad_accum
+        loss.backward()
+        running += loss.item() * args.grad_accum
+        if (step + 1) % args.grad_accum == 0:
+            opt.step()
+            opt.zero_grad(set_to_none=True)
+        if (step + 1) % 200 == 0:
+            print(
+                f"step {step + 1}/{total_steps} loss {running / 200:.4f} ({(step + 1) / (time.time() - t0):.1f} it/s)",
+                flush=True,
+            )
+            running = 0.0
+        if args.save_every and (step + 1) % args.save_every == 0:
+            model.save_pretrained(args.out)
+    model.save_pretrained(args.out)
+    print(f"saved adapter -> {args.out} in {time.time() - t0:.0f}s", flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
