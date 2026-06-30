@@ -1,0 +1,4 @@
+# Trained LoRA adapters (pretrain output) — never commit (weights are large + reproducible).
+# Rebuild with:  python competitions/arc-agi2/solver/pretrain.py --out adapters/<name>
+*
+!.gitignore

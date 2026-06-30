@@ -27,6 +27,13 @@
 | 2026-06-26 | baseline-identity | trivial floor | out=in (both attempts) | — | 0.0% | <1s | expected; ARC-2 has no identity tasks |
 | 2026-06-26 | baseline-mcto | constant-output floor | modal train output + input | — | 0.0% | <1s | expected floor |
 | 2026-06-26 | baseline-shape0 | canvas-shape floor | zeros@modal-shape + input | — | 0.0% | <1s | expected floor |
+| 2026-06-27 | ttt-core-oracle | AIRV scaffolding is correctly wired | full augment→infer→deaug→PoE/vote pipeline w/ perfect-augmented-decode oracle | 0 | **100.0%** | ~2s | ✅ pipeline validated end-to-end (167/167) |
+| 2026-06-27 | ttt-core-dummy | pipeline doesn't inflate | same pipeline, decode=echo augmented input | 0 | 0.0% | ~2s | ✅ no false positives |
+| 2026-06-28 | ttt-rung1-sample10 | rung-1 (0.5B+TTT, no pretrain) scores on real eval | Qwen2.5-0.5B-Instruct, per-task LoRA TTT 64 steps, 8-aug AIRV, on snorlax 4090 | 0 | **0.0%** (0/10) | ~15min/10 tasks (11–182s/task) | model emits well-formed grids but wrong; **0% = missing offline pretrain** (no ARC prior). GPU layer itself validated. |
+| 2026-06-28 | rung1-pretrain | offline pretrain on 1000 train tasks (the ARC prior) | Qwen2.5-0.5B LoRA r32, 12.1k aug examples, 1 epoch | 0 | train loss 0.69→0.29 | 861s (14min) on 4090 | adapter learns the grid format/mappings on train distribution |
+| 2026-06-28 | ttt-rung1-pretrained-sample20 | does the pretrain lift eval score? | pretrained adapter + per-task TTT 64 + 8-aug AIRV | 0 | **0.0%** (0/20) | ~25min | **rung-1 ceiling ≈ 0% on ARC-2 eval.** Decode probe: structured grids but WRONG dims (14×6 vs 18×8) + wrong content; rotated view degenerates. Capacity limit, not a bug (oracle=100%). Matches lit: 8B→16.5%, NVARC 4B+synth+TRM→24%. |
+| 2026-06-29 | rung2-pretrain-4b | bigger base learns the prior better | Qwen3-4B-Base LoRA r32, 12.1k aug examples, 1 epoch | 0 | train loss 0.37→**0.16** | 2994s (50min) on 4090 | 4B fits 24GB bf16 (12.8GB); learns training distribution much better than 0.5B (0.16 vs 0.29) |
+| 2026-06-29 | ttt-rung2-4b-sample20 | does a 4B + pretrain score on eval? | Qwen3-4B-Base + pretrained adapter + TTT 64 + 8-aug AIRV | 0 | **0.0%** (0/20) | ~55min (32–372s/task) | **Still 0%.** 4B fits training (loss 0.16) but ARC-2 eval needs rule *generalization*, not task memorization. **The lever is the DATA pipeline (RE-ARC + synthetic), not model size.** Per-task ~2.5min → full 120 ≈ 5h. |
 
 ## Baselines / reference points (external, for orientation)
 | Source | Score | Constraint context |
@@ -44,3 +51,25 @@
   downloaded (1000 train + 120 eval, gitignored); submission schema confirmed from `sample_submission.json`
   (`{task_id: [{attempt_1, attempt_2}]}`); **local pass@2 harness built + validated** (oracle 100%, baselines
   0%, 8/8 unit tests). Next: read 2025 tech report (T0.3), scope a TTT baseline (T2).
+- 2026-06-27 — declined a request to push 4 kernels: our only candidates were 0% baselines + no kernel
+  infra existed; chose (with human) to **build a real TTT baseline first**.
+- 2026-06-27 — T0.3 done (recipe in `ttt-recipe.md`); **T2.1a done** — model-agnostic TTT core in `solver/`
+  (augment/serialize/ttt_data/select/run) built + validated (oracle 100%, dummy 0%, 31/31 tests, ruff clean).
+  **T2.1b (GPU/model layer) is blocked on the compute decision (T0.4).** Still no Kaggle push/submit.
+- 2026-06-28 — **T2.1b GPU layer built + run on snorlax 4090** (rung-1: Qwen2.5-0.5B + per-task LoRA TTT,
+  `solver/model.py` + `run_eval.py`). Fixed OOM (bs1 + grad-checkpoint + seq filter) and a parser bug
+  (ragged-row normalization). End-to-end works; **10-task sample = 0/10 (0%)**.
+- 2026-06-28 — **T2.1c offline pretrain done** (`solver/pretrain.py`): 0.5B LoRA on 1000 train tasks
+  (12.1k aug examples, loss 0.69→0.29, 14min). **Eval WITH the pretrained adapter still = 0/20 (0%).**
+  Decode probe shows structured-but-wrong grids (wrong dims/content). **Conclusion: rung-1 (0.5B) ceiling
+  on ARC-AGI-2 eval is ~0% — a model-capacity limit, not a bug** (oracle harness = 100%). Consistent with
+  2025 results (8B ARChitects 16.5%, NVARC 4B+synth+TRM 24%). **Recommend escalating to rung-2** (4–8B +
+  RE-ARC pretrain + DFS/PoE) for any non-trivial score, or pivoting to the Grand-Prize/writeup angle.
+  No Kaggle push/submit. snorlax powered down to save cost pending the rung decision.
+- 2026-06-29 — **rung-2 (Qwen3-4B) run on snorlax** (per owner decision). 4B pretrain on 1000 train tasks
+  reached loss 0.16 (vs 0.5B's 0.29) and fits 24GB bf16, but **eval = 0/20 (0%) again.** Verdict: model
+  size is NOT the bottleneck — the winners' lever is the **data pipeline** (RE-ARC procedural rule
+  regeneration + large synthetic data, which teach rule *execution*; we only pretrained on the 1000 ARC-2
+  train tasks → task-fit, not generalization). Closing the gap = a multi-day RE-ARC/synthetic build (+ DFS
+  decode), not just a bigger model. Reported to owner; snorlax shut down per request pending direction.
+  Full validated pipeline + all findings in PR #159.
