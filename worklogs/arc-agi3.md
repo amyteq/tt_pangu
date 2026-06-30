@@ -6102,7 +6102,7 @@ https://github.com/amyteq/tt_pangu/pull/155
 > 
 > ## ✅ 完成
 > 
-> - **Commit**: [`16c8318`](https://github.com/amyteq/tt_pangu/commit/16c8318c9580eab02da47cf709012ee219aa6eb9) — `docs(arc-agi3): create competition workspace from sourced research`
+> - **Commit**: `16c8318` — `docs(arc-agi3): create competition workspace from sourced research`
 > - **Branch**: `worktree-arc-agi3-prep` → pushed to origin
 > - **PR #155**: https://github.com/amyteq/tt_pangu/pull/155 （base `main`,按仓库模板填好 closeout checklist)
 > 
@@ -11548,3 +11548,2041 @@ The file /home/harry/.claude-ayla/projects/-home-harry-test-tt-pangu/memory/MEMO
 `14:53:04`
 
 📝 Recap: Goal: compete in ARC-AGI-3. I built, tested, and pushed 4 agent kernels; submitted the best one per account (goose, explore), both pending scoring. Next: after the daily reset, submit the remaining two (goosenov, reactive) and read the scores.
+
+### 🤷 User: *A few follow up tasks before merge PR #155…*
+
+**`2026-06-29`** `23:41:11`
+
+A few follow up tasks before merge PR #155:
+
+- Commit untracked changes under competitions/arc-agi3/ from current local branch (main) to this PR.
+- Add a new md file or update one existing md file under competitions/arc-agi3 to explain the logics and principles in python script (or notebook) with a flow (mermaid).
+- Resolve merge conflicts, update competitions/README.md to include latest status of this competition.
+
+#### 🤖 Assistant: *Let me investigate the full state before…*
+
+`23:41:32`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me investigate the full state before acting — the main checkout's untracked files, the worktree, and whether the PR conflicts with main.
+
+##### 💻 Bash: *Inspect main checkout untracked arc-agi3 files*
+
+`23:41:35`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+echo "=== MAIN checkout branch + status (competitions/arc-agi3 only) ==="
+git -C /home/harry/test/tt_pangu branch --show-current
+git -C /home/harry/test/tt_pangu status --short -- competitions/arc-agi3/ competitions/README.md
+echo ""
+echo "=== untracked files under competitions/arc-agi3 in MAIN checkout ==="
+git -C /home/harry/test/tt_pangu ls-files --others --exclude-standard -- competitions/arc-agi3/
+```
+
+```
+=== MAIN checkout branch + status (competitions/arc-agi3 only) ===
+main
+?? competitions/arc-agi3/
+
+=== untracked files under competitions/arc-agi3 in MAIN checkout ===
+competitions/arc-agi3/explore.md
+competitions/arc-agi3/research_report_zh.md
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+```
+
+#### 🤖 Assistant: *The main checkout (branch `main`) has two…*
+
+`23:41:54`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The main checkout (branch `main`) has two user-created untracked files: `explore.md` and `research_report_zh.md`. Let me read them to understand what to bring into the PR.
+
+##### 💻 Bash: *Read the two untracked user files*
+
+`23:41:54`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+echo "########## explore.md (size: $(wc -l < competitions/arc-agi3/explore.md) lines) ##########"
+head -60 competitions/arc-agi3/explore.md
+echo ""
+echo "########## research_report_zh.md (size: $(wc -l < competitions/arc-agi3/research_report_zh.md) lines) ##########"
+head -40 competitions/arc-agi3/research_report_zh.md
+```
+
+````
+########## explore.md (size: 86 lines) ##########
+# Q1
+详细阅读了解[ARC Prize 2026 - ARC-AGI-3](https://www.kaggle.com/competitions/arc-prize-2026-arc-agi-3) 这个比赛, 深入Overview, Data, Code, Models, Discussion 等pages 并做全面的研究, 向我做详细介绍, 并给出你的ideas, 你认为存在的挑战, 以及可以提高成绩的技术和技巧! 我也在做 [ARC Prize 2026 - ARC-AGI-2](https://www.kaggle.com/competitions/arc-prize-2026-arc-agi-2) 这个比赛, 这两个比赛可否互相借鉴? 最后提供分析文件的下载链接!
+
+# A1
+已完成 ARC-AGI-3 的研究梳理，并把完整分析报告生成好了：
+
+* [下载 Markdown 分析报告](sandbox:/mnt/data/arc_agi3_arc_agi2_research_report_zh_20260626.md)
+* [下载 ZIP 打包文件](sandbox:/mnt/data/arc_agi3_arc_agi2_research_report_zh_20260626.zip)
+
+## 核心结论
+
+**ARC-AGI-3 不是 ARC-AGI-2 的简单升级版，而是从“静态 grid 推理”转向“交互式 agent 推理”。** ARC-AGI-2 的任务是根据少量 input/output examples 生成测试 grid，评分看 exact match；ARC-AGI-3 则要求 agent 在没有语言说明的 2D grid game 中探索、建模、发现目标并高效行动，官方强调 exploration、modeling、goal-setting、planning/execution 四类能力。([ARC Prize][1])
+
+ARC-AGI-3 的评分是 **RHAE**，同时考察是否完成和动作效率。最新官方 scoring docs 使用 **upper median human** 作为 human baseline，并将单 level score cap 设为 **1.15**；这意味着“通关 + 少走弯路”比单纯探索更重要。([docs.arcprize.org][2])
+
+ARC-AGI-3 的数据层次也很关键：public demo 有 25 games，semi-private 和 fully-private 各 55 games；官方论文明确提醒 public set 主要用于 demonstration/debug，不应当作为真实泛化能力的 validation。([arXiv][3])
+
+## 我认为最有前途的 ARC-AGI-3 路线
+
+不要从“端到端 LLM 玩游戏”开始。更稳的架构是：
+
+```text
+crash-safe Kaggle harness
+-> replay recorder / state graph
+-> object-centric perception
+-> novelty + salience exploration
+-> hypothesis library / executable world model
+-> planner with replanning
+-> optional offline local model augmentation
+```
+
+公开研究也支持这个方向。Preview competition 中较强方案偏向 informed search；近期论文中 executable world models、graph-based exploration、map-then-act planning 都说明 ARC-AGI-3 的关键不是单步猜动作，而是探索、建图、归纳规则、验证模型和规划。([ARC Prize][4])
+
+## ARC-AGI-2 与 ARC-AGI-3 能否互相借鉴？
+
+**可以，而且很值得，但应共享“中间层能力”，不要共享最终 submission 逻辑。**
+
+ARC-AGI-2 可以迁移到 ARC-AGI-3 的部分包括：
+
+* connected components、shape matching、color grouping、symmetry detection；
+* DSL / program synthesis；
+* candidate generation + verifier；
+* MDL / simplest consistent explanation；
+* synthetic transformation data；
+* TTT / reranking / ensemble 思路。
+
+ARC-AGI-3 可以反向帮助 ARC-AGI-2 的部分包括：
+
+* active hypothesis refinement；
+* object/event memory compression；
+* multi-step transformation as latent planning；
+* stronger verifier / replay simulator；
+* crash-safe Kaggle engineering。
+
+我建议你把两个比赛的 repo 逐步抽成共享核心：
+
+```text
+core/
+  perception/
+  dsl/
+
+########## research_report_zh.md (size: 701 lines) ##########
+# ARC Prize 2026: ARC-AGI-3 深度研究报告  
+## 兼论 ARC-AGI-2 与 ARC-AGI-3 的互相借鉴
+
+**研究日期**: 2026-06-26（Australia/Melbourne）  
+**面向读者**: 正在同时参与 ARC Prize 2026 ARC-AGI-2 与 ARC-AGI-3 的 Kaggle / agent 研发团队  
+**结论摘要**: ARC-AGI-3 不是 ARC-AGI-2 的“下一版静态网格题”，而是从“看训练样例 -> 生成测试输出”的静态推理，转向“无语言说明 -> 交互探索 -> 建立世界模型 -> 发现目标 -> 规划行动”的在线 agent benchmark。两者共享对象分解、颜色/网格先验、DSL/程序归纳、MDL、候选生成与验证等底层技术，但 ARC-AGI-3 更强调探索、记忆、上下文压缩、动作效率、长期规划和抗过拟合。
+
+---
+
+## 1. Executive Summary
+
+ARC-AGI-3 的核心区别是：**系统必须像玩家一样进入未知 2D grid game，在没有自然语言说明的情况下，通过交互发现规则与目标，并尽量用接近人类效率的动作数通关**。官方说明将其定位为第一个 interactive reasoning benchmark，强调 exploration、modeling、goal-setting、planning/execution 四项能力。
+
+ARC-AGI-2 仍然是经典 ARC 风格：给定少量输入/输出训练样例，对测试输入生成最终 grid 输出，评分依赖 exact match。ARC-AGI-3 则要求每一步输出 action，并通过 RHAE（Relative Human Agent Efficiency）同时考察完成率和动作效率。换句话说：
+
+- ARC-AGI-2 更像 “few-shot program synthesis / visual abstraction / static transformation inference”。
+- ARC-AGI-3 更像 “embodied grid-world agent / active learning / hypothesis-driven exploration / online planning”。
+
+对你的 KCA/Kaggle agent 项目来说，两者非常值得互相借鉴，但迁移方式应该是**共享底层 perception + DSL + hypothesis/refinement engine，而不是共享最终 submission 逻辑**。
+
+---
+
+## 2. ARC-AGI-3 比赛概览
+
+### 2.1 目标
+
+ARC-AGI-3 要求 agent 在没有说明、没有外部知识和没有联网的环境中玩一组 novel interactive games。每个 game 是 turn-based 2D grid world，agent 每步接收 frame/metadata，并选择一个动作。目标是完成关卡，并且动作数越接近或优于人类越好。
+
+官方强调四类能力：
+
+1. **Exploration**：主动探索未知环境，发现 affordances 与交互规律。
+2. **Modeling**：建立可验证的世界模型，知道动作如何改变状态。
+3. **Goal-setting**：从 feedback / progress / win condition 中推断目标。
+4. **Planning and execution**：使用已学规则高效规划行动，避免无效动作。
+
+### 2.2 奖金与时间线
+
+ARC Prize 2026 官方页面显示三条赛道：ARC-AGI-3、ARC-AGI-2、Paper Prize。ARC-AGI-3 赛道总奖金为 **$850K**，其中 Grand Prize $700K，Top Score Prize $75K，另有 6 月 30 日与 9 月 30 日 milestone prizes。官方 ARC Prize 2026 总页面给出的全赛季关键日期包括 2026-03-25 开赛、2026-06-30 ARC-AGI-3 milestone #1、2026-09-30 milestone #2、2026-11-02 competition submission deadline、2026-12-04 results announced。
+
+### 2.3 提交流程与限制
+Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+````
+
+#### 🤖 Assistant: *These are the user's own research artifacts…*
+
+`23:42:09`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> These are the user's own research artifacts (a Q&A doc and a 701-line Chinese research report) — valuable companions to bring into the PR. Let me check the merge-conflict situation against `main` before doing the work.
+
+##### 💻 Bash: *Check branch divergence from origin/main*
+
+`23:42:13`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+git fetch origin main 2>&1 | tail -3
+echo "=== branch vs origin/main: merge-base & ahead/behind ==="
+git rev-list --left-right --count origin/main...HEAD
+echo "(left=main-only commits, right=branch-only commits)"
+echo ""
+echo "=== files changed on origin/main since merge-base (potential conflicts) ==="
+mb=$(git merge-base origin/main HEAD)
+git diff --name-only $mb origin/main | head -40
+```
+
+```
+From github.com:amyteq/tt_pangu
+ * branch            main       -> FETCH_HEAD
+=== branch vs origin/main: merge-base & ahead/behind ===
+6	2
+(left=main-only commits, right=branch-only commits)
+
+=== files changed on origin/main since merge-base (potential conflicts) ===
+competitions/README.md
+competitions/arc-agi2/README.md
+competitions/arc-agi2/competition.yaml
+competitions/arc-agi2/data/.gitignore
+competitions/arc-agi2/eval/README.md
+competitions/arc-agi2/eval/arc_io.py
+competitions/arc-agi2/eval/baselines.py
+competitions/arc-agi2/eval/evaluate.py
+competitions/arc-agi2/eval/fetch_data.py
+competitions/arc-agi2/eval/metric.py
+competitions/arc-agi2/eval/viewer.py
+competitions/arc-agi2/overview_zh.md
+competitions/arc-agi2/references.md
+competitions/arc-agi2/research.md
+competitions/arc-agi2/rules.md
+competitions/arc-agi2/strategy.md
+competitions/arc-agi2/tasks.md
+competitions/arc-agi2/tests/test_metric.py
+competitions/arc-agi2/tracking.md
+competitions/sec-attack/README.md
+competitions/sec-attack/bugs.md
+competitions/sec-attack/competition.yaml
+competitions/sec-attack/eval/README.md
+competitions/sec-attack/eval/instruction_agent.py
+competitions/sec-attack/eval/reproduce_scorer.py
+competitions/sec-attack/eval/validate_bypass.py
+competitions/sec-attack/explore.md
+competitions/sec-attack/how-it-works.md
+competitions/sec-attack/insights.md
+competitions/sec-attack/kernels/.gitignore
+competitions/sec-attack/kernels/README.md
+competitions/sec-attack/kernels/attack_bypass.py
+competitions/sec-attack/kernels/attack_goexplore.py
+competitions/sec-attack/kernels/attack_kaggle.py
+competitions/sec-attack/kernels/build_kaggle_nb.py
+competitions/sec-attack/kernels/kernel-metadata.json
+competitions/sec-attack/kernels/sec-attack-jed.ipynb
+competitions/sec-attack/notes.md
+competitions/sec-attack/notes_zh.md
+competitions/sec-attack/references.md
+```
+
+#### 🤖 Assistant: *`origin/main` advanced 6 commits (added …*
+
+`23:42:26`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `origin/main` advanced 6 commits (added `arc-agi2/` and `sec-attack/` workspaces) and modified `competitions/README.md` — so there's a conflict there. Notably, `sec-attack/` has both `explore.md` and a `how-it-works.md` — a naming convention I should match for task 2. Let me look at both.
+
+##### 💻 Bash: *Read sec-attack how-it-works.md convention*
+
+`23:42:29`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+echo "########## sec-attack/how-it-works.md (structure to mirror) ##########"
+git show origin/main:competitions/sec-attack/how-it-works.md 2>/dev/null | head -70
+echo ""
+echo "########## does it use mermaid? ##########"
+git show origin/main:competitions/sec-attack/how-it-works.md 2>/dev/null | grep -c mermaid
+```
+
+````
+########## sec-attack/how-it-works.md (structure to mirror) ##########
+# How it works — code/notebook logic + attack principles
+
+> Companion to `research.md` (mechanics, source-verified) and `strategy.md` (ideas). This file explains, with
+> flow diagrams, **(a)** how our submission notebook/scripts are wired and **(b)** the *principles* behind the
+> "construct a (plain or base64) code snippet to compromise the agent" attacks you saw in other people's code.
+> Scope: the authorized JED competition sandbox only (CLAUDE.md CTF boundary) — this is defensive/educational.
+
+---
+
+## TL;DR — two very different uses of "base64", don't conflate them
+1. **Base64 around `attack.py` in the notebook (what *our* `build_kaggle_nb.py` does)** = **packaging**, not an attack.
+   We base64-encode our own attack source and `base64.b64decode(...)` it back inside the notebook so arbitrary Python
+   (docstrings, quotes, f-strings) can be embedded in one notebook cell **without escaping bugs**. It never touches the
+   target agent. See §1–§3.
+2. **Base64 (or ROT13/hex/morse) *inside untrusted content the agent reads*** = a real **attack/evasion** technique:
+   it hides malicious instructions/payloads from a guardrail that scans plaintext, while a capable LLM agent decodes
+   and follows them. See §4 — that's the principle your question is about.
+
+---
+
+## 1. The submission pipeline (notebook → attack.py → gateway → score)
+
+The Kaggle submission is a **notebook** that writes our attack to `/kaggle/working/attack.py` and starts an
+inference server. The real scoring happens later, during Kaggle's "competition rerun", when the **gateway** connects
+to that server, runs our attacker against the **real models** (`gpt_oss`, `gemma`), replays the results, and writes
+`submission.csv`.
+
+```mermaid
+flowchart TD
+  subgraph NB["submission notebook (sec-attack-jed.ipynb)"]
+    C1["cell 1: add /kaggle/input/**/ to sys.path<br/>(competition data ships aicomp_sdk + kaggle_evaluation)"]
+    C2["cell 2: base64-decode our source → write /kaggle/working/attack.py<br/>(PACKAGING only — not an attack)"]
+    C3["cell 3: JEDAttackInferenceServer().serve()"]
+    C1 --> C2 --> C3
+  end
+  C3 -->|"Save&Run (commit): KAGGLE_IS_COMPETITION_RERUN unset"| STUB["write submission.csv stub<br/>(Id,Score: 4 rows = 0) then serve() returns"]
+  C3 -->|"scored rerun: env var set → serve() blocks"| GW["gateway connects (jed_attack_gateway)"]
+  GW --> M{"for each model:<br/>gpt_oss, then gemma"}
+  M --> P1["Phase 1 GENERATION (budget 9000s/phase)<br/>attacker.run(RemoteEnv) drives the REAL model<br/>→ list[AttackCandidate] (user-message chains)"]
+  P1 --> P2{"for each guardrail:<br/>public = optimal_public, private = held-out"}
+  P2 --> RP["Phase 2 REPLAY each candidate in a fresh env<br/>recompute trace → eval_predicates → score_attack"]
+  RP --> OUT["submission.csv: row 'model_guardrail' → normalized score (raw/200)"]
+```
+
+Key facts (verified from the competition's own `kaggle_evaluation` code, see `research.md`):
+- `serve()` only blocks/produces real output during the rerun (`KAGGLE_IS_COMPETITION_RERUN`). At commit time it does
+  nothing useful, so we write a **schema-valid `submission.csv` stub** to pass the code-submission precondition; the
+  rerun overwrites it.
+- The kernel must run on **T4** (`machine_shape: NvidiaTeslaT4`); P100 is rejected.
+- A replay phase that exceeds **9000s** fails the *whole* submission, and a per-candidate exception re-raises — so we
+  return a **bounded, best-first** candidate set, not thousands.
+
+---
+
+## 2. Why we base64-embed *our own* attack source (packaging, not attack)
+
+`build_kaggle_nb.py` reads `attack_kaggle.py`, rewrites its 3 CONFIG lines per variant, then:
+
+```python
+b64 = base64.b64encode(src.encode()).decode()
+# notebook cell 2:
+attack_code = base64.b64decode("<b64>").decode("utf-8")
+open("/kaggle/working/attack.py","w").write(attack_code)
+```
+
+Reason: a notebook cell is JSON; embedding multi-line Python with its own triple-quoted docstrings and quotes as a
+string literal is fragile. Base64 makes the payload an opaque ASCII blob → **zero escaping bugs**, and it round-trips
+byte-for-byte. This is the same reason installers ship base64'd blobs. **It is not adversarial and the agent never
+sees it.** (People sometimes see this pattern and assume it's the "attack" — it isn't.)
+
+
+########## does it use mermaid? ##########
+4
+````
+
+#### 🤖 Assistant: *`sec-attack/how-it-works.md` is the exact…*
+
+`23:42:36`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `sec-attack/how-it-works.md` is the exact convention — mermaid flowcharts + submission pipeline + principles. I'll mirror it. Let me execute in order. First, merge `origin/main` to surface the conflict:
+
+##### 💻 Bash: *Merge origin/main to surface conflicts*
+
+`23:42:39`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+git merge origin/main --no-edit 2>&1 | tail -8
+echo "=== conflicted files ==="
+git diff --name-only --diff-filter=U
+```
+
+```
+Auto-merging competitions/README.md
+CONFLICT (content): Merge conflict in competitions/README.md
+Automatic merge failed; fix conflicts and then commit the result.
+=== conflicted files ===
+competitions/README.md
+```
+
+#### 🤖 Assistant: *The merge auto-combined the competitions…*
+
+`23:42:48`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The merge auto-combined the competitions table (kept both my arc-agi3 row and main's sec-attack row); the only conflict is in "Recently updated". I'll resolve it keeping both, and also update the now-stale arc-agi3 row to its latest status. Let me read the full conflicted file.
+
+##### 👀 Read `README.md`
+
+`23:42:50`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep/competitions/README.md</code></summary>
+
+```markdown
+# Competitions Dashboard
+
+> 真实 Kaggle 竞赛工作区总览。详情在各竞赛目录;本页保持简短。
+
+## Active competitions
+
+| Competition | Status | Type | Phase | Best CV/local | Best LB/public | Last submit/push | Current blocker | Next task |
+|---|---|---|---|---:|---:|---|---|---|
+| [arc-agi3](arc-agi3/) (arc3) | active | simulation_agent | research | — | — (AI<0.5%, 人类 100%) | 无(尚未建 agent) | 研究期:需 Kaggle 登录确认规则/GPU + `three.arcprize.org` API key 玩 25 公开环境 | 立 SDK harness + 本地 RHAE 指标 + 选赛道(Official/Community)+ 探索基线 |
+| [nvidia-nemotron](nvidia-nemotron/) (nemo) | active | llm | submission | per-kernel held-out | **0.85** (v14 replay) | v15 push 0.84 (2026-06-14); best=v14 0.85 | 0.85 是当前杠杆天花板(T7 merge 0.82 / v15 0.84 均回归);deadline **06-15** 迫近 | 守住 0.85 收官(可选 half-dose cryptarithm synth) |
+| [orbit-wars](orbit-wars/) (orbit) | active | simulation_agent | iteration | suite ~54.8% | own **686** (v3 peak) / attributed **1151** (kuni05) | harry latest-2: kuni05 **1085.4** + v3.2 **660.0** (2026-06-14) | 强档 cliff（0-15% vs evogen/multifocus/kuni05） | v4 Scheduler 下一刀（反击窗/集群重锤）；末 3 天冻结 best-2 |
+| [sec-attack](sec-attack/) | active | submission | submission | **18.0** (bypass vs `optimal_public`, LLM-proxy) | LB 评分 **PENDING** | **4 kernels submitted 2026-06-28** (2× harrysun2006 + 2× firefly2006) | 等待 LB 评分回填(scored rerun 慢:gpt_oss+gemma × public/private);绕过仅 LLM 代理验证;私有 guardrail 未知 | 读回 LB 分→调 families/数量/措辞重提;扩量+谓词叠加;建保留 guardrail 测鲁棒 |
+
+> LB 说明:nemo 最好 **0.85**(`nemo-replay-v14`,issue #86 comment 2 确认);两次冲 0.85+ 均回归(T7 merge 0.82、v15 synth 0.84)。orbit（Kaggle API 2026-06-14 确认):attributed adapted-kuni05 当前 **1085.4**(峰值 1151）、自研 v3.2 **660.0**;榜首 ~1746。详见 [`nvidia-nemotron/tracking.md`](nvidia-nemotron/tracking.md) · [`orbit-wars/tracking.md`](orbit-wars/tracking.md)。
+> Kaggle 只读刷新（2026-06-14）：nemo own 最好 **0.85**(v14);账号原始公开最大 **0.86**(2026-05-15 public-fork,非自训);榜首 **~0.90**;private LB 未发布。详见 [`nvidia-nemotron/submissions.md`](nvidia-nemotron/submissions.md)。
+
+## Recently updated
+<<<<<<< HEAD
+- **2026-06-26** arc-agi3 — created workspace from sourced research (ARC-AGI-3 + ARC-AGI-2 + cross-competition transfer). Interactive/agentic benchmark (AI<0.5%, 人类 100%); 几乎无技术从 AGI-2 直接迁移(无示例对⇒TTT/程序合成/DSL 全废),可借的是 refine-loop/RL/世界建模/智能体架构/工具箱。详见 [`arc-agi3/cross-competition.md`](arc-agi3/cross-competition.md)。
+=======
+- **2026-06-28** sec-attack — **submitted 4 Kaggle kernels (2 per account)** to the LB: `harrysun2006/{sec-attack-jed,
+  sec-attack-jed-x}` + `firefly2006/{sec-attack-jed, sec-attack-jed-x}` (sub ids 54134273/54134283 · 54134296/54134299).
+  All ran COMPLETE, no errors; scored rerun **PENDING**. Fixed two code-submission blockers: GPU must be **T4** (P100
+  rejected) and the notebook writes a **`submission.csv` stub** at Save&Run (the rerun overwrites it). Kernels verify
+  templates against the **real in-kernel agent** and keep only firing families. PRs #157 (merged) + #161.
+- **2026-06-26** sec-attack — **first non-zero: bypass v1 = 18.0 vs `optimal_public`** (`kernels/attack_bypass.py`,
+  naive baseline 0.00). Exploits: 5-event file-wash (taint window = last 5 events) + http.post data-blind-spot
+  (guardrail checks url not data). normalized = raw/200. ⚠ LLM-proxy only; real gpt_oss run pending.
+- **2026-06-26** sec-attack — folder created + **local scorer reproduced exactly** (`eval/reproduce_scorer.py`).
+  Confirmed from `aicomp-sdk==3.1.2` source + runs: default agent `AUTO`→gpt_oss; default guardrail `optimal_public`
+  (private LB swaps a held-out guardrail); replay caps 2000 findings/≤32 msgs/hops=4; metric
+  `raw=Σ SEVERITY_W[sev]+2·unique_cells` (`{1:1,2:2,3:4,4:8,5:16}`), normalized `/200000*1000`. Baseline floor
+  **0.00 vs `optimal_public`** (blocks naive attacks) → bypass is the task. Research/strategy/中文详解 in folder.
+>>>>>>> origin/main
+- **2026-06-14** nvidia-nemotron — context consolidation into English canonical docs + `tracking.md` + `_zh` sidecars (KCT-002); v15 synth = 0.84, best held at v14 0.85.
+- **2026-06-14** orbit-wars — v4 Scheduler(PR #92);文档集补全(KCT-001)。
+- **2026-06-14** orbit-wars — context consolidation into English canonical docs + `tracking.md` + `_zh` sidecars (KCT-003); ladder refreshed read-only: kuni05 1085.4 / v3.2 660.0, top ~1746.
+
+## Cross-competition notes
+- 见 [`_shared/insights.md`](_shared/insights.md):离线 gate 必须对齐线上指标;push 前 lint + 单样本预检。
+- 见 [`_shared/common-bugs.md`](_shared/common-bugs.md):CV/LB 背离、kernel runtime 不一致、依赖/离线 wheels、追踪 issue 膨胀。
+
+## Other competition material (not active)
+- **tpu-getting-started**(Petals to the Metal,M10):真实竞赛,但仍留在 `experiments/tpu-getting-started/`——
+  迁移会破坏 `scripts/`、`tests/`、`.claude/skills/`、`docs/` 中**禁止修改**的承重引用。详见
+  [`_shared/migration-notes.md`](_shared/migration-notes.md)(已登记为待后续 PR 迁移)。
+
+## Links
+- _shared insights: [`_shared/`](_shared/)
+- templates: [`_templates/`](_templates/)
+- migration notes: [`_shared/migration-notes.md`](_shared/migration-notes.md)
+
+```
+</details>
+
+#### 🤖 Assistant: *Now I'll resolve the conflict — keeping both…*
+
+`23:42:55`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now I'll resolve the conflict — keeping both the (updated) arc-agi3 entry and main's sec-attack entries:
+
+##### ✏️  Edit `README.md`
+
+`23:43:15`
+
+```diff
+@@ -1,7 +1,10 @@ ## Recently updated
+-<<<<<<< HEAD
++- **2026-06-27** arc-agi3 — **submitted 2 of 4 Kaggle kernels (1 per account; daily limit = 1/account/day)**:
++  `harrysun2006/arc3-goose` (StochasticGoose CNN, sub 54111934) + `firefly2006/arc3-explore` (frame-diff heuristic,
++  sub 54111957), both scored rerun **PENDING**. All 4 candidates built + validated locally vs the 25 public envs +
++  pushed (runs COMPLETE, clean); `arc3-goosenov` + `arc3-reactive` queued for next day. Reverse-engineered the
++  submission contract (4-cell notebook, customize only `MyAgent`; scored rerun plays a local `gateway:8001`). PR #155.
+ - **2026-06-26** arc-agi3 — created workspace from sourced research (ARC-AGI-3 + ARC-AGI-2 + cross-competition transfer). Interactive/agentic benchmark (AI<0.5%, 人类 100%); 几乎无技术从 AGI-2 直接迁移(无示例对⇒TTT/程序合成/DSL 全废),可借的是 refine-loop/RL/世界建模/智能体架构/工具箱。详见 [`arc-agi3/cross-competition.md`](arc-agi3/cross-competition.md)。
+-=======
+ - **2026-06-28** sec-attack — **submitted 4 Kaggle kernels (2 per account)** to the LB: `harrysun2006/{sec-attack-jed,
+   sec-attack-jed-x}` + `firefly2006/{sec-attack-jed, sec-attack-jed-x}` (sub ids 54134273/54134283 · 54134296/54134299).
+   All ran COMPLETE, no errors; scored rerun **PENDING**. Fixed two code-submission blockers: GPU must be **T4** (P100
+@@ -15,5 +18,4 @@   (private LB swaps a held-out guardrail); replay caps 2000 findings/≤32 msgs/hops=4; metric
+   `raw=Σ SEVERITY_W[sev]+2·unique_cells` (`{1:1,2:2,3:4,4:8,5:16}`), normalized `/200000*1000`. Baseline floor
+   **0.00 vs `optimal_public`** (blocks naive attacks) → bypass is the task. Research/strategy/中文详解 in folder.
+->>>>>>> origin/main
+ - **2026-06-14** nvidia-nemotron — context consolidation into English canonical docs + `tracking.md` + `_zh` sidecars (KCT-002); v15 synth = 0.84, best held at v14 0.85.
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep/competitions/README.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### 🤖 Assistant: *Now update the stale arc-agi3 table row to…*
+
+`23:43:18`
+
+> Now update the stale arc-agi3 table row to its latest status:
+
+##### ✏️  Edit `README.md`
+
+`23:43:24`
+
+```diff
+@@ -1 +1 @@-| [arc-agi3](arc-agi3/) (arc3) | active | simulation_agent | research | — | — (AI<0.5%, 人类 100%) | 无(尚未建 agent) | 研究期:需 Kaggle 登录确认规则/GPU + `three.arcprize.org` API key 玩 25 公开环境 | 立 SDK harness + 本地 RHAE 指标 + 选赛道(Official/Community)+ 探索基线 |
++| [arc-agi3](arc-agi3/) (arc3) | active | simulation_agent | submission | 4 agents run clean vs 25 public envs (RHAE 未评分) | LB **PENDING** (AI<0.5%, 人类 100%) | **2/4 submitted 2026-06-27** (goose@harry 54111934 + explore@may 54111957);goosenov+reactive 排队 | 每日限 **1/账号**;等 scored rerun(~8h)读回 RHAE | 读回分→次日提交 goosenov+reactive;迭代探索效率 |
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep/competitions/README.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### 🤖 Assistant: *Let me verify no conflict markers remain…*
+
+`23:43:32`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me verify no conflict markers remain, then complete the merge commit:
+
+##### 💻 Bash: *Verify clean and complete merge commit*
+
+`23:43:35`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+echo "=== conflict markers left? ==="
+grep -nE '^(<<<<<<<|=======|>>>>>>>)' competitions/README.md || echo "(none — clean)"
+git add competitions/README.md
+git commit --no-edit 2>&1 | tail -3
+echo "=== merge done? ==="; git status --short | head; git log --oneline -1
+```
+
+```
+=== conflict markers left? ===
+(none — clean)
+[worktree-arc-agi3-prep dfe9243] Merge remote-tracking branch 'origin/main' into worktree-arc-agi3-prep
+=== merge done? ===
+?? .claude/launch.json
+?? .claude/routines
+?? .claude/workflows
+dfe9243 Merge remote-tracking branch 'origin/main' into worktree-arc-agi3-prep
+```
+
+#### 🤖 Assistant: *Merge resolved and committed.*
+
+`23:43:39`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Merge resolved and committed. Now bring in the user's two research files from the main checkout:
+
+##### 💻 Bash: *Copy user research files into worktree*
+
+`23:43:41`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+cp /home/harry/test/tt_pangu/competitions/arc-agi3/explore.md competitions/arc-agi3/explore.md
+cp /home/harry/test/tt_pangu/competitions/arc-agi3/research_report_zh.md competitions/arc-agi3/research_report_zh.md
+ls -la competitions/arc-agi3/explore.md competitions/arc-agi3/research_report_zh.md
+echo "=== md files now in arc-agi3 ==="; ls competitions/arc-agi3/*.md
+```
+
+```
+-rw-r--r-- 1 harry harry  4419 Jun 30 09:43 competitions/arc-agi3/explore.md
+-rw-r--r-- 1 harry harry 28841 Jun 30 09:43 competitions/arc-agi3/research_report_zh.md
+=== md files now in arc-agi3 ===
+competitions/arc-agi3/arc-agi2-research.md
+competitions/arc-agi3/bugs.md
+competitions/arc-agi3/cross-competition.md
+competitions/arc-agi3/explore.md
+competitions/arc-agi3/insights.md
+competitions/arc-agi3/notes_zh.md
+competitions/arc-agi3/README.md
+competitions/arc-agi3/references.md
+competitions/arc-agi3/research.md
+competitions/arc-agi3/research_report_zh.md
+competitions/arc-agi3/rules.md
+competitions/arc-agi3/strategy.md
+competitions/arc-agi3/submissions.md
+competitions/arc-agi3/tasks.md
+```
+
+#### 🤖 Assistant: *Now the `how-it-works.md` with mermaid flows…*
+
+`23:43:51`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now the `how-it-works.md` with mermaid flows — mirroring the `sec-attack` convention. This explains the submission pipeline, the agent loop, and each agent's decision logic.
+
+##### ✍️  Write `how-it-works.md`
+
+`23:44:41`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep/competitions/arc-agi3/how-it-works.md</code></summary>
+
+````markdown
+# How it works — agent logic + submission flow (with diagrams)
+
+> Companion to `research.md` (benchmark mechanics, source-verified), `strategy.md` (ideas/hypotheses)
+> and `cross-competition.md` (AGI-2 ↔ AGI-3 transfer). This file explains, with mermaid flows,
+> **(a)** how our Kaggle submission notebook is wired, **(b)** the agent loop every candidate plugs
+> into, and **(c)** the decision logic + principles of each of the 4 agents in `kernels/agents/`.
+> Code: `kernels/agents/agent_*.py`; build: `kernels/build_notebooks.py`; config: `kca-arc-agi3.yaml`.
+
+---
+
+## TL;DR
+- ARC-AGI-3 gives the agent **no rules, no goal, no demo pairs** — only a 64×64/16-colour frame per
+  turn and ≤7 actions. Scoring is **RHAE = (human_actions / agent_actions)²** per level, so *wasted
+  actions are punished quadratically*. The whole design question is: **how do you explore efficiently
+  enough to win while spending few actions?**
+- A Kaggle submission is a **4-cell notebook** where you customise **only the `MyAgent` class**. The
+  scored run happens later in a **competition rerun** against a local `gateway:8001` env server (that
+  is how "no internet at eval" + "API-only" coexist — the env is a container, not the public internet).
+- We field **4 agents**, 2 per account: two learned (CNN) and two heuristic (no-NN). The heuristics
+  are a deliberate hedge — they cannot crash on torch/CUDA and still produce a score.
+
+---
+
+## 1. The submission pipeline (notebook → my_agent.py → gateway → score)
+
+The notebook is the official 4-cell skeleton (`kernels/build_notebooks.py` swaps cell 1 for our agent).
+At **Save&Run (commit)** time there is no gateway, so it just writes a dummy `submission.parquet` to
+satisfy the code-submission precondition. The **real** scoring happens during Kaggle's competition
+rerun, when `KAGGLE_IS_COMPETITION_RERUN` is set and a `gateway:8001` env server is provisioned.
+
+```mermaid
+flowchart TD
+  subgraph NB["submission notebook (arc3-*.ipynb)"]
+    C0["cell 0: pip install --no-index from<br/>competition arc_agi_3_wheels (offline)"]
+    C1["cell 1: %%writefile my_agent.py<br/>defines class MyAgent(Agent) — OUR code"]
+    C2["cell 2: competition-rerun runner"]
+    C3["cell 3: dummy submission.parquet"]
+    C0 --> C1 --> C2 --> C3
+  end
+  C2 -->|"Save&Run: KAGGLE_IS_COMPETITION_RERUN unset"| SKIP["cell 2 is a no-op<br/>cell 3 writes dummy submission.parquet<br/>(validates wheels+imports only)"]
+  C2 -->|"scored rerun: env var SET"| RUN["copy ARC-AGI-3-Agents from competition input<br/>register MyAgent as 'myagent'<br/>write .env: HOST=gateway PORT=8001<br/>run: python main.py --agent myagent"]
+  RUN --> GW["local gateway:8001 (arc_agi COMPETITION mode)<br/>serves the 55 semi-private envs, no internet"]
+  GW --> SC["scorecard auto-scores all envs (RHAE)<br/>→ submission graded on the leaderboard"]
+```
+
+Key facts (verified from the official sample + SDK, see `research.md` / `kca-arc-agi3.yaml`):
+- `enable_internet: false`; the only reachable server is the in-cluster `gateway:8001`.
+- Comp is forced into `arc_agi.OperationMode.COMPETITION`: API-only, level-resets only, single scorecard.
+- The **gateway sends `available_actions` as raw ints `[1..6]`** and omits `score` → use
+  `levels_completed`. Every agent normalises both (`_avail_ids`, `_get_score`).
+- **Daily submission limit = 1 per account per day** → we submit the best candidate per account first.
+
+---
+
+## 2. The agent loop (what `MyAgent` plugs into)
+
+Every candidate subclasses `Agent` and implements just two methods: `is_done()` and `choose_action()`.
+The framework's `main()` runs one game per agent instance until done; the Swarm runs all games
+concurrently. Internal reasoning is *free* (not counted) — only `take_action` calls cost RHAE.
+
+```mermaid
+flowchart TD
+  S["Agent.main() — one game"] --> D{"is_done(frames, latest)?<br/>WIN or 8h time cap"}
+  D -->|yes| END["cleanup → close scorecard"]
+  D -->|no| CA["choose_action(frames, latest)"]
+  CA --> TA["take_action → arc_env.step(action)<br/>(this is the only RHAE-costed call)"]
+  TA --> F["append new FrameData<br/>(64×64 grid, state, levels_completed,<br/>available_actions)"]
+  F --> D
+```
+
+`GameAction`: `RESET`, `ACTION1..5` (simple), `ACTION6` (click — needs `{x,y}`), `ACTION7` (undo).
+`GameState`: `NOT_PLAYED`, `NOT_FINISHED`, `WIN`, `GAME_OVER`. On `NOT_PLAYED`/`GAME_OVER` an agent
+must `RESET`; on level change it resets its per-level memory.
+
+---
+
+## 3. The 4 candidates and their decision logic
+
+| Kernel | Account | Family | Core idea |
+|---|---|---|---|
+| `arc3-goose` | harrysun2006 | learned CNN | StochasticGoose: a CNN learns *which action changes the frame*; trains online per level. |
+| `arc3-goosenov` | harrysun2006 | learned CNN | goose + **count-based novelty escape**: when frames stop being novel, ramp ε-random to break ruts. |
+| `arc3-explore` | firefly2006 | heuristic (no NN) | ε-greedy on per-action **change-rate** + ACTION6 **lattice sweep**. GPU-free. |
+| `arc3-reactive` | firefly2006 | heuristic (no NN) | **object-centric** clicks (centroids of colour regions) + recency-novelty over simple actions. |
+
+### 3a. Heuristic agents (`explore`, `reactive`) — no NN, robust hedge
+
+The shared principle: the cheapest useful signal with no instructions is **"did my last action change
+the world?"** Track per-action change-rate, prefer movers, and spend ACTION6 clicks where they are
+most likely to matter. RHAE rewards this parsimony.
+
+```mermaid
+flowchart TD
+  A["choose_action"] --> R{"state NOT_PLAYED<br/>or GAME_OVER?"}
+  R -->|yes| RST["RESET"]
+  R -->|no| L{"level changed?"}
+  L -->|yes| RL["reset per-level memory"]
+  L -->|no| LEARN["update stats: did prev action<br/>change the grid? (Laplace-smoothed rate)"]
+  RL --> LEARN
+  LEARN --> CLK{"ACTION6 available<br/>and dice < ACTION6_SHARE?"}
+  CLK -->|"yes (explore)"| LAT["ACTION6 at next untried<br/>lattice cell (stride 8)"]
+  CLK -->|"yes (reactive)"| OBJ["ACTION6 at an unclicked<br/>object centroid (objectness prior)"]
+  CLK -->|no| SIM["pick simple action:<br/>explore = ε-greedy on change-rate<br/>reactive = argmax(change-rate + recency novelty)"]
+```
+
+Why they differ: `explore` sweeps a **blind lattice** of coordinates (good coverage); `reactive`
+clicks **object centroids** (far fewer, more meaningful clicks — cheaper under RHAE) and adds a
+recency bonus so it stops spamming one direction.
+
+### 3b. Learned agents (`goose`, `goosenov`) — CNN frame-change predictor
+
+StochasticGoose (Tufa Labs, the best-known public baseline) learns a CNN that predicts, for the
+current 64×64 frame, which of the 5 simple actions / which 64×64 click will change the frame; it
+trains online from its own experience and resets the net each new level. `goosenov` adds a safe
+novelty escape on top.
+
+```mermaid
+flowchart TD
+  A["choose_action"] --> LV{"level changed?"}
+  LV -->|yes| RES["reset CNN + optimizer +<br/>experience buffer for new level"]
+  LV -->|no| EXP["store experience:<br/>(prev_frame, prev_action) → reward = frame_changed?"]
+  RES --> EXP
+  EXP --> NOV{"goosenov only:<br/>stalled (frames not novel<br/>for ≥ STALL_TRIGGER)?"}
+  NOV -->|"yes → ε ramps"| ESC["inject uniform-random valid action<br/>(escape the rut)"]
+  NOV -->|no| INF["CNN forward → mask invalid actions →<br/>sample action / (x,y) click"]
+  ESC --> TRN["periodically train CNN on buffer<br/>(BCE: did action change frame)"]
+  INF --> TRN
+```
+
+Principle: model-based exploration. The reward signal "*did the frame change*" is available with no
+instructions, so the CNN learns the game's affordances online. `goosenov`'s only delta is the
+**stall detector** — it escalates random exploration *only* when the model has demonstrably stopped
+finding novelty, so it doesn't waste RHAE-costed actions when the model is already making progress.
+
+---
+
+## 4. Design principles (why these choices)
+1. **RHAE punishes wasted actions quadratically** → every agent optimises *information per action*,
+   not just task completion (object-centric clicks, change-rate priors, stall-gated exploration).
+2. **Generalisation > public-set fit** → agents adapt *within an episode* (online learning / per-level
+   memory reset) rather than memorising the 25 public envs (the 12.58%→0.25% cliff, see `insights.md`).
+3. **Hedge the stack** → 2 learned + 2 heuristic. If torch/CUDA misbehaves in the rerun, the
+   no-NN agents still produce a score; if learning pays off, the CNNs have the higher ceiling.
+4. **Match the contract exactly** → ints-or-enums actions, `levels_completed` not `score`, T4 GPU only
+   for CNNs, offline wheels — all validated locally against the 25 public envs before pushing.
+
+> Validation evidence and the submission log live in `submissions.md`; the local test harness pattern
+> (anonymous key → 25 public envs) is in `reference_arc_agi3_kaggle_ops` (memory) and `research.md` §7.
+
+````
+</details>
+
+✓ File created successfully at: /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep/competitions/arc-agi3/how-it-works.md (file state is current in your context — no need to Read it back)
+
+#### 🤖 Assistant: *Let me link the new docs from the arc-agi3…*
+
+`23:44:49`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me link the new docs from the arc-agi3 README so they're discoverable:
+
+##### ✏️  Edit `README.md`
+
+`23:44:52`
+
+```diff
+@@ -1,3 +1,5 @@ ## Key links
++- **how it works (agent logic + submission flow, mermaid)**: ./how-it-works.md
+ - rules (evidence-based, ⚠ flags unknowns): ./rules.md
+ - ARC-AGI-3 research brief: ./research.md
++- owner research report (中文, full): ./research_report_zh.md · Q&A: ./explore.md
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep/competitions/arc-agi3/README.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### 🤖 Assistant: *Now let me stage and commit all the new content…*
+
+`23:44:57`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now let me stage and commit all the new content, and quickly re-check the submission scores while I'm at it:
+
+##### 💻 Bash: *Stage files and sanity-check mermaid*
+
+`23:45:00`
+
+````bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+git add competitions/arc-agi3/explore.md competitions/arc-agi3/research_report_zh.md competitions/arc-agi3/how-it-works.md competitions/arc-agi3/README.md
+echo "=== staged ==="; git status --short | grep -E 'arc-agi3|README'
+echo ""
+echo "=== quick mermaid sanity: subgraph/end balance + fence count ==="
+grep -c '```mermaid' competitions/arc-agi3/how-it-works.md
+echo "subgraph: $(grep -c 'subgraph' competitions/arc-agi3/how-it-works.md) / end: $(grep -cE '^\s*end\s*$' competitions/arc-agi3/how-it-works.md)"
+````
+
+```
+=== staged ===
+M  competitions/arc-agi3/README.md
+A  competitions/arc-agi3/explore.md
+A  competitions/arc-agi3/how-it-works.md
+A  competitions/arc-agi3/research_report_zh.md
+
+=== quick mermaid sanity: subgraph/end balance + fence count ===
+4
+subgraph: 1 / end: 1
+```
+
+#### 🤖 Assistant: *4 mermaid blocks, subgraph/end balanced,…*
+
+`23:45:11`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> 4 mermaid blocks, subgraph/end balanced, fences closed. Let me commit and push:
+
+##### 💻 Bash: *Commit the new docs and dashboard update*
+
+`23:45:18`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+git commit -q -m "$(cat <<'EOF'
+docs(arc-agi3): add owner research files + how-it-works (mermaid); update dashboard
+
+- Commit the owner's untracked research artifacts from local main into the PR:
+  explore.md (Q&A) + research_report_zh.md (701-line ZH deep report).
+- Add how-it-works.md: agent logic + submission-flow explanation with 4 mermaid
+  diagrams (notebook→gateway pipeline, the Agent loop, heuristic decision tree,
+  CNN frame-change predictor), mirroring the sec-attack/how-it-works.md convention.
+- Link the new docs from arc-agi3/README.md key links.
+- competitions/README.md: merged origin/main (arc-agi2 + sec-attack workspaces),
+  resolved the Recently-updated conflict, and refreshed the arc-agi3 row to the
+  latest status (4 candidates built/validated/pushed; 2/4 submitted, PENDING).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Km4Jpvq81xY6r73n9WEfDy
+EOF
+)" && git log --oneline -3
+```
+
+```
+74202a7 docs(arc-agi3): add owner research files + how-it-works (mermaid); update dashboard
+dfe9243 Merge remote-tracking branch 'origin/main' into worktree-arc-agi3-prep
+91e3f9b feat(sec-attack): parameterized Kaggle variants + working code submission (4 subs, 2 accounts) (#161)
+```
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+git push origin worktree-arc-agi3-prep 2>&1 | tail -4
+echo "=== quick submission score check (both accounts) ==="
+V="/tmp/claude-1000/arc/venv"; C=arc-prize-2026-arc-agi-3
+if [ -x "$V/bin/kaggle" ]; then
+  ( set -a; . /home/harry/test/tt_pangu/.vscode/.env.harry; set +a; echo "[harry]"; "$V/bin/kaggle" competitions submissions $C 2>&1 | sed -n '3,4p' )
+  ( set -a; . /home/harry/test/tt_pangu/.vscode/.env.may; set +a; echo "[may]"; "$V/bin/kaggle" competitions submissions $C 2>&1 | sed -n '3,4p' )
+else echo "(venv gone — skip score check)"; fi
+```
+
+```
+To github.com:amyteq/tt_pangu.git
+   5e0f06f..74202a7  worktree-arc-agi3-prep -> worktree-arc-agi3-prep
+=== quick submission score check (both accounts) ===
+[harry]
+54111934  submission.parquet  2026-06-27 14:45:47.177000  arc3-goose: canonical StochasticGoose CNN (frame-change predictor)  SubmissionStatus.COMPLETE  0.07                       
+[may]
+54111957  submission.parquet  2026-06-27 14:46:34.210000  arc3-explore: frame-diff heuristic explorer (no NN)  SubmissionStatus.COMPLETE  0.18
+```
+
+#### 🤖 Assistant: *The reruns finished and \*\*scored\*\* — and…*
+
+`23:45:55`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The reruns finished and **scored** — and there's a notable result:
+> 
+> - **harry / arc3-goose** (StochasticGoose CNN): **0.07**
+> - **may / arc3-explore** (frame-diff heuristic): **0.18** ← the no-NN heuristic beat the CNN
+> 
+> Both COMPLETE and well above the frontier-LLM baseline (<0.005). Let me fold these scores into the PR docs so the status is accurate.
+
+##### ✏️  Edit `submissions.md`
+
+`23:46:11`
+
+```diff
+@@ -1,12 +1,17 @@-| arc3-goose (slug `arc3-goose-stochasticgoose-cnn`) | harrysun2006 | canonical StochasticGoose CNN | yes | ✅ v1 | COMPLETE | ✅ 2026-06-27 (id 54111934, PENDING) |
++| arc3-goose (slug `arc3-goose-stochasticgoose-cnn`) | harrysun2006 | canonical StochasticGoose CNN | yes | ✅ v1 | COMPLETE | ✅ 2026-06-27 (id 54111934) → **LB 0.07** |
+ | arc3-goosenov | harrysun2006 | CNN + novelty escape | yes | ✅ v1 | COMPLETE | ⏸ blocked by 1/day → next day |
+-| arc3-explore | firefly2006 | frame-diff heuristic | no | ✅ v1 | COMPLETE | ✅ 2026-06-27 (id 54111957, PENDING) |
++| arc3-explore | firefly2006 | frame-diff heuristic | no | ✅ v1 | COMPLETE | ✅ 2026-06-27 (id 54111957) → **LB 0.18** |
+ | arc3-reactive | firefly2006 | object-centric heuristic | no | ✅ v1 | COMPLETE | ⏸ blocked by 1/day → next day |
+ 
+ ## Submission log
+ | Date | Kernel | id | Submit type | Public LB | Private LB | Notes |
+ |---|---|---|---|---:|---:|---|
+-| 2026-06-27 | harrysun2006/arc3-goose-stochasticgoose-cnn | 54111934 | code-comp (-k -v1 -f submission.parquet) | PENDING | — | canonical StochasticGoose CNN; scored rerun running (~up to 8h) |
+-| 2026-06-27 | firefly2006/arc3-explore | 54111957 | code-comp (-k -v1 -f submission.parquet) | PENDING | — | frame-diff heuristic; scored rerun running |
++| 2026-06-27 | harrysun2006/arc3-goose-stochasticgoose-cnn | 54111934 | code-comp (-k -v1 -f submission.parquet) | **0.07** | — | canonical StochasticGoose CNN; COMPLETE |
++| 2026-06-27 | firefly2006/arc3-explore | 54111957 | code-comp (-k -v1 -f submission.parquet) | **0.18** | — | frame-diff heuristic; COMPLETE — **beat the CNN** |
+ | (next day) | harrysun2006/arc3-goosenov | — | queued | — | — | 400 today (1/account/day cap) |
+ | (next day) | firefly2006/arc3-reactive | — | queued | — | — | 400 today (1/account/day cap) |
++
++> **Result (2026-06-27):** both scored. The **no-NN frame-diff heuristic (0.18) beat the CNN (0.07)** —
++> consistent with `insights.md` INS-002/INS-004 (RHAE rewards parsimony; the untrained-online CNN spends
++> many actions before it learns). Next: submit goosenov + reactive next day; consider porting explore's
++> efficiency into the CNN's exploration. Both >> the <0.005 frontier-LLM baseline.
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep/competitions/arc-agi3/submissions.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+##### ✏️  Edit `README.md`
+
+`23:46:23`
+
+```diff
+@@ -1 +1 @@-| [arc-agi3](arc-agi3/) (arc3) | active | simulation_agent | submission | 4 agents run clean vs 25 public envs (RHAE 未评分) | LB **PENDING** (AI<0.5%, 人类 100%) | **2/4 submitted 2026-06-27** (goose@harry 54111934 + explore@may 54111957);goosenov+reactive 排队 | 每日限 **1/账号**;等 scored rerun(~8h)读回 RHAE | 读回分→次日提交 goosenov+reactive;迭代探索效率 |
++| [arc-agi3](arc-agi3/) (arc3) | active | simulation_agent | submission | 4 agents run clean vs 25 public envs | LB **explore 0.18** / goose 0.07 (AI<0.005, 人类 100%) | **2/4 scored 2026-06-27** (explore@may 0.18 + goose@harry 0.07);goosenov+reactive 排队 | 每日限 **1/账号**;启发式(0.18)>CNN(0.07) | 次日提交 goosenov+reactive;把 explore 的效率移植进 CNN 探索 |
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep/competitions/README.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+```diff
+@@ -1,5 +1,6 @@-- **2026-06-27** arc-agi3 — **submitted 2 of 4 Kaggle kernels (1 per account; daily limit = 1/account/day)**:
+-  `harrysun2006/arc3-goose` (StochasticGoose CNN, sub 54111934) + `firefly2006/arc3-explore` (frame-diff heuristic,
+-  sub 54111957), both scored rerun **PENDING**. All 4 candidates built + validated locally vs the 25 public envs +
+-  pushed (runs COMPLETE, clean); `arc3-goosenov` + `arc3-reactive` queued for next day. Reverse-engineered the
+-  submission contract (4-cell notebook, customize only `MyAgent`; scored rerun plays a local `gateway:8001`). PR #155.
++- **2026-06-27** arc-agi3 — **2 of 4 submitted + SCORED**: `firefly2006/arc3-explore` (frame-diff heuristic) =
++  **0.18**, `harrysun2006/arc3-goose` (StochasticGoose CNN) = **0.07** — the **no-NN heuristic beat the CNN** (RHAE
++  rewards parsimony; the online-trained CNN burns actions learning). Both >> the <0.005 frontier-LLM baseline.
++  All 4 candidates built + validated locally vs the 25 public envs + pushed (runs COMPLETE, clean); `arc3-goosenov`
++  + `arc3-reactive` queued for next day (daily limit = 1/account/day). Reverse-engineered the submission contract
++  (4-cell notebook, customize only `MyAgent`; scored rerun plays a local `gateway:8001`). PR #155.
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep/competitions/README.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### 🤖 Assistant: *Let me also update the arc-agi3 README status…*
+
+`23:46:35`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me also update the arc-agi3 README status snapshot with the scores, then commit + push:
+
+##### ✏️  Edit `README.md`
+
+`23:46:44`
+
+```diff
+@@ -1,12 +1,12 @@-- best known local/CV: agents run clean vs the 25 public envs (RHAE not yet scored)
+-- best known LB/public: **PENDING** (2 submissions scoring; frontier LLMs at launch were < 0.5%, humans 100%)
++- best known local/CV: agents run clean vs the 25 public envs
++- best known LB/public: **explore 0.18 / goose 0.07** (both >> the <0.005 frontier-LLM baseline; humans 1.0)
+ - current blocker: **daily limit = 1 submission/account/day** → only 2 of 4 submitted today; rest next day
+-- next task: read scored RHAE when reruns finish (~up to 8h); submit arc3-goosenov + arc3-reactive next day; then iterate
++- next task: submit arc3-goosenov + arc3-reactive next day; port explore's action-efficiency into the CNN's exploration
+ 
+-## Submissions in flight (2026-06-27)
+-| Kernel | Account | Agent | Status |
+-|---|---|---|---|
+-| arc3-goose (`…-stochasticgoose-cnn`) | harrysun2006 | canonical StochasticGoose CNN | submitted, **PENDING** (id 54111934) |
+-| arc3-explore | firefly2006 | frame-diff heuristic | submitted, **PENDING** (id 54111957) |
+-| arc3-goosenov | harrysun2006 | CNN + novelty escape | ready, queued (1/day cap) |
+-| arc3-reactive | firefly2006 | object-centric heuristic | ready, queued (1/day cap) |
++## Submissions — scored (2026-06-27)
++| Kernel | Account | Agent | Status | LB |
++|---|---|---|---|---|
++| arc3-explore | firefly2006 | frame-diff heuristic | COMPLETE (id 54111957) | **0.18** ← beat the CNN |
++| arc3-goose (`…-stochasticgoose-cnn`) | harrysun2006 | canonical StochasticGoose CNN | COMPLETE (id 54111934) | **0.07** |
++| arc3-goosenov | harrysun2006 | CNN + novelty escape | ready, queued (1/day cap) | — |
++| arc3-reactive | firefly2006 | object-centric heuristic | ready, queued (1/day cap) | — |
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep/competitions/arc-agi3/README.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+##### 💻 Bash: *Commit scores and push*
+
+`23:46:52`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+git add competitions/arc-agi3/submissions.md competitions/arc-agi3/README.md competitions/README.md
+git commit -q -m "$(cat <<'EOF'
+docs(arc-agi3): record scored LB results (explore 0.18 > goose 0.07)
+
+Both 2026-06-27 submissions finished scoring: firefly2006/arc3-explore
+(frame-diff heuristic) = 0.18, harrysun2006/arc3-goose (StochasticGoose CNN)
+= 0.07. The no-NN heuristic beat the online-trained CNN (RHAE rewards
+parsimony) — both far above the <0.005 frontier-LLM baseline. Updated
+submissions.md + both READMEs.
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Km4Jpvq81xY6r73n9WEfDy
+EOF
+)"
+git push origin worktree-arc-agi3-prep 2>&1 | tail -3
+echo "=== final PR branch state ==="; git log --oneline -4
+```
+
+```
+To github.com:amyteq/tt_pangu.git
+   74202a7..7f06a89  worktree-arc-agi3-prep -> worktree-arc-agi3-prep
+=== final PR branch state ===
+7f06a89 docs(arc-agi3): record scored LB results (explore 0.18 > goose 0.07)
+74202a7 docs(arc-agi3): add owner research files + how-it-works (mermaid); update dashboard
+dfe9243 Merge remote-tracking branch 'origin/main' into worktree-arc-agi3-prep
+91e3f9b feat(sec-attack): parameterized Kaggle variants + working code submission (4 subs, 2 accounts) (#161)
+```
+
+#### 🤖 Assistant: *All three tasks done and pushed.*
+
+`23:47:01`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All three tasks done and pushed. Let me verify PR #155 is now conflict-free and mergeable:
+
+##### 💻 Bash: *Check PR #155 mergeable state*
+
+`23:47:04`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+gh pr view 155 --json number,title,mergeable,mergeStateStatus,headRefName,commits 2>&1 | "$( command -v jq >/dev/null && echo jq || echo cat )" '{number,title,mergeable,mergeStateStatus,headRefName,commits:(.commits|length)}' 2>/dev/null || gh pr view 155 --json number,mergeable,mergeStateStatus 2>&1 | head -20
+```
+
+```
+{
+  "number": 155,
+  "title": "docs(arc-agi3): create ARC-AGI-3 competition workspace from sourced research",
+  "mergeable": "MERGEABLE",
+  "mergeStateStatus": "UNSTABLE",
+  "headRefName": "worktree-arc-agi3-prep",
+  "commits": 5
+}
+```
+
+#### 🤖 Assistant: *PR #155 is now \*\*MERGEABLE\*\* (conflict resolved…*
+
+`23:47:12`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> PR #155 is now **MERGEABLE** (conflict resolved). `UNSTABLE` refers to CI checks, not conflicts — let me see which:
+
+##### 💻 Bash: *Check PR #155 CI checks*
+
+`23:47:14`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+gh pr checks 155 2>&1 | head -20
+```
+
+```
+eval (mocked nightly)	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410228850/job/84181438070	
+eval-delta-check (PR gate)	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410228850/job/84181438059	
+live-db pytest	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410228992/job/84181439310	
+no-db pytest	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410228992/job/84181439298	
+ruff lint + format check	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410228992/job/84181439307	
+ui build + lint + typecheck + test	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410228992/job/84181439280
+```
+
+#### 🤖 Assistant: *CI checks are simply pending (freshly triggered…*
+
+`23:47:29`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> CI checks are simply pending (freshly triggered) — the PR itself is conflict-free and mergeable. Since you want to merge, let me proactively run ruff on the agent files to catch anything before the lint gate does:
+
+##### 💻 Bash: *Check ruff config and lint the kernel agents*
+
+`23:47:33`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+echo "=== ruff config: any exclude for competitions kernels? ==="
+grep -rnE 'exclude|competitions|per-file' pyproject.toml ruff.toml .ruff.toml 2>/dev/null | head -20
+echo ""
+V="/tmp/claude-1000/arc/venv"
+"$V/bin/pip" install -q ruff 2>&1 | tail -1
+echo "=== ruff check on arc-agi3 kernels ==="
+"$V/bin/ruff" check competitions/arc-agi3/kernels/ 2>&1 | tail -25
+```
+
+```
+=== ruff config: any exclude for competitions kernels? ===
+pyproject.toml:47:exclude = [
+pyproject.toml:60:# exclude it so a stray file there can never trip the linter / CI / pre-push gate.
+
+=== ruff check on arc-agi3 kernels ===
+F401 [*] `arcengine.FrameData` imported but unused
+  --> competitions/arc-agi3/kernels/agents/agent_explore.py:23:23
+   |
+22 | from agents.agent import Agent
+23 | from arcengine import FrameData, GameAction, GameState
+   |                       ^^^^^^^^^
+24 |
+25 | SIMPLE = [GameAction.ACTION1, GameAction.ACTION2, GameAction.ACTION3,
+   |
+help: Remove unused import: `arcengine.FrameData`
+
+F401 [*] `arcengine.FrameData` imported but unused
+  --> competitions/arc-agi3/kernels/agents/agent_reactive.py:25:23
+   |
+24 | from agents.agent import Agent
+25 | from arcengine import FrameData, GameAction, GameState
+   |                       ^^^^^^^^^
+26 |
+27 | SIMPLE = [GameAction.ACTION1, GameAction.ACTION2, GameAction.ACTION3,
+   |
+help: Remove unused import: `arcengine.FrameData`
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.
+```
+
+#### 🤖 Assistant: *Let me check whether the ruff `exclude` already…*
+
+`23:47:40`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me check whether the ruff `exclude` already covers these kernel files, and what the CI scope is:
+
+##### 💻 Bash: *Read ruff exclude config*
+
+`23:47:41`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+sed -n '44,66p' pyproject.toml
+```
+
+```
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+include = ["src", "tests", "services", "tools"]
+exclude = [
+    "**/.*",
+    "**/node_modules", 
+    "**/__pycache__",
+    ".venv",
+    ".ruff_cache",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+# ruff only lints/formats Python — Markdown (Claude skill definitions, worklog
+# dumps, docs) is never touched by it. worklogs/ holds generated session dumps;
+# exclude it so a stray file there can never trip the linter / CI / pre-push gate.
+
+[tool.ruff.lint]
+select = ["F"]
+ignore = [
+  "E501",   # line-too-long
+  "F841",   # Local variable `...` is assigned to but never used
+```
+
+#### 🤖 Assistant: *The CI ruff gate (`select = ["F"]`) will…*
+
+`23:47:57`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The CI ruff gate (`select = ["F"]`) will flag `F401` — `FrameData` is imported but unused in `explore` and `reactive`. That would fail the lint check and block merge. Let me fix both:
+
+##### ✏️  Edit `agent_explore.py`
+
+`23:48:02`
+
+```diff
+@@ -1,2 +1,2 @@ from agents.agent import Agent
+-from arcengine import FrameData, GameAction, GameState
++from arcengine import GameAction, GameState
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep/competitions/arc-agi3/kernels/agents/agent_explore.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+##### ✏️  Edit `agent_reactive.py`
+
+`23:48:07`
+
+```diff
+@@ -1,2 +1,2 @@ from agents.agent import Agent
+-from arcengine import FrameData, GameAction, GameState
++from arcengine import GameAction, GameState
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep/competitions/arc-agi3/kernels/agents/agent_reactive.py has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+#### 🤖 Assistant: *Now re-verify both ruff check and format…*
+
+`23:48:14`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Now re-verify both ruff check and format on all kernel files (CI runs both):
+
+##### 💻 Bash: *Re-check ruff lint + format on kernels*
+
+`23:48:17`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep; V="/tmp/claude-1000/arc/venv"
+echo "=== ruff check (F rules) on kernels ==="
+"$V/bin/ruff" check competitions/arc-agi3/kernels/ 2>&1 | tail -5
+echo "=== ruff format --check on kernels ==="
+"$V/bin/ruff" format --check competitions/arc-agi3/kernels/ 2>&1 | tail -8
+```
+
+```
+=== ruff check (F rules) on kernels ===
+All checks passed!
+=== ruff format --check on kernels ===
+Would reformat: competitions/arc-agi3/kernels/agents/agent_explore.py
+Would reformat: competitions/arc-agi3/kernels/agents/agent_goose.py
+Would reformat: competitions/arc-agi3/kernels/agents/agent_goosenov.py
+Would reformat: competitions/arc-agi3/kernels/agents/agent_reactive.py
+Would reformat: competitions/arc-agi3/kernels/build_notebooks.py
+5 files would be reformatted
+```
+
+#### 🤖 Assistant: *`ruff check` passes; `ruff format --check…*
+
+`23:48:31`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `ruff check` passes; `ruff format --check` wants to reformat. Let me confirm the CI's exact ruff scope before deciding — if it's whole-repo I must format these:
+
+##### 💻 Bash: *Find CI ruff command scope*
+
+`23:48:33`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+grep -rnE 'ruff (format|check)' .github/workflows/ 2>/dev/null | head
+```
+
+```
+.github/workflows/test.yml:137:      - name: ruff check
+.github/workflows/test.yml:138:        run: ruff check .
+.github/workflows/test.yml:140:      # - name: ruff format --check
+.github/workflows/test.yml:141:      #   run: ruff format --check .
+```
+
+#### 🤖 Assistant: *CI runs only `ruff check .` — `ruff format…*
+
+`23:48:46`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> CI runs only `ruff check .` — `ruff format --check` is **commented out** (lines 140–141). So the format diffs don't matter; only the lint gate, which now passes. I'll keep the canonical goose verbatim and just commit the F401 fix:
+
+##### 💻 Bash: *Commit ruff fix and push*
+
+`23:48:53`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep; V="/tmp/claude-1000/arc/venv"
+echo "=== final ruff check on full arc-agi3 (CI-equivalent gate) ==="
+"$V/bin/ruff" check competitions/arc-agi3/ 2>&1 | tail -3
+git add competitions/arc-agi3/kernels/agents/agent_explore.py competitions/arc-agi3/kernels/agents/agent_reactive.py
+git commit -q -m "$(cat <<'EOF'
+fix(arc-agi3): drop unused FrameData import (ruff F401) in explore/reactive
+
+CI runs `ruff check .` (lint); the unused arcengine.FrameData import in the two
+heuristic agents tripped F401. Removed it (GameAction/GameState still used).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01Km4Jpvq81xY6r73n9WEfDy
+EOF
+)"
+git push origin worktree-arc-agi3-prep 2>&1 | tail -2
+```
+
+```
+=== final ruff check on full arc-agi3 (CI-equivalent gate) ===
+All checks passed!
+To github.com:amyteq/tt_pangu.git
+   7f06a89..a9cad08  worktree-arc-agi3-prep -> worktree-arc-agi3-prep
+```
+
+#### 🤖 Assistant: *All tasks complete and pushed.*
+
+`23:49:07`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All tasks complete and pushed. Let me do a final CI status check so I can report accurately:
+
+##### 💻 Bash: *Final PR mergeable + checks status*
+
+`23:49:09`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+gh pr view 155 --json mergeable,mergeStateStatus -q '{mergeable,mergeStateStatus}' 2>&1
+echo "--- checks ---"
+gh pr checks 155 2>&1 | head -8
+```
+
+```
+{"mergeStateStatus":"UNSTABLE","mergeable":"MERGEABLE"}
+--- checks ---
+eval (mocked nightly)	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410305937/job/84181680377	
+eval-delta-check (PR gate)	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410305937/job/84181680354	
+live-db pytest	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410305914/job/84181694667	
+no-db pytest	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410305914/job/84181694699	
+ruff lint + format check	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410305914/job/84181694709	
+ui build + lint + typecheck + test	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410305914/job/84181694700
+```
+
+#### 🤖 Assistant: *All three follow-up tasks are done, plus…*
+
+`23:49:31`
+
+> All three follow-up tasks are done, plus a couple of things that surfaced along the way. PR #155 is **MERGEABLE** (conflict gone); CI re-triggered on the latest push and is running.
+> 
+> ## What I did
+> 
+> **1. Committed your untracked `main` files into the PR**
+> `competitions/arc-agi3/explore.md` (your Q&A) + `research_report_zh.md` (701-line ZH deep report) — copied from the main checkout and committed, linked from the arc-agi3 README.
+> 
+> **2. Added `how-it-works.md` (logic + principles, with mermaid)**
+> Mirrors the `sec-attack/how-it-works.md` convention. Four mermaid diagrams:
+> - the **submission pipeline** (4-cell notebook → Save&Run stub vs scored rerun → local `gateway:8001` → RHAE scorecard);
+> - the **Agent loop** (`is_done`/`choose_action` → `take_action`, with the "reasoning is free, actions cost RHAE" note);
+> - the **heuristic decision tree** (explore lattice-sweep vs reactive object-centroid clicks);
+> - the **CNN frame-change predictor** (goose + goosenov's stall-gated novelty escape).
+> Plus a design-principles section tying every choice back to RHAE.
+> 
+> **3. Resolved the merge conflict + updated the dashboard**
+> Merged `origin/main` (it had added the `arc-agi2/` and `sec-attack/` workspaces and edited `competitions/README.md`). The conflict was in "Recently updated" — I kept both my arc-agi3 entry and main's sec-attack entries, and refreshed the stale arc-agi3 table row (was "research / no agent yet") to the live status.
+> 
+> ## Two things that came up
+> 
+> **Scores landed** — both reruns finished while I worked:
+> | Agent | Account | LB (RHAE) |
+> |---|---|---|
+> | **arc3-explore** (frame-diff heuristic, no NN) | firefly2006 | **0.18** |
+> | **arc3-goose** (StochasticGoose CNN) | harrysun2006 | **0.07** |
+> 
+> The **no-NN heuristic beat the CNN** — consistent with the RHAE-rewards-parsimony thesis (the online-trained CNN burns actions learning before it scores). Both are far above the <0.005 frontier-LLM baseline. Folded into `submissions.md` + both READMEs.
+> 
+> **Fixed a CI blocker**: the lint gate (`ruff check .`, select `F`) would have failed on an unused `FrameData` import in the two heuristic agents — removed it; `ruff check` now passes locally. (Note: CI's `ruff format --check` is commented out, so I kept the canonical goose agent verbatim.)
+> 
+> ## Status / before you merge
+> - **Mergeable: yes** (no conflicts). `mergeStateStatus: UNSTABLE` is just the freshly-triggered CI still **pending** — not a conflict. The lint check that would've failed now passes locally; the rest (pytest/ui/eval) are unrelated to these doc+kernel changes.
+> - 5 new commits on the branch since you last saw it (merge, docs+mermaid, scores, ruff fix).
+> 
+> Want me to **wait for CI green and merge** once checks pass, or leave the merge to you? And separately — the remaining 2 candidates (`goosenov`, `reactive`) are still queued for the daily-limit reset; say the word and I'll submit them.
+
+#### Recap
+
+`23:49:36`
+
+📝 Recap: ARC-AGI-3 Kaggle prep: PR #155 has all three follow-up tasks done (files committed, how-it-works mermaid doc added, merge conflict resolved) and is mergeable with CI pending. Next: wait for CI green, then merge if you want me to.
+
+### 🤷 User: *resolve merge conflicts, merge PR #155, clean…*
+
+**`2026-06-30`** `00:03:54`
+
+resolve merge conflicts, merge PR #155, clean up local worktree and update local main branch to latest
+
+#### 🤖 Assistant: *Let me check the current PR state and whether…*
+
+`00:04:01`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Let me check the current PR state and whether main has moved since (new conflicts possible).
+
+##### 💻 Bash: *Check PR mergeable state and potential new conflicts*
+
+`00:04:05`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+git fetch origin main 2>&1 | tail -2
+echo "=== PR #155 state ==="
+gh pr view 155 --json mergeable,mergeStateStatus,state -q '{state,mergeable,mergeStateStatus}' 2>&1
+echo "=== branch vs origin/main (left=main-only, right=branch-only) ==="
+git rev-list --left-right --count origin/main...HEAD
+echo "=== any files changed on main since merge-base that we also touch? ==="
+mb=$(git merge-base origin/main HEAD)
+comm -12 <(git diff --name-only $mb origin/main | sort) <(git diff --name-only $mb HEAD | sort)
+```
+
+```
+From github.com:amyteq/tt_pangu
+ * branch            main       -> FETCH_HEAD
+=== PR #155 state ===
+{"mergeStateStatus":"DIRTY","mergeable":"CONFLICTING","state":"OPEN"}
+=== branch vs origin/main (left=main-only, right=branch-only) ===
+1	6
+=== any files changed on main since merge-base that we also touch? ===
+competitions/README.md
+```
+
+#### 🤖 Assistant: *Main advanced by 1 commit touching `competitions…*
+
+`00:04:14`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Main advanced by 1 commit touching `competitions/README.md` again → new conflict. Let me merge `origin/main` and resolve it.
+
+##### 💻 Bash: *Merge origin/main to surface conflict*
+
+`00:04:15`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+git merge origin/main --no-edit 2>&1 | tail -5
+echo "=== conflicted ==="; git diff --name-only --diff-filter=U
+```
+
+```
+Auto-merging competitions/README.md
+CONFLICT (content): Merge conflict in competitions/README.md
+Automatic merge failed; fix conflicts and then commit the result.
+=== conflicted ===
+competitions/README.md
+```
+
+#### 🤖 Assistant: *Conflict is again just in "Recently updated…*
+
+`00:04:27`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Conflict is again just in "Recently updated" (main added an arc-agi2 entry; the table auto-merged and already includes the arc-agi2 row). I'll keep all entries, newest first:
+
+##### ✏️  Edit `README.md`
+
+`00:04:44`
+
+```diff
+@@ -1,5 +1,10 @@ ## Recently updated
+-<<<<<<< HEAD
++- **2026-06-29** arc-agi2 — **full TTT pipeline built + validated, but rung-1/rung-2 score ~0%.** Model-agnostic
++  core (augment/serialize/ttt_data/selection/run, 35 tests, oracle decode→100%) + GPU layer (per-task LoRA TTT)
++  + offline pretrain, run on snorlax. Qwen2.5-0.5B 0/10→0/20; **Qwen3-4B + pretrain (loss 0.16) still 0/20.**
++  Finding: **model size isn't the lever — the data pipeline is** (RE-ARC + synthetic teach rule *execution*;
++  training-task pretrain only memorizes, which ARC-2 eval defeats). `how-it-works.md` has the mermaid flows.
++  No Kaggle submit. PR #159.
+ - **2026-06-27** arc-agi3 — **2 of 4 submitted + SCORED**: `firefly2006/arc3-explore` (frame-diff heuristic) =
+   **0.18**, `harrysun2006/arc3-goose` (StochasticGoose CNN) = **0.07** — the **no-NN heuristic beat the CNN** (RHAE
+   rewards parsimony; the online-trained CNN burns actions learning). Both >> the <0.005 frontier-LLM baseline.
+@@ -7,12 +12,4 @@   + `arc3-reactive` queued for next day (daily limit = 1/account/day). Reverse-engineered the submission contract
+   (4-cell notebook, customize only `MyAgent`; scored rerun plays a local `gateway:8001`). PR #155.
+ - **2026-06-26** arc-agi3 — created workspace from sourced research (ARC-AGI-3 + ARC-AGI-2 + cross-competition transfer). Interactive/agentic benchmark (AI<0.5%, 人类 100%); 几乎无技术从 AGI-2 直接迁移(无示例对⇒TTT/程序合成/DSL 全废),可借的是 refine-loop/RL/世界建模/智能体架构/工具箱。详见 [`arc-agi3/cross-competition.md`](arc-agi3/cross-competition.md)。
+-=======
+-- **2026-06-29** arc-agi2 — **full TTT pipeline built + validated, but rung-1/rung-2 score ~0%.** Model-agnostic
+-  core (augment/serialize/ttt_data/selection/run, 35 tests, oracle decode→100%) + GPU layer (per-task LoRA TTT)
+-  + offline pretrain, run on snorlax. Qwen2.5-0.5B 0/10→0/20; **Qwen3-4B + pretrain (loss 0.16) still 0/20.**
+-  Finding: **model size isn't the lever — the data pipeline is** (RE-ARC + synthetic teach rule *execution*;
+-  training-task pretrain only memorizes, which ARC-2 eval defeats). `how-it-works.md` has the mermaid flows.
+-  No Kaggle submit. PR #159.
+->>>>>>> origin/main
+ - **2026-06-28** sec-attack — **submitted 4 Kaggle kernels (2 per account)** to the LB: `harrysun2006/{sec-attack-jed,
+```
+
+```
+The file /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep/competitions/README.md has been updated successfully. (file state is current in your context — no need to Read it back)
+```
+
+##### 💻 Bash: *Verify clean, commit merge, push*
+
+`00:04:48`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+grep -nE '^(<<<<<<<|=======|>>>>>>>)' competitions/README.md || echo "(no conflict markers — clean)"
+git add competitions/README.md
+git commit --no-edit 2>&1 | tail -2
+git push origin worktree-arc-agi3-prep 2>&1 | tail -2
+```
+
+```
+(no conflict markers — clean)
+[worktree-arc-agi3-prep 70d40a5] Merge remote-tracking branch 'origin/main' into worktree-arc-agi3-prep
+To github.com:amyteq/tt_pangu.git
+   a9cad08..70d40a5  worktree-arc-agi3-prep -> worktree-arc-agi3-prep
+```
+
+#### 🤖 Assistant: *Conflict resolved and pushed.*
+
+`00:05:04`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Conflict resolved and pushed. Let me confirm mergeable state and CI before merging:
+
+##### 💻 Bash: *Re-check mergeable + CI checks*
+
+`00:05:06`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+sleep 5
+gh pr view 155 --json mergeable,mergeStateStatus -q '{mergeable,mergeStateStatus}' 2>&1
+echo "--- checks ---"
+gh pr checks 155 2>&1 | head -10
+```
+
+```
+{"mergeStateStatus":"UNSTABLE","mergeable":"MERGEABLE"}
+--- checks ---
+eval (mocked nightly)	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410939969/job/84183565000	
+eval-delta-check (PR gate)	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410939969/job/84183565021	
+live-db pytest	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410939972/job/84183565080	
+no-db pytest	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410939972/job/84183565060	
+ruff lint + format check	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410939972/job/84183565066	
+ui build + lint + typecheck + test	pending	0	https://github.com/amyteq/tt_pangu/actions/runs/28410939972/job/84183565082
+```
+
+#### 🤖 Assistant: *`MERGEABLE` (conflict gone); `UNSTABLE` is…*
+
+`00:05:32`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `MERGEABLE` (conflict gone); `UNSTABLE` is just CI still running. Since the PR touches only docs + kernel sources, let me wait for the checks to resolve before merging (so I don't land something red on main). I'll watch with a timeout:
+
+##### 💻 Bash: *Watch PR checks until complete (10min cap)* *[async `#bj9arvw8e`]*
+
+`00:05:34`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+timeout 600 gh pr checks 155 --watch --interval 20 2>&1 | tail -12
+echo "=== exit: $? ==="
+```
+
+```
+Command running in background with ID: bj9arvw8e. Output is being written to: /tmp/claude-1000/-home-harry-test-tt-pangu/c51787ff-6c8f-4ffd-b893-559bc2e9905d/tasks/bj9arvw8e.output. You will be notified when it completes. To check interim output, use Read on that file path.
+```
+
+#### 🤖 Assistant: *The check-watch is running in the background…*
+
+`00:07:44`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The check-watch is running in the background; I'll be notified when it completes. Let me peek at progress once:
+
+##### 💻 Bash: *Peek at check-watch progress*
+
+`00:07:46`
+
+```bash
+$ sleep 1; cat /tmp/claude-1000/-home-harry-test-tt-pangu/c51787ff-6c8f-4ffd-b893-559bc2e9905d/tasks/bj9arvw8e.output 2>/dev/null | tail -10 || echo "(no output yet)"
+```
+
+```
+(Bash completed with no output)
+```
+
+#### 🤖 Assistant: *Merge conflict is resolved and pushed; PR…*
+
+`00:07:54`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Merge conflict is resolved and pushed; PR #155 is **MERGEABLE**. I'm watching CI (running in the background) so I don't land a red build on main — I'll merge as soon as the checks resolve, then clean up the worktree and update local main. Standing by for the checks to finish.
+
+#### Recap
+
+`00:08:00`
+
+📝 Recap: Goal: merge PR #155 (ARC-AGI-3 workspace), then clean up the worktree and update local main. The merge conflict is resolved and pushed; I'm waiting on CI checks. Next: merge once green, then remove the worktree and pull main.
+
+##### 🔄 Async result · *Background command "Watch PR checks until complete (10min cap)" completed (exit code 0)*
+
+`00:08:03`
+
+- **Task ID:** `bj9arvw8e`
+- **Status:** `completed`
+- **Spawn:** ↱ Task `#d-679`
+
+##### 💻 Bash: *Read final CI result and mergeable state*
+
+`00:08:08`
+
+```bash
+$ cat /tmp/claude-1000/-home-harry-test-tt-pangu/c51787ff-6c8f-4ffd-b893-559bc2e9905d/tasks/bj9arvw8e.output 2>/dev/null | tail -12
+echo "=== authoritative check + mergeable state ==="
+cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+gh pr view 155 --json mergeable,mergeStateStatus -q '{mergeable,mergeStateStatus}' 2>&1
+```
+
+```
+eval (rolling diff)	skipping	0	https://github.com/amyteq/tt_pangu/actions/runs/28410939969/job/84183653004	
+eval (mocked nightly)	pass	38s	https://github.com/amyteq/tt_pangu/actions/runs/28410939969/job/84183565000	
+eval-delta-check (PR gate)	pass	34s	https://github.com/amyteq/tt_pangu/actions/runs/28410939969/job/84183565021	
+no-db pytest	pass	37s	https://github.com/amyteq/tt_pangu/actions/runs/28410939972/job/84183565060	
+live-db pytest	pass	52s	https://github.com/amyteq/tt_pangu/actions/runs/28410939972/job/84183565080	
+ruff lint + format check	pass	15s	https://github.com/amyteq/tt_pangu/actions/runs/28410939972/job/84183565066	
+ui build + lint + typecheck + test	pass	52s	https://github.com/amyteq/tt_pangu/actions/runs/28410939972/job/84183565082	
+eval (rolling diff)	skipping	0	https://github.com/amyteq/tt_pangu/actions/runs/28410939969/job/84183653004	
+eval (mocked nightly)	pass	38s	https://github.com/amyteq/tt_pangu/actions/runs/28410939969/job/84183565000	
+eval-delta-check (PR gate)	pass	34s	https://github.com/amyteq/tt_pangu/actions/runs/28410939969/job/84183565021	
+no-db pytest	pass	37s	https://github.com/amyteq/tt_pangu/actions/runs/28410939972/job/84183565060	
+=== exit: 0 ===
+=== authoritative check + mergeable state ===
+{"mergeStateStatus":"CLEAN","mergeable":"MERGEABLE"}
+```
+
+#### 🤖 Assistant: *All checks \*\*pass\*\* and the PR is now `CLEAN…*
+
+`00:08:15`
+
+> All checks **pass** and the PR is now `CLEAN` / `MERGEABLE`. Merging with squash (keeping the remote branch for audit per project convention):
+
+##### 💻 Bash: *Squash-merge PR #155*
+
+`00:08:16`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+gh pr merge 155 --squash 2>&1 | tail -6
+echo "=== PR state after merge ==="
+gh pr view 155 --json state,mergedAt -q '{state,mergedAt}' 2>&1
+```
+
+```
+=== PR state after merge ===
+{"mergedAt":"2026-06-30T00:08:20Z","state":"MERGED"}
+```
+
+#### 🤖 Assistant: *PR #155 is \*\*MERGED\*\* (squashed, 2026-06…*
+
+`00:08:41`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> PR #155 is **MERGED** (squashed, 2026-06-30T00:08Z, remote branch kept for audit). Now exiting + removing the worktree, then updating local main. Let me load the worktree-exit tool.
+
+##### ToolSearch
+
+`00:08:42`
+
+**query:** `select:ExitWorktree`
+
+**max_results:** `3`
+
+```json
+[
+  {
+    "type": "tool_reference",
+    "tool_name": "ExitWorktree"
+  }
+]
+```
+
+#### 🤖 Assistant: *Before removing, let me confirm the worktree…*
+
+`00:08:55`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Before removing, let me confirm the worktree's state (everything committed/merged) so I know whether `discard_changes` is needed:
+
+##### 💻 Bash: *Check worktree cleanliness before removal*
+
+`00:08:58`
+
+```bash
+$ cd /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep
+echo "=== uncommitted (tracked) changes? ==="
+git status --porcelain --untracked-files=no || true
+echo "(empty above = working tree clean of tracked changes)"
+echo "=== untracked files ==="
+git status --porcelain --untracked-files=all | grep '^??' || echo "(none)"
+echo "=== is HEAD pushed? ==="
+git log --oneline -1
+git rev-parse HEAD; git rev-parse @{u} 2>/dev/null && echo "(upstream matches = pushed)"
+```
+
+```
+=== uncommitted (tracked) changes? ===
+(empty above = working tree clean of tracked changes)
+=== untracked files ===
+?? .claude/launch.json
+?? .claude/routines
+?? .claude/workflows
+=== is HEAD pushed? ===
+70d40a5 Merge remote-tracking branch 'origin/main' into worktree-arc-agi3-prep
+70d40a5bad393e20042e9eb1a5d27a1f7826c478
+70d40a5bad393e20042e9eb1a5d27a1f7826c478
+(upstream matches = pushed)
+```
+
+#### 🤖 Assistant: *Worktree is clean of tracked changes and…*
+
+`00:09:11`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Worktree is clean of tracked changes and fully pushed; the only untracked files are pre-existing session-local `.claude/` artifacts. The branch is merged into main (squash), so removing the worktree + its branch is safe. Removing:
+
+##### ExitWorktree
+
+`00:09:13`
+
+**action:** `remove`
+
+**discard_changes:** `True`
+
+```
+Exited and removed worktree at /home/harry/test/tt_pangu/.claude/worktrees/arc-agi3-prep. Discarded 14 commits. Session is now back in /home/harry/test/tt_pangu/competitions.
+```
+
+#### 🤖 Assistant: *Worktree removed (back in the main checkout…*
+
+`00:09:21`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Worktree removed (back in the main checkout). Now update local `main`. First, check its state — the two originally-untracked files still sit in this working tree and would block a pull:
+
+##### 💻 Bash: *Check main checkout state and untracked-file safety*
+
+`00:09:26`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+echo "=== current branch ==="; git branch --show-current
+echo "=== untracked under competitions/arc-agi3 (would block pull) ==="
+git status --porcelain --untracked-files=all -- competitions/arc-agi3/
+echo "=== are the 2 untracked files identical to what merged into origin/main? ==="
+for f in explore.md research_report_zh.md; do
+  if git cat-file -e origin/main:competitions/arc-agi3/$f 2>/dev/null; then
+    if diff -q competitions/arc-agi3/$f <(git show origin/main:competitions/arc-agi3/$f) >/dev/null 2>&1; then
+      echo "$f: IDENTICAL to origin/main"
+    else echo "$f: DIFFERS from origin/main (do not delete blindly)"; fi
+  else echo "$f: not on origin/main yet"; fi
+done
+```
+
+```
+=== current branch ===
+main
+=== untracked under competitions/arc-agi3 (would block pull) ===
+?? competitions/arc-agi3/explore.md
+?? competitions/arc-agi3/research_report_zh.md
+=== are the 2 untracked files identical to what merged into origin/main? ===
+explore.md: not on origin/main yet
+research_report_zh.md: not on origin/main yet
+Shell cwd was reset to /home/harry/test/tt_pangu/competitions
+```
+
+#### 🤖 Assistant: *My local `origin/main` ref is stale (pre…*
+
+`00:09:33`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> My local `origin/main` ref is stale (pre-merge). Let me fetch the merged main, then verify the untracked files are identical before removing them:
+
+##### 💻 Bash: *Fetch and verify file identity vs merged main*
+
+`00:09:37`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+git fetch origin main 2>&1 | tail -2
+echo "=== verify identity vs freshly-fetched origin/main ==="
+for f in explore.md research_report_zh.md; do
+  if diff -q competitions/arc-agi3/$f <(git show origin/main:competitions/arc-agi3/$f) >/dev/null 2>&1; then
+    echo "$f: IDENTICAL to origin/main → safe to remove untracked copy"
+  else echo "$f: DIFFERS — keep, investigate"; fi
+done
+echo "=== origin/main HEAD ==="; git log --oneline -1 origin/main
+```
+
+```
+ * branch            main       -> FETCH_HEAD
+   a941e5d..b54b862  main       -> origin/main
+=== verify identity vs freshly-fetched origin/main ===
+explore.md: IDENTICAL to origin/main → safe to remove untracked copy
+research_report_zh.md: IDENTICAL to origin/main → safe to remove untracked copy
+=== origin/main HEAD ===
+b54b862 docs(arc-agi3): create ARC-AGI-3 competition workspace from sourced research (#155)
+Shell cwd was reset to /home/harry/test/tt_pangu/competitions
+```
+
+#### 🤖 Assistant: *Both untracked files are \*\*identical\*\* to…*
+
+`00:09:47`
+
+> Both untracked files are **identical** to what's now on `origin/main` (the squash commit `b54b862`). Safe to remove the untracked copies and fast-forward `main`:
+
+##### 💻 Bash: *Remove untracked copies and fast-forward main*
+
+`00:09:51`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+rm -f competitions/arc-agi3/explore.md competitions/arc-agi3/research_report_zh.md
+echo "=== merge/ff main to origin/main ==="
+git merge --ff-only origin/main 2>&1 | tail -4
+echo "=== local main now at ==="; git log --oneline -1
+echo "=== sync check: local main == origin/main ? ==="
+[ "$(git rev-parse main)" = "$(git rev-parse origin/main)" ] && echo "YES — in sync" || echo "NO"
+echo "=== arc-agi3 now tracked on main? ==="
+git ls-files competitions/arc-agi3/ | sed 's#competitions/arc-agi3/##' | head -20
+echo "=== working tree clean? ==="
+git status --short | head
+```
+
+```
+=== merge/ff main to origin/main ===
+ create mode 100644 competitions/arc-agi3/rules.md
+ create mode 100644 competitions/arc-agi3/strategy.md
+ create mode 100644 competitions/arc-agi3/submissions.md
+ create mode 100644 competitions/arc-agi3/tasks.md
+=== local main now at ===
+b54b862 docs(arc-agi3): create ARC-AGI-3 competition workspace from sourced research (#155)
+=== sync check: local main == origin/main ? ===
+YES — in sync
+=== arc-agi3 now tracked on main? ===
+README.md
+arc-agi2-research.md
+bugs.md
+competition.yaml
+cross-competition.md
+explore.md
+how-it-works.md
+insights.md
+kca-arc-agi3.yaml
+kernels/.gitignore
+kernels/agents/agent_explore.py
+kernels/agents/agent_goose.py
+kernels/agents/agent_goosenov.py
+kernels/agents/agent_reactive.py
+kernels/build_notebooks.py
+notes_zh.md
+references.md
+research.md
+research_report_zh.md
+rules.md
+=== working tree clean? ===
+?? competitions/nvidia-nemotron/versions/26.nemo_lb1_highscore_code_task.md
+?? competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+Shell cwd was reset to /home/harry/test/tt_pangu/competitions
+```
+
+#### 🤖 Assistant: *All done. Here's the final state.*
+
+`00:09:59`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> All done. Here's the final state.
+> 
+> ## ✅ Complete
+> 
+> **1. Resolved merge conflicts** — `main` had advanced twice while we worked (adding the `arc-agi2/` and `sec-attack/` workspaces, both editing `competitions/README.md`). Resolved the `Recently updated` conflict each time, keeping all competitions' entries newest-first; the competitions table auto-merged cleanly.
+> 
+> **2. Merged PR #155** — squash-merged after all CI went green:
+> - `ruff lint + format check` ✅ · `no-db pytest` ✅ · `live-db pytest` ✅ · `ui build+lint+typecheck+test` ✅ · `eval-delta-check (PR gate)` ✅ · `eval (mocked nightly)` ✅
+> - Merged as `b54b862` at 2026-06-30T00:08Z. Remote branch kept for audit (per project convention).
+> 
+> **3. Cleaned up the local worktree** — `ExitWorktree --remove`; the `arc-agi3-prep` worktree + its branch are gone, session back in the main checkout.
+> 
+> **4. Updated local `main` to latest** — fast-forwarded to `b54b862`; **local `main` == `origin/main`**. The full `competitions/arc-agi3/` is now tracked on main (20 files: docs, `how-it-works.md`, your `explore.md` + `research_report_zh.md`, the 4 agents, build script, kca config). I removed the two originally-untracked working-tree copies first (verified byte-identical to the merged versions) so the fast-forward was clean.
+> 
+> ## One note (not touched)
+> The working tree has two **unrelated** untracked files from another session, which I left alone:
+> ```
+> competitions/nvidia-nemotron/versions/26.nemo_lb1_highscore_code_task.md
+> competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+> ```
+> 
+> The ARC-AGI-3 work is fully landed on `main`. The two remaining candidates (`arc3-goosenov`, `arc3-reactive`) are still pushed on Kaggle and ready to submit after the daily-limit reset whenever you want them in.
+
+#### Recap
+
+`00:13:13`
+
+📝 Recap: PR #155 (ARC-AGI-3 workspace + 4 agents) is merged and local main is updated to latest; the worktree is cleaned up. Next: submit the two remaining candidates, arc3-goosenov and arc3-reactive, after the Kaggle daily-limit reset.
