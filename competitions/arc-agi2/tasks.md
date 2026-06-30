@@ -49,9 +49,14 @@
         (load 400 generators/verifiers via a matplotlib stub; generate verified, non-degenerate, de-duped
         examples → assemble ARC-format tasks), `solver/gen_rearc.py` (CLI). `arc_io.load_tasks_dir` +
         `pretrain.py --tasks-dir/--mix-arc2` consume it. **CPU-only generation; 5 unit tests; sample run validated.** `done`
-  - [ ] **T2.5b** Generate the full corpus + **pretrain Qwen3-4B on it** (snorlax) + eval — the run that tests
-        whether rule-execution data lifts the score off 0%. `todo`
-  - [ ] **T2.5c** (stretch) add DFS decode + ConceptARC/ARC-Heavy; scale pretrain (256× aug). `todo`
+  - [x] **T2.5b** Full corpus (4800 tasks) + Qwen3-4B RE-ARC pretrain (38min, loss ~0.29) + eval on snorlax.
+        **Eval = 0/20 (0%).** Pipeline runs clean end-to-end; the RE-ARC lever is correct but the **dose is
+        ~100× under the winning recipe** (1 epoch / 6206 ex / greedy / 4090 vs 256×-aug / ~98 H100-h / DFS / 8B). `done`
+  - **T2.5 verdict:** the remaining gap to a non-zero score is **compute scale, not engineering.** The full
+    pipeline (data gen → pretrain → per-task TTT → AIRV → eval) is built + validated. Closing the gap needs:
+  - [ ] **T2.5c** scale the RE-ARC pretrain (raise --max-seq-len so 4-demo tasks aren't dropped; many epochs /
+        256× aug; ideally 8B) + add **DFS decode + PoE** to `model.py` decode. **Multi-day, multi-GPU (rent
+        H100s).** This is the 16–24% recipe; only worth it with that compute committed. `todo`
 - [x] **T2.2** Augmentation + de-augmented vote/PoE selection for pass@2 — built in `solver/select.py`
       (the AIRV invariant is unit-tested). Measure real delta once T2.1b lands. `done (core)`
 - [ ] **T2.3** Confirm the kernel runs inside **12h / no-internet / L4x4** with a single-task preflight. `todo`
