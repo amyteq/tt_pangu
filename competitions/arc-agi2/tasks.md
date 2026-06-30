@@ -44,10 +44,14 @@
 - **Rung-2 verdict:** model size is NOT the bottleneck. 4B fits the training distribution (loss 0.16) but
   scores 0% on eval — ARC-2 needs rule *generalization*, which our 1000-task pretrain doesn't teach. **The
   real lever is the DATA pipeline**, not scale.
-- [ ] **T2.5** **RE-ARC + synthetic data pipeline** (the actual winning lever). Integrate Michael Hodel's
-      re-arc generator (procedural regeneration of the 400 ARC-1 tasks w/ known rules → teaches rule
-      *execution*, not memorization) + ConceptARC/ARC-Heavy; pretrain at RE-ARC scale (256× aug), add DFS
-      decode. This is the 16–24% recipe. **Multi-day build + heavier compute (rent H100, or days on 4090).** `todo`
+- [~] **T2.5** **RE-ARC data pipeline** (the actual winning lever). `doing`
+  - [x] **T2.5a** Integrate Michael Hodel's re-arc (MIT): `solver/fetch_rearc.py` (clone), `solver/rearc.py`
+        (load 400 generators/verifiers via a matplotlib stub; generate verified, non-degenerate, de-duped
+        examples → assemble ARC-format tasks), `solver/gen_rearc.py` (CLI). `arc_io.load_tasks_dir` +
+        `pretrain.py --tasks-dir/--mix-arc2` consume it. **CPU-only generation; 5 unit tests; sample run validated.** `done`
+  - [ ] **T2.5b** Generate the full corpus + **pretrain Qwen3-4B on it** (snorlax) + eval — the run that tests
+        whether rule-execution data lifts the score off 0%. `todo`
+  - [ ] **T2.5c** (stretch) add DFS decode + ConceptARC/ARC-Heavy; scale pretrain (256× aug). `todo`
 - [x] **T2.2** Augmentation + de-augmented vote/PoE selection for pass@2 — built in `solver/select.py`
       (the AIRV invariant is unit-tested). Measure real delta once T2.1b lands. `done (core)`
 - [ ] **T2.3** Confirm the kernel runs inside **12h / no-internet / L4x4** with a single-task preflight. `todo`

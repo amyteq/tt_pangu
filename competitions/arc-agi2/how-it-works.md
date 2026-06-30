@@ -143,6 +143,34 @@ flowchart LR
 
 ---
 
+## 5b. The RE-ARC data pipeline (T2.5 — building the missing lever)
+
+RE-ARC (Michael Hodel, MIT) ships, **per ARC-1 training task**, a `generate_<key>(diff_lb, diff_ub)` that
+samples a fresh (input, output) of that task's rule and a `verify_<key>(input)` that recomputes the correct
+output. So instead of pretraining on the *fixed* 1000 ARC-2 train tasks (→ memorization), we synthesize
+**unlimited verified examples of each rule** → the model learns to *execute* transformations.
+
+```mermaid
+flowchart TD
+  CL["fetch_rearc.py → clone re-arc (gitignored)"] --> LD["rearc.py: load 400 generate_/verify_ fns<br/>(stub matplotlib — generation never plots)"]
+  LD --> GEN["per key: generate(diff) → example"]
+  GEN --> CHK{"verify(input)==output?<br/>input≠output? unseen? values 0-9?"}
+  CHK -->|no| GEN
+  CHK -->|yes| KEEP["keep example (as list-grids)"]
+  KEEP --> CHUNK["build_tasks_for_key:<br/>chunk into tasks of (k demos + 1 test),<br/>same generator ⇒ one consistent rule/task"]
+  CHUNK --> WRITE["gen_rearc.py → data/rearc_tasks/&lt;key&gt;_&lt;n&gt;.json (ARC format)"]
+  WRITE --> PRE["pretrain.py --tasks-dir data/rearc_tasks [--mix-arc2]<br/>(same build_pretrain_examples path, unchanged)"]
+  PRE --> ADP["ARC-prior adapter → feeds per-task TTT (§1)"]
+```
+
+Key properties: **every example is verifier-checked** (no label noise), generation is **pure-Python CPU**
+(runs locally, no GPU), and the output is plain ARC-format JSON so the existing pretrain/TTT/eval path
+consumes it with zero changes (`arc_io.load_tasks_dir`). Acceptance mirrors re-arc's own loop
+(verified + non-degenerate + de-duplicated). The open question T2.5b answers: does training on
+rule-*execution* data move eval off 0% where task-memorization pretraining did not.
+
+---
+
 ## 6. Validation discipline (how we trust a number before spending GPU/submits)
 - **Metric oracle** (`eval/`): a perfect submission → 100%, a corrupted one → <100% (the scorer judges).
 - **Solver oracle** (`solver/validate.py`): a decoder emitting correct *augmented* grids → 100% after

@@ -73,3 +73,9 @@
   train tasks → task-fit, not generalization). Closing the gap = a multi-day RE-ARC/synthetic build (+ DFS
   decode), not just a bigger model. Reported to owner; snorlax shut down per request pending direction.
   Full validated pipeline + all findings in PR #159.
+- 2026-06-30 — **T2.5a RE-ARC data pipeline built** (`solver/rearc.py` + `fetch_rearc.py` + `gen_rearc.py`;
+  `arc_io.load_tasks_dir`; `pretrain.py --tasks-dir/--mix-arc2`). Integrates Michael Hodel's re-arc (MIT):
+  400 generators/verifiers → verified, non-degenerate, de-duped examples → ARC-format tasks. **CPU-only,
+  runs locally.** Validated: 5 unit tests (fake gens), sample 5 keys×8 = 40 tasks load clean, full 400-key
+  corpus generated. **Next (T2.5b): pretrain Qwen3-4B on the RE-ARC corpus on snorlax + eval** — the test of
+  whether rule-execution data lifts eval off 0%. No Kaggle push/submit; corpus + re-arc clone gitignored.
