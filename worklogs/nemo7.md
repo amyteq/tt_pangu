@@ -25797,7 +25797,7 @@ https://github.com/amyteq/tt_pangu/pull/149#issuecomment-4760916012
 > ## 四、交付物
 > - **运行**:`harrysun2006/nemo-lb1-v1` v2 训练 + 提交(版本 2);语料数据集 `harrysun2006/nemo-lb1-v1-synth` 已上传。
 > - **文档(中英双语已同步)**:tracking.md/tracking_zh.md(版本映射、T12 表、快照)、submissions.md(借鉴表 + 结论)、LB80 plan、INS-005(已加 v17.1 实证)、kca-nemo.yaml(lb1_v1 段)。
-> - **PR #149** 已更新:新增 commit [`061bf88`](https://github.com/amyteq/tt_pangu/commit/061bf88bb649a46ee13d6ffaea26d4182581d772) + v17.1 follow-up 评论 → https://github.com/amyteq/tt_pangu/pull/149
+> - **PR #149** 已更新:新增 commit `061bf88` + v17.1 follow-up 评论 → https://github.com/amyteq/tt_pangu/pull/149
 > - **复用而非重造**:`nemo-lb1-v1.py` + `versions/lb1-v1` 工具链属于 PR #143,我只加了 kca 段 + 语料 + 结果,没有重复提交。
 > 
 > ## 五、建议

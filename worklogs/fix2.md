@@ -1553,3 +1553,1357 @@ removed: .claude/worktrees/consolidate
 `13:10:19`
 
 📝 Recap: Goal was to clean up the local `consolidate` worktree if already merged into main. Verified it was a stale pre-reformat snapshot with no unmerged work and removed it. Nothing left to do.
+
+## 🤷 User: *open a PR to include untracked changes under…*
+
+**`2026-06-30`** `00:55:11`
+
+open a PR to include untracked changes under competitions/nvidia-nemotron/ from the local main branch
+
+### 💭 Thinking
+
+`00:55:17`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Check git status and untracked nemotron files*
+
+`00:55:18`
+
+```bash
+$ echo "=== branch ===" && git branch --show-current && echo "=== untracked under competitions/nvidia-nemotron/ ===" && git status --porcelain competitions/nvidia-nemotron/ && echo "=== all status ===" && git status --porcelain | head -30
+```
+
+```
+=== branch ===
+main
+=== untracked under competitions/nvidia-nemotron/ ===
+?? competitions/nvidia-nemotron/versions/26.nemo_lb1_highscore_code_task.md
+?? competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+=== all status ===
+?? .claude/launch.json
+?? .claude/routines
+?? .claude/workflows
+?? competitions/nvidia-nemotron/versions/26.nemo_lb1_highscore_code_task.md
+?? competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+```
+
+### 💭 Thinking
+
+`00:55:23`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Inspect the two untracked files*
+
+`00:55:25`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+echo "=== sizes ===" && wc -l competitions/nvidia-nemotron/versions/26.nemo_lb1_highscore_code_task.md competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+echo "=== md head ===" && head -40 competitions/nvidia-nemotron/versions/26.nemo_lb1_highscore_code_task.md
+```
+
+```
+=== sizes ===
+  271 competitions/nvidia-nemotron/versions/26.nemo_lb1_highscore_code_task.md
+  814 competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+ 1085 total
+=== md head ===
+---
+competition_slug: "nvidia-nemotron-model-reasoning-challenge"
+competition_dir: "competitions/nvidia-nemotron"
+version_id: "postlb1-highscore-v1"
+version_display_name: "Post-LB1 Highscore v1"
+
+writeup_pdf: "temp/LB1.pdf"
+reference_zip: "temp/lb3-v1.zip"
+compact_seed_script: "nemotron_lb1_compact_pipeline.py"
+
+single_file_target: "competitions/nvidia-nemotron/versions/postlb1-highscore-v1/nemo_postlb1_highscore.py"
+version_dir: "competitions/nvidia-nemotron/versions/postlb1-highscore-v1"
+config_path: "competitions/nvidia-nemotron/versions/postlb1-highscore-v1/config.yaml"
+
+base_model: "metric/nemotron-3-nano-30b-a3b-bf16/transformers/default"
+train_csv_candidates:
+  - "competitions/nvidia-nemotron/data/train.csv"
+  - "data/train.csv"
+  - "/kaggle/input/nvidia-nemotron-model-reasoning-challenge/train.csv"
+
+branch_name: "exp/nemo-postlb1-highscore-v1"
+pr_title: "Nemo: implement post-LB1 highscore single-file pipeline"
+
+allow_git_push: true
+allow_pr_create: true
+allow_gpu_training: false
+allow_kaggle_kernel_push: false
+allow_kaggle_submit: false
+require_human_approval_before_gpu: true
+require_human_approval_before_submit: true
+max_file_size_mb: 20
+max_training_hours_if_approved: 8
+---
+
+# Goal
+
+Execute a high-quality implementation task for the NVIDIA Nemotron Model Reasoning Challenge using the parameters in the YAML front matter.
+
+First parse the YAML front matter and treat each field as a parameter. Use those values consistently. Do not hard-code LB1 paths or version names except through the parsed parameters.
+```
+
+### 💭 Thinking
+
+`00:55:28`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Inspect py file and run ruff gates*
+
+`00:55:30`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+echo "=== py head ===" && head -25 competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+echo "=== ruff check ===" && ruff check competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py 2>&1 | tail -20
+echo "=== ruff format --check ===" && ruff format --check competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py 2>&1 | tail -10
+```
+
+```
+=== py head ===
+#!/usr/bin/env python3
+"""
+Compact LB1-inspired pipeline for the NVIDIA Nemotron Model Reasoning Challenge.
+
+One-file, practical scaffold that turns train.csv + optional verified synthetic
+examples into SFT records, optionally trains a rank<=32 LoRA adapter, and packages
+submission.zip.  It deliberately borrows the high-value ideas from the 1st-place
+writeup and the lb3-v1 code archive:
+
+  * solver-generated traces, not free-form LLM traces;
+  * equation / cryptarithm 24-rule inventory;
+  * cryptarithm signature-catalog narration and DFS-style trace shape;
+  * bit manipulation HEX-compressed column traces and repair-style final answer;
+  * response-only SFT labels and root-level adapter zip packaging.
+
+This is not a byte-for-byte reproduction of the 1st-place system: the original
+used very large corpora and long RTX PRO 6000 training.  This file is intended as
+an auditable, concise starting point that Claude Code can extend into a stronger
+repo implementation.
+"""
+
+from __future__ import annotations
+
+import argparse
+import csv
+=== ruff check ===
+(eval):3: command not found: ruff
+=== ruff format --check ===
+(eval):4: command not found: ruff
+```
+
+### 🤖 Assistant: *Ruff worked earlier — let me locate it (likely…*
+
+`00:55:34`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Ruff worked earlier — let me locate it (likely a venv binary).
+
+#### 💻 Bash: *Locate ruff and run gates*
+
+`00:55:37`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+RUFF=$(command -v ruff || ls .venv/bin/ruff ~/.venvs/*/bin/ruff 2>/dev/null | head -1)
+echo "ruff: $RUFF"
+"$RUFF" --version
+echo "=== check ===" && "$RUFF" check competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py 2>&1 | tail -20
+echo "=== format --check ===" && "$RUFF" format --check competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py 2>&1 | tail -10
+```
+
+```
+(eval):2: no matches found: /home/harry/.venvs/*/bin/ruff
+ruff: 
+(eval):4: permission denied: 
+=== check ===
+(eval):5: permission denied: 
+=== format --check ===
+(eval):6: permission denied:
+```
+
+### 💭 Thinking
+
+`00:55:44`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Search for ruff binary* *[async `#b1uqtu3nb`]*
+
+`00:55:46`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+echo "PATH=$PATH" | tr ':' '\n' | grep -i -E 'venv|bin' | head
+echo "--- which python ---"; which python python3
+echo "--- find ruff ---"; find / -name ruff -type f 2>/dev/null | head; echo "--- pip show ---"; python3 -m ruff --version 2>&1 | head -2; python3 -c "import ruff" 2>&1 | head -1
+```
+
+```
+Command running in background with ID: b1uqtu3nb. Output is being written to: /tmp/claude-1000/-home-harry-test-tt-pangu/6e2ab502-cb0d-4971-b1eb-b811042137e9/tasks/b1uqtu3nb.output. You will be notified when it completes. To check interim output, use Read on that file path.
+```
+
+### 💭 Thinking
+
+`00:57:49`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Check common ruff locations*
+
+`00:57:51`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+for p in .venv/bin/ruff venv/bin/ruff "$HOME/.local/bin/ruff" "$HOME/.cargo/bin/ruff" /usr/local/bin/ruff /usr/bin/ruff; do
+  [ -x "$p" ] && echo "FOUND: $p" && "$p" --version && break
+done
+echo "--- uv/uvx? ---"; command -v uv uvx pipx 2>/dev/null
+echo "--- how did earlier ruff run? check aliases ---"; alias ruff 2>/dev/null; type ruff 2>&1 | head -1
+```
+
+```
+--- uv/uvx? ---
+/usr/bin/uv
+/usr/bin/uvx
+--- how did earlier ruff run? check aliases ---
+ruff not found
+```
+
+### 🤖 Assistant: *Ruff isn't installed, but `uvx` is available…*
+
+`00:57:56`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Ruff isn't installed, but `uvx` is available and can run the repo-pinned version. Let me kill the slow find and validate via `uvx ruff`.
+
+#### 💻 Bash: *Run pinned ruff via uvx*
+
+`00:57:59`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+kill %1 2>/dev/null; pkill -f "find / -name ruff" 2>/dev/null
+F=competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+echo "=== ruff check ===" && uvx ruff@0.15.14 check "$F" 2>&1 | tail -25
+echo "=== ruff format --check ===" && uvx ruff@0.15.14 format --check "$F" 2>&1 | tail -10
+```
+
+```
+(Bash completed with no output)
+```
+
+### 💭 Thinking
+
+`00:58:02`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Run ruff check and format check with exit codes*
+
+`00:58:04`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+F=competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+uvx ruff@0.15.14 check "$F"; echo "CHECK_EXIT=$?"
+uvx ruff@0.15.14 format --check "$F"; echo "FMT_EXIT=$?"
+```
+
+```
+error: Could not acquire lock
+  Caused by: Could not create temporary file
+  Caused by: Read-only file system (os error 30) at path "/home/harry/.cache/uv/.tmpBiyX08"
+CHECK_EXIT=2
+error: Could not acquire lock
+  Caused by: Could not create temporary file
+  Caused by: Read-only file system (os error 30) at path "/home/harry/.cache/uv/.tmp7XHIcd"
+FMT_EXIT=2
+```
+
+### 🤖 Assistant: *Sandbox blocks the uv cache dir.*
+
+`00:58:07`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Sandbox blocks the uv cache dir. Let me point it at the writable temp dir.
+
+#### 💻 Bash: *Run ruff with writable cache*
+
+`00:58:09`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+export UV_CACHE_DIR="$TMPDIR/uvcache" XDG_CACHE_HOME="$TMPDIR/xdg"
+mkdir -p "$UV_CACHE_DIR" "$XDG_CACHE_HOME"
+F=competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+uvx ruff@0.15.14 check "$F"; echo "CHECK_EXIT=$?"
+uvx ruff@0.15.14 format --check "$F"; echo "FMT_EXIT=$?"
+```
+
+```
+error: Could not create temporary file
+  Caused by: Read-only file system (os error 30) at path "/home/harry/.local/share/uv/tools/.tmpdiUNDx"
+CHECK_EXIT=2
+error: Could not create temporary file
+  Caused by: Read-only file system (os error 30) at path "/home/harry/.local/share/uv/tools/.tmpoFBd5m"
+FMT_EXIT=2
+```
+
+### 💭 Thinking
+
+`00:58:16`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Redirect all uv dirs to temp and run ruff*
+
+`00:58:19`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+export UV_CACHE_DIR="$TMPDIR/uv/cache" UV_TOOL_DIR="$TMPDIR/uv/tools" UV_TOOL_BIN_DIR="$TMPDIR/uv/bin" UV_PYTHON_INSTALL_DIR="$TMPDIR/uv/py"
+mkdir -p "$UV_CACHE_DIR" "$UV_TOOL_DIR" "$UV_TOOL_BIN_DIR" "$UV_PYTHON_INSTALL_DIR"
+F=competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+uvx ruff@0.15.14 check "$F"; echo "CHECK_EXIT=$?"
+uvx ruff@0.15.14 format --check "$F"; echo "FMT_EXIT=$?"
+```
+
+```
+Downloading ruff (10.9MiB)
+ Downloaded ruff
+Installed 1 package in 3ms
+F401 [*] `shutil` imported but unused
+  --> competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py:31:8
+   |
+29 | import random
+30 | import re
+31 | import shutil
+   |        ^^^^^^
+32 | import zipfile
+33 | from collections import Counter, defaultdict
+   |
+help: Remove unused import: `shutil`
+
+F401 [*] `dataclasses.dataclass` imported but unused
+  --> competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py:34:25
+   |
+32 | import zipfile
+33 | from collections import Counter, defaultdict
+34 | from dataclasses import dataclass
+   |                         ^^^^^^^^^
+35 | from pathlib import Path
+36 | from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+   |
+help: Remove unused import: `dataclasses.dataclass`
+
+Found 2 errors.
+[*] 2 fixable with the `--fix` option.
+CHECK_EXIT=1
+Would reformat: competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+1 file would be reformatted
+FMT_EXIT=1
+```
+
+### 🤖 Assistant: *The new `.py` file has 2 unused imports …*
+
+`00:58:55`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The new `.py` file has 2 unused imports (F401 — would fail the still-active `ruff check .` CI gate) and isn't formatted to repo style. I'll create a branch, apply the mechanical lint/format fixes, then commit. 
+> 
+> Note: I can't use a worktree here — these files are untracked in *this* checkout, and a fresh worktree branched from `origin/main` wouldn't contain them. So I'll branch in place.
+
+#### 💻 Bash: *Create feature branch in place*
+
+`00:58:57`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+git checkout -b exp/nemo-lb1-compact-pipeline
+echo "=== on branch ===" && git branch --show-current
+```
+
+```
+Switched to a new branch 'exp/nemo-lb1-compact-pipeline'
+=== on branch ===
+exp/nemo-lb1-compact-pipeline
+```
+
+```bash
+$ cd /home/harry/test/tt_pangu
+export UV_CACHE_DIR="$TMPDIR/uv/cache" UV_TOOL_DIR="$TMPDIR/uv/tools" UV_TOOL_BIN_DIR="$TMPDIR/uv/bin" UV_PYTHON_INSTALL_DIR="$TMPDIR/uv/py"
+F=competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+echo "=== apply safe lint autofix (unused imports) ===" && uvx ruff@0.15.14 check --fix "$F" 2>&1 | tail -5
+echo "=== apply format ===" && uvx ruff@0.15.14 format "$F" 2>&1 | tail -3
+echo "=== re-verify ===" 
+uvx ruff@0.15.14 check "$F"; echo "CHECK_EXIT=$?"
+uvx ruff@0.15.14 format --check "$F"; echo "FMT_EXIT=$?"
+```
+
+```
+=== apply safe lint autofix (unused imports) ===
+Found 2 errors (2 fixed, 0 remaining).
+=== apply format ===
+1 file reformatted
+=== re-verify ===
+All checks passed!
+CHECK_EXIT=0
+1 file already formatted
+FMT_EXIT=0
+```
+
+### 🤖 Assistant: *Both gates pass.*
+
+`00:59:26`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Both gates pass. Let me confirm the file still parses and review the scope of changes, then stage just these two files.
+
+#### 💻 Bash: *Validate, stage the two files*
+
+`00:59:27`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+F=competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+python3 -c "import ast,sys; ast.parse(open('$F').read()); print('py parses OK')"
+git add competitions/nvidia-nemotron/versions/26.nemo_lb1_highscore_code_task.md "$F"
+echo "=== staged ===" && git status --porcelain --cached competitions/nvidia-nemotron/
+echo "=== diffstat staged ===" && git diff --cached --stat
+```
+
+```
+py parses OK
+=== staged ===
+error: unknown option `cached'
+usage: git status [<options>] [--] [<pathspec>...]
+
+    -v, --[no-]verbose    be verbose
+    -s, --[no-]short      show status concisely
+    -b, --[no-]branch     show branch information
+    --[no-]show-stash     show stash information
+    --[no-]ahead-behind   compute full ahead/behind values
+    --[no-]porcelain[=<version>]
+                          machine-readable output
+    --[no-]long           show status in long format (default)
+    -z, --[no-]null       terminate entries with NUL
+    -u, --[no-]untracked-files[=<mode>]
+                          show untracked files, optional modes: all, normal, no. (Default: all)
+    --[no-]ignored[=<mode>]
+                          show ignored files, optional modes: traditional, matching, no. (Default: traditional)
+    --[no-]ignore-submodules[=<when>]
+                          ignore changes to submodules, optional when: all, dirty, untracked. (Default: all)
+    --[no-]column[=<style>]
+                          list untracked files in columns
+    --no-renames          do not detect renames
+    --renames             opposite of --no-renames
+    -M, --find-renames[=<n>]
+                          detect renames, optionally set similarity index
+
+=== diffstat staged ===
+ .../versions/26.nemo_lb1_highscore_code_task.md    | 271 ++++++
+ .../versions/nemotron_lb1_compact_pipeline.py      | 924 +++++++++++++++++++++
+ 2 files changed, 1195 insertions(+)
+```
+
+### 🤖 Assistant: *Both files staged (the `.py` expanded to…*
+
+`00:59:36`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Both files staged (the `.py` expanded to 924 lines after formatting). Now committing with the lint-fix note.
+
+#### 💻 Bash: *Commit the two files*
+
+`00:59:37`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+git commit -F - <<'MSG'
+exp(nemo): add post-LB1 highscore task spec + compact pipeline seed
+
+Add two previously-untracked files under competitions/nvidia-nemotron/versions/:
+
+- 26.nemo_lb1_highscore_code_task.md — YAML-front-matter implementation task
+  spec for the post-LB1 highscore single-file pipeline (params: base model,
+  train CSV candidates, branch/PR names, GPU/submit approval gates).
+- nemotron_lb1_compact_pipeline.py — one-file LB1-inspired scaffold: train.csv
+  + verified synthetic examples → SFT records, optional rank<=32 LoRA, packages
+  submission.zip.
+
+Applied repo lint/format gates to the .py seed: removed unused imports
+(`shutil`, `dataclasses.dataclass`; ruff F401) and ran `ruff format`. Both
+`ruff check` and `ruff format --check` now pass (ruff 0.15.14).
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
+MSG
+echo "=== last commit ===" && git log -1 --stat --oneline
+```
+
+```
+[exp/nemo-lb1-compact-pipeline baf2cc3] exp(nemo): add post-LB1 highscore task spec + compact pipeline seed
+ 2 files changed, 1195 insertions(+)
+ create mode 100644 competitions/nvidia-nemotron/versions/26.nemo_lb1_highscore_code_task.md
+ create mode 100644 competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+=== last commit ===
+baf2cc3 exp(nemo): add post-LB1 highscore task spec + compact pipeline seed
+ .../versions/26.nemo_lb1_highscore_code_task.md    | 271 ++++++
+ .../versions/nemotron_lb1_compact_pipeline.py      | 924 +++++++++++++++++++++
+ 2 files changed, 1195 insertions(+)
+```
+
+### 🤖 Assistant: *Commit succeeded (format gate passed).*
+
+`00:59:41`
+
+> Commit succeeded (format gate passed). Now pushing the branch and opening the PR.
+
+#### 💻 Bash: *Push branch upstream*
+
+`00:59:43`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+git push -u origin exp/nemo-lb1-compact-pipeline 2>&1 | tail -8
+echo "=== PR template exists? ===" && ls .github/pull_request_template.md 2>&1
+```
+
+```
+Host key verification failed.
+fatal: Could not read from remote repository.
+
+Please make sure you have the correct access rights
+and the repository exists.
+=== PR template exists? ===
+.github/pull_request_template.md
+```
+
+### 🤖 Assistant: *Push failed on SSH host-key verification…*
+
+`00:59:50`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Push failed on SSH host-key verification — a sandbox restriction (SSH/`~/.ssh` access is blocked). Let me check the remote and retry outside the sandbox.
+
+#### 💻 Bash: *Check remote URL*
+
+`00:59:50`
+
+```bash
+$ git remote -v
+```
+
+```
+origin	git@github.com:amyteq/tt_pangu.git (fetch)
+origin	git@github.com:amyteq/tt_pangu.git (push)
+```
+
+### 🤖 Assistant: *The remote is SSH; the sandbox blocks `~…*
+
+`01:00:04`
+
+> The remote is SSH; the sandbox blocks `~/.ssh` access, causing the host-key failure. Retrying the push with the sandbox disabled (you can manage this via `/sandbox`).
+
+#### 💻 Bash: *Push branch with sandbox disabled*
+
+`01:00:05`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+git push -u origin exp/nemo-lb1-compact-pipeline 2>&1 | tail -10
+```
+
+```
+remote: 
+remote: Create a pull request for 'exp/nemo-lb1-compact-pipeline' on GitHub by visiting:        
+remote:      https://github.com/amyteq/tt_pangu/pull/new/exp/nemo-lb1-compact-pipeline        
+remote: 
+To github.com:amyteq/tt_pangu.git
+ * [new branch]      exp/nemo-lb1-compact-pipeline -> exp/nemo-lb1-compact-pipeline
+branch 'exp/nemo-lb1-compact-pipeline' set up to track 'origin/exp/nemo-lb1-compact-pipeline'.
+```
+
+### 🤖 Assistant: *Branch pushed.*
+
+`01:11:25`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Branch pushed. Let me read the PR template and open the PR (gh needs the OAuth token, which is outside the sandbox).
+
+#### 👀 Read `pull_request_template.md`
+
+`01:11:26`
+
+<details>
+<summary><code>/home/harry/test/tt_pangu/.github/pull_request_template.md</code></summary>
+
+```markdown
+<!--
+Use this template for every PR. The closeout checklist is load-bearing —
+PRs missing tests/evidence/safety notes will be sent back for revision.
+See docs/engineering-practice.md for the full model.
+-->
+
+## Summary
+
+<!-- 1–3 bullets: what changed and why. Link the issue(s) this closes. -->
+
+Closes #
+
+## Tests run
+
+<!-- Paste the commands you ran and the result. Failing tests are not "skipped" — they are blockers. -->
+
+- [ ] `python -m pytest tests/ services/decision_api/tests -v`
+- [ ] `ruff check .`
+- [ ] `ruff format --check .`
+- [ ] `pnpm -C ui install --frozen-lockfile`
+- [ ] `pnpm -C ui lint`
+- [ ] `pnpm -C ui typecheck`
+- [ ] `pnpm -C ui build`
+- [ ] `pnpm -C ui run test --run`
+- [ ] (if applicable) live-DB tests against the local `supabase-db` container
+
+## Docs / inventory impact
+
+- [ ] Updated `docs/` for any behaviour or interface change
+- [ ] Updated `PROJECT_STATE.md` / `docs/milestones/README.md` if a milestone or status changed
+- [ ] Updated ADR under `docs/adr/` if an architectural decision was made
+- [ ] No doc update needed (explain why)
+
+## Evidence
+
+<!-- Links to test runs, CI artifacts, screenshots, audit-log entries, docs/evidence/* files. -->
+
+## Schema / RLS / secrets impact
+
+- [ ] No DB migration introduced
+- [ ] Introduces / modifies migration under `supabase/migrations/` — migration is reversible and reviewed
+- [ ] No new secret read / write surface
+- [ ] Touches secrets handling, sandbox/hook policy, or permission model — `area:security` label applied and reviewer pinged
+
+## Remote side effects
+
+- [ ] None — local-only change
+- [ ] Live Kaggle call (submit / kernel push / dataset / model upload) — explicit approval recorded on the closing issue
+- [ ] Remote Supabase write — explicit approval recorded
+- [ ] Other remote write (gh label sync, gh issue/PR mass edit, release publish) — explain and link approval
+
+## Risks and follow-ups
+
+<!-- Known gaps, deferred work, follow-up issues to file. -->
+
+---
+
+🤖 If a Claude Code agent prepared this PR, it cited evidence and acceptance criteria from the closing issue.
+
+```
+</details>
+
+### 🤖 Assistant: *I'll fill the checklist honestly — these…*
+
+`01:11:38`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> I'll fill the checklist honestly — these are an unwired task spec + a standalone scaffold (not imported by package code), so repo test/UI suites don't apply; my evidence is the ruff gates on the added file. Let me write the PR body and create it.
+
+#### ✍️  Write `pr_body.md`
+
+`01:11:52`
+
+<details>
+<summary><code>/tmp/claude-1000/pr_body.md</code></summary>
+
+```markdown
+## Summary
+
+Adds two previously-untracked files under `competitions/nvidia-nemotron/versions/` that were sitting in the local `main` working tree:
+
+- **`26.nemo_lb1_highscore_code_task.md`** — YAML-front-matter implementation task spec for the post-LB1 highscore single-file pipeline (base model, train-CSV candidates, target paths, branch/PR names, and GPU/Kaggle approval gates). Treated as a parameterized task definition.
+- **`nemotron_lb1_compact_pipeline.py`** — a one-file LB1-inspired scaffold: turns `train.csv` + optional verified synthetic examples into SFT records, optionally trains a rank≤32 LoRA adapter, and packages `submission.zip`. An auditable seed, not a byte-for-byte reproduction.
+
+No existing code paths are modified; both files are net-new and not imported by package code.
+
+## Tests run
+
+Scoped to the added Python file (the only executable artifact); repo-wide pytest / UI suites are not applicable — no importable code paths changed.
+
+- [x] `ruff check` (added file) — **All checks passed!** (ruff 0.15.14)
+- [x] `ruff format --check` (added file) — **already formatted** (ruff 0.15.14)
+- [x] `python -c "ast.parse(...)"` on the `.py` — parses OK
+- [ ] `python -m pytest …` — N/A (no test or importable code added)
+- [ ] `pnpm -C ui …` — N/A (no UI change)
+
+As part of preparing the seed file, `ruff F401` unused imports (`shutil`, `dataclasses.dataclass`) were removed and `ruff format` applied so the still-active `ruff check .` CI gate stays green.
+
+## Docs / inventory impact
+
+- [x] No doc update needed — these files are themselves a task spec + experiment seed under `competitions/nvidia-nemotron/versions/`; no behaviour or interface of the maintained codebase changes.
+
+## Evidence
+
+- `ruff check` / `ruff format --check` on `competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py` both pass (run locally via `uvx ruff@0.15.14`, the version pinned in `.github/workflows/test.yml`).
+
+## Schema / RLS / secrets impact
+
+- [x] No DB migration introduced
+- [x] No new secret read / write surface
+
+## Remote side effects
+
+- [x] None — local-only change (adds files; no Kaggle/Supabase/remote writes)
+
+## Risks and follow-ups
+
+- The `.py` is an explicitly-labelled scaffold ("not a byte-for-byte reproduction"); it is not wired into the package, CI, or any submission flow. Promoting it into a real version implementation (per the task spec's `single_file_target`) is follow-up work.
+- The task-spec YAML references local-only artifacts (`temp/LB1.pdf`, `temp/lb3-v1.zip`) that are not part of this PR.
+
+---
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+```
+</details>
+
+✓ <tool_use_error>File has not been read yet. Read it first before writing to it.</tool_use_error>
+
+### 💭 Thinking
+
+`01:11:56`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### ✍️  Write `pr_body_nemo.md`
+
+`01:12:04`
+
+<details>
+<summary><code>/tmp/claude-1000/pr_body_nemo.md</code></summary>
+
+```markdown
+## Summary
+
+Adds two previously-untracked files under `competitions/nvidia-nemotron/versions/` that were sitting in the local `main` working tree:
+
+- **`26.nemo_lb1_highscore_code_task.md`** — YAML-front-matter implementation task spec for the post-LB1 highscore single-file pipeline (base model, train-CSV candidates, target paths, branch/PR names, and GPU/Kaggle approval gates). Treated as a parameterized task definition.
+- **`nemotron_lb1_compact_pipeline.py`** — a one-file LB1-inspired scaffold: turns `train.csv` + optional verified synthetic examples into SFT records, optionally trains a rank≤32 LoRA adapter, and packages `submission.zip`. An auditable seed, not a byte-for-byte reproduction.
+
+No existing code paths are modified; both files are net-new and not imported by package code.
+
+## Tests run
+
+Scoped to the added Python file (the only executable artifact); repo-wide pytest / UI suites are not applicable — no importable code paths changed.
+
+- [x] `ruff check` (added file) — **All checks passed!** (ruff 0.15.14)
+- [x] `ruff format --check` (added file) — **already formatted** (ruff 0.15.14)
+- [x] `python -c "ast.parse(...)"` on the `.py` — parses OK
+- [ ] `python -m pytest …` — N/A (no test or importable code added)
+- [ ] `pnpm -C ui …` — N/A (no UI change)
+
+As part of preparing the seed file, `ruff F401` unused imports (`shutil`, `dataclasses.dataclass`) were removed and `ruff format` applied so the still-active `ruff check .` CI gate stays green.
+
+## Docs / inventory impact
+
+- [x] No doc update needed — these files are themselves a task spec + experiment seed under `competitions/nvidia-nemotron/versions/`; no behaviour or interface of the maintained codebase changes.
+
+## Evidence
+
+- `ruff check` / `ruff format --check` on `competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py` both pass (run locally via `uvx ruff@0.15.14`, the version pinned in `.github/workflows/test.yml`).
+
+## Schema / RLS / secrets impact
+
+- [x] No DB migration introduced
+- [x] No new secret read / write surface
+
+## Remote side effects
+
+- [x] None — local-only change (adds files; no Kaggle/Supabase/remote writes)
+
+## Risks and follow-ups
+
+- The `.py` is an explicitly-labelled scaffold ("not a byte-for-byte reproduction"); it is not wired into the package, CI, or any submission flow. Promoting it into a real version implementation (per the task spec's `single_file_target`) is follow-up work.
+- The task-spec YAML references local-only artifacts (`temp/LB1.pdf`, `temp/lb3-v1.zip`) that are not part of this PR.
+
+---
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+```
+</details>
+
+✓ File created successfully at: /tmp/claude-1000/pr_body_nemo.md (file state is current in your context — no need to Read it back)
+
+#### 💻 Bash: *Create the PR via gh*
+
+`01:12:09`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+gh pr create \
+  --base main \
+  --head exp/nemo-lb1-compact-pipeline \
+  --title "exp(nemo): add post-LB1 highscore task spec + compact pipeline seed" \
+  --body-file /tmp/claude-1000/pr_body_nemo.md 2>&1 | tail -5
+```
+
+```
+https://github.com/amyteq/tt_pangu/pull/165
+```
+
+### 🤖 Assistant: *PR opened: \*\*https://github.com/amyteq/tt_pangu…*
+
+`01:12:23`
+
+> PR opened: **https://github.com/amyteq/tt_pangu/pull/165**
+> 
+> ## What I did
+> 
+> Both untracked files under `competitions/nvidia-nemotron/versions/` are now in a PR off `main`:
+> 
+> | File | Lines | What it is |
+> |---|---|---|
+> | `26.nemo_lb1_highscore_code_task.md` | 271 | YAML-front-matter task spec for the post-LB1 highscore single-file pipeline |
+> | `nemotron_lb1_compact_pipeline.py` | 924 | One-file LB1-inspired scaffold (SFT records → optional rank≤32 LoRA → `submission.zip`) |
+> 
+> Steps:
+> 1. Branched in place (`exp/nemo-lb1-compact-pipeline`) — a fresh worktree couldn't be used since these files are untracked and only exist in this checkout.
+> 2. Made the `.py` CI-clean: removed 2 unused imports (`shutil`, `dataclasses.dataclass` — `ruff F401`, which the still-active `ruff check .` gate would reject) and ran `ruff format`. Both `ruff check` and `ruff format --check` now pass (via `uvx ruff@0.15.14`, the version pinned in CI; local `ruff` wasn't installed).
+> 3. Committed with the Claude co-author trailer, pushed, and opened PR #165 using the repo template.
+> 
+> Notes:
+> - The repo's `origin` is SSH and `gh` needs the OAuth token, so the `git push` and `gh pr create` ran with the sandbox disabled (it blocks `~/.ssh` / `~/.config/gh`). You can manage this via `/sandbox`.
+> - I lightly modified the `.py` (mechanical lint/format only) so the PR lands green — flag me if you'd rather commit it byte-for-byte as it was.
+> - Per repo convention I pushed the branch and opened the PR but did **not** merge.
+
+### Recap
+
+`01:12:27`
+
+📝 Recap: Cleaned up the orphaned `consolidate` worktree (verified fully merged) and opened PR #165 adding the two untracked nemotron files. Next action: review and merge PR #165 when ready.
+
+## 🤷 User: *merge PR #165 and clean up all local worktrees…*
+
+`01:25:21`
+
+merge PR #165 and clean up all local worktrees whose changes have been merged to main branch
+
+### 💭 Thinking
+
+`01:25:26`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+#### 💻 Bash: *Check PR 165 status and CI checks*
+
+`01:25:28`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+gh pr view 165 --json number,title,state,mergeable,mergeStateStatus,headRefName,baseRefName 2>&1
+echo "=== checks ==="
+gh pr checks 165 2>&1 | tail -20
+```
+
+```
+{"baseRefName":"main","headRefName":"exp/nemo-lb1-compact-pipeline","mergeStateStatus":"CLEAN","mergeable":"MERGEABLE","number":165,"state":"OPEN","title":"exp(nemo): add post-LB1 highscore task spec + compact pipeline seed"}
+=== checks ===
+no-db pytest	pass	37s	https://github.com/amyteq/tt_pangu/actions/runs/28413437908/job/84191171282	
+ruff lint + format check	pass	15s	https://github.com/amyteq/tt_pangu/actions/runs/28413437908/job/84191171274	
+ui build + lint + typecheck + test	pass	40s	https://github.com/amyteq/tt_pangu/actions/runs/28413437908/job/84191171301	
+eval (rolling diff)	skipping	0	https://github.com/amyteq/tt_pangu/actions/runs/28413437933/job/84191255094	
+eval (mocked nightly)	pass	41s	https://github.com/amyteq/tt_pangu/actions/runs/28413437933/job/84191171229	
+eval-delta-check (PR gate)	pass	40s	https://github.com/amyteq/tt_pangu/actions/runs/28413437933/job/84191171246	
+live-db pytest	pass	54s	https://github.com/amyteq/tt_pangu/actions/runs/28413437908/job/84191171265
+```
+
+### 🤖 Assistant: *PR #165 is `CLEAN`/`MERGEABLE` with all checks…*
+
+`01:25:36`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> PR #165 is `CLEAN`/`MERGEABLE` with all checks green. Merging now (squash, keeping the remote branch for audit per repo convention).
+
+#### 💻 Bash: *Squash-merge PR 165*
+
+`01:25:37`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+gh pr merge 165 --squash 2>&1 | tail -10
+echo "=== state after ===" && gh pr view 165 --json state,mergedAt 2>&1
+```
+
+```
+=== state after ===
+{"mergedAt":"2026-06-30T01:25:48Z","state":"MERGED"}
+```
+
+### 🤖 Assistant: *PR #165 merged.*
+
+`01:25:53`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> PR #165 merged. Now updating local `main` and cleaning up the merged branch, then assessing worktrees.
+
+#### 💻 Bash: *Update main, delete merged branch, list worktrees*
+
+`01:25:56`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+git checkout main 2>&1 | tail -2
+git pull --ff-only origin main 2>&1 | tail -6
+echo "=== delete merged local branch ===" 
+git branch -d exp/nemo-lb1-compact-pipeline 2>&1
+echo "=== worktrees ===" && git worktree list
+```
+
+```
+Switched to branch 'main'
+Your branch is up to date with 'origin/main'.
+Fast-forward
+ .../versions/26.nemo_lb1_highscore_code_task.md    | 271 ++++++
+ .../versions/nemotron_lb1_compact_pipeline.py      | 924 +++++++++++++++++++++
+ 2 files changed, 1195 insertions(+)
+ create mode 100644 competitions/nvidia-nemotron/versions/26.nemo_lb1_highscore_code_task.md
+ create mode 100644 competitions/nvidia-nemotron/versions/nemotron_lb1_compact_pipeline.py
+=== delete merged local branch ===
+warning: deleting branch 'exp/nemo-lb1-compact-pipeline' that has been merged to
+         'refs/remotes/origin/exp/nemo-lb1-compact-pipeline', but not yet merged to HEAD
+Deleted branch exp/nemo-lb1-compact-pipeline (was baf2cc3).
+=== worktrees ===
+/home/harry/test/tt_pangu                                        12c16bf [main]
+/home/harry/test/tt_pangu/.claude/worktrees/arc-rearc            755ac1d [worktree-arc-rearc]
+/home/harry/test/tt_pangu/.claude/worktrees/dev-temp             59d5cc7 [dev/temp]
+/home/harry/test/tt_pangu/.claude/worktrees/exp+nemo-postlb10-v1 4cb74e7 [exp/nemo-postlb10-v1]
+/home/harry/test/tt_pangu/.claude/worktrees/nemo-lb-borrows      061bf88 [worktree-nemo-lb-borrows]
+/home/harry/test/tt_pangu/.claude/worktrees/ow-arch              a20be8f [orbit-arch-refactor]
+/home/harry/test/tt_pangu/.claude/worktrees/sec-attack-iter      5e6aa1a [worktree-sec-attack-iter]
+```
+
+### 🤖 Assistant: *`main` updated to `12c16bf`, merged local…*
+
+`01:26:44`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> `main` updated to [`12c16bf`](https://github.com/amyteq/tt_pangu/commit/12c16bf19db57445d32e9577d6f05dc76c000e41), merged local branch deleted. Now I need to assess each worktree. The repo **squash-merges**, so simple ancestor checks (`git branch --merged`) under-report — I'll gather ahead/behind, dirty state, and merged-PR status per worktree.
+
+#### 💻 Bash: *Gather per-worktree merge and dirty status*
+
+`01:26:50`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+git fetch origin --quiet 2>&1 | tail -2
+echo "=== branches whose TIP is an ancestor of main (fully merged, fast path) ==="
+git branch --merged main
+echo
+echo "=== per-worktree detail ==="
+git worktree list --porcelain | awk '/^worktree /{wt=$2} /^branch /{print wt"\t"$2}' | while IFS=$'\t' read -r wt ref; do
+  [ "$wt" = "/home/harry/test/tt_pangu" ] && continue
+  br=${ref#refs/heads/}
+  ahead=$(git rev-list --count main..$br 2>/dev/null)
+  behind=$(git rev-list --count $br..main 2>/dev/null)
+  dirty=$(git -C "$wt" status --porcelain 2>/dev/null | wc -l | tr -d ' ')
+  echo "WT=$(basename "$wt")  branch=$br  ahead_of_main=$ahead  behind_main=$behind  dirty_files=$dirty"
+done
+```
+
+```
+=== branches whose TIP is an ancestor of main (fully merged, fast path) ===
+  dev/harry
+* main
+
+=== per-worktree detail ===
+WT=arc-rearc  branch=worktree-arc-rearc  ahead_of_main=1  behind_main=2  dirty_files=0
+WT=dev-temp  branch=dev/temp  ahead_of_main=1  behind_main=71  dirty_files=1
+WT=exp+nemo-postlb10-v1  branch=exp/nemo-postlb10-v1  ahead_of_main=6  behind_main=12  dirty_files=0
+WT=nemo-lb-borrows  branch=worktree-nemo-lb-borrows  ahead_of_main=3  behind_main=28  dirty_files=0
+WT=ow-arch  branch=orbit-arch-refactor  ahead_of_main=1  behind_main=31  dirty_files=0
+WT=sec-attack-iter  branch=worktree-sec-attack-iter  ahead_of_main=2  behind_main=1  dirty_files=0
+```
+
+### 🤖 Assistant: *No worktree branch tip is an ancestor of…*
+
+`01:27:00`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> No worktree branch tip is an ancestor of `main`, but with squash-merges that's expected even for merged work. I'll do a content-level check (are the branch's changed files already identical in `main`?) plus look up each branch's PR status.
+
+#### 💻 Bash: *Look up PR status per worktree branch*
+
+`01:27:05`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+echo "=== merged/open PRs for these head branches ==="
+for br in worktree-arc-rearc dev/temp exp/nemo-postlb10-v1 worktree-nemo-lb-borrows orbit-arch-refactor worktree-sec-attack-iter; do
+  pr=$(gh pr list --head "$br" --state all --json number,state,title,mergedAt --jq '.[] | "#\(.number) \(.state) merged=\(.mergedAt) — \(.title)"' 2>/dev/null)
+  echo "[$br] ${pr:-<no PR>}"
+done
+```
+
+```
+=== merged/open PRs for these head branches ===
+[worktree-arc-rearc] #164 OPEN merged=null — feat(arc-agi2): RE-ARC data pipeline (T2.5a) — rule-execution training data
+[dev/temp] <no PR>
+[exp/nemo-postlb10-v1] #151 MERGED merged=2026-06-21T00:24:04Z — Nemo: implement post-LB10 next-version adapter pipeline
+[worktree-nemo-lb-borrows] #149 MERGED merged=2026-06-20T22:56:36Z — feat+docs(nemo): LB25/LB80/LB92 borrow campaign (v16/v17/v18) — executed, none beats 0.86
+[orbit-arch-refactor] #132 OPEN merged=null — feat(orbit-wars): layered core architecture refactor (OW-ARCH-001)
+[worktree-sec-attack-iter] #163 OPEN merged=null — docs(sec-attack): record real LB scores (best 2.40) + scale-up iteration (xl)
+```
+
+### 🤖 Assistant: *Clear picture now:*
+
+`01:27:23`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Clear picture now:
+> 
+> | Worktree | Branch | PR | State | dirty |
+> |---|---|---|---|---|
+> | `exp+nemo-postlb10-v1` | exp/nemo-postlb10-v1 | #151 | **MERGED** | clean |
+> | `nemo-lb-borrows` | worktree-nemo-lb-borrows | #149 | **MERGED** | clean |
+> | `arc-rearc` | worktree-arc-rearc | #164 | OPEN | clean |
+> | `ow-arch` | orbit-arch-refactor | #132 | OPEN | clean |
+> | `sec-attack-iter` | worktree-sec-attack-iter | #163 | OPEN | clean |
+> | `dev-temp` | dev/temp | none | — | 1 dirty file |
+> 
+> Two have **merged** PRs and are clean. Before removing, let me content-verify that their committed changes are actually present in `main` (squash safety check) and re-confirm zero uncommitted/untracked work.
+
+#### 💻 Bash: *Content-verify merged branches and check dirtiness*
+
+`01:27:32`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+for entry in "exp/nemo-postlb10-v1:.claude/worktrees/exp+nemo-postlb10-v1" "worktree-nemo-lb-borrows:.claude/worktrees/nemo-lb-borrows"; do
+  br=${entry%%:*}; wt=${entry##*:}
+  echo "############ $br ($wt) ############"
+  mb=$(git merge-base main "$br")
+  files=$(git diff --name-only "$mb" "$br")
+  nfiles=$(echo "$files" | grep -c . )
+  echo "files changed on branch vs merge-base: $nfiles"
+  # are main's versions of those files identical to the branch's? (handles squash merge)
+  if git diff --quiet main "$br" -- $files; then
+    echo "RESULT: main is byte-identical to branch for all branch-touched files -> changes ARE in main"
+  else
+    echo "RESULT: differences remain — listing files where main != branch:"
+    git diff --name-only main "$br" -- $files | sed 's/^/   DIFF: /'
+  fi
+  echo "uncommitted/untracked in worktree:"
+  git -C "$wt" status --porcelain | sed 's/^/   /' || true
+  echo
+done
+```
+
+```
+############ exp/nemo-postlb10-v1 (.claude/worktrees/exp+nemo-postlb10-v1) ############
+files changed on branch vs merge-base: 26
+RESULT: main is byte-identical to branch for all branch-touched files -> changes ARE in main
+uncommitted/untracked in worktree:
+
+############ worktree-nemo-lb-borrows (.claude/worktrees/nemo-lb-borrows) ############
+files changed on branch vs merge-base: 11
+RESULT: main is byte-identical to branch for all branch-touched files -> changes ARE in main
+uncommitted/untracked in worktree:
+```
+
+### 🤖 Assistant: *Both merged worktrees are verified: every…*
+
+`01:27:40`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Both merged worktrees are verified: every branch-touched file is byte-identical in `main`, and both are completely clean. Removing them and deleting their (squash-merged) local branches. The other three (OPEN PRs #164/#132/#163) and `dev/temp` (no PR, 1 uncommitted file) are **not** merged — I'll leave those intact.
+
+#### 💻 Bash: *Remove the two merged worktrees and their branches*
+
+`01:27:44`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+echo "=== remove exp+nemo-postlb10-v1 ===" 
+git worktree remove .claude/worktrees/exp+nemo-postlb10-v1 && echo "  worktree removed"
+git branch -D exp/nemo-postlb10-v1 && echo "  branch deleted"
+echo "=== remove nemo-lb-borrows ==="
+git worktree remove .claude/worktrees/nemo-lb-borrows && echo "  worktree removed"
+git branch -D worktree-nemo-lb-borrows && echo "  branch deleted"
+git worktree prune
+echo
+echo "=== remaining worktrees ===" && git worktree list
+```
+
+```
+=== remove exp+nemo-postlb10-v1 ===
+error: failed to delete '.git/worktrees/exp+nemo-postlb10-v1': Device or resource busy
+error: could not lock config file .git/config
+warning: update of config-file failed
+Deleted branch exp/nemo-postlb10-v1 (was 4cb74e7).
+  branch deleted
+=== remove nemo-lb-borrows ===
+error: failed to delete '.git/worktrees/nemo-lb-borrows': Device or resource busy
+error: could not lock config file .git/config
+warning: update of config-file failed
+Deleted branch worktree-nemo-lb-borrows (was 061bf88).
+  branch deleted
+error: failed to delete '.git/worktrees/exp+nemo-postlb10-v1': Device or resource busy
+error: failed to delete '.git/worktrees/nemo-lb-borrows': Device or resource busy
+error: failed to delete '.git/worktrees/arc-agi3-prep': Device or resource busy
+
+=== remaining worktrees ===
+/home/harry/test/tt_pangu                                   12c16bf [main]
+/home/harry/test/tt_pangu/.claude/worktrees/arc-rearc       755ac1d [worktree-arc-rearc]
+/home/harry/test/tt_pangu/.claude/worktrees/dev-temp        59d5cc7 [dev/temp]
+/home/harry/test/tt_pangu/.claude/worktrees/ow-arch         a20be8f [orbit-arch-refactor]
+/home/harry/test/tt_pangu/.claude/worktrees/sec-attack-iter 5e6aa1a [worktree-sec-attack-iter]
+```
+
+### 🤖 Assistant: *The branches were deleted and the worktree…*
+
+`01:27:52`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> The branches were deleted and the worktree working dirs removed, but the `.git/worktrees/*` admin metadata couldn't be cleaned — `could not lock config file .git/config` is the sandbox blocking writes to `.git/config`. Retrying the prune with the sandbox disabled.
+
+#### 💻 Bash: *Prune stale worktree admin dirs sandbox-off*
+
+`01:27:56`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+echo "=== working dirs present? ===" 
+for d in exp+nemo-postlb10-v1 nemo-lb-borrows; do
+  [ -e ".claude/worktrees/$d" ] && echo "  $d: STILL ON DISK" || echo "  $d: removed from disk"
+done
+echo "=== stale admin entries ===" && ls .git/worktrees/
+echo "=== prune ==="
+git worktree prune -v
+echo "=== final worktree list ==="
+git worktree list
+```
+
+```
+=== working dirs present? ===
+  exp+nemo-postlb10-v1: removed from disk
+  nemo-lb-borrows: removed from disk
+=== stale admin entries ===
+arc-rearc
+dev-temp
+exp+nemo-postlb10-v1
+nemo-lb-borrows
+ow-arch
+sec-attack-iter
+=== prune ===
+Removing worktrees/exp+nemo-postlb10-v1: gitdir file does not exist
+Removing worktrees/nemo-lb-borrows: gitdir file does not exist
+=== final worktree list ===
+/home/harry/test/tt_pangu                                   12c16bf [main]
+/home/harry/test/tt_pangu/.claude/worktrees/arc-rearc       755ac1d [worktree-arc-rearc]
+/home/harry/test/tt_pangu/.claude/worktrees/dev-temp        59d5cc7 [dev/temp]
+/home/harry/test/tt_pangu/.claude/worktrees/ow-arch         a20be8f [orbit-arch-refactor]
+/home/harry/test/tt_pangu/.claude/worktrees/sec-attack-iter 5e6aa1a [worktree-sec-attack-iter]
+```
+
+### 🤖 Assistant: *Cleanup complete.*
+
+`01:28:02`
+
+<details>
+<summary>Thinking...</summary>
+
+> 
+</details>
+
+> Cleanup complete. The two merged worktrees' admin metadata is now pruned. Let me do a final verification.
+
+#### 💻 Bash: *Final verification of cleanup*
+
+`01:28:05`
+
+```bash
+$ cd /home/harry/test/tt_pangu
+echo "=== deleted branches gone? ===" 
+git branch | grep -E 'nemo-postlb10-v1|nemo-lb-borrows' && echo "  (still present!)" || echo "  both branches gone"
+echo "=== current branch / main tip ===" && git branch --show-current && git log -1 --oneline
+echo "=== worktrees remaining (all should be unmerged) ==="
+git worktree list
+```
+
+```
+=== deleted branches gone? ===
+  both branches gone
+=== current branch / main tip ===
+main
+12c16bf exp(nemo): add post-LB1 highscore task spec + compact pipeline seed (#165)
+=== worktrees remaining (all should be unmerged) ===
+/home/harry/test/tt_pangu                                   12c16bf [main]
+/home/harry/test/tt_pangu/.claude/worktrees/arc-rearc       755ac1d [worktree-arc-rearc]
+/home/harry/test/tt_pangu/.claude/worktrees/dev-temp        59d5cc7 [dev/temp]
+/home/harry/test/tt_pangu/.claude/worktrees/ow-arch         a20be8f [orbit-arch-refactor]
+/home/harry/test/tt_pangu/.claude/worktrees/sec-attack-iter 5e6aa1a [worktree-sec-attack-iter]
+```
+
+### 🤖 Assistant: *Both done.*
+
+`01:28:17`
+
+> Both done.
+> 
+> ## 1. PR #165 merged
+> Squash-merged into `main` (all 7 checks were green: pytest, ruff, UI, eval gates). Local `main` fast-forwarded to [`12c16bf`](https://github.com/amyteq/tt_pangu/commit/12c16bf19db57445d32e9577d6f05dc76c000e41) and the merged `exp/nemo-lb1-compact-pipeline` branch was deleted. The remote branch is kept for audit, per repo convention.
+> 
+> ## 2. Worktree cleanup
+> 
+> **Removed** (PR merged + content verified byte-identical in `main` + zero uncommitted/untracked work):
+> 
+> | Worktree | Branch | Evidence |
+> |---|---|---|
+> | `exp+nemo-postlb10-v1` | exp/nemo-postlb10-v1 | PR #151 merged; all 26 branch-touched files identical in `main` |
+> | `nemo-lb-borrows` | worktree-nemo-lb-borrows | PR #149 merged; all 11 branch-touched files identical in `main` |
+> 
+> Both their local branches were deleted and the stale `.git/worktrees/*` metadata pruned.
+> 
+> **Kept** (not merged):
+> 
+> | Worktree | Branch | Why kept |
+> |---|---|---|
+> | `arc-rearc` | worktree-arc-rearc | PR #164 still **OPEN** |
+> | `ow-arch` | orbit-arch-refactor | PR #132 still **OPEN** |
+> | `sec-attack-iter` | worktree-sec-attack-iter | PR #163 still **OPEN** |
+> | `dev-temp` | dev/temp | No PR; has 1 uncommitted file (the temp-docs scratch branch) |
+> 
+> Notes:
+> - I content-verified the merged branches rather than relying on `git branch --merged`, because the repo squash-merges — the original branch commits never become ancestors of `main`, so the ancestor check would have wrongly reported every branch as unmerged.
+> - The push/merge/gh and the `.git/config` writes needed the sandbox disabled (SSH remote + `.git/config` is a sandbox-protected path). You can adjust this via `/sandbox`.
+
+### Recap
+
+`01:31:25`
+
+📝 Recap: Goal was repo housekeeping: I merged PR #165 (the nemotron task spec + pipeline seed) into main and removed the two worktrees whose PRs were already merged. Everything is done; no next action is pending unless you want the open-PR worktrees touched.

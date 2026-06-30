@@ -5650,7 +5650,7 @@ files in version dir: 16
 > 
 > **5–6. Commands & local validation (all green)** — `py_compile *.py` OK; `bash run.sh` exit 0; **`eq_reprobe.py` on real `train.csv` (732 prompts): deduce 566/596 = 95.0%, guess 47.8%**; cryptarithm CSP (n=150) `*` deduce 100% (full-map 100%), `+` 98%, `-` 95%, guess 94%; bit 100% solved, −23.4% tokens; numeric deduce 98.3%; `validate.py --self` PASS; `ruff check` + `ruff format --check` clean.
 > 
-> **7. Git** — branch `exp/nemo-postlb3-v1`, commit [`00578e1`](https://github.com/amyteq/tt_pangu/commit/00578e1dd9ec42b6e23ff907d48e69571997555c), pushed. **PR #144**: https://github.com/amyteq/tt_pangu/pull/144
+> **7. Git** — branch `exp/nemo-postlb3-v1`, commit `00578e1`, pushed. **PR #144**: https://github.com/amyteq/tt_pangu/pull/144
 > 
 > **8–10. Kaggle push/run/submit + preflight** — **Not performed.** The competition **closed 2026-06-15** (today is 2026-06-20) and the plan is explicitly PLAN-ONLY (`allow_*=false`). This conflicts with the task front matter's `allow_kaggle_submit:true`; per the task's own *"repo is source of truth — report conflicts before remote actions"* clause I resolved it in favor of repo state. The `require_preflight_pass` gate **correctly blocked**: no GPU run → no `submission.zip` → preflight items "run completed successfully" / "submission.zip exists" fail. **No submission was attempted; 0 of 100 submissions used.** Held-best (soup 0.86/0.85, eq-aug 0.86/0.86) untouched.
 > 
@@ -16262,7 +16262,7 @@ Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/exp+nemo-post
 > 
 </details>
 
-> Main checkout state: on `main` at [`cda83b9`](https://github.com/amyteq/tt_pangu/commit/cda83b9872df645db875822236acdedd4ca0460f), **behind** `origin/main` ([`ebac6b9`](https://github.com/amyteq/tt_pangu/commit/ebac6b9a13d990d356dc02c1df9cd55f70313478), which has all the merged PRs). Uncommitted/untracked:
+> Main checkout state: on `main` at `cda83b9`, **behind** `origin/main` (`ebac6b9`, which has all the merged PRs). Uncommitted/untracked:
 > - `README.md` — modified (tracked source — could be real work)
 > - `nemo-lb1-v1.log`, `submission.zip` — untracked runtime artifacts (from the lb1-v1 GPU run)
 > 
@@ -16463,7 +16463,7 @@ Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/exp+nemo-post
 > 
 > **Refreshed main**: fast-forwarded `cda83b9 → 30d5630` (= `origin/main`), pulling in everything merged this session (#143–#147, #149, #150, #151's base, plus worklogs). `git status` is clean and `HEAD == origin/main`.
 > 
-> result: Cleaned local main working tree — restored the clobbered README.md, removed stray `nemo-lb1-v1.log` + 1.3G `submission.zip` (retrievable from Kaggle); fast-forwarded main to origin/main ([30d5630](https://github.com/amyteq/tt_pangu/commit/30d563049dd0297dce59c3c58638af542e81940d)), now clean and up to date. No changes needed preserving in a worktree.
+> result: Cleaned local main working tree — restored the clobbered README.md, removed stray `nemo-lb1-v1.log` + 1.3G `submission.zip` (retrievable from Kaggle); fast-forwarded main to origin/main (30d5630), now clean and up to date. No changes needed preserving in a worktree.
 
 ### Recap
 
@@ -16903,7 +16903,7 @@ Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/exp+nemo-post
 > 
 </details>
 
-> The stray `tmp-merge-lb10` worktree (under `/tmp`, clean tree) contains my lb10 commit **plus two novel commits** that reorder the lb*-v1 doc sections ascending, **plus** a merge of `origin/main` — none of which is in `main` or yet in PR #151 (which sits at the bare [`94bac03`](https://github.com/amyteq/tt_pangu/commit/94bac038462b3861d862145a63ad8f41b2778b89)). Its lb10 content is already covered by open **PR #151**, so the clean move is to fold these commits into that PR's branch rather than open a duplicate. Let me confirm my lb10 commit is an ancestor (so a fast-forward is safe).
+> The stray `tmp-merge-lb10` worktree (under `/tmp`, clean tree) contains my lb10 commit **plus two novel commits** that reorder the lb*-v1 doc sections ascending, **plus** a merge of `origin/main` — none of which is in `main` or yet in PR #151 (which sits at the bare `94bac03`). Its lb10 content is already covered by open **PR #151**, so the clean move is to fold these commits into that PR's branch rather than open a duplicate. Let me confirm my lb10 commit is an ancestor (so a fast-forward is safe).
 
 #### 💻 Bash: *Verify ancestry for ff-fold of tmp-merge-lb10 into PR #151*
 
@@ -17102,7 +17102,7 @@ Shell cwd was reset to /home/harry/test/tt_pangu/.claude/worktrees/exp+nemo-post
 > - `ow-arch` [orbit-arch-refactor] — **PR #132 OPEN** (orbit-wars, unrelated to nemo).
 > 
 > **Needs your call — `dev-temp` [dev/temp]:** not merged, no PR. Its changes:
-> - 1 commit [`59d5cc7`](https://github.com/amyteq/tt_pangu/commit/59d5cc7348b56668ba2c5c9e1d18c4af0c5f1d23) adding 5 files under `temp/` (**none in main**): `nemo-chatgpt-analysis.md`, `nemotron-analysis-claude.md`, and 3 candidate scripts `nemotron_v{1,2,3}_*.py` — early scratch analysis, long superseded by the merged `versions/*` work.
+> - 1 commit `59d5cc7` adding 5 files under `temp/` (**none in main**): `nemo-chatgpt-analysis.md`, `nemotron-analysis-claude.md`, and 3 candidate scripts `nemotron_v{1,2,3}_*.py` — early scratch analysis, long superseded by the merged `versions/*` work.
 > - uncommitted: `M .claude/settings.local.json` (local-only config).
 > 
 > I did **not** auto-open a PR here: `dev/temp` is a deliberate "零 CI" scratch branch (per project memory, `temp/` holds throwaway docs), it's far behind `main`, and the content is superseded early analysis — a PR to `main` would be noise/conflict-laden, and I won't discard someone's scratch work unprompted. 
