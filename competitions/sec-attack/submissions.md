@@ -15,12 +15,26 @@
 Real scored rerun = gpt_oss + gemma × public(`optimal_public`)+private guardrails; submission.csv `Id,Score` rows
 (`gpt_oss_public/private`, `gemma_public/private`). Submit: `kaggle competitions submit <comp> -k <user>/<slug> -v <ver> -f submission.csv`.
 
-| Account | Kernel (ver) | families | max/fanout | sub id | status |
-|---|---|---|---|---|---|
-| harrysun2006 | sec-attack-jed (v4) | deputy,direct,filewash | 30/12 | 54134273 | PENDING |
-| harrysun2006 | sec-attack-jed-x (v3) | direct,deputy | 40/20 | — | PENDING |
-| firefly2006 | sec-attack-jed (v3) | deputy,direct,filewash | 30/12 | 54134296 | PENDING |
-| firefly2006 | sec-attack-jed-x (v3) | filewash,direct | 24/12 | 54134299 | PENDING |
+| Account | Kernel (ver) | families | max/fanout | sub id | public score | status |
+|---|---|---|---|---|---:|---|
+| harrysun2006 | **sec-attack-jed-x** (v3) | **direct,deputy** | **40/20** | 54134283 | **2.400** ⭐ | COMPLETE |
+| harrysun2006 | sec-attack-jed (v4) | deputy,direct,filewash | 30/12 | 54134273 | 1.440 | COMPLETE |
+| firefly2006 | sec-attack-jed (v3) | deputy,direct,filewash | 30/12 | 54134296 | 1.440 | COMPLETE |
+| firefly2006 | sec-attack-jed-x (v3) | filewash,direct | 24/12 | 54134299 | 1.080 | COMPLETE |
+| harrysun2006 | (stray auto-submit v1) | — | — | 54132637 | — (0/blank) | COMPLETE |
+
+**Results read 2026-06-29** (private score hidden until close). **Lever confirmed: fast-breadth wins** — all-1-message
+families (`direct` exfil + `deputy`) at the highest fanout/cap scored best (2.40); the slow 7-message `filewash` chains
++ small cap scored lowest (1.08). The two identical balanced configs scored identically (1.440) → the eval is
+deterministic. **Next: scale fast-breadth** (more domains/recipients = more distinct cells), drop file-wash.
+
+### Iteration (2026-06-29)
+| Account | Kernel (ver) | families | max/fanout | sub id | public score | status |
+|---|---|---|---|---|---:|---|
+| harrysun2006 | sec-attack-jed-xl (v1) | direct,deputy | 120/60 | 54183733 | — | PENDING (submitted 2026-06-30) |
+
+> Hypothesis: 3× the fanout/cap of the 2.40 winner → more distinct firing cells → higher score (aggregation may not
+> be linear). Same all-1-message families, so it stays well under the 9000s/phase replay budget. Re-poll for the score.
 
 **Fixes applied to make code submission work:** kernel must use **T4** (`machine_shape: NvidiaTeslaT4` + BYOD docker image;
 P100 is rejected); the notebook writes a schema-valid **`submission.csv` stub** during Save&Run (serve() only emits the
