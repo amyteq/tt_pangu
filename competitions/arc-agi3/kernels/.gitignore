@@ -1,0 +1,4 @@
+# built notebooks + pulled outputs are reproducible from agents/ + build_notebooks.py
+*.ipynb
+build/
+out/
