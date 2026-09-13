@@ -7,7 +7,7 @@ status: active
 phase: iteration                # research | baseline | iteration | submission | postmortem
 competition_type: simulation_agent   # red-team code competition (attack.py replayed by an evaluator)
 metric: normalized attack score (0-1000) = min(1000, raw/200000*1000); raw = Σ severity_weight + 2·unique_cells
-deadline: 2026-09-01            # ⚠ unverified (web summaries); confirm on official page
+deadline: 2026-09-01            # ✓ verified 2026-09-13 via Kaggle API (closed 2026-09-01 23:59); CLOSED
 primary_artifact: script        # attack.py defining AttackAlgorithm(AttackAlgorithmBase)
 submission_mode: kernel          # Kaggle code competition; attack.py run inside the evaluator
 data_policy: generated           # no train/test CSV — a sandboxed agent environment + seed fixtures
