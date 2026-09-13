@@ -48,14 +48,17 @@ def _load_json(path: str | os.PathLike) -> dict:
         return json.load(f)
 
 
-def load_github_split(split: str, root: str | os.PathLike | None = None) -> dict[str, Task]:
-    """Load a split from the per-file GitHub layout. split in {"training","evaluation"}."""
-    root = Path(root) if root else DEFAULT_GITHUB_ROOT
-    split_dir = root / split
-    if not split_dir.is_dir():
-        raise FileNotFoundError(f"{split_dir} not found. Run eval/fetch_data.py to clone the public data.")
+def load_tasks_dir(root: str | os.PathLike) -> dict[str, Task]:
+    """Load every ARC-format task JSON (`{"train":[...],"test":[...]}`) in a directory.
+
+    Used for the GitHub split dirs and for any generated corpus (e.g. RE-ARC synthetic tasks
+    written by solver/gen_rearc.py). Task ids are the filename stems.
+    """
+    root = Path(root)
+    if not root.is_dir():
+        raise FileNotFoundError(f"{root} not found.")
     tasks: dict[str, Task] = {}
-    for fp in sorted(split_dir.glob("*.json")):
+    for fp in sorted(root.glob("*.json")):
         d = _load_json(fp)
         tid = fp.stem
         tasks[tid] = Task(
@@ -65,6 +68,15 @@ def load_github_split(split: str, root: str | os.PathLike | None = None) -> dict
             test_outputs=([t["output"] for t in d["test"]] if all("output" in t for t in d["test"]) else None),
         )
     return tasks
+
+
+def load_github_split(split: str, root: str | os.PathLike | None = None) -> dict[str, Task]:
+    """Load a split from the per-file GitHub layout. split in {"training","evaluation"}."""
+    root = Path(root) if root else DEFAULT_GITHUB_ROOT
+    split_dir = root / split
+    if not split_dir.is_dir():
+        raise FileNotFoundError(f"{split_dir} not found. Run eval/fetch_data.py to clone the public data.")
+    return load_tasks_dir(split_dir)
 
 
 def load_kaggle_split(split: str, root: str | os.PathLike | None = None) -> dict[str, Task]:
