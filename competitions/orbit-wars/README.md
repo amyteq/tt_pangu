@@ -48,10 +48,21 @@ Detailed log below (chronological; experiments, dead-ends, and evidence).
 
 ## Layout
 
+> **Layered since OW-ARCH-001 (2026-06-18):** `agent/main.py` is now a **thin entrypoint** that calls
+> `core/policy.py`; the v3.2 strategy, physics (`core/geometry.py`), state/ledger/features/oracle and the
+> emit→sanitize gate live under `core/`, and config under `config/` (baked PyYAML-free to
+> `agent/config_baked.py`). See [ARCHITECTURE.md](./ARCHITECTURE.md) for the 8-layer map. The submission is
+> `main.py` + `core/` (+ `agent/config_baked.py`) as a tar.gz — stdlib-only at runtime.
+
 ```
 competitions/orbit-wars/
-  agent/main.py        # the submission agent (single-file; stdlib + kaggle_environments only)
-  agent/versions/*.py  # frozen snapshots (v1, v2, v2_1) for head-to-head regression
+  agent/main.py        # thin Kaggle entrypoint -> core.policy.get_default_policy().act(obs)
+  agent/config_baked.py# baked default config profile (stdlib dict; no PyYAML online)
+  agent/versions/*.py  # frozen self-contained snapshots (v1..v4, forecast, …) for h2h regression
+  config/              # YAML config source + profiles + bake.py (-> agent/config_baked.py)
+  core/                # layered policy: geometry, config, state, ledger, candidates, features,
+                       #   rule_engine, oracle, action_emitter, action_sanitizer, policy
+  tests_orbit/         # layer tests (geometry/oracle, fleet-decode, features, policy-smoke, config, …)
   arena/pool.py        # parallel engine: fans independent games across CPU cores
   arena/arena.py       # round-robin / head-to-head on the REAL engine (offline gate)
   arena/validate.py    # held-out validation on fresh seeds

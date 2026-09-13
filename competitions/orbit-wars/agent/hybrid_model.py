@@ -68,12 +68,22 @@ class Scorer:
 
 
 def load_default(path=None):
-    """Return a Scorer, or None if weights/core are unavailable (caller falls back to rules-only)."""
+    """Return a Scorer, or None if weights/core are unavailable OR the weights' feature contract no
+    longer matches core.features.FEATURE_NAMES (caller falls back to rules-only)."""
     try:
         p = path or _default_weights_path()
         with open(p) as f:
             doc = json.load(f)
         if not doc.get("layers") or not doc.get("features"):
+            return None
+        # Compatibility guard: the exported weights must match the CURRENT feature contract exactly,
+        # else they would silently mis-score (or index-error). On mismatch, disable -> rules-only.
+        from core.features import FEATURE_NAMES  # noqa: PLC0415
+
+        if list(doc["features"]) != list(FEATURE_NAMES) or len(doc.get("mean", [])) != len(FEATURE_NAMES):
+            return None
+        in_dim = len(doc["layers"][0]["W"][0]) if doc["layers"][0].get("W") else 0
+        if in_dim != len(FEATURE_NAMES):
             return None
         return Scorer(doc)
     except Exception:
