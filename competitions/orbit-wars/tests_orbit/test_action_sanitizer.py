@@ -1,6 +1,5 @@
 """ActionSanitizer + agent emission-gate smokes (prompt 02 integration)."""
 
-import importlib.util
 import math
 import os
 import sys
@@ -113,12 +112,9 @@ def test_sanitize_default_is_safe_noop_on_valid_actions():
 
 
 def test_agent_emit_gate_routes_and_blocks_sun():
-    """main.py._emit_gate drops a forged strict-sun action but keeps a valid one."""
-    spec = importlib.util.spec_from_file_location(
-        "ow_main", os.path.join(COMP, "agent", "main.py")
-    )
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    """core.policy._emit_gate (via core.action_emitter) drops a forged strict-sun action, keeps a valid one."""
+    from core import policy as mod  # the emission gate now lives in core.policy (OW-ARCH-001)
+
     obs = _obs()
     me = obs.get("player", 0)
     src = [p for p in obs["planets"] if p[1] == me][0]
@@ -141,9 +137,7 @@ def test_agent_emit_gate_routes_and_blocks_sun():
 
 
 if __name__ == "__main__":
-    fns = [
-        v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)
-    ]
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0
     for fn in fns:
         fn()

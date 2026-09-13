@@ -233,24 +233,23 @@ def build_battlefield_state(obs, horizon=80) -> BattlefieldState:
     fstates = {}
     for f in fleets_raw:
         fid, fowner, fx, fy, fang, ffrom, fships = f
-        # decode by tracing from the fleet's CURRENT position along its angle
-        decoded_id, dtype, eta, minsun, safety = None, "unknown", None, None, "unknown"
-        srcp = by_id.get(ffrom)
-        if srcp is not None:
-            res = orc.first_hit(obs, ffrom, fang, int(fships))
-            decoded_id, dtype, eta = res.first_hit_id, res.first_hit_type, res.eta
-            minsun = res.min_sun_distance
-            safety = (
-                "sun"
-                if dtype == "sun"
-                else "oob"
-                if dtype == "oob"
-                else "near_sun"
-                if res.near_sun
-                else "none"
-                if dtype == "none"
-                else "ok"
-            )
+        # decode by tracing from the fleet's CURRENT (fx, fy) along its angle — NOT by relaunching
+        # from the source planet (which restarts at source_radius+0.1 and mis-predicts an in-flight
+        # fleet's first hit / ETA). Works even if the source planet has since been captured/gone.
+        res = orc.decode_existing_fleet(obs, f)
+        decoded_id, dtype, eta = res.first_hit_id, res.first_hit_type, res.eta
+        minsun = res.min_sun_distance
+        safety = (
+            "sun"
+            if dtype == "sun"
+            else "oob"
+            if dtype == "oob"
+            else "near_sun"
+            if res.near_sun
+            else "none"
+            if dtype == "none"
+            else "ok"
+        )
         tgt_owner = by_id.get(decoded_id, (None, None))[1] if decoded_id is not None else None
         fstates[fid] = FleetState(
             id=fid,
