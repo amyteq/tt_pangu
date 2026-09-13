@@ -25,9 +25,17 @@ build 16 augmentations (D8 x color-perm)         augment.py
 | `model.py` | GPU layer: Qwen2.5-0.5B + per-task LoRA TTT + greedy decode → `DecodeFn` | ✅ done (runs on snorlax) |
 | `run_eval.py` | run the solver over a split + score (pass@2) | ✅ done |
 | `debug_decode.py` | dump what the model actually emits (decode-quality probe) | ✅ done |
-| `pretrain.py` | offline pretrain: 0.5B LoRA on the 1000 train tasks → the ARC-prior adapter | ✅ done |
+| `pretrain.py` | offline pretrain → ARC-prior adapter (`--tasks-dir` for a RE-ARC corpus; `--mix-arc2`) | ✅ done |
+| `fetch_rearc.py` | clone Michael Hodel's re-arc (MIT) generators into `data/re-arc` (gitignored) | ✅ done |
+| `rearc.py` | load the 400 re-arc generators/verifiers; generate verified ARC-format tasks (CPU) | ✅ done (T2.5a) |
+| `gen_rearc.py` | CLI: write a RE-ARC corpus to `data/rearc_tasks/` for pretraining | ✅ done (T2.5a) |
 
-> **Verdict (rung-1 0.5B and rung-2 4B):** the pipeline is validated end-to-end (oracle 100%), but eval
+> **RE-ARC pipeline (T2.5a):** `fetch_rearc.py` → `gen_rearc.py --out data/rearc_tasks` produces ARC-format
+> tasks from re-arc's 400 verified generators (rule *execution* data); pretrain on it with
+> `pretrain.py --tasks-dir data/rearc_tasks [--mix-arc2]`. CPU-only generation. **T2.5b** (the Qwen3-4B
+> pretrain-on-RE-ARC + eval, on snorlax) is the run that tests whether this lifts eval off 0%.
+
+> **Verdict (rung-1 0.5B and rung-2 4B, pre-RE-ARC):** the pipeline is validated end-to-end (oracle 100%), but eval
 > score is **~0% at both rungs** — rung-1 0/10 & 0/20, rung-2 (Qwen3-4B + pretrain) **0/20**. The 4B
 > pretrain fit the *training* distribution well (loss 0.16 vs the 0.5B's 0.29) yet still scored 0% on eval.
 > **Conclusion: model size is not the bottleneck — the DATA pipeline is.** The 2025 winners (16–24%) got
