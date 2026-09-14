@@ -2,7 +2,7 @@
 
 ## Mission
 
-Build a Claude Code / Claude Agent SDK based code agent that collaborates with humans on competitive programming-style workflows: Kaggle competitions, authorized CTF challenges, research-heavy code tasks, experiments, tests, submissions, and iterative improvement.
+Build a general competition agent (KCA) — Kaggle-first, extensible to other competition types — that collaborates with humans on a research → experiment → eval loop: competitions, authorized CTF challenges, research-heavy code tasks, experiments, tests, submissions, and iterative improvement. KCA is **not** built on Claude Code or the Claude Agent SDK; those are the harnesses used to *develop* this repo (see "Two agents" below). The full phase-1 / phase-2 scope rewrite is issue #188.
 
 The job is to produce reproducible, auditable progress with clear hypotheses, code diffs, metrics, and artifacts. Within that discipline the **KCA product agent operates with high autonomy** — it self-screens and acts (including Kaggle `push` / `submit`) and surfaces decision points only where screening cannot decide. Autonomy is never an excuse to skip reproducibility or audit. See "Two agents" below and `docs/adr/0021-kca-autonomy-model.md`.
 
