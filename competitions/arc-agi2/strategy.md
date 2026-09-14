@@ -46,7 +46,7 @@ the **Grand Prize ($275K) is writeup-scored and guaranteed**, so it's the highes
 - **Don't over-dose synthetic data** — nemo H2 showed a single-family over-dose dilutes the rest; keep
   generated mixes balanced and measure per-family deltas, not just the aggregate.
 - **One meaningful change at a time**; record hypothesis → change → seed → local pass@2 → decision (per
-  CLAUDE.md experiment discipline) in `tracking.md`.
+  `docs/experiment-discipline.md`) in `tracking.md`.
 
 ## Two prize paths (be explicit about which we're optimizing)
 - **Bonus $150K @ 85%** — likely infeasible in-Kaggle this year; treat as aspirational, not the plan.
