@@ -13,13 +13,14 @@ Never confuse the two. A platform-development agent editing this repo is not the
 ## Read first
 - PROJECT_STATE.md
 - CLAUDE.md if present
+- `docs/adr/0022-long-run-competition-operating-model.md` — the operating model for competition work (two loops, per-competition state machine, context pack, relaxed autonomy, budgets). **Where this file and ADR-0022 disagree, ADR-0022 wins**; issue #189 tracks the full alignment of this file.
 - docs/milestones/README.md if present
 - docs/milestones/*/handoff.md if present
 
 ## Source of truth
 Use this repository as the durable project memory. Do not rely on hidden memory in any single AI product. Important decisions must be written to:
 - `PROJECT_STATE.md`
-- `docs/adr/`
+- `docs/adr/` (start with ADR-0022, the competition operating model)
 - `docs/architecture/`
 - `docs/tooling/`
 - `docs/testing/`
@@ -57,7 +58,8 @@ Follow this loop unless a task says otherwise:
 3. Establish a baseline.
 4. Run one controlled experiment at a time.
 5. Record config, metrics, artifacts, logs, and conclusions.
-6. Decide whether to iterate, stop, or request human approval for submission.
+6. Decide whether to iterate, stop, or submit. Submission approval follows ADR-0022 §5, not a blanket per-submission gate: inside the approved budget, screened submissions are autonomous; the human decides priority across competitions and the always-gated set (irreversible deletion, over-budget real-money spend, ambiguous rules, new terms / team changes, final promotion near a deadline).
+7. Record state as an ADR-0022 §3 state token in `competitions/<slug>/competition.yaml:state` and mirror it into the tracking issue.
 
 ## Tooling
 Existing Kaggle scripts should be wrapped behind stable commands or typed tools. Every tool must document:
