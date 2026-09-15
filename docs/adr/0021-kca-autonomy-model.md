@@ -59,8 +59,9 @@ three of the four profiles, with `hackathon-runner.yaml` inheriting them from
 `human-approved` modes) — but that file is read only by `tools/kca/skill.py:15`, not by
 the installed `kca` CLI, whose own gate defaults to *allow* (`tools/kca/kg.py:21-22`). An unevaluable precondition is a failed one, so submissions are human-gated
 until the screen is implemented (ADR-0022 §5). Instead of being posed as a question, the intended-submission summary (file, experiment
-id, expected score, reason) is **persisted as a record** at
-`competitions/<slug>/submissions/<timestamp>-<experiment>.yaml` before dispatch, and a
+id, expected score, reason) is **persisted before dispatch** in the phase-appropriate
+authority: a `competitions/<slug>/submissions/<timestamp>-<intent-id>.yaml` file for
+phase 1, or a transactional Supabase intent record for phase-2 KCA (§1). A
 submission whose record cannot be written does not dispatch — ADR-0022 §5's activation
 condition **A6**, which supersedes this paragraph's earlier wording. `.agent/kca/audit.jsonl`
 still receives the action, as supplementary evidence of what ran; it is not the record,

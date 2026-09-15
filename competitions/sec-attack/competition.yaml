@@ -62,10 +62,12 @@ budget:
 best:
   cv_metric: normalized_attack_score
   cv_score: 18.0                 # bypass v1 (kernels/attack_bypass.py) vs optimal_public, InstructionAgent proxy; naive baseline 0.00
-  public_lb: 7.200               # sec-attack-jed-xl v1 (direct+deputy, max120/fanout60), 2026-06-29;
-                                 #   3.00x the 2.400 of max40/fanout20 -- breadth scaled linearly
-  private_lb: 1.800              # read 2026-09-13 after close; exactly public/4 on every scored row
-  submission_id: 54183733        # submissions.md "Iteration (2026-06-29)"
+  public_lb: null                # final eligibility UNKNOWN: absent from final leaderboard.
+                                 #   Observed candidate: sec-attack-jed-xl v1, sub 54183733,
+                                 #   public 7.200 / private 1.800 (submissions.md "Final results").
+                                 #   Those measurements are not evidence of final placement.
+  private_lb: null               # retain unknown until selection/eligibility is reconciled
+  submission_id: null            # no verified final eligible submission (ADR-0022 §3)
 current_blocker: "none — competition closed 2026-09-01. Open question for the post-mortem: we are ABSENT from the final 4,186-row leaderboard despite two COMPLETE non-zero submissions (submissions.md 'Final results'); 7.200 would have placed ~3115/4186 against a 46.425 top. Cause unknown — possibly no submission was ever *selected*, or the two ERROR rows affected eligibility."
 next_task: "Write up the transferable findings: breadth scaled linearly to 3x with no ceiling found, private == public/4 on every scored row (a fixed split, not a harder guardrail), and the submission-SELECTION lesson — verify selection explicitly before the deadline in any future code competition."
 source_notes:

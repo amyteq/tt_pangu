@@ -50,10 +50,11 @@
 - **orbit5 active slots (2026-06-16):** harry [`v4_scheduler` _pending_, `kuni05` 1079.7], may [`v3_forecast` _pending_, `v3_2_coarr` 640.7]. v4 + v3 are the live experiments; kuni05 + coarr are the kept anchors. Monitor μ via `ops/live_loop.py --once`; only >1200-in-reasonable-time keeps a slot.
 - **Best own-agent ladder:** **703.9** — v4 Scheduler, sub `53730511`, settled at the 2026-06-16
   refresh (`tracking.md` "Active slots"), superseding the ~686 Forecast-v3 peak this line used to
-  give. That number is `competition.yaml:best.public_lb` (rank 1, ADR-0022 §3); this file is rank 3
-  and the `_pending_` rows above predate the refresh. The **last** own agents submitted are the
+  give. This is a historical measurement, not `competition.yaml:best.public_lb`, which is
+  `null` because final eligibility/score are unknown (ADR-0022 §3). The `_pending_` rows
+  above predate the refresh. The **last** own agents submitted are the
   2026-06-17 B11-rotfix pair (`53769740` / `53769744`), whose μ was never recorded — so 703.9 is
-  the last *measured* own-agent μ, not necessarily the final one.
+  the last *measured* own-agent μ of an entry that was later evicted, not the final one.
 - **Best attributed entry:** 1151.0 peak (adapted kuni05, attributed) / 1069.9 at the 06-16 refresh
   (1079.7 at 06-14 — slow downward drift).
 - co-arrival on the ladder (may): v3_2_coarr **648.8** vs v3.2 **636.7** → **+12** (mildly positive on-ladder,
