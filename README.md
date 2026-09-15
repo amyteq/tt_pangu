@@ -180,12 +180,15 @@ kca local probe                       # check local GPU endpoint status
 
 ### Claude Code project skills
 
-- `/pr-review-loop <rounds> [reviewer] [writer]` — bounded review/fix rounds on
-  the PR in context (or the current branch's unique open PR). `rounds` is a
-  required positive integer; providers default to `codex` / `claude` and either
-  position accepts either provider. Uses independent sessions, evidence-linked
-  dispositions, and a full review of the final head before approval. See the
-  [skill](.claude/skills/pr-review-loop/SKILL.md). In Codex, explicitly ask it to
+- `/at-review-pr [rounds] [reviewer] [writer]` — bounded review/fix rounds on
+  the PR in context (or the current branch's unique open PR). `rounds` defaults
+  to 10 and any supplied value must be a positive integer; providers default to
+  `codex` / `claude` and either position accepts either provider. Uses independent
+  sessions, evidence-linked dispositions, and a full review of the final head
+  before approval. An agent may also invoke it from a natural-language goal
+  (`disable-model-invocation: false`), using the round budget stated there. See the
+  [skill](.claude/skills/at-review-pr/SKILL.md) and its
+  [validation](docs/testing/at-review-pr.md). In Codex, explicitly ask it to
   read that file and supply the same three arguments; this Claude project
   directory does not imply automatic Codex skill discovery.
 
