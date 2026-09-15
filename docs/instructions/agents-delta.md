@@ -13,6 +13,10 @@ Never edit `AGENTS.md` directly — `scripts/gen_agents.py --check` (and
 <!-- part: preamble -->
 # AGENTS.md — cross-harness project instructions
 
+> Canonical language: **English**. `CLAUDE.md` is the authoritative source of the shared
+> rules below; this file is generated from it. Chinese lives only in `*_zh.md` sidecars
+> ([`CLAUDE_zh.md`](./CLAUDE_zh.md)), which are human-reading mirrors, never authoritative.
+
 This file is what **Codex / ChatGPT** — and any other `AGENTS.md`-reading harness — loads
 when it opens this repository. `CLAUDE.md` is what **Claude Code** loads. They have to say
 the same thing: phase 1 runs the same competition workflow from both harnesses so the two
@@ -34,8 +38,10 @@ can be compared on different competitions (discussion #185, issue #189).
 ## Read first
 
 - `PROJECT_STATE.md`
-- `docs/milestones/README.md`, `docs/milestones/*/handoff.md`
-- `docs/adr/` — especially `docs/adr/0021-kca-autonomy-model.md` (KCA autonomy model)
+- the competition's **tracking issue** and `competitions/<slug>/` — in phase 1 those two are
+  the state of record, not a milestone doc and not Supabase
+- `docs/adr/` — especially `docs/adr/0021-kca-autonomy-model.md` (KCA autonomy model, and the
+  four-scenario daily submission strategy in §4)
 - `docs/engineering-practice.md` — the full GitHub collaboration model
 - `.agents/README.md` — what of `.claude/` this harness can and cannot consume
 
@@ -99,7 +105,12 @@ review was not performed by an independent agent.
 
 ## Competition work
 
-Per-competition code and config live under `competitions/<slug>/`. The per-competition
+Per-competition code and config live under `competitions/<slug>/`; in phase 1 that directory
+plus the competition's tracking issue are the state of record. The per-competition
 `kca-<slug>.yaml` — `autonomy.screen`, budgets, schedules — is the source of truth for what
 the KCA product agent may submit without asking; it is not a licence for the harness to skip
 the host-level confirmations above.
+
+Phase 1 exists to compare harnesses, so say which one you are in the tracking issue when you
+record a result — a run driven from Codex and one driven from Claude Code are different data
+points, not interchangeable ones.

@@ -75,7 +75,7 @@ _base:
 **Always human-gated, regardless of `autonomy.enabled`:** irreversible/permanent
 deletions, real-money spend beyond the configured budget, ambiguous competition
 rules, and final candidate promotion when the competition is closing soon
-(`CLAUDE.md` autonomous-submission-strategy scenario 4). These are exactly the
+(§4 scenario 4 below). These are exactly the
 points where the human "provides direction / unblocks", not routine ops.
 
 **Human role under autonomy:** contribute ideas, unblock, course-correct, and
@@ -92,6 +92,8 @@ can override or roll back after the fact.
   stem collision that caused #65. The harness hook log stays at
   `.agent/audit/tool-events.jsonl`. Forward-facing docs reference the new path;
   dated milestone/task-spec history is left as a point-in-time record.
+  That rename is implemented and stands; KCA's *durable* audit location and
+  format are deferred to phase 2 (`CLAUDE.md` §"Two agents", PR #200, #203).
 - The eval regression framework stays as-is: the nightly + rolling-diff run, but
   the cv-drift delta gate is **not** armed (baseline records no `cv_score`) and
   the PR delta-check is **not** promoted to a hard release blocker yet. Activate
@@ -99,6 +101,25 @@ can override or roll back after the fact.
 - The rolling-diff tracking issue (#47) is now **optional**: if it is absent,
   `eval.yml` records the flip in the job summary and warns instead of failing —
   so the issue can be closed without breaking the nightly.
+
+### 4. Daily submission strategy — the four scenarios
+
+Moved here from `CLAUDE.md` (#188) so the autonomy rules live in one place.
+This strategy runs **autonomously** when `autonomy.enabled` is true (default) and
+the `screen` criteria pass; only scenario 4 hands back to the human. With autonomy
+disabled, every submit asks first. KCA targets submission approximately 2 hours
+before the daily roll-over (00:00 UTC). Apply per competition day:
+
+| Scenario | Condition | Action |
+|---|---|---|
+| 1 | Exactly 1 candidate beats the current best score | Submit that candidate; use remaining daily slots for exploration near the baseline |
+| 2 | No candidate beats the current best score | Do not waste the daily balance; use all slots for exploration near the baseline |
+| 3 | Multiple candidates beat best score, competition open (≥ closing threshold) | Submit the best N (up to daily limit); queue remainder for the next day |
+| 4 | Multiple candidates beat best score, competition closing soon (< closing threshold) | Ask human to decide which candidates to promote |
+
+Closing threshold = `competition_period × 0.1` (default: 5 days for a 50-day
+competition); configurable per project. Scenario 4 is the
+`final_promotion_near_deadline` entry in the `human_gated` list above.
 
 ## Consequences
 
