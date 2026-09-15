@@ -14,9 +14,10 @@ data_policy: kaggle              # + public Kaggle datasets (huikang corpus / re
 last_updated: 2026-06-15         # LB confirmed via read-only Kaggle API refresh 2026-06-15
 # ADR-0022 §6 budget envelope. Same KEY STRUCTURE as
 # competitions/_templates/competition.yaml; the VALUES are this competition's.
-# `null` is an UNKNOWN, not "unlimited": a null cap holds the competition in
-# PAUSED_BUDGET, and A2/A3 keep §5's relaxed autonomy inactive until it is filled
-# in from a verified source.
+# `null` is an UNKNOWN, not "unlimited": a null cap refuses the work that would
+# spend against THAT dimension (§6), and A2/A3 keep §5's relaxed autonomy inactive
+# until it is filled in from a verified source. PAUSED_BUDGET is entered when a
+# blocked dimension is needed to make progress — not merely because a cap is null.
 # This competition is closed and in FINDINGS: no cycle starts and nothing is
 # reserved against these caps. The block is present so the schema is uniform.
 budget:

@@ -22,9 +22,10 @@ data_policy: kaggle              # public train(1000)+eval(120) on GitHub; semi-
 prize_pool_usd: 700000           # ARC-AGI-2 track (of $2M total ARC Prize 2026)
 # ADR-0022 §6 budget envelope. Same KEY STRUCTURE as
 # competitions/_templates/competition.yaml; the VALUES are this competition's.
-# `null` is an UNKNOWN, not "unlimited": a null cap holds the competition in
-# PAUSED_BUDGET, and A2/A3 keep §5's relaxed autonomy inactive until it is filled
-# in from a verified source.
+# `null` is an UNKNOWN, not "unlimited": a null cap refuses the work that would
+# spend against THAT dimension (§6), and A2/A3 keep §5's relaxed autonomy inactive
+# until it is filled in from a verified source. PAUSED_BUDGET is entered when a
+# blocked dimension is needed to make progress — not merely because a cap is null.
 budget:
   cycle: 7d                             # window every max_per_cycle is measured over
   cycle_anchor: null                    # UTC timestamp cycle 0 started; all arithmetic is UTC
