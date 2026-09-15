@@ -319,15 +319,22 @@ Relaxed autonomy is a **per-competition capability that must be switched on by e
 not a blanket grant that starts the moment this ADR merges. For a given competition, §5
 applies only when all of the following are true, and each is checkable by reading files:
 
-| Precondition | Checkable by |
-|---|---|
-| The competition's `budget:` block exists and every cap is set — no `null` (§6) | reading `competitions/<slug>/competition.yaml` |
-| `budget.submissions.verified_daily_limit` carries a verification source and date | the same block's provenance fields (§6) |
-| `launch`, `deadline` and the closing window are verified and current | the same file; otherwise `WAIT_HUMAN` |
-| The pre-submit gate refuses on failure rather than skipping (fail-closed) | see the paragraph below |
-| A submission-intent record is written and persisted before dispatch | §5 "Recording an autonomous submission" |
+| # | Precondition | Checkable by |
+|---|---|---|
+| **A1** | `autonomy.enabled` is not `false` — the veto below | `competitions/<slug>/kca-<slug>.yaml` |
+| **A2** | The competition's `budget:` block exists and every cap is set — no `null` (§6) | `competitions/<slug>/competition.yaml` |
+| **A3** | `budget.submissions.verified_daily_limit` carries `verified_source` / `verified_at` and is inside `verified_ttl` | the same block (§6) |
+| **A4** | `launch`, `deadline` and the closing window are verified and inside `timing_verified_ttl` | the same file; otherwise `WAIT_HUMAN` (§5) |
+| **A5** | The pre-submit gate refuses on failure rather than skipping (fail-closed) | see the paragraph below |
+| **A6** | A submission-intent record is written and persisted before dispatch | §5 "Recording an autonomous submission" |
 
-**Until a competition satisfies all five, it runs under the narrower ADR-0021 §2 model** —
+**`autonomy.enabled: false` is an absolute veto, checked before everything else.** It is
+the one-line opt-out ADR-0021 §2 gives a competition that needs strict human-in-the-loop,
+and no amount of evidence overrides it: a competition that has opted out never activates §5,
+however complete its budget block is. Evidence can only switch autonomy *on* where it was
+already permitted — it can never switch it on where it was refused.
+
+**Until a competition satisfies A1–A6, it runs under the narrower ADR-0021 §2 model** —
 screened autonomy with `beats_best` as a gate — and a submission that cannot satisfy them
 is human-gated. This is deliberate: the widened licence and the machinery that bounds it
 ship together or not at all.
@@ -340,7 +347,7 @@ authority that phase 1 does not write (§1). Nothing in the tree reads
 `verified_daily_limit`, `require_repro` or `rules_check`. A fail-open courtesy guard is
 adequate under ADR-0021, where `beats_best` independently limits what gets submitted; it is
 **not** adequate under §5, which removes that limiter. Until a fail-closed gate consuming
-the phase-1 YAML contract exists, no competition meets precondition 4, and §5's submission
+the phase-1 YAML contract exists, no competition meets **A5**, and §5's submission
 autonomy is inert. Implementing it is a follow-up, not part of this ADR.
 
 #### Inside the envelope
@@ -414,10 +421,12 @@ the boundary between 3 and 4 must be computable without judgement:
 - The **internal safety window** in §6's stop conditions is the same field: inside it, the
   competition stops rather than starting new work.
 
-**Missing or stale timing data fails to the human, never to scenario 3.** If `launch` or
-`deadline` is absent, unverified, or older than its recorded verification date allows, the
-competition goes to `WAIT_HUMAN` — an agent must never classify an undated competition as
-"open enough" to promote candidates autonomously.
+**Missing or stale timing data fails to the human, never to scenario 3.** Timing carries its
+own provenance — `timing_verified_source`, `timing_verified_at`, `timing_verified_ttl` — because
+the file-level `last_updated` says when the *file* changed, not when the *deadline* was checked.
+If `launch` or `deadline` is absent, or `timing_verified_at` is missing or older than
+`timing_verified_ttl`, the competition goes to `WAIT_HUMAN` — an agent must never classify an
+undated or stale competition as "open enough" to promote candidates autonomously.
 
 The daily limit is **the verified limit for this competition and team**, not an
 assumed 5. Quota is per *team* for submissions and per *account* for notebook
@@ -464,7 +473,7 @@ external_id: null           # filled at reconciliation
 ```
 
 A submission whose intent record could not be persisted **does not dispatch** — that is
-precondition 5 above. Autonomous actions must also stay reversible — kernel versions
+**A6** above. Autonomous actions must also stay reversible — kernel versions
 retained, submission IDs recorded — so a human can override or roll back after the fact.
 
 ### 6. Budgets, quotas and stop conditions
@@ -472,19 +481,25 @@ retained, submission IDs recorded — so a human can override or roll back after
 **Budget dimensions** (per competition, per cycle):
 
 ```yaml
-# competitions/<slug>/competition.yaml
+# competitions/<slug>/competition.yaml — identical to the block in
+# competitions/_templates/competition.yaml. These two must stay byte-identical;
+# a divergence between them is a bug, not a local override.
 budget:
   cycle: 7d                             # window every max_per_cycle is measured over
+  cycle_anchor: null                    # UTC timestamp cycle 0 started; all arithmetic is UTC
   experiments:
-    max_per_cycle: 10
+    max_per_cycle: null
   compute:
-    max_gpu_hours_per_cycle: 20
+    max_gpu_hours_per_cycle: null
   llm:
     max_turns_per_research_task: 100
-    max_metered_cost_per_cycle_usd: 0   # 0 = subscription-only. null BLOCKS the cycle.
+    max_metered_cost_per_cycle_usd: 0   # 0 = subscription-only spend; null BLOCKS the cycle
   submissions:
     require_verified_competition_limit: true
-    verified_daily_limit: null          # filled at ONBOARD from the competition's own rules
+    verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
+    verified_source: null               # where that number was read (URL / API field)
+    verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_ttl: 30d                   # past this the limit is unverified again and blocks
     reserve_for_human: 0
   failures:
     max_retries_per_task: 3
@@ -513,16 +528,35 @@ the same answer from the same files:
   is UTC — the same clock the competition's daily roll-over uses.
 - `verified_daily_limit` is inert without `verified_source` (where the number was read),
   `verified_at` (when), and `verified_ttl` (how long that reading may be trusted). Past the
-  TTL the limit is *unverified* again and §5's precondition 2 fails — the competition drops
+  TTL the limit is *unverified* again and §5's **A3** fails — the competition drops
   back to the ADR-0021 model rather than guessing.
 - The per-*team* daily submission quota and the per-*account* notebook/GPU quota are
   separate ledgers and are never traded against each other (#193).
 
-**Reserve before dispatch, settle after completion.** A unit of work reserves
-its budget *before* it starts and settles the actual consumption when it
-finishes, writing both to a reservation ledger keyed by the reservation id that the
-submission-intent record (§5) carries. Counting only after every parallel worker has
-spent its resources guarantees an overrun.
+**Reserve before dispatch, settle after completion.** A unit of work reserves its budget
+*before* it starts and settles the actual consumption when it finishes. Counting only after
+every parallel worker has spent its resources guarantees an overrun.
+
+The ledger is a file, one record per reservation, under the competition that spends it:
+
+```yaml
+# competitions/<slug>/budget/<cycle-id>.yaml   (cycle-id = the cycle's start, UTC)
+cycle: {anchor: 2026-09-15T00:00:00Z, ends: 2026-09-22T00:00:00Z}
+reservations:
+  - id: RES-0007              # what submission-intent's `budget_reservation` points at
+    dimension: submissions    # submissions | compute | llm | experiments
+    amount: 1
+    scope: team               # team | account:<name> | machine:<name>
+    reserved_at: 2026-09-15T21:58:04Z
+    state: reserved           # reserved | settled | released
+    settled_amount: null      # filled on completion; released returns the reservation unspent
+    ref: EXP-027
+```
+
+Two rules make it usable concurrently: a reservation is written **before** the external
+call, and a crash leaves a `reserved` record that is reconciled, not assumed — an orphaned
+reservation past the cycle end is released only after the external record is checked, the
+same discipline as `NEEDS_RECONCILIATION` (§3).
 
 **"Unknown" is never "unlimited".** A `null` in any cap is an unknown, and an
 unknown blocks: the cycle does not start and the competition sits in
@@ -565,7 +599,7 @@ approval, so the decisions that encode it have to move with it. Decision by deci
 | **§4** Search-space spec — YAML cross-product with optional random sub-sample | **Kept.** It is the `EXPERIMENT_PLAN` → `IMPLEMENT` fan-out mechanism, unchanged. |
 | **§5** Exploration-batch lifecycle — five states, **promotion limited to "top-K qualifying cells"** | **Amended.** The five batch states sit *inside* `EXPERIMENT_PLAN`…`EVALUATE` and are kept. "Qualifying" no longer means "beats best": under §5 a non-qualifying cell may still be promoted to fill a submission slot that would otherwise expire (scenario 2). `require_repro` and `rules_check` still qualify it; `beats_best` only orders it. |
 | **§6** Smart-polling state machine — QUEUED Fibonacci ramp, RUNNING stable, size-fallback terminal | **Kept.** It is the implementation of `WAIT_SCORE`, and its backoff is what `RETRY_AT` means in practice. |
-| **§7** Concurrency + daily-budget gate as an explicit **"courtesy guard"** that skips when the slug is missing or the DB is unreachable | **Superseded for competitions where §5 is active.** A courtesy guard is sound while `beats_best` limits submissions; once §5 removes that limiter the gate must be **fail-closed** and must read the phase-1 `budget:` block rather than `competitions.max_daily_submissions`. Until that exists no competition satisfies §5's activation precondition 4, and ADR-0020 §7 remains the operative gate under ADR-0021's narrower model. |
+| **§7** Concurrency + daily-budget gate as an explicit **"courtesy guard"** that skips when the slug is missing or the DB is unreachable | **Superseded for competitions where §5 is active.** A courtesy guard is sound while `beats_best` limits submissions; once §5 removes that limiter the gate must be **fail-closed** and must read the phase-1 `budget:` block rather than `competitions.max_daily_submissions`. Until that exists no competition satisfies §5's activation condition **A5**, and ADR-0020 §7 remains the operative gate under ADR-0021's narrower model. |
 | **§8** Stuck detector + escalation | **Kept** — it produces `HUMAN_DIRECTION`, the optional state in §2, not a mandatory checkpoint. |
 | **§8** **Per-batch push approval: the `kernel_push` gate fires once per batch, the budget is a `human_decisions` row, and it "expires at UTC midnight and must be re-approved the next day"** | **Superseded.** This is exactly the per-batch approval the owner's §9 relaxation removes (§2). The daily grant is replaced by the budget envelope in §6, which does not expire nightly and is not re-approved per day. The `human_decisions` row remains the right record for the decisions that *are* still gated (§5's always-gated set). |
 
@@ -597,7 +631,7 @@ the source for how wide autonomy actually is and what the human decides.
 - **Policy of record now — but §5 activates per competition, not on merge.** This ADR
   plus `CLAUDE.md` and `AGENTS.md` (which link it) are the loadable operating model.
   Merging it changes no competition's behaviour on its own: until a competition meets
-  §5's five preconditions it keeps running under ADR-0021 §2 and ADR-0020 §7/§8,
+  §5's activation conditions A1–A6 it keeps running under ADR-0021 §2 and ADR-0020 §7/§8,
   nightly batch approval included. The `CLAUDE.md` autonomous-submission table now
   lives here; `CLAUDE.md` links rather than duplicates it.
 - **`competition.yaml` gains `state` and loses `phase`**, and `status` narrows
@@ -635,7 +669,7 @@ the source for how wide autonomy actually is and what the human decides.
 | Task-comment pinning + authorization (the §4 trust exception) | #196 |
 | Decision request / notification channel (`WAIT_HUMAN` round trip) | #197 |
 | **Recovery + fault-injection implementation and tests** | *needs an issue* |
-| **Fail-closed pre-submit gate** reading the phase-1 `budget:` contract — §5 activation precondition 4 | *needs an issue* |
+| **Fail-closed pre-submit gate** reading the phase-1 `budget:` contract — §5 activation condition **A5** | *needs an issue* |
 | **Filesystem-only storage mode** for `kca run/goal/explore/stuck` + a test proving phase 1 writes no KCA rows | *needs an issue* (not #192) |
 
 ## Cross-references
