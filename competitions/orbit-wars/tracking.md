@@ -179,7 +179,7 @@
 | ≈v3 | v3.1 | + sim-driven defense (self-play only) |
 | 660.0 | **v3.2** | t14-tuned (H26/FF5/FD20/CE3.2/CL1.3); +7pt vs evogen; 6/6 gates (current own entry) |
 | 648.8 | v3_2_coarr | v3.2 + co-arrival ON (may account; on-ladder +~12 vs v3.2) |
-| **703.9** | **v4 Scheduler** | hub-and-hammer integrated rewrite; *local-arena* parity with v3.2 but the **best own-agent ladder μ we measured** (sub `53730511`, settled at the 2026-06-16 refresh) — the local gate could not see the gap (INS: arena is blind inside our cluster). This is rank 1's `best.public_lb` |
+| **703.9** | **v4 Scheduler** | hub-and-hammer integrated rewrite; *local-arena* parity with v3.2 but the **best own-agent ladder μ we measured** (sub `53730511`, settled at the 2026-06-16 refresh) — the local gate could not see the gap (INS: arena is blind inside our cluster). Historical, later evicted; rank 1's final eligible `best.public_lb` is unknown |
 | 1151.0 / 1085.4 | adapted-kuni05 | attributed public agent; competitive entry (peak / current) |
 
 ## Live loop (KCT-OW-LIVE-002, 2026-06-15)

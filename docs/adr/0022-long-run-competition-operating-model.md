@@ -82,9 +82,9 @@ Rules that follow:
    | `kca kaggle score --update-db` | `db.update_submission` (`kg.py:1355-1366`) | `--update-db` |
 
    Note the third row: the write happens on the path that *blocks* the action, so "it
-   refused, therefore nothing happened" is wrong. And note that every one of these is
-   `except Exception: pass` best-effort, so a phase-1 session gets no error and no signal
-   that it wrote phase-2 state.
+   refused, therefore nothing happened" is wrong. Error handling differs by path:
+   `_emit_blocked` reports `approval_recorded` / `approval_warning`, while the watcher
+   suppresses some DB failures. Neither behaviour provides storage isolation.
 
    **Rule until a storage mode exists — deny by default, not a list.** Phase 1 does not run
    `kca` subcommands that carry competition state: not `kca run` / `goal` / `explore` /
@@ -243,7 +243,7 @@ enters a side state it also records, alongside `state`:
 | `state_reason` | Why it was entered — the gate name, the failing budget dimension, the error class |
 | `decision_id` | For `WAIT_HUMAN`: the decision request this is blocked on, and its expiry |
 | `retry_at` | For `RETRY_AT`: the backoff deadline (UTC) |
-| `external_ref` | For `NEEDS_RECONCILIATION`: the submission/kernel id whose outcome is unknown |
+| `external_ref` | For `NEEDS_RECONCILIATION`: the persisted intent's unique `ref`; its platform id may still be unknown after a lost response |
 
 **Where the state is recorded (phase 1):** `competitions/<slug>/competition.yaml:state`
 plus the fields above. One current state per competition; history lives in the ledgers (#191).
@@ -266,17 +266,15 @@ Two rules follow, and they are what makes a fresh session deterministic:
   and where the mirror carries evidence the YAML lacks (a score, a submission id), that
   evidence is what the YAML update is *made of*. An unreconciled conflict is itself a
   finding: record it in `current_blocker`.
-- **`best` records the competition's *eligible* best, not the campaign's best number.**
-  A score only belongs in `best.public_lb` / `best.private_lb` if it counted — submitted
-  inside the deadline **and** selected for scoring where the competition makes selection
-  explicit. A stronger number from a late window, an unselected submission or a local
-  harness is real work and goes in `tracking.md` (rank 3) and in a comment on the field,
-  never in the field. Two live records needed this rule: `nvidia-nemotron` scored **0.86 /
-  0.86** with `nemo-eq-aug` in the post-deadline window, above its eligible **0.86 / 0.85**
-  soup; and `sec-attack` has two `COMPLETE` non-zero submissions that do not appear on the
-  final leaderboard at all. Without the rule, rank 1 answers "what did we score?" when the
-  question a resuming session is asking is "what did we place with?" — and a competition's
-  post-mortem then compares the wrong pair of numbers.
+- **`best` records the competition's eligible best.** Before close, this is a verified
+  in-deadline score; after close, selection/eligibility for the final standing must also
+  be supported by evidence. Unknown final eligibility means `best.public_lb`,
+  `best.private_lb` and `best.submission_id` are `null`, not the last measured candidate.
+  Historical, late and unselected scores stay in the narrative and comments; they must
+  be labelled as observations rather than final results in the dashboard. For example,
+  nemo's selected soup is **0.86 / 0.85**, its late eq-aug **0.86 / 0.86** is excluded,
+  orbit's measured **703.9** entry was evicted before close, and sec-attack's **7.200 /
+  1.800** entry has unverified final eligibility. The last two have unknown final `best`.
 - **Mirrors are updated in the same change as rank 1**, never later. "Future status
   updates live in `tracking.md`, not in the issue" (the note at the head of
   `nvidia-nemotron/tracking.md` and `orbit-wars/tracking.md`) was written before this
@@ -349,13 +347,14 @@ evidence in the tree, and each landed on a **side state** because that is what i
 | `submission_mode` | What SUBMIT actually does | Live example |
 |---|---|---|
 | `file` | Upload a predictions file to the competition | M9 `spaceship-titanic` |
-| `notebook` | Push a notebook that must run inside Kaggle and emit the artifact | `arc-agi2`, `arc-agi3` |
+| `notebook` | Push and run the notebook, then explicitly submit the required output/kernel version using the competition's protocol | `arc-agi2`, `arc-agi3` |
 | `kernel` | Push a kernel, wait for it to reach COMPLETE, **then** submit its output file | `nvidia-nemotron`, `sec-attack` |
 | `agent` | Submit an agent file/tarball that is then played on a ladder; the score arrives over hours-to-days | `orbit-wars` |
 
-A kernel push is **not** a leaderboard submission (issue #77): for
-`submission_mode: kernel`, `SUBMIT` is not complete until the submit call
-referencing the kernel version has been made and acknowledged.
+A kernel/notebook push is **not** a leaderboard submission (issue #77). In both
+`kernel` and `notebook` modes, `SUBMIT` is not complete until the competition's
+submit call has been acknowledged. `arc-agi3/submissions.md` demonstrates this:
+four kernels reached COMPLETE, but only two were submitted and scored.
 
 ### 4. Fresh sessions and the context pack
 
@@ -526,9 +525,9 @@ claim that floor is enforced. It claims three things instead:
   guard is fail-open, `kg.py`'s approval gate defaults to *allow*, and the harness
   intercepts no submit form. §5 cannot activate for any competition until all three close.
   This is the ADR's central safety property and it is currently satisfied by nothing.
-- **Phase 1's actual protection is that KCA is not the actor yet** (§1): a human is reading
-  every session. That is a property of how the work is being done, not a gate, and it
-  disappears exactly when phase 2 makes KCA autonomous — which is when §5 would matter.
+- **Phase 1 relies on the acting agent following the written approval rule.** Human
+  observation is not guaranteed and is not an enforcement mechanism. Neither phase
+  may treat this ADR as proof that a runtime guard exists.
 - **Both gaps are follow-ups with `file:line` evidence**, below, so activation is blocked
   on them rather than the problem being rediscovered later.
 
@@ -641,7 +640,7 @@ normative, not stylistic.
 
 | Scenario | Condition | Action |
 |---|---|---|
-| **0** | **The competition is inside its closing window** (`closing_window_days`, §5) — *any* number of candidates, including one, including zero | **`WAIT_HUMAN`.** The human chooses what is promoted; scenarios 1-3 do not apply here at all. Exploration that consumes no submission slot continues |
+| **0** | **The competition is inside its closing window** (`closing_window_days`, §5) — *any* number of candidates, including one, including zero | **`WAIT_HUMAN`.** The human chooses what is promoted; scenarios 1-3 do not apply. No new experiments start (§6); analysis and completion of already-budgeted work may continue |
 | 1 | Outside the window, exactly 1 candidate beats the current best score | Submit that candidate; use remaining slots (up to the **effective** daily limit below) for exploration near the baseline |
 | 2 | Outside the window, no candidate beats the current best score | Do not bank the daily balance; use the effective limit's slots for exploration near the baseline |
 | 3 | Outside the window, multiple candidates beat best score | Submit the best N (up to the **effective** daily limit); queue the remainder for the next competition day |
@@ -701,7 +700,7 @@ The record is a **submission-intent file**, written and flushed *before* the ext
 and owned by the competition, not by the driver:
 
 ```yaml
-# competitions/<slug>/submissions/<utc-timestamp>-<experiment-id>.yaml
+# Phase 1: competitions/<slug>/submissions/<utc-timestamp>-<intent-id>.yaml
 competition: <slug>
 experiment_id: EXP-027
 run_id: <run>
@@ -710,25 +709,32 @@ artifact_sha256: <hash>
 code_commit: <git-sha>
 expected_score: 0.86        # and the metric it is on
 reason: <why this candidate, in one line>
-scenario: 1 | 2 | 3         # from the table below -- the only autonomous rows. 0 and 4
+scenario: 1                 # 1 | 2 | 3 from the table above -- autonomous rows only. 0 and 4
                             #   are inside the closing window and human-gated, so no
                             #   autonomous intent record ever carries them
 screen: {require_repro: pass, rules_check: pass}
-ref: EXP-027                # the INTENT's unique key -- the join column between this
-                            #   record and §6's ledger. Equal to `experiment_id` when the
-                            #   intent has one; still required when it does not (a
-                            #   reconciliation re-submit, say), so §6 never has to guess
+ref: INT-20260915-215804-7c92  # unique per intended external action, across competitions
+                            #   and runs; NEVER the experiment id. Two submissions of one
+                            #   experiment need different refs. Resume/reconciliation of
+                            #   the SAME action retains its ref and must not dispatch again
 budget_reservations:        # "<scope>/<dimension>" -> reservation id. One action reserves
   competition:<slug>/submissions: RES-0007   #   in EVERY scope that caps the dimension
-  team:<team>/submissions: RES-0008          #   (§6's all-or-none rule), so this is a map,
+  team:<competition-slug>:<team>/submissions: RES-0008          #   (§6's all-or-none rule), so this is a map,
                             #   not a scalar -- a scalar could name only one of them and
                             #   settlement would strand the rest. Every id listed here has
-                            #   `ref: EXP-027`, and §6's correlation reads `external_id`
+                            #   the same intent `ref`, and §6's correlation reads `external_id`
                             #   back from this file, not from the ledger
-driver: claude-code | codex
+driver: codex              # claude-code | codex
 submitted_at: null          # filled after dispatch
 external_id: null           # filled at reconciliation
 ```
+
+`experiment_id` groups experiments; `ref` identifies one external action. A new submission
+after reconciliation has proved the previous action absent gets a new `ref` and records
+its predecessor. An unknown outcome never authorizes a second dispatch. A6 applies in
+both phases, but the repository file above is **phase 1 only**: phase 2 persists the same
+intent payload transactionally in Supabase, its sole writable authority (§1). Audit logs
+and exported files are supplementary views, never a second writable intent record.
 
 A submission whose intent record could not be persisted **does not dispatch** — that is
 **A6** above. Autonomous actions must also stay **traceable and supersedable** — kernel
@@ -799,7 +805,7 @@ carries:
 ```yaml
 # competitions/_shared/budget.yaml — caps only; consumption lives in the runtime ledger.
 scopes:
-  team:<team-name>:
+  team:<competition-slug>:<team-name>:
     submissions:
       unit: submission            # one leaderboard submission
       window: 1d                  # rolls at the platform's own boundary, not ours
@@ -825,6 +831,11 @@ The dimension names in this file and in a reservation record are **one vocabular
 `submissions | compute | llm | experiments | kernel_slots`. A cap with no matching
 dimension is unreservable and a reservation naming a dimension with no cap is refused.
 
+A team submission scope includes **both competition and team identity**:
+`team:<competition-slug>:<team>`. The same people entering two competitions do not
+share one daily submission allowance or reset boundary. Account, machine and subscription
+scopes can span competitions; their caps remain shared where the provider actually shares them.
+
 A reservation names the scope identity and the dimension, and its `amount` is in that
 cap's `unit`; a reservation whose unit does not match its cap's unit is rejected, not
 converted. `window: instantaneous` caps what is *held*, so its reservations are released
@@ -842,12 +853,12 @@ the same answer from the same files:
   ours.** A per-day quota resets on the platform's boundary, so the `submissions` window
   runs between consecutive `verified_reset_boundary` instants (converted to UTC for
   storage), not between `cycle_anchor` multiples. Getting this wrong is not a rounding
-  error: an 01:00 UTC submission is the previous competition day under a CET boundary, and
-  a ledger that thinks otherwise reserves a slot the platform has already spent.
+  error: at 23:30 UTC, a fixed 00:00+01:00 reset has already started the next
+  competition day, while a UTC-midnight counter is still in the previous one.
 - `verified_daily_limit` is inert without `verified_source` (where the number was read),
   `verified_at` (when), and `verified_ttl` (how long that reading may be trusted), and so
   is `verified_reset_boundary` — a limit of 5/day says nothing usable until you know which
-  5 hours count as the same day. Past the TTL either field is *unverified* again and §5's
+  24-hour interval is the competition day. Past the TTL either field is *unverified* again and §5's
   **A3** fails — the competition drops back to the ADR-0021 model rather than guessing.
 - The per-*team* daily submission quota and the per-*account* notebook/GPU quota are
   separate ledgers and are never traded against each other (#193).
@@ -857,7 +868,7 @@ the same answer from the same files:
 every parallel worker has spent its resources guarantees an overrun.
 
 **A shared counter cannot live in a worktree.** This is where the obvious design fails.
-Reservations are shared state: the per-team daily submission quota spans competitions, and
+Reservations are shared state: per-team submission quota spans workers and accounts within one competition, and
 a GPU spans everything on that machine, so several workers — in several **git worktrees**,
 which is how phase 1 runs concurrent competitions (§1) — reserve against one counter. A
 path like `competitions/_shared/budget/...` is *worktree-relative*: each worktree has its
@@ -878,13 +889,22 @@ conforming directory and the reduction below is the same operation in all three 
 
 | Cap's window | `<window-id>` | Example |
 |---|---|---|
-| A fixed span (`1d`, `7d`) | the window's start instant, UTC | `2026-09-15T00:00:00Z` |
+| A fixed span (`1d`, `7d`) | the window's start instant, UTC; outstanding records from earlier windows must also be checked before dispatch | `2026-09-15T00:00:00Z` |
 | `anchor: rolling` | the literal `rolling` — one directory, filtered by time at read | `rolling` |
 | `window: instantaneous` | the literal `held` — no window exists | `held` |
 
 It is runtime state, not project state: never committed, never inside a worktree, and not
 the `competition.yaml` `budget:` block — that holds the **caps**, which are reviewed in git;
 this holds the **consumption**, which is not.
+
+**Fixed-window rollover does not erase live work.** A job's enforceable ceiling includes
+the earliest end of every fixed window it reserves against. It must stop/checkpoint and
+settle there before reserving a continuation in the new window. Reading a new directory
+does not establish that the previous work stopped: any outstanding earlier-window record
+blocks a new reservation for that scope+dimension until reconciled. For a submission whose
+dispatch/acceptance straddles a reset, retain the old reservation and resolve the actual
+platform window before allowing another submission; a lost response never expires into a
+free slot. A launcher that cannot enforce these stops cannot satisfy A7.
 
 **A per-competition cap is a scope too.** `budget.experiments.max_per_cycle`,
 `budget.compute.max_gpu_hours_per_cycle` and `budget.llm.max_metered_cost_per_cycle_usd` are
@@ -895,7 +915,7 @@ scope identity `competition:<slug>`. Its cap values come from that competition's
 from `budget.cycle` anchored at `budget.cycle_anchor` — which is why **A2** requires the
 anchor to be set. Everything else — `O_EXCL` records, the lock, the reduction rule, the
 ceiling rule — is identical. A submission therefore reserves against *both*
-`competition:<slug>` and `team:<team>`, all-or-none, by the ordered multi-scope rule below.
+`competition:<slug>` and `team:<competition-slug>:<team>`, all-or-none, by the ordered multi-scope rule below.
 
 **A scope holds more than one dimension, and the window is the dimension's, not the
 scope's.** `competition:<slug>` carries a `submissions` counter alongside the three above,
@@ -928,12 +948,12 @@ modified and written back loses one of two concurrent reservations, and the lose
 invisible. An exclusive create either wins or fails:
 
 ```yaml
-# ${KCA_BUDGET_DIR}/team:<team>/submissions/2026-09-15T00:00:00Z/RES-0007.yaml
-id: RES-0007                # what submission-intent's `budget_reservation` points at
+# ${KCA_BUDGET_DIR}/team:<competition-slug>:<team>/submissions/2026-09-15T00:00:00Z/RES-0008.yaml
+id: RES-0008                # one value in submission-intent's `budget_reservations` map
 dimension: submissions      # submissions | compute | llm | experiments | kernel_slots
 amount: 1
 unit: submission            # must equal the cap's `unit`; mismatches are rejected, not converted
-scope: team:<team>          # competition:<slug> | team:<team> | account:<name>
+scope: team:<competition-slug>:<team>          # competition:<slug> | team:<competition-slug>:<team> | account:<name>
                             #   | machine:<name> | subscription:<name>
 window:                     # the MATCHED CAP's window, never the competition's
   kind: fixed               #   `budget.cycle`. fixed | rolling | instantaneous
@@ -941,7 +961,7 @@ window:                     # the MATCHED CAP's window, never the competition's
   ends: 2026-09-16T00:00:00Z  # fixed only; this is the team's 1d submissions cap
 reserved_at: 2026-09-15T21:58:04Z
 competition: <slug>         # who spent it — the repo side keeps no counter
-ref: EXP-027                # the intent that reserved this, verbatim from the
+ref: INT-20260915-215804-7c92  # the intent that reserved this, verbatim from the
                             #   submission-intent record's `ref` (§5). Every record of the
                             #   same intent, in every scope, repeats it; it is how
                             #   reconciliation finds the intent holding the `external_id`
@@ -951,8 +971,8 @@ Settlement and release never edit that file. They write **exactly one terminal s
 also `O_EXCL`, so a second writer cannot produce a second outcome:
 
 ```yaml
-# ${KCA_BUDGET_DIR}/team:<team>/submissions/2026-09-15T00:00:00Z/RES-0007.terminal.yaml
-id: RES-0007
+# ${KCA_BUDGET_DIR}/team:<competition-slug>:<team>/submissions/2026-09-15T00:00:00Z/RES-0008.terminal.yaml
+id: RES-0008
 outcome: settled            # settled | released
 amount: 1                   # settled: what was actually consumed — NEVER more than reserved
                             # released: always 0 — the reservation was not spent
@@ -1029,13 +1049,15 @@ human resolves it.
 3. Dispatch. Then write the terminal sidecar.
 
 **One job, several scopes: all-or-none, in one fixed order.** A submission spends against
-`competition:<slug>` *and* `team:<team>`; a GPU job against `competition:<slug>` and
+`competition:<slug>` *and* `team:<competition-slug>:<team>`; a GPU job against `competition:<slug>` and
 `machine:<name>`. Reserving them one at a time would let the first succeed and the second
 fail, leaving a phantom reservation that suppresses capacity nobody is using — or, worse,
 two jobs each holding one of the two locks and waiting for the other. So:
 
 1. **Collect every (scope, dimension) pair the job will spend against, before locking
-   anything.** A pair discovered mid-dispatch is a bug: release everything and start over.
+   anything.** A missing pair found before dispatch requires a fresh reservation plan.
+   If dispatch has started, stop further work and reconcile; never release capacity
+   that may already have been spent or repeat the external action.
 2. **Sort the scopes by their absolute ledger path and `flock` them in that order**,
    ascending, without releasing any. A total order on the lock set is what makes deadlock
    impossible; byte-wise path order is one every host computes identically.
@@ -1051,14 +1073,14 @@ A partial failure at step 4 — some records created, one create failing — is 
 capacity was taken) and are then explicitly `released` with evidence, never deleted.
 
 **A lock is machine-local; some scopes are not.** `flock` coordinates workers on one host. A
-`team:` scope does not stop there — the same Kaggle team quota is spendable from another
+`team:` scope does not stop there — the same competition/team quota is spendable from another
 machine, and no local lock can see that. For any scope that spans hosts, the local lock is
 necessary but not sufficient, and two further rules apply:
 
 - **One designated driver host per shared scope at a time** — per `team:` / `account:` /
-  subscription scope, *not* per competition, because the scope is what is shared. A
-  per-competition designation does not serialise two competitions drawing on one team
-  quota: each would reconcile against the same platform count, reserve in its own host's
+  subscription scope, because the scope is what is shared. A per-competition designation
+  does not serialise two competitions drawing on one account's GPU quota: each would
+  reconcile against the same platform count, reserve in its own host's
   ledger, and both dispatch.
 
   **The designation is a lease file, not an issue comment** — `A1-A7` promises every
@@ -1073,13 +1095,22 @@ necessary but not sufficient, and two further rules apply:
   updated_at: 2026-09-15T12:00:00Z
   ```
 
-  It is written under the scope's own `flock`, like every other record here, and an expired
-  lease is *not* a lease: A7 fails, and the fail-closed rule below applies. The tracking
+  This file exists **only on the designated host**; another host must contact that host's
+  coordinator, never create a local copy and name itself. The initial host binding is
+  owner-set and shared by every consumer. A lease file and `flock` on each of two machines
+  cannot elect a unique driver. Automatic election/failover is out of scope: an expired
+  or unreachable driver pauses spending. Owner-managed transfer must stop/fence the old
+  driver, reconcile every outstanding reservation, and transfer the ledger before the
+  new driver is enabled. A timestamp alone never proves the old worker stopped.
+
+  On the designated host the file is written under the scope's own `flock`; its lease
+  is checked again immediately before dispatch. An expired lease is *not* a lease:
+  A7 fails, and the fail-closed rule below applies. The tracking
   issue of every competition spending against the scope carries the same information as a
-  **mirror** (rank 2, §3's precedence order) so a human can see it without the machine — and
+  **mirror** (rank 4, §3's precedence order) so a human can see it without the machine — and
   where issue and file disagree, the file is right. A host that is not the scope's driver does
-  not spend against that scope, whichever competition is asking — so two competitions on
-  one team reserve through the same host, against the same ledger, under the same lock,
+  not spend against that scope, whichever competition is asking — so all workers using
+  the same pool reserve through the same host, against the same ledger, under the same lock,
   which is what makes the machine-local `flock` sufficient again.
 - **Reconcile before reserving — every time, under the lock.** For any scope whose quota
   something outside the ledger can consume (a human submitting by hand, a teammate, another
@@ -1090,19 +1121,27 @@ necessary but not sufficient, and two further rules apply:
   "proceed on the local number". The local ledger is a fast path *within* a cycle for
   detecting our own concurrent reservations; it is never the authority on what the platform
   has already counted.
+
+  **Reading the platform under our lock does not lock the platform.** Every spender of
+  an activated shared pool, including human-approved work and other tools, must reserve
+  through the designated coordinator. If an external spender cannot participate, the
+  pool cannot activate A7. Reconciliation detects historical/out-of-band spend; it does
+  not prevent someone racing the next dispatch. Human approval does not bypass this
+  coordination requirement or the platform's hard limit.
 - **How the two numbers combine — stated, because adding them double-counts and replacing
   loses live work.** For a scope+dimension that has an external authority:
 
   ```text
   remaining = cap
             − platform_count
-            − Σ( local records that consumed capacity and are NOT provably
-                 inside platform_count — live AND settled; `released` excluded )
+            − Σ max(0, local_charge − amount_proven_in_this_platform_snapshot)
   ```
 
   `platform_count` is the authority's own count for *this* window, read under the lock. The
-  sum walks **every record that consumed something and is not provably inside that count** —
-  which is the live ones *and* the settled ones, because settlement is local and the
+  sum walks **every reservation in scope**, including work not dispatched yet.
+  `local_charge` is its reserved amount while live, its actual amount when settled,
+  and zero when released. Only consumption proved in this snapshot, in the same unit
+  and window, is subtracted from that charge. Settlement is local and the
   authority's snapshot is remote, and step 3 above writes the sidecar *after* dispatch. A
   submission can therefore be `settled` here and not yet visible there. `released` records
   are the only ones excluded unconditionally: they consumed nothing, by definition.
@@ -1113,7 +1152,7 @@ necessary but not sufficient, and two further rules apply:
   | Record (live or `settled`) | In the sum? |
   |---|---|
   | `external_id: null` — not dispatched yet, or the dispatch outcome is unknown | **Yes.** The capacity is taken locally and the authority cannot know it |
-  | `external_id` present **and** found in this snapshot of the authority's records | **No** — `platform_count` already includes it. This is the only case that would double-count |
+  | `external_id` present **and its full local charge** is proved in this snapshot | **No** — `platform_count` already includes it. An id alone is insufficient for partially consumed GPU hours or subscription usage; deduct only the amount proved and retain the rest |
   | `external_id` present and **not** found in this snapshot | **Yes.** For a *live* record that is ordinary — the platform has not caught up. For a `settled` one, also raise `NEEDS_RECONCILIATION`: we recorded a completed spend the authority does not show |
 
   So "already counted there" is a fact to be *checked against the snapshot in hand*, never
@@ -1124,27 +1163,17 @@ necessary but not sufficient, and two further rules apply:
   competition raises `NEEDS_RECONCILIATION` — fail-closed, the same direction as everywhere
   else here.
 
-  The alternative — forbidding a `settled` sidecar until the authority's record has been seen
-  — is **also fail-closed**, and saying otherwise would be wrong: with no terminal sidecar the
-  reservation stays live and the reduction rule above counts it at its full *reserved* amount,
-  so the interim effect is a conservative over-count, not an under-count. Both designs are
-  safe; this one is chosen because **deferring the sidecar makes a lagging platform
-  indistinguishable from a crashed worker.** The two present identically — a live reservation
-  with no outcome — and only one of them should reach the orphan rule below. Tying the sidecar
-  to dispatch rather than to the authority's catch-up keeps them apart: the sidecar records
-  what *we* did, and the correlation table records what the authority has seen. What is *not*
-  a reason to prefer either design is safety in the reserve direction; the correlation table
-  provides that in both. Nor is settlement *timing* a reason here: on an external-authority
-  dimension the settled amount equals the reservation — one submission consumes one slot — so
-  there is no unspent difference to return early. Prompt settlement earns its keep on the
-  dimensions that have no external authority, where a reservation is a ceiling and the unspent
-  difference does go back to the cycle; that is the next bullet, and those dimensions never
-  reach the correlation table at all.
-- **Dimensions with no external authority skip all of this.** `experiments`, `compute`,
-  `llm` and every `competition:<slug>` cap have no platform to ask, so `platform_count` does
-  not exist for them and the ledger reduction *is* the count. Which is exactly why the
-  ledger has to carry them at all (the per-competition scope above), rather than leaving a
-  declared cap with no counter behind it.
+  **The terminal sidecar records the local outcome; the platform snapshot proves external
+  accounting.** Neither substitutes for the other. Deferring settlement is conservative
+  because the live reservation keeps its full charge. Prompt settlement is also safe when
+  the formula retains every amount not yet proved in the snapshot. A discrete submission
+  settles one slot; metered resources can settle below their reservation ceiling.
+- **Authority is selected per (scope, dimension), not by dimension name.** A local
+  `machine:/compute` or `competition:/llm` cap uses ledger reduction alone. Platform
+  `account:/compute`, `account:/kernel_slots`, `subscription:/llm`, and `team:/submissions`
+  quotas require the external snapshot and correlation above. If a platform cannot expose
+  usable consumption/provenance for its unit and window, that shared quota is unknown and
+  refuses autonomous dispatch; calling the dimension `compute` or `llm` is not an exemption.
 
 If a scope's driver designation is missing, expired, or named differently by two
 competitions that share it, then **every** competition spending against that scope is
@@ -1153,7 +1182,7 @@ precisely the double-submission this whole section exists to prevent.
 
 **A job that spends against several scopes reserves against all of them or none** — a
 single submission consumes a `competition:<slug>` slot *and* a `team:` slot; a training run
-consumes machine GPU hours *and* metered USD. The procedure is the ordered four-step rule
+reserves its applicable competition, account and machine compute caps (plus metered USD only if it spends money). The procedure is the ordered four-step rule
 under "One job, several scopes" above, and it is the **only** one: collect every pair, lock
 in ascending absolute-path order, check every pair while holding all the locks, then create
 every record or none. In particular, do **not** reserve scope by scope and release what was
@@ -1185,11 +1214,10 @@ turns against a cap that *is* set (`max_turns_per_research_task: 100`,
 `max_metered_cost_per_cycle_usd: 0`), is not over any budget and there is nothing to
 pause it for.
 
-**`ONBOARD` is exempt by construction**, because filling the budget block in from the
-competition's own rules is what `ONBOARD` is *for*. Blocking it on a filled budget
-would deadlock every new competition on its first state. Nothing in `ONBOARD` spends:
-no experiment, no GPU job, no submission. The exemption ends the moment the
-competition leaves it.
+**`ONBOARD` need not wait for caps it does not consume.** Reading rules and recording
+budget facts must remain possible before experiment/GPU/submission caps are filled.
+This is not an exemption for metered API or subscription usage: onboarding work that
+consumes either needs its own known envelope, just like any other state.
 
 The rule applies with full force
 to `llm.max_metered_cost_per_cycle_usd` — an unset metered-cost cap refuses every
@@ -1216,6 +1244,30 @@ competition's real limit has not been read.
 stop** — and a review must never silently extend the budget. A flat public LB is
 a reason to review, never the sole reason to stop.
 
+#### Contract acceptance cases
+
+These are review cases for the future runtime, **not claims that it exists or passes**.
+An implementation must test these boundaries before enabling A5/A7. The repository's
+`tests/test_competition_contract.py` separately checks the current YAML vocabulary,
+dashboard state/status, gate-floor annotations and the intent/ledger example joins.
+
+| Input or event | Required result |
+|---|---|
+| Two submissions from one experiment, including different runs | Distinct intent refs and reservation sets; retrying reconciliation retains the original ref |
+| Dispatch response lost, platform id unavailable | Reconcile by persisted intent; no second dispatch and no automatic release |
+| Exactly one winner inside the closing window | `WAIT_HUMAN`; no new experiment or autonomous submission |
+| Two worktrees on one host both see one remaining slot | Same absolute ledger/lock; exactly one reservation succeeds |
+| Another host has an expired/unreachable driver | Pause; no local self-election or empty replacement ledger |
+| Old driver still has live jobs during a proposed transfer | Fence/stop and reconcile before enabling the new driver |
+| A GPU job would cross a fixed-window reset | Stop/settle at the boundary; reserve the continuation before resuming; an unresolved old record blocks |
+| A settled submission is absent from the platform snapshot | Its charge remains counted and reconciliation is required |
+| 4 GPU-hours reserved; snapshot proves 1 already consumed | Retain 3 hours locally in addition to the platform's 1; an id alone never drops the full reservation |
+| An uncoordinated teammate/tool can spend from the same pool | A7 cannot activate; a snapshot plus a local lock does not prevent the race |
+| Same team name in different competitions | Separate competition/team submission scopes and verified reset boundaries |
+| Final selection unknown or measured entry evicted | Final `best` is null; keep the measured candidate in labelled historical notes |
+| Four notebooks COMPLETE, only two accepted as submissions | Two submissions, not four; push success never closes `SUBMIT` |
+| Phase-2 intent persistence | Supabase transaction only; repository intent files belong to phase 1 |
+
 ## Relationship to ADR-0020 (goal-driven Kaggle loop)
 
 **Extends it, and supersedes three of its eight decisions.** ADR-0020 was written for a
@@ -1231,8 +1283,8 @@ approval, so the decisions that encode it have to move with it. Decision by deci
 | **§4** Search-space spec — YAML cross-product with optional random sub-sample | **Kept.** It is the `EXPERIMENT_PLAN` → `IMPLEMENT` fan-out mechanism, unchanged. |
 | **§5** Exploration-batch lifecycle — five states, **promotion limited to "top-K qualifying cells"** | **Amended.** The five batch states sit *inside* `EXPERIMENT_PLAN`…`EVALUATE` and are kept. "Qualifying" no longer means "beats best": under §5 a non-qualifying cell may still be promoted to fill a submission slot that would otherwise expire (scenario 2). `require_repro` and `rules_check` still qualify it; `beats_best` only orders it. |
 | **§6** Smart-polling state machine — QUEUED Fibonacci ramp, RUNNING stable, size-fallback terminal | **Kept.** It is the implementation of `WAIT_SCORE`, and its backoff is what `RETRY_AT` means in practice. |
-| **§7** Concurrency + daily-budget gate as an explicit **"courtesy guard"** that skips when the slug is missing or the DB is unreachable | **Superseded for competitions where §5 is active.** A courtesy guard is sound while `beats_best` limits submissions; once §5 removes that limiter the gate must be **fail-closed** and must read the phase-1 `budget:` block rather than `competitions.max_daily_submissions`. Until that exists no competition satisfies §5's activation condition **A5**, and ADR-0020 §7 remains the operative gate under ADR-0021's narrower model. |
-| **§8** Stuck detector + escalation | **Kept** — it produces `HUMAN_DIRECTION`, the optional state in §2, not a mandatory checkpoint. |
+| **§7** Concurrency + daily-budget courtesy guard | **Superseded for activated competitions.** A5 requires a fail-closed gate consuming the phase's authoritative budget. The existing courtesy guard is not sufficient under either autonomy model; until the follow-up is implemented, the written human-approval rule applies (§5). |
+| **§8** Stuck detector + escalation | **Kept** — waiting for the answer maps to `WAIT_HUMAN`, with `resume_state: HUMAN_DIRECTION`; only applying an answered decision enters `HUMAN_DIRECTION` (§3). |
 | **§8** **Per-batch push approval: the `kernel_push` gate fires once per batch, the budget is a `human_decisions` row, and it "expires at UTC midnight and must be re-approved the next day"** | **Superseded.** This is exactly the per-batch approval the owner's §9 relaxation removes (§2). The daily grant is replaced by the budget envelope in §6, which does not expire nightly and is not re-approved per day. The `human_decisions` row remains the right record for the decisions that *are* still gated (§5's always-gated set). |
 
 Note the ordering this implies: while §5 is inactive for a competition, ADR-0020 §7 and §8
@@ -1304,7 +1356,7 @@ autonomous action back into an approval. It may never remove one of the seven.
   | Condition | Why it fails, for all five unless noted |
   |---|---|
   | **A1** | Four of five: three declare `autonomy_config: null` (no config exists), and `arc-agi3`'s config resolves but carries no `autonomy:` block in either accepted location. `nvidia-nemotron`'s *is* readable (under `_base:`) — the only A1 pass in the tree |
-  | **A2** | Every cap ships `null`, and `cycle_anchor` is `null` |
+  | **A2** | Required experiment/GPU caps and `cycle_anchor` are `null`; the metered-cost cap is explicitly 0 |
   | **A3** | `verified_daily_limit` and `verified_reset_boundary` are `null`, with no provenance |
   | **A4** | **No live file carries `timing_verified_source` / `timing_verified_at` / `timing_verified_ttl` at all** — only the template does, so timing is unverified everywhere by omission, not by a stale value |
   | **A5** | All three gates on the submit path are fail-open (§5's A5 paragraph names the `file:line` for each) |

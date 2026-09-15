@@ -62,7 +62,7 @@ ADR-0023（#191）；在它合入之前，以 issue #191 为准。
    并且应当**尽可能多地用掉**已有的资源 —— 本地 GPU、该比赛**已核实**的当日提交次数（没用掉的名额
    不会结转）、以及 Claude Code / Codex / ChatGPT 订阅额度。push / submit 既不需要逐次审批，**也不
    需要逐批审批**：不去问人，而是在 dispatch **之前**把拟提交摘要（文件、experiment id、预期分数、
-   理由）**持久化成记录**，落在 `competitions/<slug>/submissions/<timestamp>-<experiment>.yaml`
+   理由）**持久化成记录**，落在 `competitions/<slug>/submissions/<timestamp>-<intent-id>.yaml`
    —— 记录写不下来就不 dispatch（ADR-0022 §5 启用条件 **A6**）。执行方的审计日志只是"跑过什么"的
    补充证据，从来不是那份记录：它是按 driver 走的、被 gitignore 的，也不属于这场比赛。硬性 gate 只有 `require_repro` 和 `rules_check`；`beats_best` / `min_margin` 只用来给候选
    排序。`autonomy.enabled: false` 表示严格 human-in-the-loop —— 这个开关在 `competition.yaml:autonomy_config` 指定的那个文件里（惯例是 `kca-<slug>.yaml`，但生效的是这个字段而不是惯例：nemo 的文件叫 `kca-nemo.yaml`）。**始终需要人决定** —— 七项下限，配置只能加不能减：

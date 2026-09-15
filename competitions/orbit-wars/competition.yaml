@@ -52,15 +52,15 @@ budget:
 best:
   cv_metric: suite-average win% (ladder-predictive opponent suite)
   cv_score: 0.548                # v2.1 suite-avg baseline; our line ~54% maps to ladder ~556-686
-  public_lb: 703.9               # best OWN-agent ladder mu with a MEASURED value: v4 Scheduler,
-                                 #   sub 53730511, COMPLETE at the 2026-06-16 refresh
-                                 #   (tracking.md "Active slots (refreshed 2026-06-16)").
-                                 #   Supersedes the 686.1 Forecast-v3 peak this field used to carry
+  public_lb: null                # final eligible own-agent score UNKNOWN (ADR-0022 §3).
+                                 #   Historical measurement: v4 Scheduler 703.9, sub 53730511,
+                                 #   at the 2026-06-16 refresh; evicted by the later rotfix pair.
+                                 #   See tracking.md; do not promote an evicted entry to final best.
   attributed_entry_lb: 1151.0    # adapted-kuni05 (attributed public agent) peak; 1069.9 at the
                                  #   same 06-16 refresh (slow downward drift)
-  private_lb: null               # never released for this competition
-  submission_id: 53730511        # the v4 Scheduler submission behind public_lb. Numeric ids ARE
-                                 #   available here (live/version_submissions.md), unlike nemo
+  private_lb: null               # final score not established by the available evidence
+  submission_id: null            # final eligible own entry unverified; last candidates
+                                 #   53769740 / 53769744 have no recorded settled score
 current_blocker: "none — competition closed 2026-06-23. Two open questions for the post-mortem, both unresolved in available evidence: (1) the LAST own agents submitted are the B11 rotation-fix pair (subs 53769740 / 53769744, 2026-06-17, both `neutral` awaiting episodes) and their settled ladder mu was never recorded, so our true final own-agent mu is unknown — 703.9 is the last measured number, from the agent the rotfix evicted; (2) the final standing was never captured before this record was reconciled"
 next_task: "Write up the transferable findings: (1) INS-009 — the strong-tier cliff was largely bug B11 (planet-rotation off-by-one, one tick ahead in every predictor), not strategy: fixing it took win-rate vs evogen 13.8% -> 45.0% (+31pt) and sun-launches 9% -> 0%, which revises the '7 single-mechanism levers failed' narrative this field used to assert; (2) local arena under-discriminates within our own cluster (blind at mu 640-703) while separating gross tiers, so ladder probes beat local gates; (3) rotation-relay refuted quantitatively (riding 2.35 < flying 2.39 u/step). Recover the settled mu of 53769740 / 53769744 if the API still serves it"
 source_notes:
