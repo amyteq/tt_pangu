@@ -40,6 +40,9 @@ All commands emit a single JSON object to stdout. Exit codes: `0` ok, `1` runtim
 | `kca goal init`               | `LOCAL_WRITE`  | (native)                  | Create the active `goals` row + write `experiments/<comp>/goal.md`; refuses with `ACTIVE_GOAL_EXISTS` if one is active (M14-T002) |
 | `kca goal show`               | `READ_ONLY`    | (native)                  | Show the active goal + `goal_remaining_delta` (best LB vs `target_lb_score`); `--json` |
 | `kca goal update`             | `LOCAL_WRITE`  | (native)                  | Partial field update or `--close --reason ...`; rewrites `goal.md` |
+| `kca notify doctor`           | `READ_ONLY`    | (native)                  | Preflight the HITL channel: config, `TELEGRAM_*` presence (never values), live `getMe`, `gh auth`, quiet-hours + routine budget (#197) |
+| `kca notify send`             | `REMOTE_WRITE` | Telegram Bot API / `gh issue comment` | Levelled push (`gate`/`digest`/`info`); deduped, daily-capped and quiet-hours-deferred unless `--force`; `--dry-run` renders without sending |
+| `kca notify decision`         | `REMOTE_WRITE` | Telegram Bot API + `gh issue comment` | Opens a decision request: GitHub comment is the record (`decision_id`/`plan_hash`/options/expiry), Telegram card carries the option buttons. Answer with `/decide <decision_id> <option_id>`; lapsed requests never auto-approve |
 | `kca decisions list`          | `READ_ONLY`    | (native)                  | List pending human approval requests        |
 | `kca decisions approve`       | `LOCAL_WRITE`  | (native)                  | Approve a pending decision                  |
 | `kca decisions deny`          | `LOCAL_WRITE`  | (native)                  | Deny a pending decision                     |

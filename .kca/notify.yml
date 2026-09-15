@@ -1,0 +1,58 @@
+# kca notification / HITL channel — source-controlled configuration (issue #197).
+#
+# Decision (#197, owner comment 5679417228): the Telegram bot is the PRIMARY
+# push channel; GitHub stays the system of record. Nothing here is a secret:
+# this file names the *environment variables* that carry the bot token and chat
+# ids. Values are read at run time from the process environment, falling back to
+# `secrets_file` (TELEGRAM_* keys only, never echoed by any kca command).
+version: 1
+
+# Where TELEGRAM_* values live when not already exported. Kept outside the repo
+# so a token can never be committed. A leading `~` expands to $HOME.
+secrets_file: "~/.env"
+
+channels:
+  telegram:
+    enabled: true
+    role: primary # push transport
+    token_env: TELEGRAM_BOT_TOKEN
+    api_base: https://api.telegram.org
+    timeout_s: 15
+    recipients:
+      harry:
+        chat_id_env: TELEGRAM_CHAT_ID_HARRY
+        # Which agent/Kaggle accounts this recipient decides for (#197 req 4:
+        # "支持多个 claude code 账号"). One bot, many chat_id -> account maps.
+        accounts: [harrysun2006, firefly2006]
+        default: true
+  github:
+    enabled: true
+    role: record # attributable, timestamped decision record
+    repo: amyteq/tt_pangu
+
+# Per-level routing. `quiet_hours: bypass` is only for a true blocking gate.
+levels:
+  gate: # work is blocked until a human answers
+    channels: [github, telegram]
+    quiet_hours: bypass
+    dedupe_minutes: 0
+  digest: # routine roll-up, never blocks
+    channels: [telegram]
+    quiet_hours: defer
+    dedupe_minutes: 720
+  info:
+    channels: [telegram]
+    quiet_hours: defer
+    dedupe_minutes: 180
+
+quiet_hours:
+  timezone: Australia/Melbourne
+  start: "22:00"
+  end: "08:00"
+
+limits:
+  # #185 §18 intervention-cost criterion: <= 2 routine direction approvals/day.
+  routine_pushes_per_day: 2
+
+# Gitignored (.gitignore:61). Holds the dedupe / rate-limit send ledger.
+state_dir: .agent/notify
