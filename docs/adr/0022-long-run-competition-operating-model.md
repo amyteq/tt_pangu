@@ -327,7 +327,7 @@ applies only when all of the following are true, and each is checkable by readin
 | **A4** | `launch`, `deadline` and the closing window are verified and inside `timing_verified_ttl` | the same file; otherwise `WAIT_HUMAN` (§5) |
 | **A5** | The pre-submit gate refuses on failure rather than skipping (fail-closed) | see the paragraph below |
 | **A6** | A submission-intent record is written and persisted before dispatch | §5 "Recording an autonomous submission" |
-| **A7** | Every shared budget scope it spends against has a reachable ledger and a lock, and reserving is atomic under that lock | §6 "The ledger is a directory of immutable records" |
+| **A7** | Every shared budget scope it spends against has a reachable machine-absolute ledger + lock, reserving is atomic under that lock, and any cross-host scope has a designated driver host | §6 "A shared counter cannot live in a worktree" |
 
 **`autonomy.enabled: false` is an absolute veto, checked before everything else.** It is
 the one-line opt-out ADR-0021 §2 gives a competition that needs strict human-in-the-loop,
@@ -510,7 +510,8 @@ budget:
 ```
 
 **Shared pools** (`competitions/_shared/budget.yaml`) — because competitions run
-concurrently, the per-competition caps are not sufficient:
+concurrently, the per-competition caps are not sufficient. This file holds **caps only**;
+the consumption against them lives in the machine-absolute ledger below, never in the repo:
 
 - **Account-level:** per Kaggle account weekly GPU hours, concurrent kernel
   slots, and the per-*team* daily submission quota (shared across the accounts
@@ -538,46 +539,94 @@ the same answer from the same files:
 *before* it starts and settles the actual consumption when it finishes. Counting only after
 every parallel worker has spent its resources guarantees an overrun.
 
-**The ledger is a directory of immutable records, never a list that is rewritten.** The
-budgets that matter most are *shared* — the per-team daily submission quota spans
-competitions, and a GPU spans everything on that machine — so several workers, in several
-worktrees, reserve against the same counter. A single YAML list read, modified and written
-back loses one of two concurrent reservations, and the loser's spend is invisible. One file
-per reservation, created exclusively, cannot lose a write:
+**A shared counter cannot live in a worktree.** This is where the obvious design fails.
+Reservations are shared state: the per-team daily submission quota spans competitions, and
+a GPU spans everything on that machine, so several workers — in several **git worktrees**,
+which is how phase 1 runs concurrent competitions (§1) — reserve against one counter. A
+path like `competitions/_shared/budget/...` is *worktree-relative*: each worktree has its
+own copy at its own inode, so two workers would lock different files, read different
+ledgers, and both dispatch. A repo-relative lock is not a lock.
+
+So the shared ledger lives at one machine-absolute location, outside every checkout:
+
+```text
+${KCA_BUDGET_DIR:-$HOME/.kca/budget}/
+  <scope>.lock                       # flock target: one per shared counter
+  <scope>/<cycle-id>/RES-0007.yaml   # one immutable record per reservation
+  <scope>/<cycle-id>/RES-0007.terminal.yaml
+```
+
+It is runtime state, not project state: never committed, never inside a worktree, and not
+the `competition.yaml` `budget:` block — that holds the **caps**, which are reviewed in git;
+this holds the **consumption**, which is not.
+
+**Records are immutable; one file per reservation, created `O_EXCL`.** A YAML list read,
+modified and written back loses one of two concurrent reservations, and the loser's spend is
+invisible. An exclusive create either wins or fails:
 
 ```yaml
-# competitions/<slug>/budget/<cycle-id>/RES-0007.yaml     (cycle-id = cycle start, UTC)
-# Created with O_EXCL: the create either wins or fails. Records are never edited in place;
-# settlement writes RES-0007.settled.yaml beside it.
+# ${KCA_BUDGET_DIR}/team:<team>/2026-09-15T00:00:00Z/RES-0007.yaml
 id: RES-0007                # what submission-intent's `budget_reservation` points at
 dimension: submissions      # submissions | compute | llm | experiments
 amount: 1
 scope: team:<team>          # team:<team> | account:<name> | machine:<name>
 cycle: {anchor: 2026-09-15T00:00:00Z, ends: 2026-09-22T00:00:00Z}
 reserved_at: 2026-09-15T21:58:04Z
-state: reserved             # reserved | settled | released
-settled_amount: null        # settlement record; released returns the reservation unspent
+competition: <slug>         # who spent it — the repo side keeps no counter
 ref: EXP-027
 ```
 
+Settlement and release never edit that file. They write **exactly one terminal sidecar**,
+also `O_EXCL`, so a second writer cannot produce a second outcome:
+
+```yaml
+# ${KCA_BUDGET_DIR}/team:<team>/2026-09-15T00:00:00Z/RES-0007.terminal.yaml
+id: RES-0007
+outcome: settled            # settled | released
+amount: 1                   # settled: what was actually consumed (may differ from reserved)
+                            # released: always 0 — the reservation was not spent
+at: 2026-09-15T22:06:11Z
+evidence: <submission-id>   # for `released`: what was checked to prove it was not spent
+```
+
+**Reduction rule — each reservation counts exactly once.** Group every file in the cycle
+directory by `id`. A reservation with no terminal sidecar counts at its reserved `amount`;
+one with a terminal sidecar counts at the sidecar's `amount` (so `released` counts 0). A
+reservation can never count twice, and `reserved` plus `settled` for the same id is one
+logical reservation, not two. An `id` carrying more than one terminal sidecar is corruption:
+it counts at the **larger** amount and raises `NEEDS_RECONCILIATION`.
+
 **Atomicity is the check, not just the write.** Creating the file atomically is not enough:
-*counting the remaining capacity and then reserving* is two steps, and two workers can both
-read "one slot left". So every reservation against a **shared** scope happens under an
-exclusive lock on that scope:
+*counting remaining capacity and then reserving* is two steps, and two workers can both read
+"one slot left". So every reservation against a shared scope runs under the scope's lock:
 
-1. Take an exclusive lock on the scope — `flock` on
-   `competitions/_shared/budget/<scope>.lock`. One lock per shared counter, not per
-   competition, because the counter is what is shared.
-2. Under the lock: count live `reserved` + `settled` records for the scope in this cycle,
-   compare against the cap, and `O_EXCL`-create the new record. Release.
-3. Dispatch. Then write the settlement record.
+1. `flock` the scope's lock file at the absolute path above — one lock per shared counter,
+   not per competition, because the counter is what is shared.
+2. Under the lock: reduce the cycle directory by the rule above, compare to the cap, and
+   `O_EXCL`-create the new record. Release the lock.
+3. Dispatch. Then write the terminal sidecar.
 
-**If coordination is unavailable, nothing dispatches.** An unreachable shared ledger, an
-unobtainable lock, or a scope whose cap cannot be read is *not* a reason to proceed — it is
-`PAUSED_BUDGET`. This is the same fail-closed rule as A5, applied to the counter instead of
-the gate, and it is why an agent may never "reserve optimistically and settle later".
+**A lock is machine-local; some scopes are not.** `flock` coordinates workers on one host. A
+`team:` scope does not stop there — the same Kaggle team quota is spendable from another
+machine, and no local lock can see that. For any scope that spans hosts, the local lock is
+necessary but not sufficient, and two further rules apply:
 
-A crash leaves a `reserved` record with no settlement. It is reconciled, not assumed: an
+- **One designated driver host per competition at a time**, recorded in the tracking issue.
+  A host that is not the designated driver does not submit for that competition.
+- **Reconcile before reserving**: the platform's own count of today's submissions is the
+  authority, read at the start of each cycle and after any `NEEDS_RECONCILIATION`. The local
+  ledger is a fast path over that truth, never a replacement for it.
+
+If the driver designation is missing or ambiguous, the competition is `PAUSED_BUDGET`. Two
+hosts believing they are the driver is precisely the double-submission this whole section
+exists to prevent.
+
+**If coordination is unavailable, nothing dispatches.** An unreachable ledger directory, an
+unobtainable lock, an unreadable cap, or an unknown driver designation is *not* a reason to
+proceed — it is `PAUSED_BUDGET`. Same fail-closed rule as A5, applied to the counter instead
+of the gate. An agent may never "reserve optimistically and settle later".
+
+A crash leaves a reservation with no terminal sidecar. It is reconciled, not assumed: an
 orphan past the cycle end is released only after the external record is checked — the same
 discipline as `NEEDS_RECONCILIATION` (§3). Releasing an orphan without checking is how a
 submission gets made twice.
@@ -694,7 +743,7 @@ the source for how wide autonomy actually is and what the human decides.
 | Decision request / notification channel (`WAIT_HUMAN` round trip) | #197 |
 | **Recovery + fault-injection implementation and tests** | *needs an issue* |
 | **Fail-closed pre-submit gate** reading the phase-1 `budget:` contract — §5 activation condition **A5** | *needs an issue* |
-| **Atomic shared-budget reservation** — the lock + `O_EXCL` protocol behind **A7** | *needs an issue* |
+| **Atomic shared-budget reservation** — the machine-absolute lock + `O_EXCL` protocol and the cross-host driver designation behind **A7** | *needs an issue* |
 | **Filesystem-only storage mode** for `kca run/goal/explore/stuck` + a test proving phase 1 writes no KCA rows | *needs an issue* (not #192) |
 
 ## Cross-references
