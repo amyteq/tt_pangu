@@ -325,7 +325,7 @@ applies only when all of the following are true, and each is checkable by readin
 | **A2** | The competition's `budget:` block exists and every cap is set — no `null` (§6) | `competitions/<slug>/competition.yaml` |
 | **A3** | `budget.submissions.verified_daily_limit` carries `verified_source` / `verified_at` and is inside `verified_ttl` | the same block (§6) |
 | **A4** | `launch`, `deadline` and the closing window are verified and inside `timing_verified_ttl` | the same file; otherwise `WAIT_HUMAN` (§5) |
-| **A5** | The pre-submit gate refuses on failure rather than skipping (fail-closed) | see the paragraph below |
+| **A5** | **Every** gate on the submit path refuses on failure rather than skipping — both the ADR-0020 §7 daily-limit guard and `kg.py`'s approval gate (fail-closed) | see the paragraphs below |
 | **A6** | A submission-intent record is written and persisted before dispatch | §5 "Recording an autonomous submission" |
 | **A7** | Every shared budget scope it spends against has a reachable machine-absolute ledger + lock, reserving is atomic under that lock, and every cross-host scope has one designated driver host **for the scope** (not per competition) | §6 "A shared counter cannot live in a worktree" |
 
@@ -350,32 +350,45 @@ ADR-0021 default (`true`), and an explicit `false` is always a refusal.
 screened autonomy with `beats_best` as a gate. This is deliberate: the widened licence and
 the machinery that bounds it ship together or not at all.
 
-**But the narrower model is not implemented either, so today the floor is human approval.**
-This is the single most important sentence for an agent reading this ADR, so it is stated as
-a checkable fact rather than a policy preference. ADR-0021 §2 grants approval-free push and
-submit *"provided ALL screening criteria pass"*. Nothing evaluates those criteria: no file
-under `tools/`, `src/` or `scripts/` reads the `autonomy:` block at all — it appears only in
-Markdown. The one policy any code does consult is `.kca/permissions/*.yaml`, read by
-`tools/kca/agent/permission_policy.py`, and it sets both operations to
-`default_decision: ask` in **every** profile: `default.yaml:2-9`, `permissive-dev.yaml:2-9`
-(*"Still gated even in dev — Kaggle is external"*), and `competition-runner.yaml:2-14`,
-which allows them only in the explicit `competition-finalization` / `human-approved` modes
-— that is, after a human has already decided.
+**Neither the widened nor the narrower model is implemented — and neither is the
+approval gate.** This is the most important paragraph in this ADR for an agent about to
+submit something, so every claim in it is a checkable fact about the tree rather than a
+policy preference. There are four layers, and it matters which one actually executes:
 
-An unevaluable gate is a failed gate — the same fail-closed rule as **A5**, applied to
-ADR-0021's screen instead of the pre-submit check. So the order is:
+| # | Layer | What it would do | What it does today |
+|---|---|---|---|
+| 1 | ADR-0022 §5 (this section) | push/submit with no per-action **or per-batch** approval | **inactive** — no competition meets A1–A7 |
+| 2 | ADR-0021 §2 | push/submit with no per-action approval *if screening passes* | **unimplemented** — nothing under `tools/` / `src/` / `scripts/` reads the `autonomy:` block; it appears only in Markdown, so "screening passes" cannot be evaluated |
+| 3 | `.kca/permissions/*.yaml` | `kaggle_submit` / `kaggle_push` = `default_decision: ask` in every profile (`default.yaml:2-9`, `permissive-dev.yaml:2-9`, `competition-runner.yaml:2-14`) | **not on the submit path** — the only production import of `permission_policy.resolve_for_skill` is `tools/kca/skill.py:15`; the installed `kca` entry point (`pyproject.toml:32-33`) reaches `tools/kca/kg.py` directly |
+| 4 | `tools/kca/kg.py` | the gate that the `kca kaggle submit` / `push` commands actually call | **fail-open** — see below |
 
-| Regime | What it grants | Status today |
-|---|---|---|
-| ADR-0022 §5 (this section) | push/submit with no per-action **or per-batch** approval | inactive — no competition meets A1–A7 |
-| ADR-0021 §2 | push/submit with no per-action approval, if screening passes | inactive — nothing evaluates screening |
-| `.kca/permissions/*.yaml` | `kaggle_submit` / `kaggle_push` = `ask` in every profile | **in force — this is what runs** |
+Layer 4 is the one that runs, and it does not gate. `kg.py:315` calls
+`_check_approval_gate("kaggle_submit", _policy_from_env())`; with no `KCA_POLICY` in the
+environment `_policy_from_env()` returns `{}` (`kg.py:126-130`), so the operation's default
+decides, and `OPERATION_DEFAULTS["kaggle_submit"]` is `False` — *allow* — at
+`kg.py:21-22`. `_gate()` at `kg.py:53-59`, which would refuse any remote side effect
+without `KCA_ALLOW_REMOTE=1`, **has no call sites**. So with credentials present,
+`kca kaggle submit` dispatches to the real Kaggle API with no approval of any kind.
 
-**Kaggle submissions and kernel pushes are therefore human-approved today**, and
-`AGENTS.md` and `PROJECT_STATE.md` are correct as written, not exceptions to this ADR.
-Both relaxations are design intent awaiting the code that can enforce their preconditions;
-neither authorises anything on merge. Implementing the screen is part of the same follow-up
-as the fail-closed gate below.
+**What actually prevents an unapproved submission today is the Claude Code harness**
+(`.claude/hooks/guard_tool.py` plus this repo's `CLAUDE.md`), which asks before the command
+runs — plus the fact that KCA is not running autonomously in phase 1 (§1). That is a
+harness-level protection of the human's own account, not a KCA-level gate, and it does not
+survive KCA becoming the actor.
+
+Two consequences for this ADR, both deliberate:
+
+- **The floor is human approval**, so `AGENTS.md` and `PROJECT_STATE.md` are correct as
+  written and are not exceptions to this section. Layers 1 and 2 are design intent awaiting
+  the code that can enforce their preconditions; neither authorises anything on merge.
+- **The approval gate's fail-open is an activation blocker in its own right**, folded into
+  **A5** below rather than left as a footnote. An unevaluable or absent gate is a failed
+  gate — and there are now two of them on the submit path, not one.
+
+Fixing `kg.py`'s defaults is **not in this ADR's scope**: `OPERATION_DEFAULTS` is ADR-0006's
+documented default and `tests/test_m4_smoke.py:233-234` asserts the current value
+(*"Default: kaggle_submit=False → should NOT raise"*), so changing it is a behaviour change
+to the `kca` CLI needing its own issue, PR and tests. It is listed as a follow-up.
 
 **The pre-submit gate today is fail-open, and that blocks activation.** `tools/kca/kg.py`
 implements ADR-0020 §7 as an explicit *courtesy* guard: `tools/kca/kg.py:205-217` returns
@@ -385,8 +398,9 @@ authority that phase 1 does not write (§1). Nothing in the tree reads
 `verified_daily_limit`, `require_repro` or `rules_check`. A fail-open courtesy guard is
 adequate under ADR-0021, where `beats_best` independently limits what gets submitted; it is
 **not** adequate under §5, which removes that limiter. Until a fail-closed gate consuming
-the phase-1 YAML contract exists, no competition meets **A5**, and §5's submission
-autonomy is inert. Implementing it is a follow-up, not part of this ADR.
+the phase-1 YAML contract exists — *and* `kg.py`'s approval gate defaults to requiring
+approval rather than allowing it — no competition meets **A5**, and §5's submission
+autonomy is inert. Implementing both is a follow-up, not part of this ADR.
 
 #### Inside the envelope
 
@@ -638,10 +652,19 @@ So the shared ledger lives at one machine-absolute location, outside every check
 
 ```text
 ${KCA_BUDGET_DIR:-$HOME/.kca/budget}/
-  <scope>.lock                       # flock target: one per shared counter
-  <scope>/<cycle-id>/RES-0007.yaml   # one immutable record per reservation
-  <scope>/<cycle-id>/RES-0007.terminal.yaml
+  <scope>.lock                                    # flock target: one per shared counter
+  <scope>/<dimension>/<window-id>/RES-0007.yaml   # one immutable record per reservation
+  <scope>/<dimension>/<window-id>/RES-0007.terminal.yaml
 ```
+
+`<window-id>` is derived from the matched cap, so every window kind has exactly one
+conforming directory and the reduction below is the same operation in all three cases:
+
+| Cap's window | `<window-id>` | Example |
+|---|---|---|
+| A fixed span (`1d`, `7d`) | the window's start instant, UTC | `2026-09-15T00:00:00Z` |
+| `anchor: rolling` | the literal `rolling` — one directory, filtered by time at read | `rolling` |
+| `window: instantaneous` | the literal `held` — no window exists | `held` |
 
 It is runtime state, not project state: never committed, never inside a worktree, and not
 the `competition.yaml` `budget:` block — that holds the **caps**, which are reviewed in git;
@@ -652,15 +675,16 @@ modified and written back loses one of two concurrent reservations, and the lose
 invisible. An exclusive create either wins or fails:
 
 ```yaml
-# ${KCA_BUDGET_DIR}/team:<team>/2026-09-15T00:00:00Z/RES-0007.yaml
+# ${KCA_BUDGET_DIR}/team:<team>/submissions/2026-09-15T00:00:00Z/RES-0007.yaml
 id: RES-0007                # what submission-intent's `budget_reservation` points at
 dimension: submissions      # submissions | compute | llm | experiments | kernel_slots
 amount: 1
 unit: submission            # must equal the cap's `unit`; mismatches are rejected, not converted
 scope: team:<team>          # team:<team> | account:<name> | machine:<name> | subscription:<name>
-cycle: {anchor: 2026-09-15T00:00:00Z, ends: 2026-09-16T00:00:00Z}
-                            # ^ the MATCHED CAP's window and anchor, never the competition's
-                            #   `budget.cycle`: this is the team's 1d submissions cap
+window:                     # the MATCHED CAP's window, never the competition's
+  kind: fixed               #   `budget.cycle`. fixed | rolling | instantaneous
+  id: 2026-09-15T00:00:00Z  #   == <window-id> in the path above
+  ends: 2026-09-16T00:00:00Z  # fixed only; this is the team's 1d submissions cap
 reserved_at: 2026-09-15T21:58:04Z
 competition: <slug>         # who spent it — the repo side keeps no counter
 ref: EXP-027
@@ -670,7 +694,7 @@ Settlement and release never edit that file. They write **exactly one terminal s
 also `O_EXCL`, so a second writer cannot produce a second outcome:
 
 ```yaml
-# ${KCA_BUDGET_DIR}/team:<team>/2026-09-15T00:00:00Z/RES-0007.terminal.yaml
+# ${KCA_BUDGET_DIR}/team:<team>/submissions/2026-09-15T00:00:00Z/RES-0007.terminal.yaml
 id: RES-0007
 outcome: settled            # settled | released
 amount: 1                   # settled: what was actually consumed — NEVER more than reserved
@@ -680,27 +704,28 @@ evidence: <submission-id>   # for `released`: what was checked to prove it was n
 ```
 
 **The window comes from the cap, not from the competition.** A reservation is drawn
-against one shared cap, so its interval — and therefore its cycle directory — is that
+against one shared cap, so its interval — and therefore its window directory — is that
 cap's `window` and `anchor`, not `competition.yaml:budget.cycle`. A daily team
 submissions cap produces a one-day directory even when the competition's own experiment
 cycle is `7d`. Two dimensions in one job therefore land in two directories, which is
 correct: they are two counters.
 
-Two window kinds need their own reduction, because neither has a fixed directory:
+The two non-fixed kinds keep the same directory shape and differ only in **which records
+in it are in scope** when reducing:
 
-- **`anchor: rolling`** (a sliding window, e.g. subscription usage over `5h`): there is
-  one directory per scope+dimension, and reduction counts only records whose
-  `reserved_at` falls inside the window looking back from now. Records older than the
-  window are inert and may be pruned.
-- **`window: instantaneous`** (a ceiling on what is *held*, e.g. `kernel_slots`): there
-  is no window at all. Reduction counts **live holds** — reservations with no terminal
-  sidecar — against the cap. These are always ended with `outcome: released`, never
-  `settled`: nothing was consumed over time, the slot was occupied and then given back.
-  An instantaneous hold that outlives its work is a leak, and the lease timeout and
-  heartbeat for GPUs (issue #194) exist for exactly that.
+- **`anchor: rolling`** (a sliding window, e.g. subscription usage over `5h`): the `rolling`
+  directory holds every record for that scope+dimension; reduction considers only those
+  whose `reserved_at` falls inside the window looking back from now. Older records are
+  inert and may be pruned.
+- **`window: instantaneous`** (a ceiling on what is *held*, e.g. `kernel_slots`): the `held`
+  directory has no time window, and reduction considers **live holds** — reservations with
+  no terminal sidecar. These always end `outcome: released`, never `settled`: nothing was
+  consumed over time, the slot was occupied and then given back. An instantaneous hold that
+  outlives its work is a leak, which is why GPUs carry a lease timeout and heartbeat
+  (issue #194).
 
-**Reduction rule — each reservation counts exactly once.** Group every file in the cycle
-directory by `id`. A reservation with no terminal sidecar counts at its reserved `amount`;
+**Reduction rule — each reservation counts exactly once.** Take the records in scope for the
+window kind above and group them by `id`. A reservation with no terminal sidecar counts at its reserved `amount`;
 one with a terminal sidecar counts at the sidecar's `amount` (so `released` counts 0). A
 reservation can never count twice, and `reserved` plus `settled` for the same id is one
 logical reservation, not two. An `id` carrying more than one terminal sidecar is corruption:
@@ -726,7 +751,7 @@ human resolves it.
 
 1. `flock` the scope's lock file at the absolute path above — one lock per shared counter,
    not per competition, because the counter is what is shared.
-2. Under the lock: reduce the cycle directory by the rule above, compare to the cap, and
+2. Under the lock: reduce the window directory by the rule above, compare to the cap, and
    `O_EXCL`-create the new record. Release the lock.
 3. Dispatch. Then write the terminal sidecar.
 
@@ -766,7 +791,8 @@ proceed — it is `PAUSED_BUDGET`. Same fail-closed rule as A5, applied to the c
 of the gate. An agent may never "reserve optimistically and settle later".
 
 A crash leaves a reservation with no terminal sidecar. It is reconciled, not assumed: an
-orphan past the cycle end is released only after the external record is checked — the same
+orphan past its window's end is released only after the external record is checked (an
+`instantaneous` hold has no end, so it is reconciled on lease timeout instead) — the same
 discipline as `NEEDS_RECONCILIATION` (§3). Releasing an orphan without checking is how a
 submission gets made twice.
 
@@ -869,8 +895,8 @@ the source for how wide autonomy actually is and what the human decides.
 - **Budget caps are declared, not yet filled.** §6 pins the contract (paths, key
   names, semantics), and the template plus all five live `competition.yaml` files
   now carry the `budget:` block, so the schema is real rather than promised. Its
-  caps ship `null`: under §6 that blocks the cycle, and under A2/A3 it means no
-  competition can activate §5 today. That is the intended behaviour — a number has
+  caps ship `null`: under §6 each null refuses the work that would spend against
+  that dimension, and under A2/A3 it means no competition can activate §5 today. That is the intended behaviour — a number has
   to be verified before it can bound anything. `competitions/_shared/budget.yaml`
   is written when the first competition is selected on #199.
 - **This ADR does not implement recovery.** `RETRY_AT`, `NEEDS_RECONCILIATION`,
@@ -902,6 +928,7 @@ the source for how wide autonomy actually is and what the human decides.
 | Decision request / notification channel (`WAIT_HUMAN` round trip) | #197 |
 | **Recovery + fault-injection implementation and tests** | *needs an issue* |
 | **Fail-closed pre-submit gate** reading the phase-1 `budget:` contract — §5 activation condition **A5** | *needs an issue* |
+| **`kg.py` approval gate is fail-open**: `OPERATION_DEFAULTS["kaggle_submit"] = False` (`kg.py:21-22`) and `_gate()` (`kg.py:53-59`) has no call sites, so `kca kaggle submit` dispatches unapproved. Also the second half of **A5** | *needs an issue* — touches ADR-0006's defaults and `tests/test_m4_smoke.py:233-234` |
 | **Atomic shared-budget reservation** — the machine-absolute lock + `O_EXCL` protocol and the cross-host driver designation behind **A7** | *needs an issue* |
 | **Filesystem-only storage mode** for `kca run/goal/explore/stuck` + a test proving phase 1 writes no KCA rows | *needs an issue* (not #192) |
 

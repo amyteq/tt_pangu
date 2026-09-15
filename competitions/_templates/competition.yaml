@@ -25,7 +25,8 @@ submission_mode: unknown   # file | notebook | kernel | agent | unknown
 data_policy: unknown       # kaggle | external | generated | unknown
 last_updated: <YYYY-MM-DD>
 # ADR-0022 §6 budget envelope. `null` is an UNKNOWN, not "unlimited": a null cap
-# holds the competition in PAUSED_BUDGET until it is set or verified.
+# refuses the work that would spend against THAT dimension until it is set or
+# verified; the competition enters PAUSED_BUDGET when it needs a blocked dimension.
 budget:
   cycle: 7d                             # window every max_per_cycle is measured over
   cycle_anchor: null                    # UTC timestamp cycle 0 started; all arithmetic is UTC
