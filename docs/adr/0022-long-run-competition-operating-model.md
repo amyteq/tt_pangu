@@ -410,6 +410,17 @@ that file and no other. Two consequences, both fail-closed:
   a submission. `competitions/nvidia-nemotron/kca-nemo.yaml:51` has its block under `_base:`,
   so it *is* A1-readable; nemo fails §5 on A2, A3 and A5 instead, on a competition that
   closed 2026-06-15 and is in `FINDINGS`.
+- **A per-section override merges onto `_base`, and A1 evaluates the merged result.**
+  ADR-0021 §2 calls the block "overridable per section", and a `kca-<slug>.yaml` section is
+  a variant (`v14`, `b1`, …), not a competition. A1 is a per-competition question, so the
+  section that matters is the one the action at hand runs under: its `autonomy:` keys
+  override `_base.autonomy` key by key, and A1 reads the **effective** block. A section-level
+  `autonomy:` is therefore not a forbidden third location — it is an override *on* one of the
+  two, and it does not make the file ambiguous. One rule keeps this safe in the only
+  direction that matters: **a `false` anywhere in the merge — `_base` or section — is an
+  absolute veto and survives the merge.** An override may narrow autonomy, never widen it,
+  which is the same asymmetry `autonomy.enabled` already has ("evidence can only switch
+  autonomy on where it was already permitted").
 - **None of this contradicts ADR-0021 §2's "default ON".** That default says autonomy is
   *permitted* without a config, and it stands. A1 asks a different question — can the three
   vetoes be *read*? — and each failure case above answers it with "no". Unknown is never
@@ -977,20 +988,35 @@ necessary but not sufficient, and two further rules apply:
   ```
 
   `platform_count` is the authority's own count for *this* window, read under the lock. The
-  sum walks the live reservations — those with no terminal sidecar — and correlates each by
-  the `external_id` its intent record carries:
+  sum walks **every record that consumed something and is not provably inside that count** —
+  which is the live ones *and* the settled ones, because settlement is local and the
+  authority's snapshot is remote, and step 3 above writes the sidecar *after* dispatch. A
+  submission can therefore be `settled` here and not yet visible there. `released` records
+  are the only ones excluded unconditionally: they consumed nothing, by definition.
 
-  | Live reservation | In the sum? |
+  Each remaining record is correlated by the `external_id` its intent record carries, with
+  the same three cases whether it is live or settled:
+
+  | Record (live or `settled`) | In the sum? |
   |---|---|
-  | `external_id: null` — not dispatched yet, or the dispatch outcome is unknown | **Yes.** The slot is taken locally and the platform cannot know it |
-  | `external_id` present **and** found in the authority's records | **No** — `platform_count` already includes it. This is the case that would otherwise double-count |
-  | `external_id` present and **not** found | **Yes**, *and* raise `NEEDS_RECONCILIATION`: the platform should know about it and does not |
+  | `external_id: null` — not dispatched yet, or the dispatch outcome is unknown | **Yes.** The capacity is taken locally and the authority cannot know it |
+  | `external_id` present **and** found in this snapshot of the authority's records | **No** — `platform_count` already includes it. This is the only case that would double-count |
+  | `external_id` present and **not** found in this snapshot | **Yes.** For a *live* record that is ordinary — the platform has not caught up. For a `settled` one, also raise `NEEDS_RECONCILIATION`: we recorded a completed spend the authority does not show |
 
-  Reservations carrying a terminal sidecar are never added: `released` consumed nothing, and
-  `settled` is either already inside `platform_count` or belongs to a dimension the platform
-  does not count. If a live reservation cannot be correlated at all, it counts as **spent**
-  and the competition raises `NEEDS_RECONCILIATION` — fail-closed, the same direction as
-  everywhere else here.
+  So "already counted there" is a fact to be *checked against the snapshot in hand*, never
+  inferred from the sidecar's existence. Inferring it is how a dispatched submission falls
+  out of both counters at once — local settlement says "the platform has it", the platform's
+  snapshot does not show it yet, and the next reservation passes on a quota that is already
+  spent. If any record cannot be correlated at all, it counts as **spent** and the
+  competition raises `NEEDS_RECONCILIATION` — fail-closed, the same direction as everywhere
+  else here.
+
+  The alternative fix — forbidding a `settled` sidecar until the authority's record has been
+  seen — is *not* taken, because it would leave a real spend uncounted for as long as the
+  platform lags, and an unwritten sidecar is exactly the orphan the crash-recovery rule
+  below has to reason about. Counting it locally and correlating it is strictly safer: the
+  worst case is a temporary over-count, which refuses work; the worst case of the other is an
+  under-count, which permits it.
 - **Dimensions with no external authority skip all of this.** `experiments`, `compute`,
   `llm` and every `competition:<slug>` cap have no platform to ask, so `platform_count` does
   not exist for them and the ledger reduction *is* the count. Which is exactly why the
@@ -1148,12 +1174,13 @@ autonomous action back into an approval. It may never remove one of the seven.
   now carry the `budget:` block, so the schema is real rather than promised. Its
   caps ship `null`: under §6 each null refuses the work that would spend against
   that dimension, and under A2/A3 it means no competition can activate §5 today. That is the intended behaviour — a number has
-  to be verified before it can bound anything. **A1 also fails for all five**, for two
+  to be verified before it can bound anything. **A1 fails for four of the five**, for two
   separate reasons worth recording: three competitions declare `autonomy_config: null`
   because they have no autonomy config at all, and `arc-agi3`'s config resolves but
-  carries no `autonomy:` block in either accepted location. Only `nvidia-nemotron`'s is
-  A1-readable (under `_base:`), and it fails A2, A3 and A5 instead. So §5 is inactive on
-  A1, A2, A3 and A5 independently — four locks, not one. `competitions/_shared/budget.yaml`
+  carries no `autonomy:` block in either accepted location. `nvidia-nemotron`'s is the one
+  that *is* A1-readable (under `_base:`), and it is held by A2, A3 and A5 instead. So no
+  competition is one condition away from activating: four are stopped by A1, A2, A3 and A5
+  together, and the fifth by A2, A3 and A5 — three independent locks even in the best case. `competitions/_shared/budget.yaml`
   is written when the first competition is selected on #199.
 - **This ADR does not implement recovery.** `RETRY_AT`, `NEEDS_RECONCILIATION`,
   leases, checkpoints and restart recovery are *named* here so there is one

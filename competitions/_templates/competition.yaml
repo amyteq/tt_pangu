@@ -26,7 +26,7 @@ data_policy: unknown       # kaggle | external | generated | unknown
 # Path to this competition's autonomy config, relative to this directory. ADR-0022 §5 A1
 # reads THIS file and no other -- `kca-<slug>.yaml` is a convention, not a rule, and the
 # slug is not always the filename. null, missing or unparseable => A1 FAILS (fail-closed).
-autonomy_config: null      # e.g. kca-<slug>.yaml
+autonomy_config: null      # e.g. kca-<slug>.yaml -- but the name is free; this field is the lookup
 last_updated: <YYYY-MM-DD>
 # ADR-0022 §6 budget envelope. `null` is an UNKNOWN, not "unlimited": a null cap
 # refuses the work that would spend against THAT dimension until it is set or

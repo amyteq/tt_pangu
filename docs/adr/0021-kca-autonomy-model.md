@@ -67,8 +67,10 @@ because it is driver-specific, gitignored, and not owned by the competition.
 `autonomy:` schema. It lives **either** at the top level of the config file
 **or** under its `_base:` key (the per-variant defaults convention `kca-nemo.yaml`
 uses) — exactly one of the two, because two would be ambiguous and ADR-0022 §5's
-**A1** fails on ambiguity as it does on absence. Overridable per section. Until the
-runtime reads it, it is an inert annotation key like `lb`/`note`:
+**A1** fails on ambiguity as it does on absence. A section may override individual keys
+on top of `_base.autonomy`; A1 evaluates the merged result for the section the action runs
+under, and a `false` anywhere in the merge is an absolute veto that survives it (ADR-0022
+§5 A1). Until the runtime reads it, it is an inert annotation key like `lb`/`note`:
 
 ```yaml
 _base:
@@ -183,7 +185,10 @@ list above.
      `guard_tool.py` made aware of competition autonomy so Claude-Code-driven
      `kca kaggle push/submit` for an autonomy-enabled comp does not pose a
      redundant `ask`.
-  2. Per-comp `autonomy:` added to each active `kca-<slug>.yaml`.
+  2. Per-comp `autonomy:` added to each active competition — in the file its
+     `competition.yaml:autonomy_config` names (conventionally `kca-<slug>.yaml`,
+     but `nvidia-nemotron`'s is `kca-nemo.yaml`, which is why the field is the
+     lookup), and set in that file's `competition.yaml` at the same time.
   3. Optional: eval-gate activation. (Audit namespace separation — done.)
 - **Risk & mitigation:** auto-submit/push are outward-facing. Mitigations:
   the budget cap **reserved before dispatch** (ADR-0022 §6 — the one that actually
