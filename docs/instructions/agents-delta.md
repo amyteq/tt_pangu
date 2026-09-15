@@ -31,9 +31,13 @@ can be compared on different competitions (discussion #185, issue #189).
   mentions in **two different ways**, and do not collapse them into one:
   - **Obligations bind you.** "The Claude Code harness still asks before X", "routing rules
     binding on every Claude Code session" — these are *harness* duties, and they bind this
-    session exactly as they bind a Claude Code one. Ask before destructive host commands,
-    before paid-API / credential use, before anything touching the human's machine or accounts;
-    follow the GitHub routing rules as written.
+    session exactly as they bind a Claude Code one. Ask before destructive host commands and
+    before paid-API / credential use. Follow the GitHub rules **as written**, in both
+    directions: the permanent-deletion list needs explicit human approval, and the
+    non-destructive writes that section auto-allows — including pushing a feature branch and
+    the phase-1 self-merge — are auto-allowed here too. Do not invent a wider approval rule
+    than the shared rules state; a Codex session that asks where Claude Code proceeds is not
+    running the same workflow, which is the whole point of phase 1.
   - **Mechanisms are not yours.** `.claude/hooks/guard_tool.py`, `.claude/settings.json`
     permissions, the `.agent/audit/tool-events.jsonl` trail — these describe machinery that
     runs in Claude Code and **does not exist in this harness**. Never read a mention of them as
@@ -54,6 +58,13 @@ can be compared on different competitions (discussion #185, issue #189).
   four-scenario daily submission strategy in §4)
 - `docs/engineering-practice.md` — the full GitHub collaboration model
 - `.agents/README.md` — what of `.claude/` this harness can and cannot consume
+
+**Precedence.** The **Shared rules** below win over every other document in this repository.
+Several docs predate the phase-1 rewrite (#188, #200) and still describe the older model —
+approval for every remote write, or the Claude Agent SDK as the production worker. Where one
+of them carries a *Superseded* note, believe the note. Where you find a contradiction with no
+note, the Shared rules are current, and saying so in the session is more useful than following
+the older text.
 
 ## Source of truth
 

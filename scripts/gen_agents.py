@@ -149,8 +149,35 @@ def delta_parts() -> tuple[str, str]:
     text = read_text(DELTA_MD)
     relative = DELTA_MD.relative_to(REPO_ROOT)
     for marker in (PREAMBLE_MARKER, APPENDIX_MARKER):
-        if marker not in text:
-            fail(f"{relative} is missing the marker {marker!r}")
+        count = text.count(marker)
+        if count != 1:
+            fail(
+                f"{relative} contains the marker {marker!r} {count} times; expected exactly once.\n"
+                "  With none the part is empty; with more than one only the first split is used and\n"
+                "  the rest of that part is silently dropped."
+            )
+    if text.index(PREAMBLE_MARKER) > text.index(APPENDIX_MARKER):
+        fail(
+            f"{relative} puts {APPENDIX_MARKER!r} before {PREAMBLE_MARKER!r}.\n"
+            "  The preamble is everything between them, so reversed markers would empty it."
+        )
+    # Everything before the first marker is dropped, exactly as the CLAUDE.md title
+    # block is — and for the same reason it must be checked rather than assumed: a
+    # Codex-only safety rule written above the marker would vanish from AGENTS.md
+    # while generation and `--check` both stayed green.
+    prefix = text[: text.index(PREAMBLE_MARKER)].strip()
+    if not (prefix.startswith("<!--") and prefix.endswith("-->")):
+        fail(
+            f"{relative} has content before {PREAMBLE_MARKER!r} that is not the single HTML\n"
+            "  comment header, so generating AGENTS.md would silently drop it:\n"
+            f"    {prefix[:120]!r}\n"
+            f"  Rules belong after {PREAMBLE_MARKER!r} (preamble) or {APPENDIX_MARKER!r} (appendix)."
+        )
+    if prefix.count("-->") != 1:
+        fail(
+            f"{relative} has more than one comment before {PREAMBLE_MARKER!r}; anything in the\n"
+            "  gap between them would be dropped silently. Keep a single header comment."
+        )
     # The single-source guarantee is only real if the delta asks for the version
     # instead of stating it. Both halves of the contract are checked, because a
     # silent bypass here regenerates cleanly and `--check` stays green.

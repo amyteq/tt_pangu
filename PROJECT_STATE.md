@@ -6,6 +6,13 @@ _Last updated: 2026-06-10 (M14 close — goal-driven Kaggle workflow; M13 close 
 Build a hybrid human + AI competition engineering workbench. The first target is Kaggle-style competitions, with future support for authorized CTF/lab challenges. The system should research, discuss ideas with humans, edit code, run tests/evaluations, analyze results, iterate, and prepare submissions under human-approved guardrails.
 
 ## Chosen architecture direction
+
+> **Superseded in part (2026-09-15, issue #189).** The "Claude Agent SDK for the production
+> coding worker" line below predates the phase-1/phase-2 rewrite. `CLAUDE.md` → *Mission* is
+> current: **KCA is not built on Claude Code or the Claude Agent SDK**; those are development
+> harnesses and phase-1 drivers. Both `CLAUDE.md` and `AGENTS.md` win over this section, and
+> both harnesses are told so. Full rewrite tracked in #188.
+
 - Hybrid architecture.
 - Claude Code Desktop/CLI for interactive project development and dogfooding (primary development tool for all layers).
 - Claude Agent SDK for the production coding worker.
@@ -24,6 +31,14 @@ Build a hybrid human + AI competition engineering workbench. The first target is
 7. Operator-facing UI: Dashboard, Run Timeline (OTEL swim-lane), Experiments, Research, Approval Inbox + Decision Gate, Artifact Browser.
 
 ## Human approval gates
+
+> **Superseded (2026-09-15, issue #189).** This list predates the dev-phase policy and
+> ADR-0021. Current rules live in `CLAUDE.md` → *GitHub collaboration* and *Safety boundaries*,
+> mirrored to `AGENTS.md`: non-destructive GitHub writes and the phase-1 self-merge are
+> auto-allowed, KCA submits autonomously once `autonomy.screen` passes, and it is
+> **permanent deletions** and force-push that need explicit human approval. Read the list
+> below as the phase-2 platform's intended gates, not as today's rules for either harness.
+
 Require approval for:
 - Kaggle competition submissions.
 - Kaggle kernel/notebook pushes.
