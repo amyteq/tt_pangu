@@ -2,8 +2,13 @@ Loader probe — what Codex actually loads from this repo.
 
 Command:  CODEX_HOME=<isolated> codex debug prompt-input 'Start work on competitions/arc-agi2'
 Binary:   codex-cli 0.154.0
-Repo:     a4de031 (clean worktree)
-Measured: AGENTS.md is 19290 bytes on disk, 19287 characters in the prompt
+Repo:     a4de031 — verified: `git show a4de031:AGENTS.md` is byte-identical to the
+          file measured below, so these numbers reproduce from that commit.
+Measured: AGENTS.md on disk: 19290 bytes, 19158 characters
+          project-doc message in the prompt: 19287 characters
+          = the file plus Codex's own wrapper (a '# AGENTS.md instructions for <abs path>'
+            header and <INSTRUCTIONS> tags), so this total varies with the checkout path.
+            The sentinels below, not the total, are what show the file loaded whole.
           opening sentinel present: True
           closing sentinel present: True
           truncation marker: False
