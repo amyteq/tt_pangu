@@ -224,42 +224,47 @@ def skill_front_matter(name: str) -> dict[str, str]:
         # A comment is never a continuation and never a key, at any indentation.
         if line.strip().startswith("#"):
             continue
-        if line.startswith((" ", "\t")) or ":" not in line:
-            # A continuation or list item. Harmless under a key this reader ignores
-            # (`allowed-tools:` and `tags:` are lists), but under `name:`/`description:`
-            # it means the value spans lines and reading only the first would truncate it.
-            if previous_key in READ_KEYS and line.strip():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        # Classify by structure first. Testing for a colon before testing for a
+        # continuation is what let `- Bash: true` through as a key named `- Bash`,
+        # and what let an indented `child: value` through unexamined.
+        is_continuation = line.startswith((" ", "\t")) or stripped.startswith("-")
+        if is_continuation:
+            # Under `name:`/`description:` a continuation means the value spans
+            # lines, and reading only the first would truncate it.
+            if previous_key in READ_KEYS:
                 fail(
                     f"{relative} front matter continues `{previous_key}:` onto another line.\n"
-                    f"    {line.strip()[:80]!r}\n"
+                    f"    {stripped[:80]!r}\n"
                     "  This reader supports single-line values for that key — write it as one line."
                 )
-            stripped = line.strip()
-            # A sequence entry is only YAML if the key it sits under has no scalar
-            # value: `tags:` then `- logging` is a list, but `allowed-tools: Read`
-            # then `- Bash` is a parse error, and Codex drops that skill while this
-            # reader carried on and .agents/README.md advertised it.
-            if stripped.startswith("-") and previous_value:
+            # A sequence or nested mapping is only YAML under a key with no scalar
+            # value of its own: `tags:` then `- logging` is a list, but
+            # `allowed-tools: Read` then `- Bash` (or an indented `child: value`)
+            # is a parse error, and Codex drops that skill while this reader
+            # carried on and .agents/README.md advertised it.
+            if previous_value:
                 fail(
-                    f"{relative} front matter puts a list item under `{previous_key}:`, "
-                    "which already has a value on its own line.\n"
+                    f"{relative} front matter continues `{previous_key}:`, which already has a "
+                    "value on its own line.\n"
                     f"    {stripped[:80]!r}\n"
-                    "  YAML cannot read a scalar and a sequence for one key, so Codex would "
+                    "  YAML cannot read a scalar and a nested block for one key, so Codex would "
                     "drop the skill entirely while this reader still advertised it."
                 )
-            # An *unindented* line with no `:` is a bare scalar where YAML expects a
-            # mapping key, and a real loader rejects the whole block. Skipping it (it
-            # sits under a key this reader ignores) is how `--check` came to pass on a
-            # skill Codex silently refuses to load.
-            if stripped and not line.startswith((" ", "\t")) and not stripped.startswith(("-", "#")):
-                fail(
-                    f"{relative} front matter has a line that is not `key: value`, a list item, "
-                    "or a comment.\n"
-                    f"    {stripped[:80]!r}\n"
-                    "  YAML rejects a bare scalar between mapping keys, so Codex would drop the "
-                    "skill entirely while this reader still advertised it."
-                )
+            if not previous_key:
+                fail(f"{relative} front matter opens with a continuation, before any key.\n    {stripped[:80]!r}")
             continue
+        # Not indented and not a list item, so it must be a mapping key.
+        if ":" not in line:
+            fail(
+                f"{relative} front matter has a line that is not `key: value`, a list item, "
+                "or a comment.\n"
+                f"    {stripped[:80]!r}\n"
+                "  YAML rejects a bare scalar between mapping keys, so Codex would drop the "
+                "skill entirely while this reader still advertised it."
+            )
         key, _, raw = line.partition(":")
         key = key.strip()
         value = raw.strip()

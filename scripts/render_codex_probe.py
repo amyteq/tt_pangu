@@ -40,6 +40,26 @@ def fail(message: str) -> None:
     _fail(TOOL, message)
 
 
+def catalogue_mismatch(listed: list[str], mirrored: list[str]) -> str | None:
+    """Describe how a dump's skill list differs from the mirror, or `None`.
+
+    Compared as sequences, not sets. A duplicated catalogue row leaves the two
+    sets equal while the count this header reports — the length of the list —
+    goes up by one, which is how a tampered dump certified 18 skills against a
+    17-skill tree.
+    """
+    if listed == mirrored:
+        return None
+    duplicates = sorted({name for name in listed if listed.count(name) > 1})
+    return (
+        f"  in the dump only:  {sorted(set(listed) - set(mirrored)) or '—'}\n"
+        f"  in .agents/ only:  {sorted(set(mirrored) - set(listed)) or '—'}\n"
+        f"  listed twice:      {duplicates or '—'}\n"
+        f"  counts:            dump {len(listed)}, mirror {len(mirrored)}\n"
+        "  Re-run `codex debug prompt-input` against the current checkout."
+    )
+
+
 def main() -> None:
     if len(sys.argv) != 5:
         fail("usage: render_codex_probe.py <dump.json> <AGENTS.md> <out.txt> <commit>")
@@ -90,15 +110,11 @@ def main() -> None:
     #    whose catalogue lists a skill the mirror does not contain: the header would
     #    certify a count taken from another state, which is the inflation F3 was
     #    about, arriving by a different route.
-    listed = {ln.split("(file: r1/", 1)[1].split("/", 1)[0] for ln in skills}
-    mirrored = {p.name for p in (REPO_ROOT / ".agents" / "skills").iterdir() if (p / "SKILL.md").is_file()}
-    if listed != mirrored:
-        fail(
-            "refusing to write: the dump's skill catalogue is not this tree's.\n"
-            f"  in the dump only:  {sorted(listed - mirrored) or '—'}\n"
-            f"  in .agents/ only:  {sorted(mirrored - listed) or '—'}\n"
-            "  Re-run `codex debug prompt-input` against the current checkout."
-        )
+    listed = sorted(ln.split("(file: r1/", 1)[1].split("/", 1)[0] for ln in skills)
+    mirrored = sorted(p.name for p in (REPO_ROOT / ".agents" / "skills").iterdir() if (p / "SKILL.md").is_file())
+    problem = catalogue_mismatch(listed, mirrored)
+    if problem:
+        fail(f"refusing to write: the dump's skill catalogue is not this tree's.\n{problem}")
     version = subprocess.run(["codex", "--version"], capture_output=True, text=True).stdout.strip()
 
     lines = [

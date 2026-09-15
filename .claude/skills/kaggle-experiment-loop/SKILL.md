@@ -36,6 +36,15 @@ Use this workflow when the task involves Kaggle, ML competitions, leaderboard op
    - Explain whether the result supports the hypothesis.
    - Decide: iterate, revert, expand, or prepare submission.
 
-7. **Submission gate**
-   - Never submit automatically.
-   - Before submission, present file path, experiment ID, local metric, expected leaderboard behavior, risk, and ask for human approval.
+7. **Submission gate** — *this loop, run by a development harness*
+   - **Harness (you, here).** Do not submit automatically: a submission spends the human's
+     Kaggle credentials and daily quota, so present file path, experiment ID, local metric,
+     expected leaderboard behavior and risk, and ask for human approval. This binds a Claude
+     Code and a Codex session identically.
+   - **KCA product agent.** Governed by `kca-<slug>.yaml:autonomy` — default **on**, so once
+     `autonomy.screen` passes KCA submits without per-action approval and writes the
+     intended-submission summary to its audit log instead (`CLAUDE.md` principle 6, ADR-0021).
+     Do not quote this skill at KCA as a reason to ask.
+   - Either way, the same facts are required before a submission; what differs is who reads
+     them. Always human-gated for both: irreversible deletion, over-budget real-money spend,
+     ambiguous competition rules, and final promotion near a deadline.
