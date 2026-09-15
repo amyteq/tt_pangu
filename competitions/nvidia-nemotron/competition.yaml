@@ -11,7 +11,9 @@ deadline: 2026-06-15             # 23:59 UTC (issue #86 snapshot)
 primary_artifact: notebook
 submission_mode: kernel          # rank<=32 LoRA adapter -> submission.zip via Kaggle kernel
 data_policy: kaggle              # + public Kaggle datasets (huikang corpus / replay-math / wheels), real training (no repack)
-autonomy_config: kca-nemo.yaml   # ADR-0022 §5 A1 reads this file; the slug is NOT the filename
+autonomy_config: kca-nemo.yaml   # ADR-0022 §5 A1 reads this file and no other -- note the slug
+                                 #   (nvidia-nemotron) is NOT this filename, which is why the
+                                 #   field exists. Block is under `_base`, so A1 can read it
 last_updated: 2026-06-15         # LB confirmed via read-only Kaggle API refresh 2026-06-15
 # ADR-0022 §6 budget envelope. Same KEY STRUCTURE as
 # competitions/_templates/competition.yaml; the VALUES are this competition's.

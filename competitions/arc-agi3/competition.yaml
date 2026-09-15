@@ -14,7 +14,8 @@ deadline: 2026-11-02            # submissions close; entry/team-merge 2026-10-26
 primary_artifact: agent          # an interactive agent, not a static notebook output
 submission_mode: notebook        # Kaggle notebook, one-click runnable, <12h, no internet at eval
 data_policy: api                 # environments served via the arc-agi API/SDK, not a file download
-autonomy_config: kca-arc-agi3.yaml   # ADR-0022 §5 A1 reads this file; the slug is NOT the filename
+autonomy_config: kca-arc-agi3.yaml   # ADR-0022 §5 A1 reads this file and no other. It carries no
+                                     #   `autonomy:` block (top level or _base), so A1 FAILS here
 last_updated: 2026-09-15         # state reconciled against submissions.md + the dashboard (ADR-0022 §3 rank 1)
 # ADR-0022 §6 budget envelope. Same KEY STRUCTURE as
 # competitions/_templates/competition.yaml; the VALUES are this competition's.
