@@ -13,13 +13,14 @@ Never confuse the two. A platform-development agent editing this repo is not the
 ## Read first
 - PROJECT_STATE.md
 - CLAUDE.md if present
+- `docs/adr/0022-long-run-competition-operating-model.md` — the operating model for competition work (two loops, per-competition state machine, context pack, relaxed autonomy, budgets). **Where this file and ADR-0022 disagree, ADR-0022 wins**; issue #189 tracks the full alignment of this file.
 - docs/milestones/README.md if present
 - docs/milestones/*/handoff.md if present
 
 ## Source of truth
 Use this repository as the durable project memory. Do not rely on hidden memory in any single AI product. Important decisions must be written to:
 - `PROJECT_STATE.md`
-- `docs/adr/`
+- `docs/adr/` (start with ADR-0022, the competition operating model)
 - `docs/architecture/`
 - `docs/tooling/`
 - `docs/testing/`
@@ -47,7 +48,7 @@ Use this repository as the durable project memory. Do not rely on hidden memory 
 - Update docs and ADRs when changing architecture or workflow assumptions.
 - Prefer deterministic tests and local validation before external submissions.
 - Never read, print, or commit secrets, `.env`, `kaggle.json`, API keys, or private keys.
-- Do not submit to Kaggle or push remote kernels without explicit human approval.
+- Do not submit to Kaggle or push remote kernels without explicit human approval — **unless** that competition has met ADR-0022 §5's activation conditions A1-A7, in which case it submits inside its budget and records the intent instead of asking — the record is `competitions/<slug>/submissions/<timestamp>-<intent-id>.yaml`, written before dispatch (ADR-0022 §5 **A6**); an audit-log line is supplementary evidence, not the record. That is not the case for anything today, and the ADR-0021 §2 fallback is unimplemented as well, so this line reads exactly as written. **Nothing enforces it:** `kg.py`'s approval gate defaults to *allow* (`tools/kca/kg.py:21-22`) and the harness allow-lists the direct submit forms (`.claude/settings.json:91-92`) — asking is a rule you follow, not a gate that stops you (ADR-0022 §5). `autonomy.auto_submit: false` / `auto_push: false` vetoes that action regardless — read from the file `competition.yaml:autonomy_config` names (ADR-0022 §5 **A1**).
 - CTF support is restricted to explicitly authorized challenges, local labs, or sandboxed environments.
 
 ## Competition loop
@@ -57,7 +58,8 @@ Follow this loop unless a task says otherwise:
 3. Establish a baseline.
 4. Run one controlled experiment at a time.
 5. Record config, metrics, artifacts, logs, and conclusions.
-6. Decide whether to iterate, stop, or request human approval for submission.
+6. Decide whether to iterate, stop, or submit. Submission approval follows ADR-0022 §5, not a blanket per-submission gate: inside the approved budget, screened submissions are autonomous; the human decides priority across competitions and the always-gated set — a floor of seven that config may only tighten: irreversible deletion, over-budget real-money spend, ambiguous rules, new terms / team changes, choosing the competition's final submissions, promotion once the closing window opens, and adopting external data / expanding beyond the competition's own data.
+7. Record state as an ADR-0022 §3 state token in `competitions/<slug>/competition.yaml:state` and mirror it into the tracking issue.
 
 ## Tooling
 Existing Kaggle scripts should be wrapped behind stable commands or typed tools. Every tool must document:

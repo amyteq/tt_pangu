@@ -24,9 +24,17 @@ Build a hybrid human + AI competition engineering workbench. The first target is
 7. Operator-facing UI: Dashboard, Run Timeline (OTEL swim-lane), Experiments, Research, Approval Inbox + Decision Gate, Artifact Browser.
 
 ## Human approval gates
+
 Require approval for:
-- Kaggle competition submissions.
-- Kaggle kernel/notebook pushes.
+- Kaggle competition submissions. The relaxations in ADR-0021 §2 and ADR-0022 §5 are
+  design intent awaiting the code that can evaluate their preconditions, so this gate is
+  the policy today. **It is not enforced anywhere:** `tools/kca/kg.py:21-22` defaults
+  `kaggle_submit` to *allow*, `.kca/permissions/*.yaml` is read only by
+  `tools/kca/skill.py`, and `.claude/settings.json:91-92` allow-lists the direct submit
+  commands. Follow it as a rule; nothing will stop you
+  (`docs/adr/0022-long-run-competition-operating-model.md` §5, condition A5).
+- Kaggle kernel/notebook pushes — same rule. Gated in the `kaggle kernels push` and
+  `python tools/kca/kca.py kaggle push` forms only (`guard_tool.py:171,177`).
 - Any remote write operation.
 - Any operation touching credentials, secrets, or account settings.
 - Any CTF action outside a declared sandbox/challenge scope.
@@ -124,10 +132,18 @@ planned 2026-06-17 — task specs + loop prompts drafted (`docs/milestones/m15/l
 
 M15 closes the goal loop on real LB signal and pays down the ADR-0018 tech-debt.
 The new submit step runs **autonomously under the KCA autonomy model**
-(`docs/adr/0021-kca-autonomy-model.md`): when `kca-<slug>.yaml:autonomy.enabled`
-is true and `autonomy.screen` passes, KCA submits without per-action approval and
-records the intended-submission summary to `.agent/kca/audit.jsonl`. Scenario-4 /
-over-budget / ambiguous-rules stay human-gated.
+(`docs/adr/0021-kca-autonomy-model.md`): when `autonomy.enabled` is true in the file
+`competition.yaml:autonomy_config` names (ADR-0022 §5 **A1**) and `autonomy.screen` passes, KCA submits without per-action approval and
+persists a transactional intended-submission record in Supabase before dispatch —
+ADR-0022 §5's **A6**. Phase-1 drivers instead use
+`competitions/<slug>/submissions/<timestamp>-<intent-id>.yaml`; these are separate
+phase authorities, never dual writes. `.agent/kca/audit.jsonl` is supplementary evidence, not the record. Scenario-4 /
+over-budget / ambiguous-rules stay human-gated, as do final-submission selection and
+external-data decisions (ADR-0022 §5's seven-item floor). **Design intent, not current behaviour:**
+no code evaluates `autonomy.screen`, so this paragraph describes what M15 was aiming at,
+not what the tree does. Nor is the approval gate above enforced — see it for the
+`file:line` evidence. Until the gates in ADR-0022 §5's condition A5 are implemented, the
+submit step is neither autonomous nor gated: it is a human deciding, every time.
 
 M15 task breakdown (full scope in `docs/tasks/m15/`):
 

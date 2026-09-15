@@ -3,15 +3,59 @@
 slug: <competition-slug>
 kaggle_slug: <kaggle-slug-or-unknown>
 title: <title-or-unknown>
-status: unknown            # active | paused | archived | unknown
-phase: unknown             # research | baseline | iteration | submission | postmortem | unknown
+status: unknown            # open | closed | unknown -- is the official competition submission window open
+# Canonical ADR-0022 §3 state token. One vocabulary; replaces the old `phase:` field.
+# DISCOVER | SELECT | ONBOARD | BASELINE | RESEARCH | IDEA_GENERATION | IDEA_RANKING |
+# HUMAN_DIRECTION | EXPERIMENT_PLAN | IMPLEMENT | INDEPENDENT_AUDIT | TRAIN_VALIDATE |
+# EVALUATE | SUBMISSION_ELIGIBILITY | SKIP_SUBMISSION | PRE_SUBMIT_GATE | SUBMIT |
+# WAIT_SCORE | RESULT_ANALYSIS | FINDINGS
+# Side states (any time, per competition): WAIT_HUMAN | PAUSED_BUDGET | RETRY_AT |
+# NEEDS_RECONCILIATION | FAILED | STOPPED
+state: DISCOVER
 competition_type: unknown  # tabular | cv | nlp | llm | simulation_agent | notebook | unknown
 metric: <metric-or-unknown>
-deadline: null             # <YYYY-MM-DD or null>
+launch: null               # <YYYY-MM-DD or null>; with `deadline` defines competition_period
+deadline: null             # <YYYY-MM-DD or null>; the final submission deadline
+closing_window_days: null  # ADR-0022 §5; null => competition_period x 0.1, rounded up
+timing_verified_source: null  # where launch/deadline were read (competition page / API field)
+timing_verified_at: null      # <YYYY-MM-DD>; NOT last_updated, which is file-level
+timing_verified_ttl: 30d      # past this, timing is stale -> WAIT_HUMAN (ADR-0022 5)
 primary_artifact: unknown  # notebook | script | agent | submission | unknown
 submission_mode: unknown   # file | notebook | kernel | agent | unknown
 data_policy: unknown       # kaggle | external | generated | unknown
+# Path to this competition's autonomy config, relative to this directory. ADR-0022 §5 A1
+# reads THIS file and no other -- `kca-<slug>.yaml` is a convention, not a rule, and the
+# slug is not always the filename. null, missing or unparseable => A1 FAILS (fail-closed).
+autonomy_config: null      # e.g. kca-<slug>.yaml -- but the name is free; this field is the lookup
 last_updated: <YYYY-MM-DD>
+# ADR-0022 §6 budget envelope. `null` is an UNKNOWN, not "unlimited": a null cap
+# refuses the work that would spend against THAT dimension until it is set or
+# verified; the competition enters PAUSED_BUDGET when it needs a blocked dimension.
+budget:
+  cycle: 7d                             # window every max_per_cycle is measured over
+  cycle_anchor: null                    # UTC timestamp cycle 0 started; all arithmetic is UTC
+  experiments:
+    max_per_cycle: null
+  compute:
+    max_gpu_hours_per_cycle: null
+  llm:
+    max_turns_per_research_task: 100
+    max_metered_cost_per_cycle_usd: 0   # 0 = subscription-only spend; null blocks metered spend
+  submissions:
+    require_verified_competition_limit: true
+    verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
+    verified_source: null               # where that number was read (URL / API field)
+    verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_reset_boundary: null       # WHEN the daily quota resets, from the competition's
+                                        #   own rules: "00:00Z", "00:00+01:00", ... NEVER assumed
+                                        #   (Kaggle sets it per competition); null blocks submission
+    verified_ttl: 30d                   # past this the limit is unverified again and blocks
+    reserve_for_human: 0
+  failures:
+    max_retries_per_task: 3
+    pause_after_consecutive_failures: 3
+  progress:
+    review_after_no_gain_experiments: 5
 best:
   cv_metric: null
   cv_score: null
