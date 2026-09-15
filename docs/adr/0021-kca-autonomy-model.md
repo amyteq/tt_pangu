@@ -75,7 +75,7 @@ _base:
 **Always human-gated, regardless of `autonomy.enabled`:** irreversible/permanent
 deletions, real-money spend beyond the configured budget, ambiguous competition
 rules, and final candidate promotion when the competition is closing soon
-(`CLAUDE.md` autonomous-submission-strategy scenario 4). These are exactly the
+(§4 scenario 4 below). These are exactly the
 points where the human "provides direction / unblocks", not routine ops.
 
 **Human role under autonomy:** contribute ideas, unblock, course-correct, and
@@ -92,6 +92,8 @@ can override or roll back after the fact.
   stem collision that caused #65. The harness hook log stays at
   `.agent/audit/tool-events.jsonl`. Forward-facing docs reference the new path;
   dated milestone/task-spec history is left as a point-in-time record.
+  That rename is implemented and stands; KCA's *durable* audit location and
+  format are deferred to phase 2 (`CLAUDE.md` §"Two agents", PR #200, #203).
 - The eval regression framework stays as-is: the nightly + rolling-diff run, but
   the cv-drift delta gate is **not** armed (baseline records no `cv_score`) and
   the PR delta-check is **not** promoted to a hard release blocker yet. Activate
@@ -99,6 +101,18 @@ can override or roll back after the fact.
 - The rolling-diff tracking issue (#47) is now **optional**: if it is absent,
   `eval.yml` records the flip in the job summary and warns instead of failing —
   so the issue can be closed without breaking the nightly.
+
+### 4. Daily submission strategy — the four scenarios
+
+**Moved to ADR-0022 §5.** #188 lifted this table out of `CLAUDE.md` into this ADR;
+ADR-0022 (#190) then became the single source for how wide autonomy actually is,
+and it amends the table's reading (scenario 2's unused slots are *spent* on
+exploration, not banked; scenario 3's N is bounded by the competition's
+**verified** daily limit, never an assumed 5). Keeping a second copy here would
+re-create exactly the drift #188 was removing, so the table lives in
+`docs/adr/0022-long-run-competition-operating-model.md` §5 — one copy, there.
+Scenario 4 remains the `final_promotion_near_deadline` entry in the `human_gated`
+list above.
 
 ## Consequences
 

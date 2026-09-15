@@ -42,6 +42,9 @@ The owner's framing splits the work in two phases, and the boundary between them
 is itself a decision that has to be written down:
 
 > 注意 KCA 还是使用基于 supabase 来登记、跟踪比赛情况,不要和长程运行验证搞混
+>
+> *(KCA still registers and tracks competitions on Supabase — do not conflate that with
+> the long-run validation.)*
 
 ## Decision
 
@@ -51,7 +54,7 @@ is itself a decision that has to be written down:
 |---|---|---|
 | State authority (writable) | GitHub tracking issues + `competitions/<slug>/` files | Supabase |
 | Driver | Claude Code CLI / Codex | KCA runtime |
-| Audit log | Claude Code hook log `.agent/audit/tool-events.jsonl` | `.agent/kca/audit.jsonl` |
+| Audit log | Claude Code hook log `.agent/audit/tool-events.jsonl` | KCA's own log — today `.agent/kca/audit.jsonl`, **design and final location deferred to phase 2** (#203) |
 | Human interface | Dashboard issue #199 + per-competition tracking issue | Approval Inbox / `services/decision_api/` |
 | This ADR is | the operating model | the contract to implement |
 
@@ -272,6 +275,9 @@ authorized repo writer (issue #196); it must be pinned by content hash, and
 ### 5. Relaxed autonomy — inside budget, maximise; the human sets priority
 
 > §9 可以进一步放宽,agent 在给定的预算范围内 … 自主尽可能多使用即可,human 只决定多个并发进行比赛的优先级
+>
+> *(§9 can be relaxed further: inside the given budget the agent should autonomously use as
+> much as it can; the human only decides priority across concurrently-running competitions.)*
 
 **Inside the approved budget the agent runs autonomously and should maximise
 the resources it already has**, rather than conserving them:
@@ -304,7 +310,13 @@ Code harness still asks before destructive host commands and credential/paid-API
 use — it protects the human's machine and accounts, which is a different concern
 from competition autonomy (ADR-0021 §1).
 
-#### Autonomous submission strategy (moved here from `CLAUDE.md`)
+#### Autonomous submission strategy (the single copy)
+
+`CLAUDE.md` held this table until #188 moved it to ADR-0021 §4; it lands here because
+ADR-0022 is the single source for how wide autonomy is and because two of its rows read
+differently under §5: scenario 2's unused slots are **spent** on exploration rather than
+"not wasted", and scenario 3's N is bounded by the competition's **verified** daily limit,
+never an assumed 5. ADR-0021 §4 now points here — one copy.
 
 Target submission roughly 2 hours before the daily roll-over (00:00 UTC). Apply
 per competition day:
@@ -313,7 +325,7 @@ per competition day:
 |---|---|---|
 | 1 | Exactly 1 candidate beats the current best score | Submit that candidate; use remaining daily slots for exploration near the baseline |
 | 2 | No candidate beats the current best score | Do not bank the daily balance; use all slots for exploration near the baseline |
-| 3 | Multiple candidates beat best score, competition open (≥ closing threshold) | Submit the best N (up to the daily limit); queue the remainder for the next day |
+| 3 | Multiple candidates beat best score, competition open (≥ closing threshold) | Submit the best N (up to the **verified** daily limit); queue the remainder for the next day |
 | 4 | Multiple candidates beat best score, competition closing soon (< closing threshold) | **Ask the human** which candidates to promote |
 
 Closing threshold = `competition_period × 0.1` (default: 5 days for a 50-day
@@ -335,8 +347,8 @@ ADR-0021's `screen` block is retained with a changed role:
 
 Every autonomous submission still records its intended-submission summary (file,
 experiment id, expected score, reason) to the audit log for the acting agent
-(phase 1: the harness hook log; phase 2: `.agent/kca/audit.jsonl`), and must stay
-reversible — kernel versions retained, submission IDs recorded — so a human can
+(phase 1: the harness hook log `.agent/audit/tool-events.jsonl`; phase 2: KCA's own
+log, whose design is deferred to #203), and must stay reversible — kernel versions retained, submission IDs recorded — so a human can
 override after the fact.
 
 ### 6. Budgets, quotas and stop conditions
