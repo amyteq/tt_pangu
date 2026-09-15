@@ -3,7 +3,7 @@ kaggle_slug: ai-agent-security-multi-step-tool-attacks
 title: AI Agent Security - Multi-Step Tool Attacks
 aliases: [sec-attack, secattack, agent-security, jed]
 tracking_issue: null            # no GitHub issue yet; status lives in this folder
-status: closed                 # open | closed | unknown -- does the competition still accept submissions (was: active)
+status: closed                 # open | closed | unknown -- is the official competition submission window open (was: active)
 state: FINDINGS                # ADR-0022 §3 canonical state (was phase: iteration)
 competition_type: simulation_agent   # red-team code competition (attack.py replayed by an evaluator)
 metric: normalized attack score (0-1000) = min(1000, raw/200000*1000); raw = Σ severity_weight + 2·unique_cells

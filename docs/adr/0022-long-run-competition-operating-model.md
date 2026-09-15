@@ -287,7 +287,7 @@ Two rules follow, and they are what makes a fresh session deterministic:
 |---|---|---|
 | `state` | — (did not exist) | **The canonical token above. The single progress field.** |
 | `phase` | `research \| baseline \| iteration \| submission \| postmortem \| unknown` | **Removed** — superseded by `state` |
-| `status` | `research \| active \| submission \| closed` (live files) vs `active \| paused \| archived \| unknown` (template) — two sets, overlapping `state` | Narrowed to a **fact about the competition**, not about us: `open \| closed \| unknown` (does it still accept submissions), refreshable from the Kaggle API |
+| `status` | `research \| active \| submission \| closed` (live files) vs `active \| paused \| archived \| unknown` (template) — two sets, overlapping `state` | Narrowed to a **fact about the competition**, not about us: `open \| closed \| unknown` (is the official submission window open), verified from the competition rules/deadline; post-deadline practice submissions do not reopen it |
 
 Legacy → canonical migration:
 
@@ -858,7 +858,7 @@ the same answer from the same files:
 - `verified_daily_limit` is inert without `verified_source` (where the number was read),
   `verified_at` (when), and `verified_ttl` (how long that reading may be trusted), and so
   is `verified_reset_boundary` — a limit of 5/day says nothing usable until you know which
-  24-hour interval is the competition day. Past the TTL either field is *unverified* again and §5's
+  interval between verified resets is the competition day. Past the TTL either field is *unverified* again and §5's
   **A3** fails — the competition drops back to the ADR-0021 model rather than guessing.
 - The per-*team* daily submission quota and the per-*account* notebook/GPU quota are
   separate ledgers and are never traded against each other (#193).
@@ -1271,6 +1271,7 @@ dashboard state/status, gate-floor annotations and the intent/ledger example joi
 | 4 GPU-hours reserved; snapshot proves 1 already consumed | Retain 3 hours locally in addition to the platform's 1; an id alone never drops the full reservation |
 | An uncoordinated teammate/tool can spend from the same pool | A7 cannot activate; a snapshot plus a local lock does not prevent the race |
 | Same team name in different competitions | Separate competition/team submission scopes and verified reset boundaries |
+| Post-deadline practice endpoint still accepts submissions | Competition status remains `closed`; practice does not reopen final eligibility |
 | Final selection unknown or measured entry evicted | Final `best` is null; keep the measured candidate in labelled historical notes |
 | Four notebooks COMPLETE, only two accepted as submissions | Two submissions, not four; push success never closes `SUBMIT` |
 | Phase-2 intent persistence | Supabase transaction only; repository intent files belong to phase 1 |

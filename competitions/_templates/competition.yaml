@@ -3,7 +3,7 @@
 slug: <competition-slug>
 kaggle_slug: <kaggle-slug-or-unknown>
 title: <title-or-unknown>
-status: unknown            # open | closed | unknown -- does the competition still accept submissions
+status: unknown            # open | closed | unknown -- is the official competition submission window open
 # Canonical ADR-0022 §3 state token. One vocabulary; replaces the old `phase:` field.
 # DISCOVER | SELECT | ONBOARD | BASELINE | RESEARCH | IDEA_GENERATION | IDEA_RANKING |
 # HUMAN_DIRECTION | EXPERIMENT_PLAN | IMPLEMENT | INDEPENDENT_AUDIT | TRAIN_VALIDATE |
