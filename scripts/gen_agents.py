@@ -233,9 +233,14 @@ def skill_front_matter(name: str) -> dict[str, str]:
             continue
         key, _, raw = line.partition(":")
         key = key.strip()
-        previous_key = key
         value = raw.strip()
+        previous_key = key
         if key in READ_KEYS:
+            if key in fields:
+                fail(
+                    f"{relative} front matter defines `{key}:` twice.\n"
+                    "  YAML loaders disagree about which wins; say it once."
+                )
             if not value:
                 fail(
                     f"{relative} front matter gives `{key}:` no value on its own line.\n"
@@ -246,6 +251,14 @@ def skill_front_matter(name: str) -> dict[str, str]:
                     f"{relative} front matter writes `{key}:` starting with YAML {value[0]!r} "
                     "(a block scalar, anchor, alias, or tag).\n"
                     "  This reader supports single-line plain or quoted values only — write it as one line."
+                )
+            closer = {"[": "]", "{": "}"}.get(value[0])
+            if closer and not value.endswith(closer):
+                fail(
+                    f"{relative} front matter opens `{key}:` with {value[0]!r} and does not close it "
+                    "on the same line.\n"
+                    "  A real YAML parser rejects this outright; a skill Codex cannot load would "
+                    "still be advertised in .agents/README.md."
                 )
             if value[0] in "\"'" and not value.endswith(value[0]):
                 fail(
