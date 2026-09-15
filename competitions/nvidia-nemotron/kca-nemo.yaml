@@ -44,8 +44,8 @@ _base:
   # human-in-the-loop. NOTE: an annotation key for now (like lp/note) — the
   # metadata generator ignores it; runtime enforcement is the ADR-0021 follow-up.
   #
-  # ADR-0022 §5 widens this model, but only once a competition meets its five
-  # activation preconditions. This competition closed 2026-06-15 and is in state
+  # ADR-0022 §5 widens this model, but only once a competition meets its
+  # activation conditions (A1-A7). This competition closed 2026-06-15 and is in state
   # FINDINGS, so it never activates: the values below keep their ADR-0021 meaning
   # (all four `screen` criteria gate; `daily_submit_budget` caps).
   autonomy:
