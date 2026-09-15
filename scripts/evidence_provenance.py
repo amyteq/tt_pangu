@@ -67,18 +67,19 @@ def _status_paths(tool: str, root: Path) -> list[tuple[str, str]]:
     )
     if result.returncode != 0:
         fail(tool, f"`git status` failed: {result.stderr.strip()}")
-    entries: list[tuple[str, str]] = []
+    entries: list[tuple[str, tuple[str, ...]]] = []
     for line in result.stdout.splitlines():
         if not line.strip():
             continue
-        status, path = line[:2].strip(), line[3:]
-        # A rename reads `old -> new`; the new name is the one on disk now.
-        if " -> " in path:
-            path = path.split(" -> ", 1)[1]
+        status, rest = line[:2].strip(), line[3:]
+        # A rename reads `old -> new` and touches BOTH paths. Keeping only the
+        # destination let `git mv AGENTS.md docs/evidence/…/smoke-claude.md` pass:
+        # the destination is an exempt output, so the disappearance of AGENTS.md
+        # went unreported and the check certified a tree without it.
+        paths = tuple(part.strip() for part in rest.split(" -> ")) if " -> " in rest else (rest,)
         # git quotes paths containing spaces or non-ASCII bytes.
-        if path.startswith('"') and path.endswith('"'):
-            path = path[1:-1]
-        entries.append((status, path))
+        paths = tuple(p[1:-1] if p.startswith('"') and p.endswith('"') else p for p in paths)
+        entries.append((status, paths))
     return entries
 
 
@@ -102,7 +103,13 @@ def verify_tree_matches_commit(
     root: Path = REPO_ROOT,
 ) -> None:
     """Refuse unless the tree matches `commit` apart from the writers' own outputs."""
-    dirty = [f"{status:>2} {path}" for status, path in _status_paths(tool, root) if path not in exempt]
+    # An entry is exempt only if *every* path it touches is an output. A rename is
+    # exempt only when it moves one output onto another.
+    dirty = [
+        f"{status:>2} {' -> '.join(paths)}"
+        for status, paths in _status_paths(tool, root)
+        if not all(path in exempt for path in paths)
+    ]
     if dirty:
         fail(
             tool,

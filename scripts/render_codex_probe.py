@@ -85,6 +85,20 @@ def main() -> None:
     catalogue = messages[0]
     roots = [ln for ln in catalogue.splitlines() if ln.startswith("- `r")]
     skills = [ln for ln in catalogue.splitlines() if ln.startswith("- ") and "(file: r1/" in ln]
+
+    # 5. the dump's skill inventory is this tree's. Checks 1-4 all pass with a dump
+    #    whose catalogue lists a skill the mirror does not contain: the header would
+    #    certify a count taken from another state, which is the inflation F3 was
+    #    about, arriving by a different route.
+    listed = {ln.split("(file: r1/", 1)[1].split("/", 1)[0] for ln in skills}
+    mirrored = {p.name for p in (REPO_ROOT / ".agents" / "skills").iterdir() if (p / "SKILL.md").is_file()}
+    if listed != mirrored:
+        fail(
+            "refusing to write: the dump's skill catalogue is not this tree's.\n"
+            f"  in the dump only:  {sorted(listed - mirrored) or '—'}\n"
+            f"  in .agents/ only:  {sorted(mirrored - listed) or '—'}\n"
+            "  Re-run `codex debug prompt-input` against the current checkout."
+        )
     version = subprocess.run(["codex", "--version"], capture_output=True, text=True).stdout.strip()
 
     lines = [

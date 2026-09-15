@@ -217,6 +217,7 @@ def skill_front_matter(name: str) -> dict[str, str]:
         fail(f"{relative} does not open with a `---` front-matter block")
     fields: dict[str, str] = {}
     previous_key = ""
+    previous_value = ""
     for line in lines[1:]:
         if line.strip() == "---":
             break
@@ -234,11 +235,22 @@ def skill_front_matter(name: str) -> dict[str, str]:
                     "  This reader supports single-line values for that key — write it as one line."
                 )
             stripped = line.strip()
+            # A sequence entry is only YAML if the key it sits under has no scalar
+            # value: `tags:` then `- logging` is a list, but `allowed-tools: Read`
+            # then `- Bash` is a parse error, and Codex drops that skill while this
+            # reader carried on and .agents/README.md advertised it.
+            if stripped.startswith("-") and previous_value:
+                fail(
+                    f"{relative} front matter puts a list item under `{previous_key}:`, "
+                    "which already has a value on its own line.\n"
+                    f"    {stripped[:80]!r}\n"
+                    "  YAML cannot read a scalar and a sequence for one key, so Codex would "
+                    "drop the skill entirely while this reader still advertised it."
+                )
             # An *unindented* line with no `:` is a bare scalar where YAML expects a
             # mapping key, and a real loader rejects the whole block. Skipping it (it
             # sits under a key this reader ignores) is how `--check` came to pass on a
-            # skill Codex silently refuses to load, and .agents/README.md advertised it.
-            # `- item` is a valid block sequence entry and `#` is a comment; both stay.
+            # skill Codex silently refuses to load.
             if stripped and not line.startswith((" ", "\t")) and not stripped.startswith(("-", "#")):
                 fail(
                     f"{relative} front matter has a line that is not `key: value`, a list item, "
@@ -252,6 +264,7 @@ def skill_front_matter(name: str) -> dict[str, str]:
         key = key.strip()
         value = raw.strip()
         previous_key = key
+        previous_value = value
         if key in READ_KEYS:
             if key in fields:
                 fail(

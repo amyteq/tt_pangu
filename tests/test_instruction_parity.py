@@ -356,6 +356,14 @@ def test_generator_refuses_a_hard_coded_codex_version(gen, tmp_path, monkeypatch
             "bare scalar after a list",
             "description: Initialize a run artifact directory.\ntags:\n  - logging\nstray line",
         ),
+        (
+            "sequence under a key that already has a scalar",
+            "description: Initialize a run artifact directory.\nallowed-tools: Read\n- Bash",
+        ),
+        (
+            "indented sequence under a key that already has a scalar",
+            "description: Initialize a run artifact directory.\nallowed-tools: Read\n  - Bash",
+        ),
     ],
 )
 def test_generator_refuses_front_matter_outside_its_yaml_subset(gen, tmp_path, monkeypatch, label, replacement):
@@ -542,8 +550,34 @@ FORCE_PUSH_TOKENS = ("force-push", "force push", "push -f", "push --force")
 APPROVAL_WORDS = ("approval", "approve", "approved", "approvable")
 
 
-def _sentences(text: str) -> list[str]:
-    return re.split(r"(?<=[.;:])\s+|\n", text)
+# Searching for a denial word is not enough: "force-push is **not denied** and
+# instead requires approval" contains one. The rule is inverted — every window
+# that mentions both must match a sanctioned phrasing AND carry no negation of it.
+SANCTIONED_DENIALS = (
+    "denied outright",
+    "is also denied",
+    "are denied",
+    "never force-push",
+    "no force-push",
+    "do not force-push",
+    "forbidden",
+    "refuses",
+)
+NEGATED_DENIALS = ("not denied", "n't denied", "no longer denied", "not be denied", "not forbidden")
+# A window rather than a sentence: "Force-push is allowed. It needs approval."
+# splits into two sentences that each look harmless on their own.
+WINDOW = 320
+
+
+def _windows_mentioning(text: str, tokens: tuple[str, ...]) -> list[str]:
+    low = text.lower()
+    spans = []
+    for token in tokens:
+        start = low.find(token)
+        while start != -1:
+            spans.append(low[max(0, start - WINDOW) : start + WINDOW])
+            start = low.find(token, start + 1)
+    return spans
 
 
 @pytest.mark.parametrize("doc", ["CLAUDE.md", "AGENTS.md", "PROJECT_STATE.md", *REQUIRED_READING])
@@ -552,17 +586,44 @@ def test_force_push_is_never_described_as_approvable(doc: str):
     path = REPO_ROOT / doc
     if not path.is_file():
         pytest.skip(f"{doc} not present")
-    for sentence in _sentences(path.read_text(encoding="utf-8")):
-        low = sentence.lower()
-        if not any(token in low for token in FORCE_PUSH_TOKENS):
+    for window in _windows_mentioning(path.read_text(encoding="utf-8"), FORCE_PUSH_TOKENS):
+        if not any(word in window for word in APPROVAL_WORDS):
             continue
-        if not any(word in low for word in APPROVAL_WORDS):
-            continue
-        assert any(word in low for word in ("denied", "deny", "never", "not approvable", "forbidden")), (
-            f"{doc} puts force-push in the same clause as approval without saying it is denied:\n"
-            f"    {sentence.strip()[:200]!r}\n"
+        assert not any(phrase in window for phrase in NEGATED_DENIALS), (
+            f"{doc} negates the denial of force-push near approval language:\n"
+            f"    {window.strip()[:240]!r}\n"
+            "  CLAUDE.md denies force-push outright."
+        )
+        assert any(phrase in window for phrase in SANCTIONED_DENIALS), (
+            f"{doc} mentions force-push near approval language without stating it is denied:\n"
+            f"    {window.strip()[:240]!r}\n"
             "  CLAUDE.md denies force-push outright; a gate implies a path to yes."
         )
+
+
+@pytest.mark.parametrize(
+    "text,allowed",
+    [
+        ("Permanent deletions need approval, and force-push is denied outright.", True),
+        ("Force-push is not denied and instead requires explicit human approval.", False),
+        ("Force-push is allowed here. It requires explicit human approval.", False),
+        ("Force-push requires explicit human approval from the owner.", False),
+        ("Never force-push; approval cannot make it safe.", True),
+    ],
+)
+def test_the_force_push_rule_separates_these_cases(text: str, allowed: bool):
+    """The guard is the claim, so its own boundary cases are tested.
+
+    The first negative case passed the round-6 version of this test: it contains
+    the word "denied".
+    """
+    windows = _windows_mentioning(text, FORCE_PUSH_TOKENS)
+    flagged = any(
+        any(word in w for word in APPROVAL_WORDS)
+        and (any(phrase in w for phrase in NEGATED_DENIALS) or not any(phrase in w for phrase in SANCTIONED_DENIALS))
+        for w in windows
+    )
+    assert flagged is not allowed
 
 
 CJK = re.compile(r"[\u4e00-\u9fff]")
@@ -582,6 +643,7 @@ def test_the_stated_count_of_chinese_files_matches_the_repo():
         ["git", "ls-files"], cwd=REPO_ROOT, capture_output=True, text=True, check=True
     ).stdout.split()
     measured = 0
+    counts: dict[str, int] = {}
     for name in tracked:
         if name.endswith("_zh.md"):
             continue
@@ -591,14 +653,33 @@ def test_the_stated_count_of_chinese_files_matches_the_repo():
             continue
         if CJK.search(text):
             measured += 1
+            top = name.split("/")[0] if "/" in name else "<root>"
+            counts[top] = counts.get(top, 0) + 1
 
-    assert str(CLAIMED_CJK_FILES) in CLAUDE_MD.read_text(encoding="utf-8"), (
+    claude_text = CLAUDE_MD.read_text(encoding="utf-8")
+    assert str(CLAIMED_CJK_FILES) in claude_text, (
         f"CLAUDE.md no longer states {CLAIMED_CJK_FILES}; update CLAIMED_CJK_FILES to match."
     )
     assert abs(measured - CLAIMED_CJK_FILES) <= CJK_TOLERANCE, (
         f"CLAUDE.md says roughly {CLAIMED_CJK_FILES} tracked non-sidecar files are Chinese or "
         f"mixed; {measured} actually are. Update the sentence — a harness reads it as fact."
     )
+
+    # The count alone is not the claim that was wrong. "mostly `worklogs/` and
+    # `work/`" was, and a count check leaves it green — so any concentration claim
+    # the sentence makes is measured against the directories it names.
+    language = next(line for line in claude_text.splitlines() if line.startswith("**Language:**"))
+    for adverb in ("mostly", "largely", "chiefly", "mainly", "predominantly"):
+        if adverb not in language:
+            continue
+        claimed_dirs = set(re.findall(r"`([a-z_][a-z0-9_-]*)/`", language.split(adverb, 1)[1]))
+        if not claimed_dirs:
+            continue
+        share = sum(counts[d] for d in claimed_dirs) / sum(counts.values())
+        assert share > 0.5, (
+            f"CLAUDE.md says the Chinese files are {adverb} in {sorted(claimed_dirs)}, which hold "
+            f"{share:.0%} of them by file count. Name the directories that do, or drop the claim."
+        )
 
 
 # --- the shared evidence-provenance check ------------------------------------
@@ -689,3 +770,46 @@ def test_both_writers_use_the_shared_provenance_check():
         source = (REPO_ROOT / "scripts" / script).read_text(encoding="utf-8")
         assert "from evidence_provenance import" in source, f"{script} does not use the shared check"
         assert "verify_tree_matches_commit" in source, f"{script} does not verify the tree"
+
+
+def test_provenance_refuses_a_rename_onto_an_exempt_output(provenance, scratch_repo):
+    """A rename touches two paths; exempting only the destination hid the source.
+
+    `git mv AGENTS.md docs/evidence/…/smoke-claude.md` removed AGENTS.md from the
+    tree and the check passed, because the destination is an evidence output.
+    """
+    subprocess.run(
+        ["git", "mv", "AGENTS.md", "docs/evidence/issue-189-codex-parity/smoke-claude.md"],
+        cwd=scratch_repo,
+        check=True,
+        capture_output=True,
+    )
+    with pytest.raises(SystemExit):
+        provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
+
+
+def test_provenance_still_exempts_an_output_renamed_onto_an_output(provenance, scratch_repo):
+    subprocess.run(
+        [
+            "git",
+            "mv",
+            "docs/evidence/issue-189-codex-parity/smoke-codex.md",
+            "docs/evidence/issue-189-codex-parity/smoke-claude.md",
+        ],
+        cwd=scratch_repo,
+        check=True,
+        capture_output=True,
+    )
+    provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
+
+
+def test_the_probe_renderer_checks_the_dumps_catalogue_against_the_tree():
+    """Verifying the project doc says nothing about the skill inventory.
+
+    A dump whose catalogue lists a skill the mirror does not contain produced a
+    header certifying HEAD and reporting one skill too many — the same inflated
+    count as the untracked-skill case, arriving by a different route.
+    """
+    source = (REPO_ROOT / "scripts" / "render_codex_probe.py").read_text(encoding="utf-8")
+    assert "the dump's skill catalogue is not this tree's" in source
+    assert ".agents" in source and "iterdir()" in source
