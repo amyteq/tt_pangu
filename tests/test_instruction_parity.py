@@ -76,6 +76,16 @@ PROTECTED_ENV_FILES = [
 ]
 PROHIBITION_WORDS = ("never", "not ", "n't", "protected", "forbid", "exclude", "remain", "withheld")
 
+# Phrases naming the pre-#188/#200 direction. Not banned outright — older docs may
+# record what was once decided — but not without a supersession note, because a
+# harness reading them cannot tell history from instruction.
+STALE_DIRECTION_PHRASES = [
+    "Claude Agent SDK for the production coding worker",
+    "Claude Agent SDK worker",
+    "PR merges (create is allowed, merge requires approval)",
+    "Any remote write operation",
+]
+
 # Skills are symlinked into `.agents/`, so a stale rule in a skill body reaches Codex
 # with the same authority as AGENTS.md — and a triggered skill is read *after* the
 # project doc. Each entry is a phrase that contradicts a current shared rule, kept
@@ -399,3 +409,86 @@ def test_the_protected_file_rule_separates_these_cases(sentence: str, allowed: b
     """
     forbidden = any(word in sentence.lower() for word in PROHIBITION_WORDS)
     assert forbidden is allowed
+
+
+# Docs that `AGENTS.md` -> *Read first* sends Codex to. Banning a retired rule from
+# AGENTS.md means little if AGENTS.md then points at a file that still states it:
+# the agent reads the stale rule with the project doc's authority behind it.
+REQUIRED_READING = [
+    "PROJECT_STATE.md",
+    "docs/engineering-practice.md",
+]
+SUPERSESSION_MARKER = "Superseded"
+
+
+@pytest.mark.parametrize("doc", REQUIRED_READING)
+def test_required_reading_is_listed_in_agents_md(doc: str, agents_md: str):
+    """Keep this list honest: if AGENTS.md stops naming a doc, stop checking it."""
+    assert doc in agents_md, (
+        f"{doc} is in REQUIRED_READING but AGENTS.md no longer sends anyone to it — "
+        "drop it here, or restore the pointer."
+    )
+
+
+@pytest.mark.parametrize("doc", REQUIRED_READING)
+def test_required_reading_does_not_restate_retired_rules_unmarked(doc: str):
+    """A doc Codex is told to read may hold an old rule only under a supersession note.
+
+    Section-scoped: the note has to be in the same `## ` section as the stale rule,
+    so a single marker at the top of a long file cannot vouch for everything below it.
+    """
+    text = (REPO_ROOT / doc).read_text(encoding="utf-8")
+    sections = re.split(r"^(?=## )", text, flags=re.M)
+    for rule in RETIRED_RULES + STALE_DIRECTION_PHRASES:
+        for section in sections:
+            if rule not in section:
+                continue
+            heading = section.splitlines()[0].strip()
+            assert SUPERSESSION_MARKER in section, (
+                f"{doc} section {heading!r} states the retired rule {rule!r} with no "
+                f"{SUPERSESSION_MARKER!r} note, and AGENTS.md tells Codex to read this file. "
+                "Add the note (naming what is current), or remove the rule."
+            )
+
+
+@pytest.mark.parametrize(
+    "label,mutate",
+    [
+        (
+            "safety rule above the preamble marker",
+            lambda t: t.replace("<!-- part: preamble -->", "> **Never** force-push.\n\n<!-- part: preamble -->", 1),
+        ),
+        (
+            "second comment before the marker",
+            lambda t: t.replace(
+                "<!-- part: preamble -->", "<!-- note -->\nDo not touch main.\n\n<!-- part: preamble -->", 1
+            ),
+        ),
+        ("preamble marker removed", lambda t: t.replace("<!-- part: preamble -->", "", 1)),
+        (
+            "appendix marker duplicated",
+            lambda t: t.replace("<!-- part: appendix -->", "<!-- part: appendix -->\n<!-- part: appendix -->", 1),
+        ),
+        (
+            "markers reversed",
+            lambda t: (
+                t.replace("<!-- part: preamble -->", "@@P@@", 1)
+                .replace("<!-- part: appendix -->", "<!-- part: preamble -->", 1)
+                .replace("@@P@@", "<!-- part: appendix -->", 1)
+            ),
+        ),
+    ],
+)
+def test_generator_refuses_a_malformed_delta(gen, tmp_path, monkeypatch, label, mutate):
+    """Content the delta parser drops is checked, not assumed — same rule as the title block.
+
+    A Codex-only safety rule written above the first marker would otherwise vanish
+    from AGENTS.md with generation and `--check` both green.
+    """
+    mutated = tmp_path / "agents-delta.md"
+    source = (REPO_ROOT / "docs" / "instructions" / "agents-delta.md").read_text(encoding="utf-8")
+    mutated.write_text(mutate(source), encoding="utf-8")
+    monkeypatch.setattr(gen, "DELTA_MD", mutated)
+    monkeypatch.setattr(gen, "REPO_ROOT", tmp_path)
+    with pytest.raises(SystemExit):
+        gen.delta_parts()
