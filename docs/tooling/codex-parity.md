@@ -50,17 +50,16 @@ python scripts/render_codex_probe.py probe.json AGENTS.md \
   docs/evidence/issue-189-codex-parity/loader-probe.txt "$(git rev-parse --short HEAD)"
 ```
 
-Last run: **`codex-cli 0.154.0`** against a clean worktree at **`4d295d8`**. That attribution is
-checked rather than asserted — the evidence file is only written if `4d295d8` is HEAD, its
-`AGENTS.md` is byte-identical to the file whose load was measured, **and** the rendered dump
-actually carries that same file, so the numbers reproduce from that commit.
-Commits after it touch only this document, the evidence under
-`docs/evidence/issue-189-codex-parity/` and the writer scripts — outputs of the run and the tools
-that record it, never inputs to it. That is the claim that matters, and it is checkable rather
-than taken on trust:
+Last run: **`codex-cli 0.154.0`** against a clean worktree at **`083c8b7`**. That attribution is
+checked rather than asserted — the evidence file is only written if `083c8b7` is HEAD, the
+worktree matches it apart from the evidence outputs, its `AGENTS.md` is byte-identical to the
+file whose load was measured, **and** the rendered dump actually carries that same file, so the
+numbers reproduce from that commit. Commits after it touch only this document and the evidence
+under `docs/evidence/issue-189-codex-parity/` — outputs of the run, never inputs to it. That is
+the claim that matters, and it is checkable rather than taken on trust:
 
 ```sh
-git diff --name-only 4d295d8 HEAD -- AGENTS.md CLAUDE.md .agents .claude   # must be empty
+git diff --name-only 083c8b7 HEAD -- AGENTS.md CLAUDE.md .agents .claude   # must be empty
 ```
 
 If that prints anything, the numbers below describe a file that no longer exists and the probe
@@ -79,8 +78,8 @@ The prompt carries a `user` message beginning:
 <!-- GENERATED FILE — DO NOT EDIT BY HAND. ...
 ```
 
-`AGENTS.md` is **20 445 bytes / 20 305 characters** on disk; the project-doc message in the
-prompt is **20 434 characters**. The difference is Codex's own wrapper — the
+`AGENTS.md` is **20 471 bytes / 20 329 characters** on disk; the project-doc message in the
+prompt is **20 458 characters**. The difference is Codex's own wrapper — the
 `# AGENTS.md instructions for <absolute path>` header and the `<INSTRUCTIONS>` tags — so that
 total is path-dependent and is **not** a checksum of the file. What shows the file loaded whole
 is the pair of sentinels: the opening banner and the closing line of the appendix are both
@@ -191,11 +190,11 @@ time claude -p --model 'claude-opus-5[1m]' "$(cat "$prompt")" > /tmp/smoke-claud
 
 # commit both answers with a header whose commit claim is verified, not asserted
 python scripts/write_codex_smoke_evidence.py \
-  --codex  /tmp/smoke-codex.txt  --codex-seconds  15 \
-  --claude /tmp/smoke-claude.txt --claude-seconds 16
+  --codex  /tmp/smoke-codex.txt  --codex-seconds  13 \
+  --claude /tmp/smoke-claude.txt --claude-seconds 15
 ```
 
-**Result — clean worktree at `4d295d8`, 2026-09-15**, both harnesses run from the same commit
+**Result — clean worktree at `083c8b7`, 2026-09-15**, both harnesses run from the same commit
 (full outputs, with their own provenance headers, under `docs/evidence/issue-189-codex-parity/`):
 
 | | Codex (`codex-cli 0.154.0`, `gpt-5.6-sol`) | Claude Code (`claude-opus-5[1m]`) |
@@ -205,7 +204,7 @@ python scripts/write_codex_smoke_evidence.py \
 | Secret policy | may read to use the credentials; forbids printing, sharing, logging or copying them externally | may **read** for use; never echo or copy into web fetches, logs, public PRs, comments ("read-for-use, not read-to-share") |
 | Cited instruction file | `AGENTS.md` | `CLAUDE.md:65` — *Dev-phase secret policy* |
 | Cited skill file | `.agents/skills/kg-run/SKILL.md` | `.claude/skills/kg-run/SKILL.md` |
-| Wall clock | 15 s | 16 s |
+| Wall clock | 13 s | 15 s |
 
 Both harnesses reached the same rules through their own surface, and each cited the surface it
 actually reads — which is exactly what the mirror is supposed to produce. The Claude side
