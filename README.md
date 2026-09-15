@@ -180,6 +180,15 @@ kca local probe                       # check local GPU endpoint status
 
 ### Claude Code project skills
 
+- `/pr-review-loop <rounds> [reviewer] [writer]` — bounded review/fix rounds on
+  the PR in context (or the current branch's unique open PR). `rounds` is a
+  required positive integer; providers default to `codex` / `claude` and either
+  position accepts either provider. Uses independent sessions, evidence-linked
+  dispositions, and a full review of the final head before approval. See the
+  [skill](.claude/skills/pr-review-loop/SKILL.md). In Codex, explicitly ask it to
+  read that file and supply the same three arguments; this Claude project
+  directory does not imply automatic Codex skill discovery.
+
 - `/save-log <name|id>` — export a stopped or completed Claude Code background
   session transcript to `logs/<name>.md` via `claude-code-log`. See
   `.claude/skills/save-log/SKILL.md`.
