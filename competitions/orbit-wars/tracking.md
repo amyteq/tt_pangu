@@ -2,6 +2,9 @@
 
 > English consolidation of GitHub issue **#87** ("[Orbit Wars] 长期跟踪与策略讨论"). Original Chinese tables
 > preserved verbatim in [`tracking_zh.md`](./tracking_zh.md). Future status updates live here, not in issue #87.
+> **Authority (ADR-0022 §3):** this file is rank 3 — narrative, reasoning, experiment history.
+> `state` / `status` / `best` live in `competition.yaml` (rank 1); if this file disagrees with
+> it, this file is stale. "Status updates live here" means the *narrative* left the issue.
 > `unknown` = not in available evidence.
 
 ## Current snapshot

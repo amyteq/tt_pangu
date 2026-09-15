@@ -4,7 +4,14 @@ title: ARC Prize 2026 — ARC-AGI-2
 aliases: [arc, arc-agi2, arcprize]
 tracking_issue: null             # to be opened when the competition becomes active work
 status: open                   # open | closed | unknown -- does the competition still accept submissions (was: research)
-state: ONBOARD                 # ADR-0022 §3 canonical state (was phase: prep)
+state: WAIT_HUMAN              # ADR-0022 §3 canonical state (was phase: prep)
+# ADR-0022 §3: a side state records how to come back.
+resume_state: HUMAN_DIRECTION  # applying the answer, once there is one
+state_reason: "Direction choice, not an experiment choice: both TTT rungs scored 0% and the analysis says the lever is the data pipeline, not model size. The fork is (a) multi-day RE-ARC + synthetic-data pipeline, needing compute we have not budgeted, or (b) pivot to the ARC Grand-Prize writeup. ADR-0006 'major direction change' / ADR-0022 §2 human column."
+decision_id: null              # no request channel exists yet (follow-up #197). Until it does,
+                               #   the request IS state_reason + the dashboard row. null here
+                               #   means 'no channel', never 'no request pending'.
+
 account_entered: true            # harrysun2006 is registered (Kaggle API userHasEntered, 2026-06-26)
 team_count: 967                  # 2026-06-26 read-only refresh
 competition_type: reasoning      # abstraction-and-reasoning (visual grid program induction)
@@ -20,6 +27,8 @@ primary_artifact: notebook       # code competition; notebook is the entry point
 submission_mode: notebook        # notebook -> submission.json {task_id:[{attempt_1,attempt_2}]} (confirmed)
 data_policy: kaggle              # public train(1000)+eval(120) on GitHub; semi-private(120) LB; private(120) final
 prize_pool_usd: 700000           # ARC-AGI-2 track (of $2M total ARC Prize 2026)
+last_updated: 2026-09-15         # state reconciled against the dashboard 2026-06-29 rows + PR #159
+autonomy_config: null            # no autonomy config in this directory => ADR-0022 §5 A1 fails
 # ADR-0022 §6 budget envelope. Same KEY STRUCTURE as
 # competitions/_templates/competition.yaml; the VALUES are this competition's.
 # `null` is an UNKNOWN, not "unlimited": a null cap refuses the work that would
@@ -41,6 +50,8 @@ budget:
     verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
     verified_source: null               # where that number was read (URL / API field)
     verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_reset_boundary: null       # WHEN the daily quota resets, from the competition's
+                                        #   own rules; NEVER assumed. null blocks submission
     verified_ttl: 30d                   # past this the limit is unverified again and blocks
     reserve_for_human: 0
   failures:
@@ -50,8 +61,11 @@ budget:
     review_after_no_gain_experiments: 5
 best:
   cv_metric: pass@2
-  cv_score: null                 # no local baseline yet
-  public_lb: null                # no submission yet
+  cv_score: 0.0                  # rung-2 (Qwen3-4B + train-task pretrain, loss 0.16): 0/20 on
+                                 #   public eval, 2026-06-29. rung-1 (Qwen2.5-0.5B): 0/10, 0/20.
+                                 #   The oracle-decode harness reaches 100%, so the harness is
+                                 #   sound and the solver is the 0 (PR #159)
+  public_lb: null                # no Kaggle submission has ever been made for this competition
   private_lb: null
   submission_id: null
 constraints:
@@ -65,8 +79,8 @@ sota_baseline_kaggle: 0.2403     # NVARC, ARC Prize 2025 (ARC-AGI-2 inaugural), 
 public_lb_top_2026: 0.5056       # nvbanana, 2026-06-26 (2x the 2025 floor; ~33-35 pack behind)
 bonus_threshold: 0.85            # private eval; unlocks $150K bonus prize
 human_baseline: 0.66             # individual avg on public eval; panel 100%
-current_blocker: "no TTT baseline reproduced yet (env + local pass@2 harness are built)"
-next_task: "Read ARC Prize 2025 tech report (arXiv:2601.10904); scope + reproduce a TTT baseline (T2)"
+current_blocker: "Two consecutive no-gain rungs at 0%; model size is not the lever, so the next attempt needs an RE-ARC/synthetic data pipeline and multi-day GPU that budget.compute.max_gpu_hours_per_cycle does not cover (null). Blocked on the direction decision in state_reason, not on code."
+next_task: "Put the fork in state_reason to the human (dashboard #199). If (a): scope the RE-ARC + synthetic-data pipeline and the GPU budget it needs. If (b): scope the Grand-Prize writeup from ttt-recipe.md + how-it-works.md."
 source_notes:
   - arcprize.org/competitions/2026/arc-agi-2 (official)
   - arcprize.org/policy (Verified Testing Policy)
