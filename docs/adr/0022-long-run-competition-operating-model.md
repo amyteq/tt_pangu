@@ -321,19 +321,30 @@ applies only when all of the following are true, and each is checkable by readin
 
 | # | Precondition | Checkable by |
 |---|---|---|
-| **A1** | `autonomy.enabled` is not `false` — the veto below | `competitions/<slug>/kca-<slug>.yaml` |
+| **A1** | `autonomy.enabled` is not `false`, **and** the flag for the action at hand — `auto_submit` for a leaderboard submission, `auto_push` for a kernel push — is not `false` | `competitions/<slug>/kca-<slug>.yaml` |
 | **A2** | The competition's `budget:` block exists and every cap is set — no `null` (§6) | `competitions/<slug>/competition.yaml` |
 | **A3** | `budget.submissions.verified_daily_limit` carries `verified_source` / `verified_at` and is inside `verified_ttl` | the same block (§6) |
 | **A4** | `launch`, `deadline` and the closing window are verified and inside `timing_verified_ttl` | the same file; otherwise `WAIT_HUMAN` (§5) |
 | **A5** | The pre-submit gate refuses on failure rather than skipping (fail-closed) | see the paragraph below |
 | **A6** | A submission-intent record is written and persisted before dispatch | §5 "Recording an autonomous submission" |
-| **A7** | Every shared budget scope it spends against has a reachable machine-absolute ledger + lock, reserving is atomic under that lock, and any cross-host scope has a designated driver host | §6 "A shared counter cannot live in a worktree" |
+| **A7** | Every shared budget scope it spends against has a reachable machine-absolute ledger + lock, reserving is atomic under that lock, and every cross-host scope has one designated driver host **for the scope** (not per competition) | §6 "A shared counter cannot live in a worktree" |
 
 **`autonomy.enabled: false` is an absolute veto, checked before everything else.** It is
 the one-line opt-out ADR-0021 §2 gives a competition that needs strict human-in-the-loop,
 and no amount of evidence overrides it: a competition that has opted out never activates §5,
 however complete its budget block is. Evidence can only switch autonomy *on* where it was
 already permitted — it can never switch it on where it was refused.
+
+**The action-level flags are vetoes too, at their own granularity.** ADR-0021 §2 gives a
+competition three switches, not one: `autonomy.enabled`, `autonomy.auto_push` and
+`autonomy.auto_submit`. §5 widens *how much* an enabled competition may do — it removes the
+per-action and per-batch approval and demotes `beats_best` to an ordering key — but it does
+not collapse three switches into one. `auto_submit: false` with `enabled: true` means "run
+autonomously, but a leaderboard submission is still a human's call", and that reading
+survives this ADR: the flag for the action being taken is part of **A1**, evaluated per
+action. A competition may therefore have §5 active for kernel pushes and inactive for
+submissions. Nothing in §5 sets, defaults or overrides these fields — absent means the
+ADR-0021 default (`true`), and an explicit `false` is always a refusal.
 
 **Until a competition satisfies A1–A7, it runs under the narrower ADR-0021 §2 model** —
 screened autonomy with `beats_best` as a gate — and a submission that cannot satisfy them
@@ -419,8 +430,10 @@ the boundary between 3 and 4 must be computable without judgement:
   50-day competition.
 - `competition.yaml:closing_window_days` overrides it per competition, and is the value of
   record once set.
-- The **internal safety window** in §6's stop conditions is the same field: inside it, the
-  competition stops rather than starting new work.
+- The **internal safety window** in §6's stop conditions is the same field: inside it the
+  competition **starts no new experiments**, which is not the same as stopping. Scenario 4
+  is what the window exists for — the competition sits in `WAIT_HUMAN`, and the human's
+  promotion decision is still carried out, re-entering `PRE_SUBMIT_GATE` → `SUBMIT`.
 
 **Missing or stale timing data fails to the human, never to scenario 3.** Timing carries its
 own provenance — `timing_verified_source`, `timing_verified_at`, `timing_verified_ttl` — because
@@ -474,17 +487,24 @@ external_id: null           # filled at reconciliation
 ```
 
 A submission whose intent record could not be persisted **does not dispatch** — that is
-**A6** above. Autonomous actions must also stay reversible — kernel versions
-retained, submission IDs recorded — so a human can override or roll back after the fact.
+**A6** above. Autonomous actions must also stay **traceable and supersedable** — kernel
+versions retained, submission IDs recorded — so a human can see exactly what was sent and
+supersede it with a later submission. They are deliberately *not* described as reversible: a
+dispatched submission cannot be recalled, and the quota slot it consumed does not come back.
+That asymmetry is the reason the budget is reserved **before** dispatch (§6) rather than
+reconciled after it — reconciliation can explain an overspend, it cannot undo one.
 
 ### 6. Budgets, quotas and stop conditions
 
 **Budget dimensions** (per competition, per cycle):
 
 ```yaml
-# competitions/<slug>/competition.yaml — identical to the block in
-# competitions/_templates/competition.yaml. These two must stay byte-identical;
-# a divergence between them is a bug, not a local override.
+# competitions/<slug>/competition.yaml — the same block as in
+# competitions/_templates/competition.yaml. The KEY STRUCTURE is canonical: a key the
+# template does not have, a missing key, or a renamed one is a bug rather than a local
+# override. The VALUES are per competition — the template ships the caps null precisely
+# so that filling one in is a deliberate, sourced act (A2/A3), and a live file still
+# carrying the template's nulls is a competition that cannot activate §5.
 budget:
   cycle: 7d                             # window every max_per_cycle is measured over
   cycle_anchor: null                    # UTC timestamp cycle 0 started; all arithmetic is UTC
@@ -521,6 +541,43 @@ the consumption against them lives in the machine-absolute ledger below, never i
   heartbeat so two competitions cannot claim the same card (issue #194).
 - **Subscription-level:** Claude Code / Codex / ChatGPT usage, tracked
   separately from metered spend.
+
+Those pools have incompatible units and windows — a daily count, a weekly hour budget, a
+concurrency ceiling, a monetary cap — so a cap is meaningless without its unit and its
+window, and a ledger `amount` is meaningless without the cap it is drawn against. The file
+is a map from **scope identity** to cap, and the scope identity is the string a reservation
+carries:
+
+```yaml
+# competitions/_shared/budget.yaml — caps only; consumption lives in the runtime ledger.
+scopes:
+  team:<team-name>:
+    submissions:
+      unit: submission            # one leaderboard submission
+      window: 1d                  # rolls at the platform's own boundary, not ours
+      anchor: 00:00Z              # each scope carries its own anchor — they do not align
+      cap: null                   # null blocks: an unknown is never unlimited
+  account:<kaggle-user>:
+    compute:
+      unit: gpu_hour
+      window: 7d
+      anchor: 2026-09-15T00:00:00Z
+      cap: null
+    kernel_slots:
+      unit: concurrent_kernel     # a ceiling on things held at once, not spend per window
+      window: instantaneous
+      cap: null
+  machine:snorlax:
+    compute: {unit: gpu_hour, window: 1d, anchor: 00:00Z, cap: null}
+  subscription:claude-code:
+    llm: {unit: subscription_usage, window: 5h, anchor: rolling, cap: null}
+```
+
+A reservation names the scope identity and the dimension, and its `amount` is in that
+cap's `unit`; a reservation whose unit does not match its cap's unit is rejected, not
+converted. `window: instantaneous` caps what is *held*, so its reservations are released
+rather than settled. Windows are independent: a `1d` submissions window and a `7d` compute
+window roll on their own anchors, and nothing re-bases one onto the other.
 
 **The cycle needs an anchor, and a quota needs provenance.** Two sessions must compute
 the same answer from the same files:
@@ -583,7 +640,7 @@ also `O_EXCL`, so a second writer cannot produce a second outcome:
 # ${KCA_BUDGET_DIR}/team:<team>/2026-09-15T00:00:00Z/RES-0007.terminal.yaml
 id: RES-0007
 outcome: settled            # settled | released
-amount: 1                   # settled: what was actually consumed (may differ from reserved)
+amount: 1                   # settled: what was actually consumed — NEVER more than reserved
                             # released: always 0 — the reservation was not spent
 at: 2026-09-15T22:06:11Z
 evidence: <submission-id>   # for `released`: what was checked to prove it was not spent
@@ -595,6 +652,20 @@ one with a terminal sidecar counts at the sidecar's `amount` (so `released` coun
 reservation can never count twice, and `reserved` plus `settled` for the same id is one
 logical reservation, not two. An `id` carrying more than one terminal sidecar is corruption:
 it counts at the **larger** amount and raises `NEEDS_RECONCILIATION`.
+
+**A reservation is a ceiling, not an estimate.** Settlement may come in *under* the
+reservation — that is ordinary, and the difference is returned to the cycle. It may never
+come in *over* it. The cap is compared before dispatch, so a settlement larger than its
+reservation means the human-approved envelope was exceeded after the spend had already
+happened and nothing could refuse it. For a dimension whose consumption is only known
+afterwards — metered LLM cost, GPU hours — the reservation is therefore a **hard limit
+passed to the job** (the token / wall-clock / spend ceiling it runs under), not a guess
+recorded beside it. A job that would exceed its reservation stops at the ceiling and
+reserves again, atomically, under the rules above; if that second reservation is refused,
+the work stops rather than continuing uncovered. A terminal sidecar whose `amount` exceeds
+its reservation is a **budget violation, not accounting**: it counts at its own larger
+amount, raises `NEEDS_RECONCILIATION`, and puts the competition in `PAUSED_BUDGET` until a
+human resolves it.
 
 **Atomicity is the check, not just the write.** Creating the file atomically is not enough:
 *counting remaining capacity and then reserving* is two steps, and two workers can both read
@@ -611,15 +682,30 @@ it counts at the **larger** amount and raises `NEEDS_RECONCILIATION`.
 machine, and no local lock can see that. For any scope that spans hosts, the local lock is
 necessary but not sufficient, and two further rules apply:
 
-- **One designated driver host per competition at a time**, recorded in the tracking issue.
-  A host that is not the designated driver does not submit for that competition.
+- **One designated driver host per shared scope at a time** — per `team:` / `account:` /
+  subscription scope, *not* per competition, because the scope is what is shared. A
+  per-competition designation does not serialise two competitions drawing on one team
+  quota: each would reconcile against the same platform count, reserve in its own host's
+  ledger, and both dispatch. The designation is recorded in the tracking issue of every
+  competition that spends against that scope. A host that is not the scope's driver does
+  not spend against that scope, whichever competition is asking — so two competitions on
+  one team reserve through the same host, against the same ledger, under the same lock,
+  which is what makes the machine-local `flock` sufficient again.
 - **Reconcile before reserving**: the platform's own count of today's submissions is the
   authority, read at the start of each cycle and after any `NEEDS_RECONCILIATION`. The local
   ledger is a fast path over that truth, never a replacement for it.
 
-If the driver designation is missing or ambiguous, the competition is `PAUSED_BUDGET`. Two
-hosts believing they are the driver is precisely the double-submission this whole section
-exists to prevent.
+If a scope's driver designation is missing, expired, or named differently by two
+competitions that share it, then **every** competition spending against that scope is
+`PAUSED_BUDGET` — not just the one that noticed. Two hosts believing they are the driver is
+precisely the double-submission this whole section exists to prevent.
+
+**A job that spends against several scopes reserves against all of them or none.** A single
+submission can consume a `team:` slot *and* an `account:` slot; a training run can consume
+machine GPU hours *and* metered USD. Reserve in a fixed order — scope identities sorted
+lexicographically, so two workers never take two locks in opposite orders — and if any
+scope refuses, release the reservations already made (terminal sidecar, `outcome:
+released`) and do not dispatch. Partial reservation is the deadlock and the overspend.
 
 **If coordination is unavailable, nothing dispatches.** An unreachable ledger directory, an
 unobtainable lock, an unreadable cap, or an unknown driver designation is *not* a reason to
@@ -645,7 +731,8 @@ competition's real limit has not been read.
 | Condition | State |
 |---|---|
 | Human pause, or the approved scope expired | `STOPPED` / `WAIT_HUMAN` |
-| Competition deadline reached, or inside the internal safety window | `STOPPED` |
+| Inside the internal safety window, deadline not yet reached | `WAIT_HUMAN` — no new experiments start; the human's scenario-4 promotion decision still runs, re-entering `PRE_SUBMIT_GATE` → `SUBMIT` |
+| Competition deadline passed | `RESULT_ANALYSIS` → `FINDINGS`; `STOPPED` only once the findings are recorded, or when a human stops it outright |
 | Budget exhausted, **or budget/quota state unconfirmable** | `PAUSED_BUDGET` |
 | Consecutive failures over the limit | `FAILED` → `WAIT_HUMAN` |
 | N consecutive experiments with no meaningful CV gain | `HUMAN_DIRECTION` (strategy review) |
@@ -710,12 +797,13 @@ the source for how wide autonomy actually is and what the human decides.
 - **`competition.yaml` gains `state` and loses `phase`**, and `status` narrows
   to a fact about the competition. The template and all five live files change with
   this ADR, so no file is left speaking the old vocabulary.
-- **Budget keys do not exist yet.** §6 pins the contract (paths, key names,
-  semantics); `competitions/_shared/budget.yaml` and the per-competition
-  `budget:` block are written when the first competition is selected on #199.
-  Until a competition has a verified `submissions.verified_daily_limit` and a
-  set `llm.max_metered_cost_per_cycle_usd`, §6 blocks its cycle — that is the
-  intended behaviour, not a gap.
+- **Budget caps are declared, not yet filled.** §6 pins the contract (paths, key
+  names, semantics), and the template plus all five live `competition.yaml` files
+  now carry the `budget:` block, so the schema is real rather than promised. Its
+  caps ship `null`: under §6 that blocks the cycle, and under A2/A3 it means no
+  competition can activate §5 today. That is the intended behaviour — a number has
+  to be verified before it can bound anything. `competitions/_shared/budget.yaml`
+  is written when the first competition is selected on #199.
 - **This ADR does not implement recovery.** `RETRY_AT`, `NEEDS_RECONCILIATION`,
   leases, checkpoints and restart recovery are *named* here so there is one
   vocabulary for them; the implementation and its fault-injection tests
@@ -728,7 +816,9 @@ the source for how wide autonomy actually is and what the human decides.
   reserve-before-dispatch budgets, the two hard screening gates, the
   always-gated set, per-competition side states that never stop the fleet, and
   an audit trail that makes every autonomous action reconstructable and
-  reversible.
+  supersedable. Note what that trail does *not* buy: a spent submission slot is
+  gone, so the binding protection is the reserve-before-dispatch cap, not the
+  record written afterwards.
 
 ## Follow-ups
 

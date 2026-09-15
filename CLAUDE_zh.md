@@ -65,7 +65,8 @@ ADR-0023（#191）；在它合入之前，以 issue #191 为准。
    来问人。硬性 gate 只有 `require_repro` 和 `rules_check`；`beats_best` / `min_margin` 只用来给候选
    排序。`kca-<slug>.yaml` 里 `autonomy.enabled: false` 表示严格 human-in-the-loop。**始终需要人决定**：
    不可逆删除、超预算的真金白银支出、比赛规则有歧义、接受新条款 / 加入比赛 / 任何组队变更、临近截止的
-   最终提名。**Claude Code harness** 对付费 API / 凭据使用和破坏性主机命令仍然会先问。细节见
+   最终提名。**Claude Code harness** 对付费 API / 凭据使用和破坏性主机命令仍然会先问。
+   **这些放宽后的规则按比赛生效，且默认关闭**：只有当该比赛满足 ADR-0022 §5 的启用条件 **A1-A7**（未设置 opt-out、预算上限已填、提交上限与时间已核实、pre-submit gate 为 fail-closed、拟提交记录已持久化、共享预算预留是原子的）之后才适用。**目前没有任何一场比赛满足**—— pre-submit gate 仍然是 fail-open，A5 处处不成立 —— 因此当前 Kaggle 提交与 kernel push 仍然需要人明确批准，这与 `AGENTS.md`、`PROJECT_STATE.md` 的说法一致：两者描述的是同一条策略在启用前后的两个状态，并不矛盾。细节见
    `docs/adr/0022-long-run-competition-operating-model.md` §5，它放宽了
    `docs/adr/0021-kca-autonomy-model.md` §2。
 7. 大数据集、模型权重、日志、生成产物一律不进 git。
@@ -77,8 +78,10 @@ ADR-0023（#191）；在它合入之前，以 issue #191 为准。
 - 遵守比赛规则、数据规则、组队规则和提交次数限制。（无论自主性如何，这些都成立。）
 - 不要绕过提交次数限制、不要抓取私有数据、不要滥用 notebook、不要自动化比赛禁止的操作。
 - 提交 / push 的审批遵循 `docs/adr/0022-long-run-competition-operating-model.md` §5 的放宽自主性模型
-  （它放宽了 ADR-0021 §2），四种场景的每日提交策略也在那里 —— 场景 4（多个候选都超过最好成绩、
-  且比赛临近截止）无论如何都交给人决定。
+  （它放宽了 ADR-0021 §2），**但仅对已满足 §5 启用条件 A1-A7 的比赛生效；目前还没有比赛满足，
+  因此仍需人批准**。四种场景的每日提交策略也在那里 —— 场景 4（多个候选都超过最好成绩、
+  且比赛临近截止）无论如何都交给人决定。`kca-<slug>.yaml` 里的 `auto_submit: false` /
+  `auto_push: false` 即使 A1-A7 其余条件都通过，也一票否决该动作。
 - 提交拓扑按比赛而定 —— `competition.yaml:submission_mode`（`file | notebook | kernel | agent`）。
   kernel push **不等于**排行榜提交（#77）。
 - 当日提交上限以该比赛、该队伍**已核实**的数字为准，绝不假定是 5；未核实则该周期被 block（ADR-0022 §6）。

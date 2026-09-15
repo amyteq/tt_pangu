@@ -59,6 +59,9 @@ _base:
     enabled: true            # default true; false = strict human-in-the-loop
     auto_push: true          # kernel push without per-action approval
     auto_submit: true        # leaderboard submit without per-action approval
+                             # ^ both RETAINED by ADR-0022 §5: an explicit `false` is an
+                             #   action-level veto, checked as part of activation condition
+                             #   A1, so §5 can be active for pushes and inactive for submits.
     daily_submit_budget: 5   # SUPERSEDED by ADR-0022 §6 once §5 is active for the
                              # competition: use the VERIFIED per-team limit from
                              # competition.yaml:budget.submissions.verified_daily_limit.

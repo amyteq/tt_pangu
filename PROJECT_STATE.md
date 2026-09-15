@@ -24,9 +24,12 @@ Build a hybrid human + AI competition engineering workbench. The first target is
 7. Operator-facing UI: Dashboard, Run Timeline (OTEL swim-lane), Experiments, Research, Approval Inbox + Decision Gate, Artifact Browser.
 
 ## Human approval gates
+
 Require approval for:
-- Kaggle competition submissions.
-- Kaggle kernel/notebook pushes.
+- Kaggle competition submissions — *unless* the competition has met ADR-0022 §5's
+  activation conditions A1-A7, which none has yet (see
+  `docs/adr/0022-long-run-competition-operating-model.md` §5).
+- Kaggle kernel/notebook pushes — same activation rule.
 - Any remote write operation.
 - Any operation touching credentials, secrets, or account settings.
 - Any CTF action outside a declared sandbox/challenge scope.
