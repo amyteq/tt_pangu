@@ -7,7 +7,7 @@
 > Ranks 2 in ADR-0022 §3's precedence order: this table is a **mirror** of each
 > `competitions/<slug>/competition.yaml`, never an independent record. `State` is the canonical
 > ADR-0022 §3 token (side states carry `resume_state` in the YAML); `Status` is a fact about the
-> competition — `open | closed | unknown`, does it still accept submissions — not about us.
+> competition — `open | closed | unknown`, is the official competition submission window open — not about us.
 > On any disagreement the YAML is right and this row is stale.
 
 | Competition | State | Type | Status | Best CV/local | Best LB/public | Last submit/push | Current blocker | Next task |

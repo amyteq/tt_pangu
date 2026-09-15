@@ -2,7 +2,7 @@ slug: arc-agi3
 kaggle_slug: arc-prize-2026-arc-agi-3
 title: ARC Prize 2026 - ARC-AGI-3
 aliases: [arc3, arc-agi-3, arcagi3]
-status: open                   # open | closed | unknown -- does the competition still accept submissions (was: active)
+status: open                   # open | closed | unknown -- is the official competition submission window open (was: active)
 state: PAUSED_BUDGET           # ADR-0022 §3 canonical state (was phase: research)
 # ADR-0022 §3: a side state records how to come back.
 resume_state: PRE_SUBMIT_GATE  # two kernels are built, pushed and queued; they need a slot

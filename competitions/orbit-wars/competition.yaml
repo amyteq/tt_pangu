@@ -3,7 +3,7 @@ kaggle_slug: orbit-wars
 title: Orbit Wars
 aliases: [orbit, "orbit wars"]
 tracking_issue: 87               # GitHub issue #87 (historical hub; future updates live here)
-status: closed                 # open | closed | unknown -- does the competition still accept submissions (was: active)
+status: closed                 # open | closed | unknown -- is the official competition submission window open (was: active)
 state: FINDINGS                # ADR-0022 §3 canonical state (was phase: iteration)
 competition_type: simulation_agent
 metric: skill-rating (μ) ladder, 1v1 (2-player), μ0=600, pairwise win/loss μ update

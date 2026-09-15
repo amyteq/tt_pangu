@@ -3,7 +3,7 @@ kaggle_slug: nvidia-nemotron-model-reasoning-challenge
 title: NVIDIA Nemotron Model Reasoning Challenge
 aliases: [nemo, nemotron]
 tracking_issue: 86               # GitHub issue #86 (historical hub; future updates live here)
-status: closed                 # open | closed | unknown -- does the competition still accept submissions (was: active)
+status: closed                 # open | closed | unknown -- is the official competition submission window open (was: active)
 state: FINDINGS                # ADR-0022 §3 canonical state (was phase: submission)
 competition_type: llm
 metric: accuracy (extracted \boxed{} answer; exact match or numeric within 1e-2)

@@ -3,7 +3,7 @@ kaggle_slug: arc-prize-2026-arc-agi-2
 title: ARC Prize 2026 — ARC-AGI-2
 aliases: [arc, arc-agi2, arcprize]
 tracking_issue: null             # to be opened when the competition becomes active work
-status: open                   # open | closed | unknown -- does the competition still accept submissions (was: research)
+status: open                   # open | closed | unknown -- is the official competition submission window open (was: research)
 state: WAIT_HUMAN              # ADR-0022 §3 canonical state (was phase: prep)
 # ADR-0022 §3: a side state records how to come back.
 resume_state: HUMAN_DIRECTION  # applying the answer, once there is one
