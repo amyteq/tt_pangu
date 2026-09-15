@@ -17,6 +17,9 @@ metric: <metric-or-unknown>
 launch: null               # <YYYY-MM-DD or null>; with `deadline` defines competition_period
 deadline: null             # <YYYY-MM-DD or null>; the final submission deadline
 closing_window_days: null  # ADR-0022 §5; null => competition_period x 0.1, rounded up
+timing_verified_source: null  # where launch/deadline were read (competition page / API field)
+timing_verified_at: null      # <YYYY-MM-DD>; NOT last_updated, which is file-level
+timing_verified_ttl: 30d      # past this, timing is stale -> WAIT_HUMAN (ADR-0022 5)
 primary_artifact: unknown  # notebook | script | agent | submission | unknown
 submission_mode: unknown   # file | notebook | kernel | agent | unknown
 data_policy: unknown       # kaggle | external | generated | unknown
