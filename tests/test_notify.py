@@ -403,3 +403,18 @@ def test_decision_cli_dry_run_emits_json(cfg: dict, tmp_path: Path, capsys, monk
     assert payload["status"] == "sent"
     github = next(c for c in payload["channels"] if c["channel"] == "github")
     assert "/decide d-cli-1 <option_id>" in github["body"]
+
+
+@pytest.mark.parametrize(
+    "status, expected",
+    [
+        ("sent", notify.EXIT_OK),
+        ("deduped", notify.EXIT_BLOCKED),
+        ("deferred", notify.EXIT_BLOCKED),
+        ("rate_limited", notify.EXIT_BLOCKED),
+        ("failed", notify.EXIT_RUNTIME),
+    ],
+)
+def test_exit_code_separates_suppression_from_failure(status: str, expected: int) -> None:
+    """Exit 2 means policy held the message back; exit 1 means it did not get out."""
+    assert notify.exit_code_for({"status": status}) == expected

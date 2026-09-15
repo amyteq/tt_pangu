@@ -734,6 +734,19 @@ def dispatch(
 # ---------------------------------------------------------------------------
 
 
+def exit_code_for(result: dict[str, Any]) -> int:
+    """`sent` -> 0, suppressed (deduped / deferred / rate_limited) -> 2, failed -> 1.
+
+    Suppression is a policy decision, not a fault: a caller retrying on exit 2
+    would be fighting the intervention budget, whereas exit 1 means the message
+    genuinely did not get out and is worth retrying.
+    """
+    status = result.get("status")
+    if status == "sent":
+        return EXIT_OK
+    return EXIT_RUNTIME if status == "failed" else EXIT_BLOCKED
+
+
 def _emit(payload: dict[str, Any], exit_code: int = EXIT_OK) -> int:
     print(json.dumps({"side_effect": SideEffect.REMOTE_WRITE.value, **payload}, ensure_ascii=False, indent=2))
     return exit_code
@@ -819,8 +832,7 @@ def cmd_send(args: argparse.Namespace) -> int:
         )
     except Exception as exc:
         return _emit({"ok": False, "error": redact(str(exc))}, EXIT_RUNTIME)
-    code = EXIT_OK if result.get("status") == "sent" else EXIT_BLOCKED
-    return _emit(result, EXIT_OK if result.get("ok") and code == EXIT_OK else code)
+    return _emit(result, exit_code_for(result))
 
 
 def cmd_decision(args: argparse.Namespace) -> int:
@@ -854,7 +866,8 @@ def cmd_decision(args: argparse.Namespace) -> int:
             dry_run=args.dry_run,
             force=args.force,
         )
-        return _emit({**result, "decision_id": req.decision_id, "plan_hash": req.plan_hash})
+        payload = {**result, "decision_id": req.decision_id, "plan_hash": req.plan_hash}
+        return _emit(payload, exit_code_for(result))
     except Exception as exc:
         return _emit({"ok": False, "error": redact(str(exc))}, EXIT_RUNTIME)
 
