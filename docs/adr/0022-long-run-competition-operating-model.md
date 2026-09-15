@@ -69,19 +69,38 @@ Rules that follow:
    paths. So a phase-1 session that merely has a DSN in its environment writes
    experiment, run and goal rows into KCA's control plane as a side effect.
 
-   **`kca kaggle push` is the fifth path, and it is conditional.** The push itself is
-   filesystem-and-Kaggle only, but it auto-watches the kernel run by default
-   (`kg.py:542-550`), and the watcher writes to Supabase on exactly two arguments:
-   `--run-id` reaches `db.set_run_analysis_jsonb` (`kg.py:839-848`) and `--competition`
-   reaches an `UPDATE submissions SET status = 'stalled'` (`kg.py:879-915`). Both are
+   **The DB-writing surface is wider than those four, and an allow-list cannot close it.**
+   "`push` writes to the DB on exactly two arguments" is the intuitive rule and it is wrong;
+   the way it is wrong is the reason this is deny-by-default:
+
+   | Path | What writes | Trigger |
+   |---|---|---|
+   | `kca kaggle push --watch` (the default) | `db.set_run_analysis_jsonb` (`kg.py:839-848`) | `--run-id` |
+   | the same watcher | `UPDATE submissions SET status = 'stalled'` (`kg.py:879-915`) | `--competition` |
+   | **any gated `kaggle` command that *refuses*** | `db.insert_approval_request` → a pending `human_decisions` row (`kg.py:62-79`, reached from `_emit_blocked`) | **the refusal itself** — no argument opts out |
+   | `kca competition register` / `refresh-rules` | `_db.update_competition`, `_db.refresh_competition_rules` (`competition.py:44-65`) | the command |
+   | `kca kaggle score --update-db` | `db.update_submission` (`kg.py:1355-1366`) | `--update-db` |
+
+   Note the third row: the write happens on the path that *blocks* the action, so "it
+   refused, therefore nothing happened" is wrong. And note that every one of these is
    `except Exception: pass` best-effort, so a phase-1 session gets no error and no signal
    that it wrote phase-2 state.
 
-   **Rule until a storage mode exists:** phase 1 does not run `kca run`, `kca goal`,
-   `kca explore` or `kca stuck`, and runs `kca kaggle push` **with `--no-watch`** — or, if
-   it wants the watch, **without `--run-id` and without `--competition`**, which are the
-   only two arguments that reach a DB write. Poll the kernel separately and record the
-   outcome in `competitions/<slug>/`. Phase-1 experiment and run records live in
+   **Rule until a storage mode exists — deny by default, not a list.** Phase 1 does not run
+   `kca` subcommands that carry competition state: not `kca run` / `goal` / `explore` /
+   `stuck`, not `kca competition register` / `refresh-rules`, not `kca kaggle score
+   --update-db`. For the Kaggle side it runs `kca kaggle push` with **`--no-watch`** and
+   without `--run-id` / `--competition`, polls the kernel separately, and records the
+   outcome in `competitions/<slug>/`. Any other `kca` subcommand is out of scope until
+   someone has read its call graph down to `tools/kca/db.py` — the enumeration above is
+   evidence that the surface is not knowable from the command name.
+
+   **One residual dual-write is accepted and named:** the `human_decisions` insert on the
+   refusal path. It cannot be avoided without the storage mode, it fires only when an action
+   was *blocked*, and what it records is an approval request rather than competition state.
+   That makes it tolerable, not correct, and the follow-up must cover it. It is also the
+   reason this rule is a *written* rule: nothing enforces it (§5's A5 paragraph makes the
+   same point about submission approval). Phase-1 experiment and run records live in
    `competitions/<slug>/` and `runs/<competition>/<run_id>/` as files, and in the
    tracking issue. Unsetting the DSN is *not* the control — an unset variable is an
    accident away from being set.
@@ -247,6 +266,17 @@ Two rules follow, and they are what makes a fresh session deterministic:
   and where the mirror carries evidence the YAML lacks (a score, a submission id), that
   evidence is what the YAML update is *made of*. An unreconciled conflict is itself a
   finding: record it in `current_blocker`.
+- **`best` records the competition's *eligible* best, not the campaign's best number.**
+  A score only belongs in `best.public_lb` / `best.private_lb` if it counted — submitted
+  inside the deadline **and** selected for scoring where the competition makes selection
+  explicit. A stronger number from a late window, an unselected submission or a local
+  harness is real work and goes in `tracking.md` (rank 3) and in a comment on the field,
+  never in the field. Two live records needed this rule: `nvidia-nemotron` scored **0.86 /
+  0.86** with `nemo-eq-aug` in the post-deadline window, above its eligible **0.86 / 0.85**
+  soup; and `sec-attack` has two `COMPLETE` non-zero submissions that do not appear on the
+  final leaderboard at all. Without the rule, rank 1 answers "what did we score?" when the
+  question a resuming session is asking is "what did we place with?" — and a competition's
+  post-mortem then compares the wrong pair of numbers.
 - **Mirrors are updated in the same change as rank 1**, never later. "Future status
   updates live in `tracking.md`, not in the issue" (the note at the head of
   `nvidia-nemotron/tracking.md` and `orbit-wars/tracking.md`) was written before this
@@ -383,7 +413,7 @@ applies only when all of the following are true, and each is checkable by readin
 | **A4** | `launch`, `deadline` and the closing window are verified and inside `timing_verified_ttl` | the same file; otherwise `WAIT_HUMAN` (§5) |
 | **A5** | **Every** gate on the submit path is fail-closed, all three of them: (a) the ADR-0020 §7 daily-limit guard refuses rather than proceeding, (b) `kg.py`'s approval gate defaults to requiring approval, and (c) the harness intercepts **every** submit *and* push command form — `kca kaggle submit/push`, `kaggle competitions submit`, `kaggle kernels push`, and the `python tools/kca/kca.py …` forms | see the paragraphs below |
 | **A6** | A submission-intent record is written and persisted before dispatch | §5 "Recording an autonomous submission" |
-| **A7** | Every shared budget scope it spends against has a reachable machine-absolute ledger + lock, reserving is atomic under that lock, and every cross-host scope has one designated driver host **for the scope** (not per competition) | §6 "A shared counter cannot live in a worktree" |
+| **A7** | Every shared budget scope it spends against has a reachable machine-absolute ledger + lock, reserving is atomic under that lock, and every cross-host scope names **this** host in an unexpired `<scope>/driver.yaml` lease — one driver **per scope** (not per competition) | §6 "A shared counter cannot live in a worktree" |
 
 **Which file A1 reads is declared, not guessed.** `kca-<slug>.yaml` is a convention, not
 a rule, and it is already broken in the tree: `nvidia-nemotron`'s file is
@@ -408,8 +438,9 @@ that file and no other. Two consequences, both fail-closed:
   `autonomy:` block in either place, so arc-agi3 fails A1 — the right answer for a
   competition sitting in `PAUSED_BUDGET` with `resume_state: PRE_SUBMIT_GATE`, one step from
   a submission. `competitions/nvidia-nemotron/kca-nemo.yaml:51` has its block under `_base:`,
-  so it *is* A1-readable; nemo fails §5 on A2, A3 and A5 instead, on a competition that
-  closed 2026-06-15 and is in `FINDINGS`.
+  so it *is* A1-readable; nemo fails §5 on A2, A3, A4, A5 and A7 instead (the full
+  per-condition inventory is in Consequences), on a competition that closed 2026-06-15
+  and is in `FINDINGS`.
 - **A per-section override merges onto `_base`, and A1 evaluates the merged result.**
   ADR-0021 §2 calls the block "overridable per section", and a `kca-<slug>.yaml` section is
   a variant (`v14`, `b1`, …), not a competition. A1 is a per-competition question, so the
@@ -458,7 +489,7 @@ policy preference. There are four layers, and it matters which one actually exec
 |---|---|---|---|
 | 1 | ADR-0022 §5 (this section) | push/submit with no per-action **or per-batch** approval | **inactive** — no competition meets A1–A7 |
 | 2 | ADR-0021 §2 | push/submit with no per-action approval *if screening passes* | **unimplemented** — the block exists in exactly one file in the tree (`competitions/nvidia-nemotron/kca-nemo.yaml:51-68`; `rg '^\s*autonomy:' competitions` returns that line and no other), and nothing under `tools/` / `src/` / `scripts/` reads it, so "screening passes" cannot be evaluated |
-| 3 | `.kca/permissions/*.yaml` | `kaggle_submit` / `kaggle_push` = `default_decision: ask` in every profile (`default.yaml:2-9`, `permissive-dev.yaml:2-9`, `competition-runner.yaml:2-14`) | **not on the submit path** — the only production import of `permission_policy.resolve_for_skill` is `tools/kca/skill.py:15`; the installed `kca` entry point (`pyproject.toml:32-33`) reaches `tools/kca/kg.py` directly |
+| 3 | `.kca/permissions/*.yaml` | `kaggle_submit` / `kaggle_push` = `default_decision: ask` — declared in three of the four profiles (`default.yaml:2-9`, `permissive-dev.yaml:2-9`, `competition-runner.yaml:2-14`); `hackathon-runner.yaml` declares neither and inherits them from `default.yaml` through the resolver's fallback chain, so the *effective* decision is `ask` in all four but the file says so in three | **not on the submit path** — the only production import of `permission_policy.resolve_for_skill` is `tools/kca/skill.py:15`; the installed `kca` entry point (`pyproject.toml:32-33`) reaches `tools/kca/kg.py` directly |
 | 4 | `tools/kca/kg.py` | the gate that the `kca kaggle submit` / `push` commands actually call | **fail-open** — see below |
 
 Layer 4 is the one that runs, and it does not gate. `kg.py:315` calls
@@ -601,12 +632,26 @@ one. The boundary is therefore read from the competition's own rules into
 §5's **A3** fails while it is `null`. "Per competition day" below means a day delimited by
 that boundary. Apply per competition day:
 
+**The closing window is checked first, before the candidate count.** Scenarios 1-3 are the
+*outside-the-window* rules. Inside it, promoting anything is always-gated item 6, so the
+candidate count is irrelevant: one winner is as gated as five. Reading the table by count
+first is how an exactly-one-winner day inside the window matches the autonomous row and
+dispatches a submission the floor reserves for the human — so the predicate order is
+normative, not stylistic.
+
 | Scenario | Condition | Action |
 |---|---|---|
-| 1 | Exactly 1 candidate beats the current best score | Submit that candidate; use remaining daily slots for exploration near the baseline |
-| 2 | No candidate beats the current best score | Do not bank the daily balance; use all slots for exploration near the baseline |
-| 3 | Multiple candidates beat best score, competition open (≥ closing threshold) | Submit the best N (up to the **verified** daily limit); queue the remainder for the next day |
-| 4 | Multiple candidates beat best score, competition closing soon (< closing threshold) | **Ask the human** which candidates to promote |
+| **0** | **The competition is inside its closing window** (`closing_window_days`, §5) — *any* number of candidates, including one, including zero | **`WAIT_HUMAN`.** The human chooses what is promoted; scenarios 1-3 do not apply here at all. Exploration that consumes no submission slot continues |
+| 1 | Outside the window, exactly 1 candidate beats the current best score | Submit that candidate; use remaining slots (up to the **effective** daily limit below) for exploration near the baseline |
+| 2 | Outside the window, no candidate beats the current best score | Do not bank the daily balance; use the effective limit's slots for exploration near the baseline |
+| 3 | Outside the window, multiple candidates beat best score | Submit the best N (up to the **effective** daily limit); queue the remainder for the next competition day |
+| 4 | Inside the window, multiple candidates beat best score | **Ask the human** which candidates to promote — the case scenario 0 generalises, kept as its own row because ADR-0020 and ADR-0021 both name it |
+
+**"Up to the daily limit" means the *effective* limit, never the raw one.** In every row above
+the number of slots the agent may consume is
+`budget.submissions.verified_daily_limit − budget.submissions.reserve_for_human`
+(§6). Scenario 2's "use all slots" means all *effective* slots: held-back slots are held back
+from exploration first, not last.
 
 **Closing threshold — defined, not inferred.** Scenario 4 is an always-gated point, so
 the boundary between 3 and 4 must be computable without judgement:
@@ -665,9 +710,21 @@ artifact_sha256: <hash>
 code_commit: <git-sha>
 expected_score: 0.86        # and the metric it is on
 reason: <why this candidate, in one line>
-scenario: 1 | 2 | 3         # from the table below; 4 is human-gated
+scenario: 1 | 2 | 3         # from the table below -- the only autonomous rows. 0 and 4
+                            #   are inside the closing window and human-gated, so no
+                            #   autonomous intent record ever carries them
 screen: {require_repro: pass, rules_check: pass}
-budget_reservation: <id>    # reserved before dispatch (§6)
+ref: EXP-027                # the INTENT's unique key -- the join column between this
+                            #   record and §6's ledger. Equal to `experiment_id` when the
+                            #   intent has one; still required when it does not (a
+                            #   reconciliation re-submit, say), so §6 never has to guess
+budget_reservations:        # "<scope>/<dimension>" -> reservation id. One action reserves
+  competition:<slug>/submissions: RES-0007   #   in EVERY scope that caps the dimension
+  team:<team>/submissions: RES-0008          #   (§6's all-or-none rule), so this is a map,
+                            #   not a scalar -- a scalar could name only one of them and
+                            #   settlement would strand the rest. Every id listed here has
+                            #   `ref: EXP-027`, and §6's correlation reads `external_id`
+                            #   back from this file, not from the ledger
 driver: claude-code | codex
 submitted_at: null          # filled after dispatch
 external_id: null           # filled at reconciliation
@@ -840,11 +897,31 @@ anchor to be set. Everything else — `O_EXCL` records, the lock, the reduction 
 ceiling rule — is identical. A submission therefore reserves against *both*
 `competition:<slug>` and `team:<team>`, all-or-none, by the ordered multi-scope rule below.
 
-**`reserve_for_human` is subtracted from the agent's cap, not from the quota.**
-`budget.submissions.reserve_for_human: N` means the agent's effective cap for the cycle is
-`verified_daily_limit - N`; the reduction compares against that number, and the last `N`
-slots are refused to an autonomous reservation while remaining available to a human-approved
-one. `N` defaulting to `0` means no slots are held back.
+**A scope holds more than one dimension, and the window is the dimension's, not the
+scope's.** `competition:<slug>` carries a `submissions` counter alongside the three above,
+and it does *not* inherit `budget.cycle` from them. The general rule, stated once so a
+second dimension never has to re-litigate it: **a reservation's window comes from the cap
+the *dimension* is drawn against, never from the scope the record is filed under.** Within
+`competition:<slug>` that gives:
+
+| Dimension | Cap | Window |
+|---|---|---|
+| `experiments`, `compute`, `llm` | that competition's `budget:` block | `budget.cycle` @ `budget.cycle_anchor` |
+| `submissions` | `verified_daily_limit − reserve_for_human` (below) | the **competition day**, delimited by `verified_reset_boundary` — the same window the `team:` submissions cap uses |
+
+Without that rule a submission's `competition:<slug>` record is placeable in a `7d` cycle
+directory or a competition-day one depending on which paragraph an implementer read, and a
+counter with two possible directories is two counters. With it, a submission files two
+records under the *same* window bounds — which is the point: one counter bounds this
+competition's share of the day, the other the whole team's.
+
+**`reserve_for_human` is subtracted from the agent's cap, not from the quota, and it is per
+competition day.** `budget.submissions.reserve_for_human: N` means the agent's effective cap
+for **that competition day** is `verified_daily_limit − N` — not per `budget.cycle`, because
+the quota it carves up resets on the day boundary. The reduction compares against that
+number; the last `N` slots are refused to an autonomous reservation and remain available to a
+human-approved one. `N` defaulting to `0` means no slots are held back. Every "up to the
+daily limit" in §5's scenario table means this effective number (§5).
 
 **Records are immutable; one file per reservation, created `O_EXCL`.** A YAML list read,
 modified and written back loses one of two concurrent reservations, and the loser's spend is
@@ -864,7 +941,10 @@ window:                     # the MATCHED CAP's window, never the competition's
   ends: 2026-09-16T00:00:00Z  # fixed only; this is the team's 1d submissions cap
 reserved_at: 2026-09-15T21:58:04Z
 competition: <slug>         # who spent it — the repo side keeps no counter
-ref: EXP-027
+ref: EXP-027                # the intent that reserved this, verbatim from the
+                            #   submission-intent record's `ref` (§5). Every record of the
+                            #   same intent, in every scope, repeats it; it is how
+                            #   reconciliation finds the intent holding the `external_id`
 ```
 
 Settlement and release never edit that file. They write **exactly one terminal sidecar**,
@@ -876,7 +956,11 @@ id: RES-0007
 outcome: settled            # settled | released
 amount: 1                   # settled: what was actually consumed — NEVER more than reserved
                             # released: always 0 — the reservation was not spent
-at: 2026-09-15T22:06:11Z
+at: 2026-09-15T22:06:11Z    # when this sidecar was written
+consumed_until: 2026-09-15T22:06:04Z  # settled: when consumption actually STOPPED. With
+                            #   `reserved_at` this is the consumption interval a rolling
+                            #   window reduces over (above). Defaults to `at` when the
+                            #   dimension is instantaneous; omitted for `released`.
 evidence: <submission-id>   # for `released`: what was checked to prove it was not spent
 ```
 
@@ -891,12 +975,21 @@ The two non-fixed kinds keep the same directory shape and differ only in **which
 in it are in scope** when reducing:
 
 - **`anchor: rolling`** (a sliding window, e.g. subscription usage over `5h`): the `rolling`
-  directory holds every record for that scope+dimension. Reduction considers every record
-  that is either **still live** (no terminal sidecar) *or* whose `reserved_at` falls inside
-  the lookback window. A live reservation is **never** aged out: a job that outlasts the
-  window would otherwise vanish from the count while still consuming the resource, and its
-  capacity would be handed to someone else. Only *terminated* records older than the window
-  are inert, and only those may be pruned.
+  directory holds every record for that scope+dimension, and a record is in scope when its
+  **consumption interval overlaps the lookback**, not when its `reserved_at` does.
+  Concretely:
+  - **Live** (no terminal sidecar) ⇒ **always in scope**, whatever its age. A job that
+    outlasts the window would otherwise vanish from the count while still consuming the
+    resource, and its capacity would be handed to someone else.
+  - **Terminated** ⇒ in scope while `[reserved_at, consumed_until]` overlaps the lookback,
+    where `consumed_until` is the terminal sidecar's field of that name (for `settled`, the
+    instant consumption stopped; for `released`, irrelevant — a released record counts 0).
+    Ageing a terminated record by `reserved_at` alone is the failure this prevents: a six-hour
+    job under a five-hour window starts outside the lookback, consumes right through it,
+    and would fall out of the count the moment it settled — handing its capacity away
+    immediately after it was spent.
+  - Only records whose whole consumption interval is outside the window are inert, and only
+    those may be pruned.
 - **`window: instantaneous`** (a ceiling on what is *held*, e.g. `kernel_slots`): the `held`
   directory has no time window, and reduction considers **live holds** — reservations with
   no terminal sidecar. These always end `outcome: released`, never `settled`: nothing was
@@ -966,8 +1059,25 @@ necessary but not sufficient, and two further rules apply:
   subscription scope, *not* per competition, because the scope is what is shared. A
   per-competition designation does not serialise two competitions drawing on one team
   quota: each would reconcile against the same platform count, reserve in its own host's
-  ledger, and both dispatch. The designation is recorded in the tracking issue of every
-  competition that spends against that scope. A host that is not the scope's driver does
+  ledger, and both dispatch.
+
+  **The designation is a lease file, not an issue comment** — `A1-A7` promises every
+  condition is checkable by reading files, and a designation copied into N tracking issues
+  is N copies that drift and none that a local session can read. One canonical file per
+  scope, beside the counter it protects:
+
+  ```yaml
+  # ${KCA_BUDGET_DIR:-$HOME/.kca/budget}/<scope>/driver.yaml
+  host: harry-arch              # the only host that may spend against this scope
+  lease_expires_at: 2026-09-16T00:00:00Z   # past this the scope has NO driver
+  updated_at: 2026-09-15T12:00:00Z
+  ```
+
+  It is written under the scope's own `flock`, like every other record here, and an expired
+  lease is *not* a lease: A7 fails, and the fail-closed rule below applies. The tracking
+  issue of every competition spending against the scope carries the same information as a
+  **mirror** (rank 2, §3's precedence order) so a human can see it without the machine — and
+  where issue and file disagree, the file is right. A host that is not the scope's driver does
   not spend against that scope, whichever competition is asking — so two competitions on
   one team reserve through the same host, against the same ledger, under the same lock,
   which is what makes the machine-local `flock` sufficient again.
@@ -1187,14 +1297,25 @@ autonomous action back into an approval. It may never remove one of the seven.
   now carry the `budget:` block, so the schema is real rather than promised. Its
   caps ship `null`: under §6 each null refuses the work that would spend against
   that dimension, and under A2/A3 it means no competition can activate §5 today. That is the intended behaviour — a number has
-  to be verified before it can bound anything. **A1 fails for four of the five**, for two
-  separate reasons worth recording: three competitions declare `autonomy_config: null`
-  because they have no autonomy config at all, and `arc-agi3`'s config resolves but
-  carries no `autonomy:` block in either accepted location. `nvidia-nemotron`'s is the one
-  that *is* A1-readable (under `_base:`), and it is held by A2, A3 and A5 instead. So no
-  competition is one condition away from activating: four are stopped by A1, A2, A3 and A5
-  together, and the fifth by A2, A3 and A5 — three independent locks even in the best case. `competitions/_shared/budget.yaml`
-  is written when the first competition is selected on #199.
+  to be verified before it can bound anything. The full inventory follows, because a
+  partial one reads as a readiness count: **every live competition fails A2, A3, A4, A5 and
+  A7, and four of the five also fail A1.**
+
+  | Condition | Why it fails, for all five unless noted |
+  |---|---|
+  | **A1** | Four of five: three declare `autonomy_config: null` (no config exists), and `arc-agi3`'s config resolves but carries no `autonomy:` block in either accepted location. `nvidia-nemotron`'s *is* readable (under `_base:`) — the only A1 pass in the tree |
+  | **A2** | Every cap ships `null`, and `cycle_anchor` is `null` |
+  | **A3** | `verified_daily_limit` and `verified_reset_boundary` are `null`, with no provenance |
+  | **A4** | **No live file carries `timing_verified_source` / `timing_verified_at` / `timing_verified_ttl` at all** — only the template does, so timing is unverified everywhere by omission, not by a stale value |
+  | **A5** | All three gates on the submit path are fail-open (§5's A5 paragraph names the `file:line` for each) |
+  | **A7** | The atomic reservation protocol, the ledger and the driver lease are specified in §6 and **implemented nowhere** — see Follow-ups |
+
+  A6 is the only condition not statically failed, because it is a property of an action
+  rather than of a file. So the answer to "how close is anything to activating?" is **six
+  independent locks for four of the competitions and five for `nvidia-nemotron`** — A1 is
+  the only condition nemo passes. Not one, and not three.
+  `competitions/_shared/budget.yaml` is written when the first competition is selected
+  on #199.
 - **This ADR does not implement recovery.** `RETRY_AT`, `NEEDS_RECONCILIATION`,
   leases, checkpoints and restart recovery are *named* here so there is one
   vocabulary for them; the implementation and its fault-injection tests
@@ -1226,7 +1347,7 @@ autonomous action back into an approval. It may never remove one of the seven.
 | **Fail-closed pre-submit gate** reading the phase-1 `budget:` contract — §5 activation condition **A5** | *needs an issue* |
 | **Harness does not gate Kaggle submission**: `.claude/settings.json:91-92` allow-lists `kaggle competitions submit` and `python tools/kca/kca.py kaggle submit`, and `guard_tool.py:171,177` matches no submit form (nor the installed `kca kaggle push`). Third part of **A5** | *needs an issue* — human-only: the agent cannot write its own guard config |
 | **`kg.py` approval gate is fail-open**: `OPERATION_DEFAULTS["kaggle_submit"] = False` (`kg.py:21-22`) and `_gate()` (`kg.py:53-59`) has no call sites, so `kca kaggle submit` dispatches unapproved. Also the second half of **A5** | *needs an issue* — touches ADR-0006's defaults; must also add the missing default-behaviour test, since `tests/test_m4_smoke.py:228-234` passes an explicit policy and never exercises `OPERATION_DEFAULTS` |
-| **Atomic shared-budget reservation** — the machine-absolute lock + `O_EXCL` protocol, the ordered multi-scope rule, and the cross-host driver designation behind **A7** | *needs an issue* |
+| **Atomic shared-budget reservation** — the machine-absolute lock + `O_EXCL` protocol, the ordered multi-scope rule, and the `<scope>/driver.yaml` lease behind **A7** | *needs an issue* |
 | **`autonomy_config` reader** for **A1** — resolve the declared path, accept the `autonomy:` mapping at the top level *or* under `_base:` but never both, and fail closed on absent / unparseable / blockless / ambiguous | *needs an issue* |
 | **Verified quota reset boundary** — read `verified_reset_boundary` per competition and window the `submissions` dimension on it instead of on `cycle_anchor` (**A3**) | *needs an issue* |
 | **Filesystem-only storage mode** for `kca run/goal/explore/stuck` + a test proving phase 1 writes no KCA rows | *needs an issue* (not #192) |

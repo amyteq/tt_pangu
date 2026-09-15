@@ -175,11 +175,11 @@
 | 279.0 / 385.3 | Value-targeting | first agents |
 | 538.3 | Interceptor v2 | orbital lead + threat reserve |
 | 555.8 | v2.1 | intercept economist + phase-scaled cap + frontier garrison |
-| 686.1 | **v3 Forecast** | **bit-exact forward sim + terminal differential net-ship value (own peak)** |
+| 686.1 | **v3 Forecast** | bit-exact forward sim + terminal differential net-ship value (was the own peak until v4 settled at 703.9) |
 | ≈v3 | v3.1 | + sim-driven defense (self-play only) |
 | 660.0 | **v3.2** | t14-tuned (H26/FF5/FD20/CE3.2/CL1.3); +7pt vs evogen; 6/6 gates (current own entry) |
 | 648.8 | v3_2_coarr | v3.2 + co-arrival ON (may account; on-ladder +~12 vs v3.2) |
-| parity | v4 Scheduler | hub-and-hammer integrated rewrite (≈v3.2, iterating) |
+| **703.9** | **v4 Scheduler** | hub-and-hammer integrated rewrite; *local-arena* parity with v3.2 but the **best own-agent ladder μ we measured** (sub `53730511`, settled at the 2026-06-16 refresh) — the local gate could not see the gap (INS: arena is blind inside our cluster). This is rank 1's `best.public_lb` |
 | 1151.0 / 1085.4 | adapted-kuni05 | attributed public agent; competitive entry (peak / current) |
 
 ## Live loop (KCT-OW-LIVE-002, 2026-06-15)
