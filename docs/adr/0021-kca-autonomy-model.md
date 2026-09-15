@@ -92,6 +92,8 @@ can override or roll back after the fact.
   stem collision that caused #65. The harness hook log stays at
   `.agent/audit/tool-events.jsonl`. Forward-facing docs reference the new path;
   dated milestone/task-spec history is left as a point-in-time record.
+  That rename is implemented and stands; KCA's *durable* audit location and
+  format are deferred to phase 2 (`CLAUDE.md` §"Two agents", PR #200, #203).
 - The eval regression framework stays as-is: the nightly + rolling-diff run, but
   the cv-drift delta gate is **not** armed (baseline records no `cv_score`) and
   the PR delta-check is **not** promoted to a hard release blocker yet. Activate

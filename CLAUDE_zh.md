@@ -40,7 +40,8 @@ research → eval 闭环。
 - **KCA 产品 agent** —— 我们正在做的产品（KCA 本身就是一个 agent）。受 KCA 自己的 `.kca/permissions/*.yaml` +
   `permission_policy.py` + 每场比赛的 `kca-<slug>.yaml` + 决策 / 审批闸门约束。它把策略审计日志写进一个
   已 gitignore 的本地目录 —— 目前是 `.agent/kca/audit.jsonl`（`tools/kca/agent/audit.py`，被 eval/CI/测试读取），
-  但 **KCA 的审计设计与最终落点推迟到阶段二再定**，所以把这个路径当作当前实现，而不是已敲定的契约。
+  但 **KCA 的审计设计与最终落点推迟到阶段二再定**（[#203](https://github.com/amyteq/tt_pangu/issues/203)），
+  所以把这个路径当作当前实现，而不是已敲定的契约。
   它是**高自主**的（见 ADR-0021）。
 
 在任务或文档里提到审计日志时，要写清楚是谁的日志、具体哪个路径 —— harness 的 hook 日志和 KCA 的日志是两个
