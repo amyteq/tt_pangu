@@ -2,7 +2,7 @@ Loader probe — what Codex actually loads from this repo.
 
 Command:  CODEX_HOME=<isolated> codex debug prompt-input 'Start work on competitions/arc-agi2'
 Binary:   codex-cli 0.154.0 (as reported at render time)
-Repo:     083c8b7 — verified: it is HEAD, the worktree matches it apart from the
+Repo:     92ab69b — verified: it is HEAD, the worktree matches it apart from the
           evidence outputs, its AGENTS.md is byte-identical to the file measured
           below, and the dump's project-doc message contains that same file.
 Measured: AGENTS.md on disk: 20471 bytes, 20329 characters
@@ -20,7 +20,7 @@ An isolated CODEX_HOME keeps the human's own config and user-level skills out of
 
 == developer message: skills catalogue (excerpt) ==
 ### Skill roots
-- `r0` = `/tmp/claude-1000/ch-probe6/skills/.system`
+- `r0` = `/tmp/codex-probe-home/skills/.system`
 - `r1` = `/home/harry/test/tt_pangu/.claude/worktrees/issue-189-agents-parity/.agents/skills`
 ### Available skills
 
