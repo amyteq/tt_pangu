@@ -11,12 +11,27 @@ Use project-approved wrappers for Kaggle operations. Do not call ad hoc scripts 
 ## Workflow
 1. Identify the tool category: read-only, local-write, remote-write, or submission.
 2. Prefer `kca ...` wrapper commands when available.
-3. For remote-write or submission actions, prepare a human approval request instead of executing directly.
+3. For remote-write or submission actions, follow *Who approves what* below — this skill's default is a human approval request, not direct execution.
 4. Record outputs into `runs/<competition_slug>/<run_id>/`.
 5. Summarize result, metric, artifact paths, and next action.
 
-## Required approval for submissions
-Before a Kaggle submission, present:
+## Who approves what
+
+This skill is used by a **development harness** (Claude Code / Codex) driving Kaggle tooling
+on the human's own machine and account. It is not KCA's submission policy — keep the two
+apart (`CLAUDE.md` → *Two agents*, issue #65):
+
+- **Harness (you, here).** A remote write or submission spends the human's Kaggle credentials
+  and daily quota, so ask first. That is the same rule as "the Claude Code harness still asks
+  for paid-API/credential use", and it binds a Codex session identically.
+- **KCA product agent.** Governed by `kca-<slug>.yaml:autonomy` — default **on**, so once
+  `autonomy.screen` passes KCA pushes and submits without per-action approval and writes the
+  summary to its audit log instead (`CLAUDE.md` principle 6, ADR-0021). Do not quote this
+  skill at KCA as a reason to ask.
+
+Either way the same facts are required before a Kaggle submission — in the approval request
+if you are the harness, in the audit summary if you are KCA:
+
 - competition slug.
 - file path.
 - submission message.
@@ -24,7 +39,7 @@ Before a Kaggle submission, present:
 - daily submission count if known.
 - expected risk or uncertainty.
 
-Do not submit until explicit approval is given.
+Running as the harness: do not submit until explicit approval is given.
 
 ## Kernel/version model, structure & concurrency
 For code-competition (notebook/kernel) work, follow `docs/tooling/kaggle-kernel-ops.md`. Key rules:
@@ -60,4 +75,4 @@ A battle-tested resolver lives in `experiments/tpu-getting-started/baseline-tl/b
 failure shows the real layout instead of an opaque "not found".
 
 ## Safety
-Kaggle credentials are **read-for-use, not read-to-share** (see the dev-phase secret policy in `CLAUDE.md` / `AGENTS.md`): read `~/.kaggle/kaggle.json` or the per-account `.vscode/.env.*` files to authenticate a call, but never echo a credential into the session, a log, a web fetch, a PR, or a comment. Never commit API tokens. Never bypass daily submission limits or competition rules.
+Kaggle credentials are **read-for-use, not read-to-share** (see the dev-phase secret policy in `CLAUDE.md` / `AGENTS.md`): read `~/.kaggle/kaggle.json` or the per-account credential files that policy names (`.vscode/.env.harry`, `.vscode/.env.may` — that list, not a wildcard) to authenticate a call, but never echo a credential into the session, a log, a web fetch, a PR, or a comment. Never commit API tokens. Never bypass daily submission limits or competition rules.
