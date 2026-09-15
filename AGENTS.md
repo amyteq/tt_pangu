@@ -48,7 +48,7 @@ Use this repository as the durable project memory. Do not rely on hidden memory 
 - Update docs and ADRs when changing architecture or workflow assumptions.
 - Prefer deterministic tests and local validation before external submissions.
 - Never read, print, or commit secrets, `.env`, `kaggle.json`, API keys, or private keys.
-- Do not submit to Kaggle or push remote kernels without explicit human approval.
+- Do not submit to Kaggle or push remote kernels without explicit human approval — **unless** that competition has met ADR-0022 §5's activation conditions A1-A7, in which case it submits inside its budget and records the intent instead of asking. No competition has met them yet (A5: the pre-submit gate is still fail-open), so today this line reads as written. `autonomy.auto_submit: false` / `auto_push: false` vetoes that action regardless.
 - CTF support is restricted to explicitly authorized challenges, local labs, or sandboxed environments.
 
 ## Competition loop

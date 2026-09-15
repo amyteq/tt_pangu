@@ -11,6 +11,33 @@ primary_artifact: agent          # an interactive agent, not a static notebook o
 submission_mode: notebook        # Kaggle notebook, one-click runnable, <12h, no internet at eval
 data_policy: api                 # environments served via the arc-agi API/SDK, not a file download
 last_updated: 2026-06-26
+# ADR-0022 §6 budget envelope. Same KEY STRUCTURE as
+# competitions/_templates/competition.yaml; the VALUES are this competition's.
+# `null` is an UNKNOWN, not "unlimited": a null cap holds the competition in
+# PAUSED_BUDGET, and A2/A3 keep §5's relaxed autonomy inactive until it is filled
+# in from a verified source.
+budget:
+  cycle: 7d                             # window every max_per_cycle is measured over
+  cycle_anchor: null                    # UTC timestamp cycle 0 started; all arithmetic is UTC
+  experiments:
+    max_per_cycle: null
+  compute:
+    max_gpu_hours_per_cycle: null
+  llm:
+    max_turns_per_research_task: 100
+    max_metered_cost_per_cycle_usd: 0   # 0 = subscription-only spend; null BLOCKS the cycle
+  submissions:
+    require_verified_competition_limit: true
+    verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
+    verified_source: null               # where that number was read (URL / API field)
+    verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_ttl: 30d                   # past this the limit is unverified again and blocks
+    reserve_for_human: 0
+  failures:
+    max_retries_per_task: 3
+    pause_after_consecutive_failures: 3
+  progress:
+    review_after_no_gain_experiments: 5
 best:
   cv_metric: RHAE
   cv_score: null                 # not yet run
