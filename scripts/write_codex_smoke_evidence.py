@@ -22,6 +22,10 @@ It cannot check that the answer files came from the run you think they did, or
 that the harness identities in the header are accurate. Those stay attestations;
 pass `--codex`/`--claude` explicitly so at least the provenance is visible at the
 call site.
+
+Run it against the real working tree. Under a masking sandbox, paths the sandbox
+hides are bind-mounted to `/dev/null` and `git status` reports them as untracked,
+so the untracked check refuses on files that do not exist outside the sandbox.
 """
 
 from __future__ import annotations
