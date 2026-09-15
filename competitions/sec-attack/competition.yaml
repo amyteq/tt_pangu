@@ -12,7 +12,9 @@ primary_artifact: script        # attack.py defining AttackAlgorithm(AttackAlgor
 submission_mode: kernel          # Kaggle code competition; attack.py run inside the evaluator
 data_policy: generated           # no train/test CSV — a sandboxed agent environment + seed fixtures
 autonomy_config: null            # no autonomy config in this directory => ADR-0022 §5 A1 fails
-last_updated: 2026-06-26
+last_updated: 2026-09-15        # reconciled under ADR-0022 §3 (rank 1 is authoritative):
+                                #   private LB read 2026-09-13 after close, best public/private
+                                #   corrected to the xl v1 row, absence-from-leaderboard recorded
 sdk:
   package: aicomp-sdk
   version: "3.1.2"               # verified: pip downloaded + source-read 2026-06-26

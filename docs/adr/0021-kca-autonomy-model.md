@@ -52,7 +52,9 @@ When enabled, the KCA agent performs `kaggle kernels push` and leaderboard
 `submit` **without per-action human approval**, provided ALL screening criteria
 pass. **Not yet in effect:** nothing in the tree evaluates those criteria — no file
 under `tools/` / `src/` / `scripts/` reads the `autonomy:` block — and
-`.kca/permissions/*.yaml` sets both to `default_decision: ask` in every profile
+`.kca/permissions/*.yaml` sets both to `default_decision: ask` — declared in
+three of the four profiles, with `hackathon-runner.yaml` inheriting them from
+`default.yaml` via the resolver's fallback chain rather than declaring them
 (`competition-runner.yaml` allows them only in `competition-finalization` /
 `human-approved` modes) — but that file is read only by `tools/kca/skill.py:15`, not by
 the installed `kca` CLI, whose own gate defaults to *allow* (`tools/kca/kg.py:21-22`). An unevaluable precondition is a failed one, so submissions are human-gated
