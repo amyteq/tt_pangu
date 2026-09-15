@@ -1,0 +1,3 @@
+1. `kg-run` (`kca run init --competition arc-agi2 --hypothesis "…"`) → creates `runs/<competition>/<run_id>/` i.e. `runs/arc-agi2/<run_id>/` with `meta.json`, `config.json`, `metrics.json`, `logs/`, `artifacts/`; `run_id` defaults to UTC `YYYYMMDD_HHMMSS`, and `runs/` is gitignored.
+2. I may **read** `~/.kaggle/kaggle.json` to pick up local Kaggle credentials for use, but must never echo/print its contents in-session or copy them into web fetches, logs, public PRs, or comments ("read-for-use, not read-to-share").
+3. Sources: `CLAUDE.md:65` ("Dev-phase secret policy", mirrored at `AGENTS.md:124`) for (2); `.claude/skills/kg-run/SKILL.md` for (1).

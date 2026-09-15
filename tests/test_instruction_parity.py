@@ -47,6 +47,24 @@ RETIRED_RULES = [
     "Do not submit to Kaggle or push remote kernels without explicit human approval",
 ]
 
+# Retired *paths*. These are not caught by SHARED_RULES — asserting the current path
+# appears somewhere says nothing about an obsolete one appearing elsewhere, and the
+# Codex appendix is hand-written, so it can name a path CLAUDE.md never mentions.
+# `.agent/audit.jsonl` was namespaced to `.agent/kca/audit.jsonl`; evidence written
+# to the old path is evidence the eval sentinel never reads.
+RETIRED_PATHS = [
+    ".agent/audit.jsonl",
+]
+
+# Skills are symlinked into `.agents/`, so a stale rule in a skill body reaches Codex
+# with the same authority as AGENTS.md — and a triggered skill is read *after* the
+# project doc. Each entry is a phrase that contradicts a current shared rule, kept
+# with the rule it contradicts so a future reader can tell why it is banned.
+SKILL_CONTRADICTIONS = {
+    "Never print or read Kaggle credentials": "dev-phase secret policy is read-for-use, not read-to-share",
+    "merge is human-only": "dev-phase policy auto-allows `gh pr merge`; say 'from this skill' if scoping",
+}
+
 
 @pytest.fixture(scope="module")
 def agents_md() -> str:
@@ -81,6 +99,29 @@ def test_shared_rule_reaches_both_harnesses(rule: str, claude_md: str, agents_md
 @pytest.mark.parametrize("rule", RETIRED_RULES)
 def test_retired_rule_is_gone(rule: str, agents_md: str):
     assert rule not in agents_md, f"AGENTS.md still carries the retired rule {rule!r} (issue #189 contradiction table)"
+
+
+@pytest.mark.parametrize("path", RETIRED_PATHS)
+def test_retired_path_is_not_advertised(path: str, agents_md: str):
+    """AGENTS.md must not send an agent's evidence to a path nothing reads."""
+    assert path not in agents_md, (
+        f"AGENTS.md names the retired path {path!r}. Evidence written there is lost — "
+        "use the current path (see the Two agents section)."
+    )
+
+
+@pytest.mark.parametrize("phrase,rule", sorted(SKILL_CONTRADICTIONS.items()))
+def test_mirrored_skill_bodies_do_not_contradict_the_shared_rules(phrase: str, rule: str):
+    """A mirrored skill carries the same authority as AGENTS.md — and is read later.
+
+    Byte-identical mirroring is not enough: it faithfully republishes a stale rule.
+    """
+    for entry in sorted(AGENTS_SKILLS.iterdir()):
+        body = (entry / "SKILL.md").read_text(encoding="utf-8")
+        assert phrase not in body, (
+            f"mirrored skill {entry.name!r} says {phrase!r}, which contradicts the shared rules "
+            f"({rule}). Fix the skill under .claude/skills/ — the mirror is a symlink to it."
+        )
 
 
 def test_agents_md_fits_in_codex_project_doc_budget():

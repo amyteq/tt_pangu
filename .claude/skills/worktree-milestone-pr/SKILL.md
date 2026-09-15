@@ -73,7 +73,9 @@ with `[planning]` and add `(no code changes)` if applicable.
 ## What this skill must NOT do
 
 - No `git push --force`, ever.
-- No `gh pr merge`, ever — merge is human-only.
+- No `gh pr merge` **from this skill** — a milestone PR is merged by the human.
+  (Deliberately stricter than the repo-wide dev-phase policy, which auto-allows
+  `gh pr merge`; this is a scope rule for this skill, not a claim about the repo.)
 - No push to `main` directly.
 - No `gh label create/edit/delete` against existing labels or
   `gh issue edit/comment` / `gh pr edit/comment` against issues/PRs
