@@ -418,3 +418,21 @@ def test_decision_cli_dry_run_emits_json(cfg: dict, tmp_path: Path, capsys, monk
 def test_exit_code_separates_suppression_from_failure(status: str, expected: int) -> None:
     """Exit 2 means policy held the message back; exit 1 means it did not get out."""
     assert notify.exit_code_for({"status": status}) == expected
+
+
+def test_doctor_reports_read_only_and_no_secret_value(tmp_path: Path, cfg: dict, capsys, monkeypatch) -> None:
+    config_path = tmp_path / "notify.yml"
+    config_path.write_text(notify.yaml.safe_dump(cfg), encoding="utf-8")
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", SECRET_TOKEN)
+    monkeypatch.setenv("TELEGRAM_CHAT_ID_HARRY", "123456789")
+
+    from kca import main
+
+    main(["notify", "doctor", "--config", str(config_path), "--offline"])
+    out = capsys.readouterr().out
+    payload = json.loads(out)
+    assert payload["side_effect"] == "READ_ONLY"
+    # Presence is reported; the value never is.
+    assert {c["detail"] for c in payload["checks"] if "TELEGRAM" in c["name"]} == {"set"}
+    assert SECRET_TOKEN not in out
+    assert "123456789" not in out

@@ -747,8 +747,14 @@ def exit_code_for(result: dict[str, Any]) -> int:
     return EXIT_RUNTIME if status == "failed" else EXIT_BLOCKED
 
 
-def _emit(payload: dict[str, Any], exit_code: int = EXIT_OK) -> int:
-    print(json.dumps({"side_effect": SideEffect.REMOTE_WRITE.value, **payload}, ensure_ascii=False, indent=2))
+def _emit(
+    payload: dict[str, Any],
+    exit_code: int = EXIT_OK,
+    side_effect: SideEffect = SideEffect.REMOTE_WRITE,
+) -> int:
+    """Emit one JSON object. The group registers as REMOTE_WRITE (its ceiling);
+    each command reports what it actually did, so `doctor` says READ_ONLY."""
+    print(json.dumps({"side_effect": side_effect.value, **payload}, ensure_ascii=False, indent=2))
     return exit_code
 
 
@@ -758,7 +764,11 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     try:
         cfg = load_config(args.config)
     except Exception as exc:
-        return _emit({"ok": False, "checks": [{"name": "config", "ok": False, "detail": str(exc)}]}, EXIT_RUNTIME)
+        return _emit(
+            {"ok": False, "checks": [{"name": "config", "ok": False, "detail": str(exc)}]},
+            EXIT_RUNTIME,
+            SideEffect.READ_ONLY,
+        )
     checks.append({"name": "config", "ok": True, "detail": cfg["_path"]})
 
     telegram = (cfg.get("channels") or {}).get("telegram") or {}
@@ -814,6 +824,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             "routine_budget": f"{routine_sends_today(cfg, entries, moment)}/{cap} used today",
         },
         EXIT_OK if ok else EXIT_RUNTIME,
+        SideEffect.READ_ONLY,
     )
 
 
