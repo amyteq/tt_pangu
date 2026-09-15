@@ -1018,14 +1018,18 @@ necessary but not sufficient, and two further rules apply:
   — is **also fail-closed**, and saying otherwise would be wrong: with no terminal sidecar the
   reservation stays live and the reduction rule above counts it at its full *reserved* amount,
   so the interim effect is a conservative over-count, not an under-count. Both designs are
-  safe; this one is chosen for two narrower reasons. First, settling immediately records the
-  **actual** consumption sooner, and since settlement may come in under the reservation, the
-  difference returns to the cycle instead of being withheld for as long as the platform lags —
-  which matters most for `compute` and `llm`, where reservations are ceilings rather than
-  estimates. Second, deferring the sidecar makes a lagging platform indistinguishable from a
-  crashed worker: both present as a live reservation with no outcome, and only one of them
-  should reach the orphan rule below. What is *not* a reason to prefer either is safety in the
-  reserve direction — the correlation table above is what provides that, in both designs.
+  safe; this one is chosen because **deferring the sidecar makes a lagging platform
+  indistinguishable from a crashed worker.** The two present identically — a live reservation
+  with no outcome — and only one of them should reach the orphan rule below. Tying the sidecar
+  to dispatch rather than to the authority's catch-up keeps them apart: the sidecar records
+  what *we* did, and the correlation table records what the authority has seen. What is *not*
+  a reason to prefer either design is safety in the reserve direction; the correlation table
+  provides that in both. Nor is settlement *timing* a reason here: on an external-authority
+  dimension the settled amount equals the reservation — one submission consumes one slot — so
+  there is no unspent difference to return early. Prompt settlement earns its keep on the
+  dimensions that have no external authority, where a reservation is a ceiling and the unspent
+  difference does go back to the cycle; that is the next bullet, and those dimensions never
+  reach the correlation table at all.
 - **Dimensions with no external authority skip all of this.** `experiments`, `compute`,
   `llm` and every `competition:<slug>` cap have no platform to ask, so `platform_count` does
   not exist for them and the ledger reduction *is* the count. Which is exactly why the
