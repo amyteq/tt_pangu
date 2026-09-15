@@ -47,7 +47,12 @@ Autonomy is a per-competition setting in `kca-<slug>.yaml` (`autonomy:` block).
 
 When enabled, the KCA agent performs `kaggle kernels push` and leaderboard
 `submit` **without per-action human approval**, provided ALL screening criteria
-pass. The intended-submission summary (file, experiment id, expected score,
+pass. **Not yet in effect:** nothing in the tree evaluates those criteria — no file
+under `tools/` / `src/` / `scripts/` reads the `autonomy:` block — and
+`.kca/permissions/*.yaml` sets both to `default_decision: ask` in every profile
+(`competition-runner.yaml` allows them only in `competition-finalization` /
+`human-approved` modes). An unevaluable precondition is a failed one, so submissions are human-gated
+until the screen is implemented (ADR-0022 §5). The intended-submission summary (file, experiment id, expected score,
 reason) is written to `.agent/kca/audit.jsonl` instead of being posed as a question.
 
 `autonomy:` schema (lives under `_base`, overridable per section; until the
@@ -86,7 +91,9 @@ _base:
 activated for that competition (ADR-0022 §5 lists the checkable conditions A1-A7). Where §5 is not
 active — which is every competition until a fail-closed pre-submit gate exists — the
 narrower reading on this page governs: all four `screen` criteria gate, and
-`daily_submit_budget` caps. Where it is active, the annotations above apply. There is one
+`daily_submit_budget` caps. Since nothing evaluates `screen` yet, "the narrower reading
+governs" currently resolves to the human-approval gate, not to approval-free screened
+submission. Where it is active, the annotations above apply. There is one
 schema and one live model per competition at any time, never two.
 
 **Always human-gated, regardless of `autonomy.enabled`:** irreversible/permanent

@@ -26,10 +26,12 @@ Build a hybrid human + AI competition engineering workbench. The first target is
 ## Human approval gates
 
 Require approval for:
-- Kaggle competition submissions — *unless* the competition has met ADR-0022 §5's
-  activation conditions A1-A7, which none has yet (see
-  `docs/adr/0022-long-run-competition-operating-model.md` §5).
-- Kaggle kernel/notebook pushes — same activation rule.
+- Kaggle competition submissions. The relaxations in ADR-0021 §2 and ADR-0022 §5 are
+  design intent awaiting the code that can evaluate their preconditions — nothing reads
+  the `autonomy:` block, and `.kca/permissions/*.yaml` sets `kaggle_submit` to `ask` in
+  every profile (`competition-runner.yaml` allows it only in human-approved modes) — so this gate is in force today
+  (`docs/adr/0022-long-run-competition-operating-model.md` §5).
+- Kaggle kernel/notebook pushes — same rule, same reason.
 - Any remote write operation.
 - Any operation touching credentials, secrets, or account settings.
 - Any CTF action outside a declared sandbox/challenge scope.
@@ -130,7 +132,9 @@ The new submit step runs **autonomously under the KCA autonomy model**
 (`docs/adr/0021-kca-autonomy-model.md`): when `kca-<slug>.yaml:autonomy.enabled`
 is true and `autonomy.screen` passes, KCA submits without per-action approval and
 records the intended-submission summary to `.agent/kca/audit.jsonl`. Scenario-4 /
-over-budget / ambiguous-rules stay human-gated.
+over-budget / ambiguous-rules stay human-gated. **Design intent, not current behaviour:**
+no code evaluates `autonomy.screen`, so the approval gate above is what actually runs
+(ADR-0022 §5, "the narrower model is not implemented either").
 
 M15 task breakdown (full scope in `docs/tasks/m15/`):
 

@@ -347,9 +347,35 @@ submissions. Nothing in §5 sets, defaults or overrides these fields — absent 
 ADR-0021 default (`true`), and an explicit `false` is always a refusal.
 
 **Until a competition satisfies A1–A7, it runs under the narrower ADR-0021 §2 model** —
-screened autonomy with `beats_best` as a gate — and a submission that cannot satisfy them
-is human-gated. This is deliberate: the widened licence and the machinery that bounds it
-ship together or not at all.
+screened autonomy with `beats_best` as a gate. This is deliberate: the widened licence and
+the machinery that bounds it ship together or not at all.
+
+**But the narrower model is not implemented either, so today the floor is human approval.**
+This is the single most important sentence for an agent reading this ADR, so it is stated as
+a checkable fact rather than a policy preference. ADR-0021 §2 grants approval-free push and
+submit *"provided ALL screening criteria pass"*. Nothing evaluates those criteria: no file
+under `tools/`, `src/` or `scripts/` reads the `autonomy:` block at all — it appears only in
+Markdown. The one policy any code does consult is `.kca/permissions/*.yaml`, read by
+`tools/kca/agent/permission_policy.py`, and it sets both operations to
+`default_decision: ask` in **every** profile: `default.yaml:2-9`, `permissive-dev.yaml:2-9`
+(*"Still gated even in dev — Kaggle is external"*), and `competition-runner.yaml:2-14`,
+which allows them only in the explicit `competition-finalization` / `human-approved` modes
+— that is, after a human has already decided.
+
+An unevaluable gate is a failed gate — the same fail-closed rule as **A5**, applied to
+ADR-0021's screen instead of the pre-submit check. So the order is:
+
+| Regime | What it grants | Status today |
+|---|---|---|
+| ADR-0022 §5 (this section) | push/submit with no per-action **or per-batch** approval | inactive — no competition meets A1–A7 |
+| ADR-0021 §2 | push/submit with no per-action approval, if screening passes | inactive — nothing evaluates screening |
+| `.kca/permissions/*.yaml` | `kaggle_submit` / `kaggle_push` = `ask` in every profile | **in force — this is what runs** |
+
+**Kaggle submissions and kernel pushes are therefore human-approved today**, and
+`AGENTS.md` and `PROJECT_STATE.md` are correct as written, not exceptions to this ADR.
+Both relaxations are design intent awaiting the code that can enforce their preconditions;
+neither authorises anything on merge. Implementing the screen is part of the same follow-up
+as the fail-closed gate below.
 
 **The pre-submit gate today is fail-open, and that blocks activation.** `tools/kca/kg.py`
 implements ADR-0020 §7 as an explicit *courtesy* guard: `tools/kca/kg.py:205-217` returns
@@ -573,6 +599,10 @@ scopes:
     llm: {unit: subscription_usage, window: 5h, anchor: rolling, cap: null}
 ```
 
+The dimension names in this file and in a reservation record are **one vocabulary**:
+`submissions | compute | llm | experiments | kernel_slots`. A cap with no matching
+dimension is unreservable and a reservation naming a dimension with no cap is refused.
+
 A reservation names the scope identity and the dimension, and its `amount` is in that
 cap's `unit`; a reservation whose unit does not match its cap's unit is rejected, not
 converted. `window: instantaneous` caps what is *held*, so its reservations are released
@@ -624,11 +654,13 @@ invisible. An exclusive create either wins or fails:
 ```yaml
 # ${KCA_BUDGET_DIR}/team:<team>/2026-09-15T00:00:00Z/RES-0007.yaml
 id: RES-0007                # what submission-intent's `budget_reservation` points at
-dimension: submissions      # submissions | compute | llm | experiments
+dimension: submissions      # submissions | compute | llm | experiments | kernel_slots
 amount: 1
 unit: submission            # must equal the cap's `unit`; mismatches are rejected, not converted
 scope: team:<team>          # team:<team> | account:<name> | machine:<name> | subscription:<name>
-cycle: {anchor: 2026-09-15T00:00:00Z, ends: 2026-09-22T00:00:00Z}
+cycle: {anchor: 2026-09-15T00:00:00Z, ends: 2026-09-16T00:00:00Z}
+                            # ^ the MATCHED CAP's window and anchor, never the competition's
+                            #   `budget.cycle`: this is the team's 1d submissions cap
 reserved_at: 2026-09-15T21:58:04Z
 competition: <slug>         # who spent it — the repo side keeps no counter
 ref: EXP-027
@@ -646,6 +678,26 @@ amount: 1                   # settled: what was actually consumed — NEVER more
 at: 2026-09-15T22:06:11Z
 evidence: <submission-id>   # for `released`: what was checked to prove it was not spent
 ```
+
+**The window comes from the cap, not from the competition.** A reservation is drawn
+against one shared cap, so its interval — and therefore its cycle directory — is that
+cap's `window` and `anchor`, not `competition.yaml:budget.cycle`. A daily team
+submissions cap produces a one-day directory even when the competition's own experiment
+cycle is `7d`. Two dimensions in one job therefore land in two directories, which is
+correct: they are two counters.
+
+Two window kinds need their own reduction, because neither has a fixed directory:
+
+- **`anchor: rolling`** (a sliding window, e.g. subscription usage over `5h`): there is
+  one directory per scope+dimension, and reduction counts only records whose
+  `reserved_at` falls inside the window looking back from now. Records older than the
+  window are inert and may be pruned.
+- **`window: instantaneous`** (a ceiling on what is *held*, e.g. `kernel_slots`): there
+  is no window at all. Reduction counts **live holds** — reservations with no terminal
+  sidecar — against the cap. These are always ended with `outcome: released`, never
+  `settled`: nothing was consumed over time, the slot was occupied and then given back.
+  An instantaneous hold that outlives its work is a leak, and the lease timeout and
+  heartbeat for GPUs (issue #194) exist for exactly that.
 
 **Reduction rule — each reservation counts exactly once.** Group every file in the cycle
 directory by `id`. A reservation with no terminal sidecar counts at its reserved `amount`;
@@ -719,8 +771,24 @@ discipline as `NEEDS_RECONCILIATION` (§3). Releasing an orphan without checking
 submission gets made twice.
 
 **"Unknown" is never "unlimited".** A `null` in any cap is an unknown, and an
-unknown blocks: the cycle does not start and the competition sits in
-`PAUSED_BUDGET` until the value is set or verified. This applies with full force
+unknown blocks **the work that would spend against that dimension** — not every
+activity the competition has. A null `experiments.max_per_cycle` refuses experiment
+dispatch; a null `compute.max_gpu_hours_per_cycle` refuses GPU work; a null
+`submissions.verified_daily_limit` refuses submission. The competition enters
+`PAUSED_BUDGET` when it needs a blocked dimension in order to make progress, and
+`resume_state` records where it was (§3). This is per dimension because the
+alternative is false: a competition in `RESEARCH`, spending only subscription LLM
+turns against a cap that *is* set (`max_turns_per_research_task: 100`,
+`max_metered_cost_per_cycle_usd: 0`), is not over any budget and there is nothing to
+pause it for.
+
+**`ONBOARD` is exempt by construction**, because filling the budget block in from the
+competition's own rules is what `ONBOARD` is *for*. Blocking it on a filled budget
+would deadlock every new competition on its first state. Nothing in `ONBOARD` spends:
+no experiment, no GPU job, no submission. The exemption ends the moment the
+competition leaves it.
+
+The rule applies with full force
 to `llm.max_metered_cost_per_cycle_usd` — an unset metered-cost cap blocks the
 start. Note the distinction that makes this compatible with §5: `0` means
 "subscription only, no metered spend" and is a *set* value; `null` is not.
