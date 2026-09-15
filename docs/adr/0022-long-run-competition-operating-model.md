@@ -626,7 +626,8 @@ invisible. An exclusive create either wins or fails:
 id: RES-0007                # what submission-intent's `budget_reservation` points at
 dimension: submissions      # submissions | compute | llm | experiments
 amount: 1
-scope: team:<team>          # team:<team> | account:<name> | machine:<name>
+unit: submission            # must equal the cap's `unit`; mismatches are rejected, not converted
+scope: team:<team>          # team:<team> | account:<name> | machine:<name> | subscription:<name>
 cycle: {anchor: 2026-09-15T00:00:00Z, ends: 2026-09-22T00:00:00Z}
 reserved_at: 2026-09-15T21:58:04Z
 competition: <slug>         # who spent it — the repo side keeps no counter
