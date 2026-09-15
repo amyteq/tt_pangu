@@ -58,14 +58,23 @@ RETIRED_PATHS = [
     ".agent/audit.jsonl",
 ]
 
-# Credential paths a skill may not advertise as readable. The dev-phase secret policy
-# is an allowlist of exact files; a wildcard or a protected path in a skill body reads
-# as permission for what the policy withholds.
-SKILL_SECRET_OVERREACH = [
-    ".vscode/.env.*",
+# The dev-phase secret policy is an allowlist of exact files. Any `.vscode/.env…`
+# token a skill names must be one of them — that is what rules out `.vscode/.env.*`
+# and `.vscode/.env*` alike, where a substring ban would only catch the spelling it
+# was written for.
+CREDENTIAL_FILE_TOKEN = re.compile(r"\.vscode/\.env[A-Za-z0-9_.*?\[\]-]*")
+ALLOWED_CREDENTIAL_FILES = {
+    ".vscode/.env.harry",
+    ".vscode/.env.may",
+}
+
+# Files the policy withholds outright. A skill may name them, but only to forbid
+# reading them.
+PROTECTED_ENV_FILES = [
     ".env.production",
     ".env.test",
 ]
+PROHIBITION_WORDS = ("never", "not ", "n't", "protected", "forbid", "exclude", "remain", "withheld")
 
 # Skills are symlinked into `.agents/`, so a stale rule in a skill body reaches Codex
 # with the same authority as AGENTS.md — and a triggered skill is read *after* the
@@ -178,21 +187,42 @@ def test_every_claude_skill_is_mirrored_or_documented():
         assert mirrored or documented, f"skill {name!r} is neither mirrored into .agents/ nor documented as excluded"
 
 
-@pytest.mark.parametrize("pattern", SKILL_SECRET_OVERREACH)
-def test_mirrored_skills_do_not_widen_the_secret_allowlist(pattern: str):
+def test_mirrored_skills_name_only_allowlisted_credential_files():
     """A skill may restate the dev-phase secret policy; it may not enlarge it.
 
-    `CLAUDE.md` names exactly which credential files may be read, and protects
-    `.env.production` / `.env.test`. A wildcard in a skill body reads as permission
-    for files the policy withholds — and a mirrored skill is read *after* the
-    project doc, so the wider wording is the one in front of the agent.
+    Matched by *token*, not by substring: `.vscode/.env*` and `.vscode/.env.*` are
+    different spellings of the same overreach, and a substring check for one misses
+    the other. A mirrored skill is read *after* the project doc, so the wider
+    wording is the one in front of the agent.
     """
     for entry in sorted(AGENTS_SKILLS.iterdir()):
         body = (entry / "SKILL.md").read_text(encoding="utf-8")
-        assert pattern not in body, (
-            f"mirrored skill {entry.name!r} names {pattern!r} as readable. "
-            "List the exact files the dev-phase secret policy allows instead of a wildcard."
-        )
+        for token in set(CREDENTIAL_FILE_TOKEN.findall(body)):
+            assert token in ALLOWED_CREDENTIAL_FILES, (
+                f"mirrored skill {entry.name!r} names {token!r}. The dev-phase secret policy "
+                f"allows exactly {sorted(ALLOWED_CREDENTIAL_FILES)} — name those, not a pattern."
+            )
+
+
+@pytest.mark.parametrize("path", PROTECTED_ENV_FILES)
+def test_mirrored_skills_mention_protected_env_files_only_to_forbid_them(path: str):
+    """`.env.production` / `.env.test` may be named, but only in a prohibition.
+
+    Banning the string outright would fail a skill that correctly says "never read
+    `.env.production`", so the sentence around each mention has to carry the refusal.
+    That is a heuristic: it reads sentences, not meaning. It catches the realistic
+    slip — a permission sentence listing a protected file — and is deliberately
+    loose about how the prohibition is phrased.
+    """
+    for entry in sorted(AGENTS_SKILLS.iterdir()):
+        body = (entry / "SKILL.md").read_text(encoding="utf-8")
+        for sentence in re.split(r"(?<=[.;:!?])\s+|\n", body):
+            if path not in sentence:
+                continue
+            assert any(word in sentence.lower() for word in PROHIBITION_WORDS), (
+                f"mirrored skill {entry.name!r} names the protected file {path!r} in a sentence "
+                f"that does not forbid reading it:\n    {sentence.strip()[:160]!r}"
+            )
 
 
 def test_submission_approval_rule_says_which_agent_it_binds():
@@ -269,11 +299,16 @@ def test_generator_accepts_the_current_claude_md(gen):
 @pytest.mark.parametrize(
     "label,mutate",
     [
-        ("one token replaced by a literal", lambda t, v: t.replace("{{CODEX_VERSION}}", v, 1)),
+        ("one token replaced by the current version", lambda t, v: t.replace("{{CODEX_VERSION}}", v, 1)),
+        ("one token replaced by a different version", lambda t, v: t.replace("{{CODEX_VERSION}}", "0.153.0", 1)),
         ("every token removed", lambda t, v: t.replace("{{CODEX_VERSION}}", "some release")),
         (
             "literal added alongside the token",
             lambda t, v: t.replace("# Codex-side notes", f"# Codex-side notes\n\nChecked on {v}.", 1),
+        ),
+        (
+            "stale literal added alongside the token",
+            lambda t, v: t.replace("# Codex-side notes", "# Codex-side notes\n\nChecked on 0.153.0.", 1),
         ),
     ],
 )
@@ -293,8 +328,12 @@ def test_generator_refuses_a_hard_coded_codex_version(gen, tmp_path, monkeypatch
     [
         ("folded scalar", "description: >\n  Initialize a run artifact directory."),
         ("literal scalar", "description: |\n  Initialize a run artifact directory."),
+        ("tagged folded scalar", "description: !!str >\n  Initialize a run artifact directory."),
         ("empty value", "description:"),
         ("anchor", "description: &d Initialize a run artifact directory."),
+        ("alias", "description: *d"),
+        ("multi-line quoted value", 'description: "Initialize a run\n  artifact directory."'),
+        ("plain value continued on the next line", "description: Initialize a run\n  artifact directory."),
     ],
 )
 def test_generator_refuses_front_matter_outside_its_yaml_subset(gen, tmp_path, monkeypatch, label, replacement):
@@ -317,3 +356,46 @@ def test_generator_accepts_every_real_skill_front_matter(gen):
     for skill_dir in sorted(CLAUDE_SKILLS.iterdir()):
         if (skill_dir / "SKILL.md").is_file():
             assert gen.skill_front_matter(skill_dir.name)["name"] == skill_dir.name
+
+
+@pytest.mark.parametrize(
+    "text,allowed",
+    [
+        ("read `.vscode/.env.harry` or `.vscode/.env.may` to authenticate", True),
+        ("read the per-account `.vscode/.env.*` files", False),
+        ("read the per-account `.vscode/.env*` files", False),
+        ("read `.vscode/.env.production` for the deploy key", False),
+        ("read `.vscode/.env.?arry`", False),
+        ("no credential files are named here at all", True),
+    ],
+)
+def test_the_credential_allowlist_rule_separates_these_cases(text: str, allowed: bool):
+    """The rule that guards the allowlist, exercised directly.
+
+    `.vscode/.env.*` and `.vscode/.env*` are the same overreach spelled two ways;
+    a substring ban catches whichever one it was written for and waves the other
+    through, which is how the wildcard reached `main` in the first place.
+    """
+    named = set(CREDENTIAL_FILE_TOKEN.findall(text))
+    assert named.issubset(ALLOWED_CREDENTIAL_FILES) is allowed
+
+
+@pytest.mark.parametrize(
+    "sentence,allowed",
+    [
+        ("`.env.production` and `.env.test` remain protected", True),
+        ("never read `.env.production`", True),
+        ("do not read `.env.production`", True),
+        ("read `.env.production` to pick up the DSN", False),
+        ("`.env.test` holds the staging credentials you need", False),
+    ],
+)
+def test_the_protected_file_rule_separates_these_cases(sentence: str, allowed: bool):
+    """The prohibition heuristic, exercised directly — including its false-positive risk.
+
+    A skill correctly saying "never read `.env.production`" must pass; a skill
+    offering it as a source must not. The heuristic reads sentences, not meaning,
+    so these cases are the specification of what it actually promises.
+    """
+    forbidden = any(word in sentence.lower() for word in PROHIBITION_WORDS)
+    assert forbidden is allowed

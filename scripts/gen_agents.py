@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import re
 import sys
 from pathlib import Path
 
@@ -52,6 +53,16 @@ APPENDIX_MARKER = "<!-- part: appendix -->"
 # re-running the probe (`docs/tooling/codex-parity.md` § After a Codex upgrade).
 CODEX_VERSION = "0.154.0"
 VERSION_TOKEN = "{{CODEX_VERSION}}"
+# Any literal version in the delta, not just the current one: a stale `0.153.0`
+# beside a live token produces one file claiming two releases were probed. The
+# delta is short, hand-written and Codex-specific, so a bare `x.y.z` there is a
+# version claim — nothing else in it legitimately looks like one.
+VERSION_LITERAL = re.compile(r"\d+\.\d+\.\d+")
+
+# The only front-matter keys this script reads. Everything else in a skill's front
+# matter (`allowed-tools`, `tags`, …) may take any shape YAML allows, because
+# nothing here parses it.
+READ_KEYS = ("name", "description")
 
 # `CLAUDE.md`'s title block: everything above its first `## ` section. It is
 # CLAUDE.md's own front matter ("this file is authoritative"), not a shared rule,
@@ -149,11 +160,14 @@ def delta_parts() -> tuple[str, str]:
             "  The Codex version AGENTS.md and .agents/README.md advertise comes from CODEX_VERSION\n"
             "  in this script; a delta that names no version has lost that link."
         )
-    if CODEX_VERSION in text:
+    literal = VERSION_LITERAL.search(text)
+    if literal:
         fail(
-            f"{relative} hard-codes the Codex version {CODEX_VERSION!r}.\n"
+            f"{relative} hard-codes the version {literal.group(0)!r}.\n"
             f"  Write {VERSION_TOKEN} instead — a literal here survives a CODEX_VERSION bump and\n"
-            "  quietly tells Codex it was verified against a release it was not."
+            "  quietly tells Codex it was verified against a release it was not. Beside a live\n"
+            "  token it makes one file claim two different releases were probed.\n"
+            "  If a non-Codex version genuinely belongs in the delta, narrow VERSION_LITERAL here."
         )
     _, _, after_preamble = text.partition(PREAMBLE_MARKER)
     preamble, _, appendix = after_preamble.partition(APPENDIX_MARKER)
@@ -175,25 +189,42 @@ def skill_front_matter(name: str) -> dict[str, str]:
     if not lines or lines[0].strip() != "---":
         fail(f"{relative} does not open with a `---` front-matter block")
     fields: dict[str, str] = {}
+    previous_key = ""
     for line in lines[1:]:
         if line.strip() == "---":
             break
         if line.startswith((" ", "\t")) or ":" not in line:
-            continue  # continuation / list line: not a top-level key
+            # A continuation or list item. Harmless under a key this reader ignores
+            # (`allowed-tools:` and `tags:` are lists), but under `name:`/`description:`
+            # it means the value spans lines and reading only the first would truncate it.
+            if previous_key in READ_KEYS and line.strip():
+                fail(
+                    f"{relative} front matter continues `{previous_key}:` onto another line.\n"
+                    f"    {line.strip()[:80]!r}\n"
+                    "  This reader supports single-line values for that key — write it as one line."
+                )
+            continue
         key, _, raw = line.partition(":")
         key = key.strip()
+        previous_key = key
         value = raw.strip()
-        if key in ("name", "description"):
+        if key in READ_KEYS:
             if not value:
                 fail(
                     f"{relative} front matter gives `{key}:` no value on its own line.\n"
                     "  Multi-line values are not supported here — write it as one line."
                 )
-            if value[0] in "|>&*":
+            if value[0] in "|>&*!":
                 fail(
-                    f"{relative} front matter writes `{key}:` as YAML {value[0]!r} "
-                    "(a block scalar, anchor, or alias).\n"
+                    f"{relative} front matter writes `{key}:` starting with YAML {value[0]!r} "
+                    "(a block scalar, anchor, alias, or tag).\n"
                     "  This reader supports single-line plain or quoted values only — write it as one line."
+                )
+            if value[0] in "\"'" and not value.endswith(value[0]):
+                fail(
+                    f"{relative} front matter opens `{key}:` with {value[0]!r} and does not close it "
+                    "on the same line.\n"
+                    "  This reader supports single-line values only — write it as one line."
                 )
         fields[key] = value.strip('"').strip("'")
     else:

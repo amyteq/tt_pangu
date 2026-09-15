@@ -44,13 +44,19 @@ without a network call, without spending usage, and without touching the repo. A
 ```sh
 mkdir -p /tmp/codex-probe-home
 CODEX_HOME=/tmp/codex-probe-home codex debug prompt-input "Start work on competitions/arc-agi2" > probe.json
+
+# commit the excerpt; refuses to write unless AGENTS.md at <commit> is the file it measured
+python scripts/render_codex_probe.py probe.json AGENTS.md \
+  docs/evidence/issue-189-codex-parity/loader-probe.txt "$(git rev-parse --short HEAD)"
 ```
 
-Last run: **`codex-cli 0.154.0`** against a clean worktree at **`a4de031`** — check that commit
-out and the numbers below reproduce. The only files committed after the probe are this document
-and the evidence under `docs/evidence/issue-189-codex-parity/`; neither is an input to it, and
-`gen_agents.py --check` proves `AGENTS.md` itself has not moved. Raw excerpt, with the command
-and the measured counts, at `docs/evidence/issue-189-codex-parity/loader-probe.txt`.
+Last run: **`codex-cli 0.154.0`** against a clean worktree at **`a4de031`**. That attribution is
+checked rather than asserted — the evidence file is only written if `git show a4de031:AGENTS.md`
+is byte-identical to the file whose load was measured, so the numbers reproduce from that commit.
+Files committed since are this document, the evidence under
+`docs/evidence/issue-189-codex-parity/`, and the generator's own guards; none is an input to the
+probe, and `gen_agents.py --check` proves `AGENTS.md` has not moved. Raw excerpt at
+`docs/evidence/issue-189-codex-parity/loader-probe.txt`.
 
 ### 1. `AGENTS.md` is loaded, in full
 
@@ -63,9 +69,12 @@ The prompt carries a `user` message beginning:
 <!-- GENERATED FILE — DO NOT EDIT BY HAND. ...
 ```
 
-**19 290 bytes** on disk → **19 287 characters** in the prompt. Both the opening banner and the
-closing line of the appendix are present and no truncation marker appears, i.e. the whole file
-is loaded.
+`AGENTS.md` is **19 290 bytes / 19 158 characters** on disk; the project-doc message in the
+prompt is **19 287 characters**. The difference is Codex's own wrapper — the
+`# AGENTS.md instructions for <absolute path>` header and the `<INSTRUCTIONS>` tags — so that
+total is path-dependent and is **not** a checksum of the file. What shows the file loaded whole
+is the pair of sentinels: the opening banner and the closing line of the appendix are both
+present, and no truncation marker appears.
 
 > **Budget:** Codex truncates the project doc at `project_doc_max_bytes` (32 KiB by default)
 > and says so in its log, *not* in the prompt. A silently half-loaded `AGENTS.md` would drop
