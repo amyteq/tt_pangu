@@ -8,6 +8,8 @@ these tests are the CI guard that says so.
 
 from __future__ import annotations
 
+import importlib.util
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -54,6 +56,15 @@ RETIRED_RULES = [
 # to the old path is evidence the eval sentinel never reads.
 RETIRED_PATHS = [
     ".agent/audit.jsonl",
+]
+
+# Credential paths a skill may not advertise as readable. The dev-phase secret policy
+# is an allowlist of exact files; a wildcard or a protected path in a skill body reads
+# as permission for what the policy withholds.
+SKILL_SECRET_OVERREACH = [
+    ".vscode/.env.*",
+    ".env.production",
+    ".env.test",
 ]
 
 # Skills are symlinked into `.agents/`, so a stale rule in a skill body reaches Codex
@@ -165,3 +176,144 @@ def test_every_claude_skill_is_mirrored_or_documented():
         mirrored = (AGENTS_SKILLS / name).is_symlink()
         documented = f"| `{name}` |" in readme
         assert mirrored or documented, f"skill {name!r} is neither mirrored into .agents/ nor documented as excluded"
+
+
+@pytest.mark.parametrize("pattern", SKILL_SECRET_OVERREACH)
+def test_mirrored_skills_do_not_widen_the_secret_allowlist(pattern: str):
+    """A skill may restate the dev-phase secret policy; it may not enlarge it.
+
+    `CLAUDE.md` names exactly which credential files may be read, and protects
+    `.env.production` / `.env.test`. A wildcard in a skill body reads as permission
+    for files the policy withholds — and a mirrored skill is read *after* the
+    project doc, so the wider wording is the one in front of the agent.
+    """
+    for entry in sorted(AGENTS_SKILLS.iterdir()):
+        body = (entry / "SKILL.md").read_text(encoding="utf-8")
+        assert pattern not in body, (
+            f"mirrored skill {entry.name!r} names {pattern!r} as readable. "
+            "List the exact files the dev-phase secret policy allows instead of a wildcard."
+        )
+
+
+def test_submission_approval_rule_says_which_agent_it_binds():
+    """The kaggle skill's approval rule is a harness rule, not KCA's policy.
+
+    Stated unscoped it contradicts `CLAUDE.md` principle 6 (KCA autonomy is
+    default-on), which is issue #65's conflation in miniature — and the skill
+    binds both harnesses, so an unscoped "ask first" is the rule Codex follows too.
+    """
+    body = (AGENTS_SKILLS / "kaggle-tooling-integration" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Who approves what" in body, "the kaggle skill no longer separates harness approval from KCA autonomy"
+    for marker in ("autonomy", "KCA", "harness"):
+        assert marker in body, (
+            f"the kaggle skill's approval rule does not say {marker!r} — it reads as binding both agents"
+        )
+
+
+def test_codex_version_is_single_sourced():
+    """The delta asks for the version; only the generator states it.
+
+    Without both halves, hard-coding a version in the delta regenerates cleanly
+    and `--check` stays green while AGENTS.md advertises a release nobody probed.
+    """
+    delta = (REPO_ROOT / "docs" / "instructions" / "agents-delta.md").read_text(encoding="utf-8")
+    generator = GENERATOR.read_text(encoding="utf-8")
+    version = re.search(r'^CODEX_VERSION = "([^"]+)"', generator, re.M)
+    assert version, "scripts/gen_agents.py no longer defines CODEX_VERSION"
+    assert "{{CODEX_VERSION}}" in delta, "the delta names no version token — the single-source link is gone"
+    assert version.group(1) not in delta, (
+        f"docs/instructions/agents-delta.md hard-codes {version.group(1)!r}; "
+        "use {{CODEX_VERSION}} so a bump cannot leave a stale claim behind"
+    )
+    assert version.group(1) in AGENTS_MD.read_text(encoding="utf-8"), "AGENTS.md is stale — regenerate"
+
+
+# --- The guards themselves ---------------------------------------------------
+#
+# A guard that never fires is worse than no guard: it reads like protection in
+# review. These cases mutate the generator's *inputs* and assert it refuses, so
+# "gen_agents.py rejects X" is a tested claim rather than an intention.
+
+
+@pytest.fixture(scope="module")
+def gen():
+    spec = importlib.util.spec_from_file_location("gen_agents", GENERATOR)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize(
+    "label,injected",
+    [
+        ("blockquote rule", "> **Never** submit without a human.\n\n## Mission"),
+        ("prose rule", "Do not touch production.\n\n## Mission"),
+        ("extra heading", "# Extra heading\n\n## Mission"),
+        ("reworded title", "> Canonical language: **Klingon**.\n\n## Mission"),
+    ],
+)
+def test_generator_refuses_an_unexpected_claude_md_title_block(gen, tmp_path, monkeypatch, label, injected):
+    """Anything new above CLAUDE.md's first `## ` stops generation instead of vanishing."""
+    mutated = tmp_path / "CLAUDE.md"
+    mutated.write_text(CLAUDE_MD.read_text(encoding="utf-8").replace("## Mission", injected, 1), encoding="utf-8")
+    monkeypatch.setattr(gen, "CLAUDE_MD", mutated)
+    with pytest.raises(SystemExit):
+        gen.claude_body()
+
+
+def test_generator_accepts_the_current_claude_md(gen):
+    assert gen.claude_body().startswith("## ")
+
+
+@pytest.mark.parametrize(
+    "label,mutate",
+    [
+        ("one token replaced by a literal", lambda t, v: t.replace("{{CODEX_VERSION}}", v, 1)),
+        ("every token removed", lambda t, v: t.replace("{{CODEX_VERSION}}", "some release")),
+        (
+            "literal added alongside the token",
+            lambda t, v: t.replace("# Codex-side notes", f"# Codex-side notes\n\nChecked on {v}.", 1),
+        ),
+    ],
+)
+def test_generator_refuses_a_hard_coded_codex_version(gen, tmp_path, monkeypatch, label, mutate):
+    """Single-sourcing is only real if bypassing it is an error, not a silent pass."""
+    mutated = tmp_path / "agents-delta.md"
+    source = (REPO_ROOT / "docs" / "instructions" / "agents-delta.md").read_text(encoding="utf-8")
+    mutated.write_text(mutate(source, gen.CODEX_VERSION), encoding="utf-8")
+    monkeypatch.setattr(gen, "DELTA_MD", mutated)
+    monkeypatch.setattr(gen, "REPO_ROOT", tmp_path)
+    with pytest.raises(SystemExit):
+        gen.delta_parts()
+
+
+@pytest.mark.parametrize(
+    "label,replacement",
+    [
+        ("folded scalar", "description: >\n  Initialize a run artifact directory."),
+        ("literal scalar", "description: |\n  Initialize a run artifact directory."),
+        ("empty value", "description:"),
+        ("anchor", "description: &d Initialize a run artifact directory."),
+    ],
+)
+def test_generator_refuses_front_matter_outside_its_yaml_subset(gen, tmp_path, monkeypatch, label, replacement):
+    """The hand parser reports what it cannot read; it never guesses a value.
+
+    A folded scalar read as the literal `>` would reach `.agents/README.md` as a
+    skill description and `--check` would call it current.
+    """
+    body = (CLAUDE_SKILLS / "kg-run" / "SKILL.md").read_text(encoding="utf-8")
+    original = next(line for line in body.splitlines() if line.startswith("description:"))
+    skill = tmp_path / "kg-run"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text(body.replace(original, replacement, 1), encoding="utf-8")
+    monkeypatch.setattr(gen, "CLAUDE_SKILLS", tmp_path)
+    with pytest.raises(SystemExit):
+        gen.skill_front_matter("kg-run")
+
+
+def test_generator_accepts_every_real_skill_front_matter(gen):
+    for skill_dir in sorted(CLAUDE_SKILLS.iterdir()):
+        if (skill_dir / "SKILL.md").is_file():
+            assert gen.skill_front_matter(skill_dir.name)["name"] == skill_dir.name

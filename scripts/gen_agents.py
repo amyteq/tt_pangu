@@ -53,6 +53,17 @@ APPENDIX_MARKER = "<!-- part: appendix -->"
 CODEX_VERSION = "0.154.0"
 VERSION_TOKEN = "{{CODEX_VERSION}}"
 
+# `CLAUDE.md`'s title block: everything above its first `## ` section. It is
+# CLAUDE.md's own front matter ("this file is authoritative"), not a shared rule,
+# so AGENTS.md supplies its own header instead. Matched exactly rather than by
+# shape — a new safety rule written as a blockquote here would otherwise be
+# dropped silently, which is exactly the failure this generator exists to prevent.
+EXPECTED_TITLE_BLOCK = (
+    "# tt_pangu — Agent Project Instructions",
+    "> Canonical language: **English**. This file is authoritative; "
+    "[`CLAUDE_zh.md`](./CLAUDE_zh.md) is a Chinese mirror for human reading only.",
+)
+
 # Skills that are NOT mirrored, with the reason shown in `.agents/README.md`.
 # Everything else under `.claude/skills/` is mirrored automatically, so the
 # `kaggle-* -> kg-*` rename (issue #192) needs no edit here.
@@ -96,24 +107,27 @@ def claude_body() -> str:
     rule: copied into AGENTS.md it would claim the generated file is the
     authority. AGENTS.md supplies its own header from the delta preamble.
 
-    Skipping a prefix silently is how a rule goes missing, so the prefix must
-    look like a title block and nothing else. A prose line before the first
-    `## ` is a real rule that would never reach Codex, and it stops generation
-    instead of being dropped.
+    Skipping a prefix silently is how a rule goes missing, so the skipped lines
+    must be `EXPECTED_TITLE_BLOCK` exactly. Matching by shape is not enough: a
+    blockquote and an H1 are legal shapes for a new rule as well as for a title,
+    so any edit above the first `## ` stops generation and asks a human whether
+    the new line belongs in the delta preamble.
     """
     lines = read_text(CLAUDE_MD).splitlines()
     for index, line in enumerate(lines):
         if line.startswith("## "):
-            for skipped in lines[:index]:
-                if skipped.strip() and not skipped.startswith(("# ", ">", "<!--")):
-                    fail(
-                        "CLAUDE.md has content before its first `## ` section that is not part of the\n"
-                        "  title block, so generating AGENTS.md would silently drop it:\n"
-                        f"    {skipped.strip()[:100]!r}\n"
-                        "  Move that rule into a `## ` section (it then reaches both harnesses), or, if it is\n"
-                        "  CLAUDE.md front matter, express the AGENTS.md equivalent in\n"
-                        "  docs/instructions/agents-delta.md and extend the allowed prefix here."
-                    )
+            skipped = tuple(entry.strip() for entry in lines[:index] if entry.strip())
+            if skipped != EXPECTED_TITLE_BLOCK:
+                fail(
+                    "CLAUDE.md's title block (everything above its first `## ` section) is not what\n"
+                    "  this generator was told to drop, so generating AGENTS.md would silently change\n"
+                    "  what Codex reads.\n"
+                    f"    expected: {list(EXPECTED_TITLE_BLOCK)}\n"
+                    f"    found:    {list(skipped)}\n"
+                    "  If the new line is a rule, move it into a `## ` section — it then reaches both\n"
+                    "  harnesses. If it is CLAUDE.md front matter, give AGENTS.md its equivalent in\n"
+                    "  docs/instructions/agents-delta.md and update EXPECTED_TITLE_BLOCK here."
+                )
             return "\n".join(lines[index:]).strip("\n")
     fail("CLAUDE.md has no `## ` section to split on")
     return ""  # unreachable; keeps type checkers happy
@@ -122,9 +136,25 @@ def claude_body() -> str:
 def delta_parts() -> tuple[str, str]:
     """The preamble and appendix halves of the delta fragment."""
     text = read_text(DELTA_MD)
+    relative = DELTA_MD.relative_to(REPO_ROOT)
     for marker in (PREAMBLE_MARKER, APPENDIX_MARKER):
         if marker not in text:
-            fail(f"{DELTA_MD.relative_to(REPO_ROOT)} is missing the marker {marker!r}")
+            fail(f"{relative} is missing the marker {marker!r}")
+    # The single-source guarantee is only real if the delta asks for the version
+    # instead of stating it. Both halves of the contract are checked, because a
+    # silent bypass here regenerates cleanly and `--check` stays green.
+    if VERSION_TOKEN not in text:
+        fail(
+            f"{relative} contains no {VERSION_TOKEN} token.\n"
+            "  The Codex version AGENTS.md and .agents/README.md advertise comes from CODEX_VERSION\n"
+            "  in this script; a delta that names no version has lost that link."
+        )
+    if CODEX_VERSION in text:
+        fail(
+            f"{relative} hard-codes the Codex version {CODEX_VERSION!r}.\n"
+            f"  Write {VERSION_TOKEN} instead — a literal here survives a CODEX_VERSION bump and\n"
+            "  quietly tells Codex it was verified against a release it was not."
+        )
     _, _, after_preamble = text.partition(PREAMBLE_MARKER)
     preamble, _, appendix = after_preamble.partition(APPENDIX_MARKER)
     substituted = (part.strip("\n").replace(VERSION_TOKEN, CODEX_VERSION) for part in (preamble, appendix))
@@ -136,24 +166,41 @@ def skill_front_matter(name: str) -> dict[str, str]:
 
     Deliberately not a YAML parser: skills are a flat `key: value` block and a
     dependency here would have to be installed wherever `--check` runs, CI
-    included. Anything it cannot read is reported, never guessed.
+    included. That makes the supported subset a contract, so anything outside it
+    is reported rather than guessed at — a folded scalar read as the literal `>`
+    would put that character in `.agents/README.md` and `--check` would agree.
     """
+    relative = f".claude/skills/{name}/SKILL.md"
     lines = (CLAUDE_SKILLS / name / "SKILL.md").read_text(encoding="utf-8").splitlines()
     if not lines or lines[0].strip() != "---":
-        fail(f".claude/skills/{name}/SKILL.md does not open with a `---` front-matter block")
+        fail(f"{relative} does not open with a `---` front-matter block")
     fields: dict[str, str] = {}
     for line in lines[1:]:
         if line.strip() == "---":
             break
         if line.startswith((" ", "\t")) or ":" not in line:
             continue  # continuation / list line: not a top-level key
-        key, _, value = line.partition(":")
-        fields[key.strip()] = value.strip().strip('"').strip("'")
+        key, _, raw = line.partition(":")
+        key = key.strip()
+        value = raw.strip()
+        if key in ("name", "description"):
+            if not value:
+                fail(
+                    f"{relative} front matter gives `{key}:` no value on its own line.\n"
+                    "  Multi-line values are not supported here — write it as one line."
+                )
+            if value[0] in "|>&*":
+                fail(
+                    f"{relative} front matter writes `{key}:` as YAML {value[0]!r} "
+                    "(a block scalar, anchor, or alias).\n"
+                    "  This reader supports single-line plain or quoted values only — write it as one line."
+                )
+        fields[key] = value.strip('"').strip("'")
     else:
-        fail(f".claude/skills/{name}/SKILL.md front matter is never closed by a `---` line")
+        fail(f"{relative} front matter is never closed by a `---` line")
     for required in ("name", "description"):
         if not fields.get(required):
-            fail(f".claude/skills/{name}/SKILL.md front matter has no `{required}:`")
+            fail(f"{relative} front matter has no `{required}:`")
     return fields
 
 
