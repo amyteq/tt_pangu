@@ -26,7 +26,7 @@ budget:
     max_gpu_hours_per_cycle: null
   llm:
     max_turns_per_research_task: 100
-    max_metered_cost_per_cycle_usd: 0   # 0 = subscription-only spend; null BLOCKS the cycle
+    max_metered_cost_per_cycle_usd: 0   # 0 = subscription-only spend; null blocks metered spend
   submissions:
     require_verified_competition_limit: true
     verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5

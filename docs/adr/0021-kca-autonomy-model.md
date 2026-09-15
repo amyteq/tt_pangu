@@ -51,7 +51,8 @@ pass. **Not yet in effect:** nothing in the tree evaluates those criteria — no
 under `tools/` / `src/` / `scripts/` reads the `autonomy:` block — and
 `.kca/permissions/*.yaml` sets both to `default_decision: ask` in every profile
 (`competition-runner.yaml` allows them only in `competition-finalization` /
-`human-approved` modes). An unevaluable precondition is a failed one, so submissions are human-gated
+`human-approved` modes) — but that file is read only by `tools/kca/skill.py:15`, not by
+the installed `kca` CLI, whose own gate defaults to *allow* (`tools/kca/kg.py:21-22`). An unevaluable precondition is a failed one, so submissions are human-gated
 until the screen is implemented (ADR-0022 §5). The intended-submission summary (file, experiment id, expected score,
 reason) is written to `.agent/kca/audit.jsonl` instead of being posed as a question.
 
