@@ -50,8 +50,8 @@ python scripts/render_codex_probe.py probe.json AGENTS.md \
   docs/evidence/issue-189-codex-parity/loader-probe.txt "$(git rev-parse --short HEAD)"
 ```
 
-Last run: **`codex-cli 0.154.0`** against a clean worktree at **`083c8b7`**. That attribution is
-checked rather than asserted — the evidence file is only written if `083c8b7` is HEAD, the
+Last run: **`codex-cli 0.154.0`** against a clean worktree at **`92ab69b`**. That attribution is
+checked rather than asserted — the evidence file is only written if `92ab69b` is HEAD, the
 worktree matches it apart from the evidence outputs, its `AGENTS.md` is byte-identical to the
 file whose load was measured, **and** the rendered dump actually carries that same file, so the
 numbers reproduce from that commit. Commits after it touch only this document and the evidence
@@ -59,7 +59,7 @@ under `docs/evidence/issue-189-codex-parity/` — outputs of the run, never inpu
 the claim that matters, and it is checkable rather than taken on trust:
 
 ```sh
-git diff --name-only 083c8b7 HEAD -- AGENTS.md CLAUDE.md .agents .claude   # must be empty
+git diff --name-only 92ab69b HEAD -- AGENTS.md CLAUDE.md .agents .claude   # must be empty
 ```
 
 If that prints anything, the numbers below describe a file that no longer exists and the probe
@@ -186,15 +186,15 @@ prompt=docs/evidence/issue-189-codex-parity/smoke-prompt.txt
 time codex exec -m gpt-5.6-sol -c model_reasoning_effort=low --sandbox read-only \
   -o /tmp/smoke-codex.txt - < "$prompt"
 
-time claude -p --model 'claude-opus-5[1m]' "$(cat "$prompt")" > /tmp/smoke-claude.txt
+time claude -p --model 'claude-opus-5[1m]' < "$prompt" > /tmp/smoke-claude.txt
 
 # commit both answers with a header whose commit claim is verified, not asserted
 python scripts/write_codex_smoke_evidence.py \
-  --codex  /tmp/smoke-codex.txt  --codex-seconds  13 \
+  --codex  /tmp/smoke-codex.txt  --codex-seconds  18 \
   --claude /tmp/smoke-claude.txt --claude-seconds 15
 ```
 
-**Result — clean worktree at `083c8b7`, 2026-09-15**, both harnesses run from the same commit
+**Result — clean worktree at `92ab69b`, 2026-09-15**, both harnesses run from the same commit
 (full outputs, with their own provenance headers, under `docs/evidence/issue-189-codex-parity/`):
 
 | | Codex (`codex-cli 0.154.0`, `gpt-5.6-sol`) | Claude Code (`claude-opus-5[1m]`) |
@@ -202,9 +202,9 @@ python scripts/write_codex_smoke_evidence.py \
 | Skill found | `kg-run` | `kg-run` |
 | Run path | `runs/arc-agi2/<run_id>/` | `runs/arc-agi2/<run_id>/`, run id UTC `YYYYMMDD_HHMMSS`, with `meta.json`, `config.json`, `metrics.json`, `logs/`, `artifacts/`; `runs/` gitignored |
 | Secret policy | may read to use the credentials; forbids printing, sharing, logging or copying them externally | may **read** for use; never echo or copy into web fetches, logs, public PRs, comments ("read-for-use, not read-to-share") |
-| Cited instruction file | `AGENTS.md` | `CLAUDE.md:65` — *Dev-phase secret policy* |
+| Cited instruction file | `AGENTS.md` | `CLAUDE.md` — *Environment configuration* / *Dev-phase secret policy* |
 | Cited skill file | `.agents/skills/kg-run/SKILL.md` | `.claude/skills/kg-run/SKILL.md` |
-| Wall clock | 13 s | 15 s |
+| Wall clock | 18 s | 15 s |
 
 Both harnesses reached the same rules through their own surface, and each cited the surface it
 actually reads — which is exactly what the mirror is supposed to produce. The Claude side
