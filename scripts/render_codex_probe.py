@@ -4,15 +4,19 @@
     python scripts/render_codex_probe.py probe.json AGENTS.md \
         docs/evidence/issue-189-codex-parity/loader-probe.txt <commit>
 
-The excerpt's header claims the numbers reproduce from `<commit>`. Three things
-have to hold for that to be true, and all three are checked here rather than
+The excerpt's header claims the numbers reproduce from `<commit>`. Four things
+have to hold for that to be true, and all four are checked here rather than
 trusted — a header that says "verified" while nothing was verified is worse than
 one that says nothing:
 
 1. `AGENTS.md` at `<commit>` is byte-identical to the file being measured;
 2. that file is what the dump actually carries — otherwise a stale `probe.json`
    from before an edit renders against today's `AGENTS.md` and looks current;
-3. `<commit>` is HEAD, so the dump was taken from this state.
+3. `<commit>` is HEAD, so the dump was taken from this state;
+4. the working tree matches that commit apart from the evidence outputs
+   (`scripts/evidence_provenance.py`). Checks 1-3 all pass with an untracked
+   `.agents/skills/<name>/SKILL.md` present, which Codex loads and which inflates
+   the skill count printed below — inside the file whose header says "verified".
 
 The binary version in the header comes from `codex --version` at render time; if
 the dump was captured with a different binary, that line is wrong and nothing
@@ -26,18 +30,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+from evidence_provenance import REPO_ROOT, verify_commit_is_head, verify_tree_matches_commit
+from evidence_provenance import fail as _fail
+
+TOOL = "render_codex_probe"
 
 
 def fail(message: str) -> None:
-    sys.exit(f"render_codex_probe: {message}")
-
-
-def git(*args: str) -> str:
-    result = subprocess.run(["git", *args], cwd=REPO_ROOT, capture_output=True, text=True)
-    if result.returncode != 0:
-        fail(f"`git {' '.join(args)}` failed: {result.stderr.strip()}")
-    return result.stdout.strip()
+    _fail(TOOL, message)
 
 
 def main() -> None:
@@ -52,7 +52,12 @@ def main() -> None:
 
     dump = json.loads(dump_path.read_text(encoding="utf-8"))
     on_disk = agents_path.read_bytes()
-    short = git("rev-parse", "--short", commit)
+
+    # 3. the named commit is the state the probe was taken from, and 4. nothing
+    #    differs from it but the evidence outputs — an untracked skill would be
+    #    loaded by Codex and counted below while passing every other check here.
+    short = verify_commit_is_head(TOOL, commit)
+    verify_tree_matches_commit(TOOL, short)
 
     # 1. the named commit holds the file we measured
     committed = subprocess.run(["git", "show", f"{commit}:AGENTS.md"], cwd=REPO_ROOT, capture_output=True).stdout
@@ -61,10 +66,6 @@ def main() -> None:
             f"refusing to write: AGENTS.md at {short} ({len(committed)} bytes) is not the file "
             f"measured here ({len(on_disk)} bytes). Re-run the probe against a clean checkout."
         )
-
-    # 3. and that commit is the state the probe was taken from
-    if git("rev-parse", "HEAD") != git("rev-parse", f"{commit}^{{commit}}"):
-        fail(f"refusing to write: {short} is not HEAD, so the dump was taken from another state.")
 
     messages = [m["content"][0]["text"] for m in dump]
     docs = [m for m in messages if "AGENTS.md instructions" in m]
@@ -91,8 +92,9 @@ def main() -> None:
         "",
         "Command:  CODEX_HOME=<isolated> codex debug prompt-input 'Start work on competitions/arc-agi2'",
         f"Binary:   {version} (as reported at render time)",
-        f"Repo:     {short} — verified: it is HEAD, its AGENTS.md is byte-identical to the file",
-        "          measured below, and the dump's project-doc message contains that same file.",
+        f"Repo:     {short} — verified: it is HEAD, the worktree matches it apart from the",
+        "          evidence outputs, its AGENTS.md is byte-identical to the file measured",
+        "          below, and the dump's project-doc message contains that same file.",
         f"Measured: AGENTS.md on disk: {len(on_disk)} bytes, {len(text_on_disk)} characters",
         f"          project-doc message in the prompt: {len(doc)} characters",
         "          = the file plus Codex's own wrapper (a '# AGENTS.md instructions for <abs path>'",

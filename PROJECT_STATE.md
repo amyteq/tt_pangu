@@ -35,8 +35,9 @@ Build a hybrid human + AI competition engineering workbench. The first target is
 > **Superseded (2026-09-15, issue #189).** This list predates the dev-phase policy and
 > ADR-0021, and is not the policy of either phase. Current rules live in `CLAUDE.md` →
 > *GitHub collaboration* and *Safety boundaries*, mirrored to `AGENTS.md`: non-destructive
-> GitHub writes and the phase-1 self-merge are auto-allowed, and it is **permanent deletions**
-> and force-push that need explicit human approval. For **phase 2 / KCA** the list below is
+> GitHub writes and the phase-1 self-merge are auto-allowed, **permanent deletions** need
+> explicit human approval, and force-push is **denied outright — not approvable**. For
+> **phase 2 / KCA** the list below is
 > wrong in the opposite direction: ADR-0021 makes KCA's push and submit **autonomous by
 > default** once `autonomy.screen` passes. Treat the list as a historical record of a rejected
 > design, not as a gate either agent should apply.
