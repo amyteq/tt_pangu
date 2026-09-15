@@ -364,6 +364,19 @@ def test_generator_refuses_a_hard_coded_codex_version(gen, tmp_path, monkeypatch
             "indented sequence under a key that already has a scalar",
             "description: Initialize a run artifact directory.\nallowed-tools: Read\n  - Bash",
         ),
+        # Round 8's two counterexamples. Both defeated the round-7 parser, which
+        # tested for a colon before it looked at the line's shape: `- Bash: true`
+        # took the apparent-key branch, and the indented mapping was waved through
+        # as a value continuation. PyYAML rejects the first and reads the second as
+        # a nested block, so either way the skill is not what `--check` advertises.
+        (
+            "sequence item that itself contains a colon",
+            "description: Initialize a run artifact directory.\nallowed-tools: Read\n- Bash: true",
+        ),
+        (
+            "indented mapping under a key that already has a scalar",
+            "description: Initialize a run artifact directory.\nallowed-tools: Read\n  child: value",
+        ),
     ],
 )
 def test_generator_refuses_front_matter_outside_its_yaml_subset(gen, tmp_path, monkeypatch, label, replacement):
