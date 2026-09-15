@@ -984,7 +984,10 @@ necessary but not sufficient, and two further rules apply:
   loses live work.** For a scope+dimension that has an external authority:
 
   ```text
-  remaining = cap − platform_count − Σ(live local reservations not inside platform_count)
+  remaining = cap
+            − platform_count
+            − Σ( local records that consumed capacity and are NOT provably
+                 inside platform_count — live AND settled; `released` excluded )
   ```
 
   `platform_count` is the authority's own count for *this* window, read under the lock. The
@@ -1011,12 +1014,18 @@ necessary but not sufficient, and two further rules apply:
   competition raises `NEEDS_RECONCILIATION` — fail-closed, the same direction as everywhere
   else here.
 
-  The alternative fix — forbidding a `settled` sidecar until the authority's record has been
-  seen — is *not* taken, because it would leave a real spend uncounted for as long as the
-  platform lags, and an unwritten sidecar is exactly the orphan the crash-recovery rule
-  below has to reason about. Counting it locally and correlating it is strictly safer: the
-  worst case is a temporary over-count, which refuses work; the worst case of the other is an
-  under-count, which permits it.
+  The alternative — forbidding a `settled` sidecar until the authority's record has been seen
+  — is **also fail-closed**, and saying otherwise would be wrong: with no terminal sidecar the
+  reservation stays live and the reduction rule above counts it at its full *reserved* amount,
+  so the interim effect is a conservative over-count, not an under-count. Both designs are
+  safe; this one is chosen for two narrower reasons. First, settling immediately records the
+  **actual** consumption sooner, and since settlement may come in under the reservation, the
+  difference returns to the cycle instead of being withheld for as long as the platform lags —
+  which matters most for `compute` and `llm`, where reservations are ceilings rather than
+  estimates. Second, deferring the sidecar makes a lagging platform indistinguishable from a
+  crashed worker: both present as a live reservation with no outcome, and only one of them
+  should reach the orphan rule below. What is *not* a reason to prefer either is safety in the
+  reserve direction — the correlation table above is what provides that, in both designs.
 - **Dimensions with no external authority skip all of this.** `experiments`, `compute`,
   `llm` and every `competition:<slug>` cap have no platform to ask, so `platform_count` does
   not exist for them and the ledger reduction *is* the count. Which is exactly why the
