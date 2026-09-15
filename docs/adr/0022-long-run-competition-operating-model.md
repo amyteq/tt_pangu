@@ -904,7 +904,11 @@ does not establish that the previous work stopped: any outstanding earlier-windo
 blocks a new reservation for that scope+dimension until reconciled. For a submission whose
 dispatch/acceptance straddles a reset, retain the old reservation and resolve the actual
 platform window before allowing another submission; a lost response never expires into a
-free slot. A launcher that cannot enforce these stops cannot satisfy A7.
+free slot. A submission's `consumed_until` is the platform acceptance/charge time, not
+the time the local response arrived. Fixed-window reduction includes settled submissions
+charged in that window even if their reservation file is in an earlier directory, grouped
+once by reservation id. If the charge time cannot be established, the old record remains
+unresolved and blocks. A launcher that cannot enforce these rules cannot satisfy A7.
 
 **A per-competition cap is a scope too.** `budget.experiments.max_per_cycle`,
 `budget.compute.max_gpu_hours_per_cycle` and `budget.llm.max_metered_cost_per_cycle_usd` are
@@ -1196,11 +1200,12 @@ unobtainable lock, an unreadable cap, or an unknown driver designation is *not* 
 proceed — it is `PAUSED_BUDGET`. Same fail-closed rule as A5, applied to the counter instead
 of the gate. An agent may never "reserve optimistically and settle later".
 
-A crash leaves a reservation with no terminal sidecar. It is reconciled, not assumed: an
-orphan past its window's end is released only after the external record is checked (an
-`instantaneous` hold has no end, so it is reconciled on lease timeout instead) — the same
-discipline as `NEEDS_RECONCILIATION` (§3). Releasing an orphan without checking is how a
-submission gets made twice.
+A crash leaves a reservation with no terminal sidecar. Reconciliation must prove whether
+it spent capacity: settle observed consumption; release only proven unused capacity after
+the worker is stopped. An external spend needs platform evidence, and a local compute job
+needs process/resource evidence. An expired lease or window alone proves neither. Unknown
+outcomes retain their charge and block further work in that scope+dimension. An
+`instantaneous` hold is released only after the held resource is proved free.
 
 **"Unknown" is never "unlimited".** A `null` in any cap is an unknown, and an
 unknown blocks **the work that would spend against that dimension** — not every
@@ -1210,9 +1215,10 @@ dispatch; a null `compute.max_gpu_hours_per_cycle` refuses GPU work; a null
 `PAUSED_BUDGET` when it needs a blocked dimension in order to make progress, and
 `resume_state` records where it was (§3). This is per dimension because the
 alternative is false: a competition in `RESEARCH`, spending only subscription LLM
-turns against a cap that *is* set (`max_turns_per_research_task: 100`,
-`max_metered_cost_per_cycle_usd: 0`), is not over any budget and there is nothing to
-pause it for.
+turns against set per-task limits (`max_turns_per_research_task: 100`,
+`max_metered_cost_per_cycle_usd: 0`) and a known, coordinated subscription quota may
+continue. A set local turn limit alone does not prove that the shared subscription has
+capacity; its scope must satisfy the shared-pool rules too.
 
 **`ONBOARD` need not wait for caps it does not consume.** Reading rules and recording
 budget facts must remain possible before experiment/GPU/submission caps are filled.
@@ -1260,6 +1266,7 @@ dashboard state/status, gate-floor annotations and the intent/ledger example joi
 | Another host has an expired/unreachable driver | Pause; no local self-election or empty replacement ledger |
 | Old driver still has live jobs during a proposed transfer | Fence/stop and reconcile before enabling the new driver |
 | A GPU job would cross a fixed-window reset | Stop/settle at the boundary; reserve the continuation before resuming; an unresolved old record blocks |
+| Submission reserved before reset, accepted after it | Charge the acceptance window even when the reservation file is in the previous directory; unknown acceptance time keeps the scope blocked |
 | A settled submission is absent from the platform snapshot | Its charge remains counted and reconciliation is required |
 | 4 GPU-hours reserved; snapshot proves 1 already consumed | Retain 3 hours locally in addition to the platform's 1; an id alone never drops the full reservation |
 | An uncoordinated teammate/tool can spend from the same pool | A7 cannot activate; a snapshot plus a local lock does not prevent the race |
