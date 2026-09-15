@@ -370,25 +370,45 @@ decides, and `OPERATION_DEFAULTS["kaggle_submit"]` is `False` — *allow* — at
 without `KCA_ALLOW_REMOTE=1`, **has no call sites**. So with credentials present,
 `kca kaggle submit` dispatches to the real Kaggle API with no approval of any kind.
 
-**What actually prevents an unapproved submission today is the Claude Code harness**
-(`.claude/hooks/guard_tool.py` plus this repo's `CLAUDE.md`), which asks before the command
-runs — plus the fact that KCA is not running autonomously in phase 1 (§1). That is a
-harness-level protection of the human's own account, not a KCA-level gate, and it does not
-survive KCA becoming the actor.
+**And the harness does not catch it either, so nothing enforces the approval today.**
+It would be comfortable to say the Claude Code harness asks before the command runs. It
+does not, for any submit form. Per-command, this is what the two mechanisms actually do:
 
-Two consequences for this ADR, both deliberate:
+| Command form | Harness hook | KCA gate | Result |
+|---|---|---|---|
+| `kca kaggle submit …` | no pattern matches | fail-open (`kg.py:21-22`) | **submits** |
+| `kaggle competitions submit …` | **allow-listed**, `.claude/settings.json:91` | n/a | **submits** |
+| `python tools/kca/kca.py kaggle submit …` | **allow-listed**, `.claude/settings.json:92` | fail-open | **submits** |
+| `kca kaggle push …` | no pattern matches — `guard_tool.py:177` requires the literal `python tools/kca/kca.py` prefix | `kernel_push: False` | **pushes** |
+| `python tools/kca/kca.py kaggle push …` | `guard_tool.py:177` → ask | — | gated |
+| `kaggle kernels push …` | `guard_tool.py:171` → ask | — | gated |
 
-- **The floor is human approval**, so `AGENTS.md` and `PROJECT_STATE.md` are correct as
-  written and are not exceptions to this section. Layers 1 and 2 are design intent awaiting
-  the code that can enforce their preconditions; neither authorises anything on merge.
-- **The approval gate's fail-open is an activation blocker in its own right**, folded into
-  **A5** below rather than left as a footnote. An unevaluable or absent gate is a failed
-  gate — and there are now two of them on the submit path, not one.
+Kernel push is gated in two of its three forms. **Submission is gated in none of its
+three.** That inverts the risk ordering this repo states elsewhere: a leaderboard
+submission consumes an irreversible quota slot, a kernel push does not (#77).
 
-Fixing `kg.py`'s defaults is **not in this ADR's scope**: `OPERATION_DEFAULTS` is ADR-0006's
-documented default and `tests/test_m4_smoke.py:233-234` asserts the current value
-(*"Default: kaggle_submit=False → should NOT raise"*), so changing it is a behaviour change
-to the `kca` CLI needing its own issue, PR and tests. It is listed as a follow-up.
+So the only thing between an agent and an unapproved submission is the *written
+instruction* in `CLAUDE.md`, `AGENTS.md` and `PROJECT_STATE.md` that it must ask — prose,
+which an agent can misread, and which §5 is in the business of relaxing. This ADR does not
+claim that floor is enforced. It claims three things instead:
+
+- **A5 is failed for three independent reasons**, not one: the ADR-0020 §7 daily-limit
+  guard is fail-open, `kg.py`'s approval gate defaults to *allow*, and the harness
+  intercepts no submit form. §5 cannot activate for any competition until all three close.
+  This is the ADR's central safety property and it is currently satisfied by nothing.
+- **Phase 1's actual protection is that KCA is not the actor yet** (§1): a human is reading
+  every session. That is a property of how the work is being done, not a gate, and it
+  disappears exactly when phase 2 makes KCA autonomous — which is when §5 would matter.
+- **Both gaps are follow-ups with `file:line` evidence**, below, so activation is blocked
+  on them rather than the problem being rediscovered later.
+
+Neither fix belongs in this ADR. `OPERATION_DEFAULTS` is ADR-0006's documented default and
+`tests/test_m4_smoke.py:233-234` asserts the present value (*"Default: kaggle_submit=False
+→ should NOT raise"*), so changing it is a `kca` behaviour change needing its own PR and
+tests. `.claude/settings.json` and `.claude/hooks/guard_tool.py` are the harness's own
+guard configuration: an agent session cannot write them — they are read-only in the
+sandbox, by design — and an agent widening or narrowing its own guard is the human's
+decision, not a side effect of a docs PR.
 
 **The pre-submit gate today is fail-open, and that blocks activation.** `tools/kca/kg.py`
 implements ADR-0020 §7 as an explicit *courtesy* guard: `tools/kca/kg.py:205-217` returns
@@ -399,8 +419,9 @@ authority that phase 1 does not write (§1). Nothing in the tree reads
 adequate under ADR-0021, where `beats_best` independently limits what gets submitted; it is
 **not** adequate under §5, which removes that limiter. Until a fail-closed gate consuming
 the phase-1 YAML contract exists — *and* `kg.py`'s approval gate defaults to requiring
-approval rather than allowing it — no competition meets **A5**, and §5's submission
-autonomy is inert. Implementing both is a follow-up, not part of this ADR.
+approval rather than allowing it — *and* the harness intercepts every submit form, not just
+two of three push forms — no competition meets **A5**, and §5's submission autonomy is
+inert. Implementing all three is a follow-up, not part of this ADR.
 
 #### Inside the envelope
 
@@ -554,7 +575,7 @@ budget:
     max_gpu_hours_per_cycle: null
   llm:
     max_turns_per_research_task: 100
-    max_metered_cost_per_cycle_usd: 0   # 0 = subscription-only spend; null BLOCKS the cycle
+    max_metered_cost_per_cycle_usd: 0   # 0 = subscription-only spend; null blocks metered spend
   submissions:
     require_verified_competition_limit: true
     verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
@@ -815,8 +836,8 @@ no experiment, no GPU job, no submission. The exemption ends the moment the
 competition leaves it.
 
 The rule applies with full force
-to `llm.max_metered_cost_per_cycle_usd` — an unset metered-cost cap blocks the
-start. Note the distinction that makes this compatible with §5: `0` means
+to `llm.max_metered_cost_per_cycle_usd` — an unset metered-cost cap refuses every
+metered call (subscription-only work is unaffected). Note the distinction that makes this compatible with §5: `0` means
 "subscription only, no metered spend" and is a *set* value; `null` is not.
 Likewise `submissions.verified_daily_limit: null` blocks submission, because the
 competition's real limit has not been read.
@@ -928,6 +949,7 @@ the source for how wide autonomy actually is and what the human decides.
 | Decision request / notification channel (`WAIT_HUMAN` round trip) | #197 |
 | **Recovery + fault-injection implementation and tests** | *needs an issue* |
 | **Fail-closed pre-submit gate** reading the phase-1 `budget:` contract — §5 activation condition **A5** | *needs an issue* |
+| **Harness does not gate Kaggle submission**: `.claude/settings.json:91-92` allow-lists `kaggle competitions submit` and `python tools/kca/kca.py kaggle submit`, and `guard_tool.py:171,177` matches no submit form (nor the installed `kca kaggle push`). Third part of **A5** | *needs an issue* — human-only: the agent cannot write its own guard config |
 | **`kg.py` approval gate is fail-open**: `OPERATION_DEFAULTS["kaggle_submit"] = False` (`kg.py:21-22`) and `_gate()` (`kg.py:53-59`) has no call sites, so `kca kaggle submit` dispatches unapproved. Also the second half of **A5** | *needs an issue* — touches ADR-0006's defaults and `tests/test_m4_smoke.py:233-234` |
 | **Atomic shared-budget reservation** — the machine-absolute lock + `O_EXCL` protocol and the cross-host driver designation behind **A7** | *needs an issue* |
 | **Filesystem-only storage mode** for `kca run/goal/explore/stuck` + a test proving phase 1 writes no KCA rows | *needs an issue* (not #192) |

@@ -27,11 +27,14 @@ Build a hybrid human + AI competition engineering workbench. The first target is
 
 Require approval for:
 - Kaggle competition submissions. The relaxations in ADR-0021 §2 and ADR-0022 §5 are
-  design intent awaiting the code that can evaluate their preconditions — nothing reads
-  the `autonomy:` block, and `.kca/permissions/*.yaml` sets `kaggle_submit` to `ask` in
-  every profile (`competition-runner.yaml` allows it only in human-approved modes) — so this gate is in force today
-  (`docs/adr/0022-long-run-competition-operating-model.md` §5).
-- Kaggle kernel/notebook pushes — same rule, same reason.
+  design intent awaiting the code that can evaluate their preconditions, so this gate is
+  the policy today. **It is not enforced anywhere:** `tools/kca/kg.py:21-22` defaults
+  `kaggle_submit` to *allow*, `.kca/permissions/*.yaml` is read only by
+  `tools/kca/skill.py`, and `.claude/settings.json:91-92` allow-lists the direct submit
+  commands. Follow it as a rule; nothing will stop you
+  (`docs/adr/0022-long-run-competition-operating-model.md` §5, condition A5).
+- Kaggle kernel/notebook pushes — same rule. Gated in the `kaggle kernels push` and
+  `python tools/kca/kca.py kaggle push` forms only (`guard_tool.py:171,177`).
 - Any remote write operation.
 - Any operation touching credentials, secrets, or account settings.
 - Any CTF action outside a declared sandbox/challenge scope.

@@ -66,7 +66,7 @@ ADR-0023（#191）；在它合入之前，以 issue #191 为准。
    排序。`kca-<slug>.yaml` 里 `autonomy.enabled: false` 表示严格 human-in-the-loop。**始终需要人决定**：
    不可逆删除、超预算的真金白银支出、比赛规则有歧义、接受新条款 / 加入比赛 / 任何组队变更、临近截止的
    最终提名。**Claude Code harness** 对付费 API / 凭据使用和破坏性主机命令仍然会先问。
-   **这些放宽后的规则按比赛生效，且默认关闭**：只有当该比赛满足 ADR-0022 §5 的启用条件 **A1-A7**（未设置 opt-out、预算上限已填、提交上限与时间已核实、pre-submit gate 为 fail-closed、拟提交记录已持久化、共享预算预留是原子的）之后才适用。**两层放宽目前都没有生效。** 没有任何比赛满足 A1-A7（pre-submit gate 仍是 fail-open，A5 处处不成立）；ADR-0021 §2 那层更窄的授权同样没有实现：`tools/` / `src/` / `scripts/` 下没有任何代码读 `autonomy:` 块，而唯一真正被代码读取的策略 —— `.kca/permissions/*.yaml`（经 `tools/kca/agent/permission_policy.py`）—— 在**每一个** profile 里都把 `kaggle_submit` / `kaggle_push` 的 `default_decision` 设为 `ask`（`permissive-dev` 也一样；`competition-runner` 只在 `competition-finalization` / `human-approved` 这类已经过人批准的模式下才放行）。因此 Kaggle 提交与 kernel push **当前一律需要人批准**，这与 `AGENTS.md`、`PROJECT_STATE.md` 完全一致，本文件并不与它们冲突。细节见
+   **这些放宽后的规则按比赛生效，且默认关闭**：只有当该比赛满足 ADR-0022 §5 的启用条件 **A1-A7**（未设置 opt-out、预算上限已填、提交上限与时间已核实、pre-submit gate 为 fail-closed、拟提交记录已持久化、共享预算预留是原子的）之后才适用。**目前没有任何机制强制这一点 —— "先问人"是写下来的规则，不是 gate。** 没有比赛满足 A1-A7；ADR-0021 §2 那层筛查授权没有实现（没有代码读 `autonomy:` 块）；`.kca/permissions/*.yaml` 确实在每个 profile 里都把 `kaggle_submit` / `kaggle_push` 设为 `ask`，但只有 `tools/kca/skill.py:15` 会读它 —— 安装后的 `kca` CLI 不读；`kg.py` 自己的 gate 默认是 *allow*（`tools/kca/kg.py:21-22`；`_gate()` 在 :53-59，没有任何调用点）；而 harness 把直接命令形式放进了 allow 名单（`.claude/settings.json:91-92`，且 `guard_tool.py` 匹配不到任何 submit 形式）。**所以每次 Kaggle 提交或 kernel push 之前都要问人 —— 不问也不会有东西挡住你。**ADR-0022 §5 把自己的启用条件 A5 卡在这三个缺口上。细节见
    `docs/adr/0022-long-run-competition-operating-model.md` §5，它放宽了
    `docs/adr/0021-kca-autonomy-model.md` §2。
 7. 大数据集、模型权重、日志、生成产物一律不进 git。
@@ -84,7 +84,8 @@ ADR-0023（#191）；在它合入之前，以 issue #191 为准。
   `auto_push: false` 即使 A1-A7 其余条件都通过，也一票否决该动作。
 - 提交拓扑按比赛而定 —— `competition.yaml:submission_mode`（`file | notebook | kernel | agent`）。
   kernel push **不等于**排行榜提交（#77）。
-- 当日提交上限以该比赛、该队伍**已核实**的数字为准，绝不假定是 5；未核实则该周期被 block（ADR-0022 §6）。
+- 当日提交上限以该比赛、该队伍**已核实**的数字为准，绝不假定是 5；未核实则**提交**被 block，
+  其余工作照常（§6 按维度 block，而不是整场比赛）。
 
 ### CTF
 
