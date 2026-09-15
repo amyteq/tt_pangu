@@ -125,7 +125,9 @@ are green and that closeout checklist is filled in, squash-merge it (keep
 the remote branch: no `--delete-branch`). Unchanged: no direct pushes to
 `main`, no force-push, no merging on red or pending checks, someone else's
 PR stays theirs to approve, and permanent-deletion remote writes still
-require explicit human approval. Canonical wording: `CLAUDE.md` §"GitHub
+require explicit human approval. §"Agent lanes" is also unchanged:
+`test-coverage-reviewer` still needs human approval to *open* a test PR,
+which this merge policy does not grant. Canonical wording: `CLAUDE.md` §"GitHub
 collaboration".
 
 ## Testing tiers (`docs/testing/`)
