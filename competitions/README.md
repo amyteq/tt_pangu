@@ -2,15 +2,21 @@
 
 > 真实 Kaggle 竞赛工作区总览。详情在各竞赛目录;本页保持简短。
 
-## Active competitions
+## Competitions
 
-| Competition | Status | Type | Phase | Best CV/local | Best LB/public | Last submit/push | Current blocker | Next task |
+> Ranks 2 in ADR-0022 §3's precedence order: this table is a **mirror** of each
+> `competitions/<slug>/competition.yaml`, never an independent record. `State` is the canonical
+> ADR-0022 §3 token (side states carry `resume_state` in the YAML); `Status` is a fact about the
+> competition — `open | closed | unknown`, does it still accept submissions — not about us.
+> On any disagreement the YAML is right and this row is stale.
+
+| Competition | State | Type | Status | Best CV/local | Best LB/public | Last submit/push | Current blocker | Next task |
 |---|---|---|---|---:|---:|---|---|---|
-| [arc-agi3](arc-agi3/) (arc3) | active | simulation_agent | submission | 4 agents run clean vs 25 public envs | LB **explore 0.18** / goose 0.07 (AI<0.005, 人类 100%) | **2/4 scored 2026-06-27** (explore@may 0.18 + goose@harry 0.07);goosenov+reactive 排队 | 每日限 **1/账号**;启发式(0.18)>CNN(0.07) | 次日提交 goosenov+reactive;把 explore 的效率移植进 CNN 探索 |
-| [nvidia-nemotron](nvidia-nemotron/) (nemo) | active | llm | submission | per-kernel held-out | **0.85** (v14 replay) | v15 push 0.84 (2026-06-14); best=v14 0.85 | 0.85 是当前杠杆天花板(T7 merge 0.82 / v15 0.84 均回归);deadline **06-15** 迫近 | 守住 0.85 收官(可选 half-dose cryptarithm synth) |
-| [orbit-wars](orbit-wars/) (orbit) | active | simulation_agent | iteration | suite ~54.8% | own **686** (v3 peak) / attributed **1151** (kuni05) | harry latest-2: kuni05 **1085.4** + v3.2 **660.0** (2026-06-14) | 强档 cliff（0-15% vs evogen/multifocus/kuni05） | v4 Scheduler 下一刀（反击窗/集群重锤）；末 3 天冻结 best-2 |
-| [sec-attack](sec-attack/) | active | submission | iteration | 18.0 (bypass vs `optimal_public`, LLM-proxy) | **public 2.40** (real LB, gpt_oss+gemma) | 4 subs scored 2026-06-28 (best 2.40); xl iteration pushed 2026-06-29 | 私有 LB 未公布;fast-breadth=2.40 已确认,需扩量验证天花板 | 扩 fast-breadth(direct+deputy max120)→提交;再加谓词叠加;建保留 guardrail 测鲁棒 |
-| [arc-agi2](arc-agi2/) (arc) | active | reasoning (abstraction) | baseline | **0%** (oracle harness 100%; TTT 0/20) | none yet — LB top **50.56** (nvbanana), 967 队, 账号已报名 | none yet (no Kaggle submit) | rung-1 (0.5B) **和** rung-2 (Qwen3-4B)+train-task pretrain 均 **0%** eval —— 杠杆是 **RE-ARC/合成数据**(教规则执行),非模型大小 | T2.5 RE-ARC+合成数据 pipeline(多日,需更多算力)**或**转 Grand-Prize writeup |
+| [arc-agi3](arc-agi3/) (arc3) | PAUSED_BUDGET | simulation_agent | open | `cv_score: null` —— 本地 RHAE 未计算(4 个 agent 本地跑通 ≠ 已评分) | LB **explore 0.18** / goose 0.07 (AI<0.005, 人类 100%) | **2/4 scored 2026-06-27** (explore@may 0.18 + goose@harry 0.07);goosenov+reactive 自 06-27 起排队未提交 | `verified_daily_limit` 未填 → §6 拒绝对 null cap 做预留(`resume_state: PRE_SUBMIT_GATE`);启发式(0.18)>CNN(0.07) | 先按 §6/A3 填 `verified_daily_limit` + `verified_reset_boundary`(带来源与日期),再提交排队的两个 kernel;然后把 explore 的动作效率移植进 CNN 探索 |
+| [nvidia-nemotron](nvidia-nemotron/) (nemo) | FINDINGS | llm | closed | per-kernel held-out | **0.85** (v14 replay) | v15 push 0.84 (2026-06-14); best=v14 0.85 | 0.85 是当前杠杆天花板(T7 merge 0.82 / v15 0.84 均回归);deadline **06-15** 迫近 | 守住 0.85 收官(可选 half-dose cryptarithm synth) |
+| [orbit-wars](orbit-wars/) (orbit) | FINDINGS | simulation_agent | closed | suite ~54.8% | own **686** (v3 peak) / attributed **1151** (kuni05) | harry latest-2: kuni05 **1085.4** + v3.2 **660.0** (2026-06-14) | 强档 cliff（0-15% vs evogen/multifocus/kuni05） | v4 Scheduler 下一刀（反击窗/集群重锤）；末 3 天冻结 best-2 |
+| [sec-attack](sec-attack/) | FINDINGS | simulation_agent | closed | 18.0 (bypass vs `optimal_public`, LLM-proxy) | **public 2.40** (real LB, gpt_oss+gemma) | 4 subs scored 2026-06-28 (best 2.40); xl iteration pushed 2026-06-29 | 私有 LB 未公布;fast-breadth=2.40 已确认,需扩量验证天花板 | 扩 fast-breadth(direct+deputy max120)→提交;再加谓词叠加;建保留 guardrail 测鲁棒 |
+| [arc-agi2](arc-agi2/) (arc) | WAIT_HUMAN | reasoning (abstraction) | open | **0%** (oracle harness 100%; TTT 0/20) | none yet — LB top **50.56** (nvbanana), 967 队, 账号已报名 | none yet (no Kaggle submit) | 连续两个 rung 都 **0%** —— 杠杆是 **RE-ARC/合成数据**(教规则执行),非模型大小;下一步需多日 GPU,而 `max_gpu_hours_per_cycle: null`。卡在**方向决策**,不是卡在代码(`resume_state: HUMAN_DIRECTION`) | 把方向分叉交给 human(本表 / #199):(a) RE-ARC+合成数据 pipeline 及其算力预算,或 (b) 转 Grand-Prize writeup。`decision_id: null` = 还没有请求通道(#197),不是没有待决 |
 
 > LB 说明:nemo 最好 **0.85**(`nemo-replay-v14`,issue #86 comment 2 确认);两次冲 0.85+ 均回归(T7 merge 0.82、v15 synth 0.84)。orbit（Kaggle API 2026-06-14 确认):attributed adapted-kuni05 当前 **1085.4**(峰值 1151）、自研 v3.2 **660.0**;榜首 ~1746。详见 [`nvidia-nemotron/tracking.md`](nvidia-nemotron/tracking.md) · [`orbit-wars/tracking.md`](orbit-wars/tracking.md)。
 > Kaggle 只读刷新（2026-06-14）：nemo own 最好 **0.85**(v14);账号原始公开最大 **0.86**(2026-05-15 public-fork,非自训);榜首 **~0.90**;private LB 未发布。详见 [`nvidia-nemotron/submissions.md`](nvidia-nemotron/submissions.md)。

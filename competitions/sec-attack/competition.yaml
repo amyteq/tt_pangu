@@ -11,6 +11,7 @@ deadline: 2026-09-01            # ✓ verified 2026-09-13 via Kaggle API (closed
 primary_artifact: script        # attack.py defining AttackAlgorithm(AttackAlgorithmBase)
 submission_mode: kernel          # Kaggle code competition; attack.py run inside the evaluator
 data_policy: generated           # no train/test CSV — a sandboxed agent environment + seed fixtures
+autonomy_config: null            # no autonomy config in this directory => ADR-0022 §5 A1 fails
 last_updated: 2026-06-26
 sdk:
   package: aicomp-sdk
@@ -47,6 +48,8 @@ budget:
     verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
     verified_source: null               # where that number was read (URL / API field)
     verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_reset_boundary: null       # WHEN the daily quota resets, from the competition's
+                                        #   own rules; NEVER assumed. null blocks submission
     verified_ttl: 30d                   # past this the limit is unverified again and blocks
     reserve_for_human: 0
   failures:

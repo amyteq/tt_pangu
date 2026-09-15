@@ -66,6 +66,8 @@ _base:
       - over_budget_spend
       - ambiguous_rule
       - new_terms_or_team_change
+      - final_submission_selection   # whenever the choice is made, not only near the deadline
+      - external_data_or_data_policy  # adopting external data / expanding beyond comp data
 
 # --- baseline / early SFT kernel (v5–v7, dgxchen CoT corpus) ------------------
 baseline:

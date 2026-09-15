@@ -3,14 +3,19 @@ kaggle_slug: arc-prize-2026-arc-agi-3
 title: ARC Prize 2026 - ARC-AGI-3
 aliases: [arc3, arc-agi-3, arcagi3]
 status: open                   # open | closed | unknown -- does the competition still accept submissions (was: active)
-state: RESEARCH                # ADR-0022 §3 canonical state (was phase: research)
+state: PAUSED_BUDGET           # ADR-0022 §3 canonical state (was phase: research)
+# ADR-0022 §3: a side state records how to come back.
+resume_state: PRE_SUBMIT_GATE  # two kernels are built, pushed and queued; they need a slot
+state_reason: "budget.submissions.verified_daily_limit is null -- §6 refuses a reservation against a null cap. submissions.md records 1/account/day read 2026-06-27, but with no verified_source/verified_at in this block it is not verified in A3's sense."
+
 competition_type: simulation_agent  # interactive turn-based game environments (NOT static grids)
 metric: RHAE — Relative Human Action Efficiency = (human_actions / agent_actions)^2, capped 1.0/level
 deadline: 2026-11-02            # submissions close; entry/team-merge 2026-10-26; winners 2026-12-04
 primary_artifact: agent          # an interactive agent, not a static notebook output
 submission_mode: notebook        # Kaggle notebook, one-click runnable, <12h, no internet at eval
 data_policy: api                 # environments served via the arc-agi API/SDK, not a file download
-last_updated: 2026-06-26
+autonomy_config: kca-arc-agi3.yaml   # ADR-0022 §5 A1 reads this file; the slug is NOT the filename
+last_updated: 2026-09-15         # state reconciled against submissions.md + the dashboard (ADR-0022 §3 rank 1)
 # ADR-0022 §6 budget envelope. Same KEY STRUCTURE as
 # competitions/_templates/competition.yaml; the VALUES are this competition's.
 # `null` is an UNKNOWN, not "unlimited": a null cap refuses the work that would
@@ -32,6 +37,8 @@ budget:
     verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
     verified_source: null               # where that number was read (URL / API field)
     verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_reset_boundary: null       # WHEN the daily quota resets, from the competition's
+                                        #   own rules; NEVER assumed. null blocks submission
     verified_ttl: 30d                   # past this the limit is unverified again and blocks
     reserve_for_human: 0
   failures:
@@ -41,12 +48,16 @@ budget:
     review_after_no_gain_experiments: 5
 best:
   cv_metric: RHAE
-  cv_score: null                 # not yet run
-  public_lb: null
+  cv_score: null                 # local RHAE over the 25 public envs still NOT computed
+                                 #   (submissions.md checklist item 1 is open); the 4 agents
+                                 #   ran clean end-to-end, which is not the same as scored
+  public_lb: 0.18                # firefly2006/arc3-explore (frame-diff heuristic), 2026-06-27
+                                 #   2nd: harrysun2006/arc3-goose (CNN) 0.07. Both >> the
+                                 #   <0.005 frontier-LLM baseline; the no-NN heuristic won
   private_lb: null
-  submission_id: null
-current_blocker: "research phase — no agent built yet; need Kaggle login to confirm rules/GPU/data tab, and an arc-agi API key (three.arcprize.org) to play the 25 public envs locally"
-next_task: "Stand up the arc-agi SDK harness against the 25 public envs; pick a track (Official vs Community); build a minimal exploration baseline"
+  submission_id: 54111957        # the 0.18 submission (see submissions.md log)
+current_blocker: "verified_daily_limit unset, so no submission slot can be reserved (see state_reason). Two validated kernels — harrysun2006/arc3-goosenov, firefly2006/arc3-reactive — have been queued since 2026-06-27 and have not been submitted. Nothing has moved on this competition since then; deadline 2026-11-02."
+next_task: "Fill budget.submissions.verified_daily_limit + verified_reset_boundary from the competition rules with source and date (ADR-0022 §6/A3), then submit the two queued kernels. Then port arc3-explore's action efficiency into the CNN exploration path (insights.md INS-002/INS-004)."
 source_notes:
   - competitions/arc-agi3/research.md           # ARC-AGI-3 research brief (2026-06-26)
   - competitions/arc-agi3/arc-agi2-research.md  # ARC-AGI-2 + prior-winner research brief

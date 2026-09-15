@@ -13,6 +13,7 @@ competition_id: 138420
 primary_artifact: agent
 submission_mode: agent           # single-file agent (or tar.gz) on kaggle_environments; <=5/day, latest 2 scored
 data_policy: generated           # self-play + public-agent suite on the engine; public episode dataset for replay mining
+autonomy_config: null            # no autonomy config in this directory => ADR-0022 §5 A1 fails
 last_updated: 2026-06-14         # ladder confirmed via read-only Kaggle API refresh 2026-06-14
 # ADR-0022 §6 budget envelope. Same KEY STRUCTURE as
 # competitions/_templates/competition.yaml; the VALUES are this competition's.
@@ -37,6 +38,8 @@ budget:
     verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
     verified_source: null               # where that number was read (URL / API field)
     verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_reset_boundary: null       # WHEN the daily quota resets, from the competition's
+                                        #   own rules; NEVER assumed. null blocks submission
     verified_ttl: 30d                   # past this the limit is unverified again and blocks
     reserve_for_human: 0
   failures:

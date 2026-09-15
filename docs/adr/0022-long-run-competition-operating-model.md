@@ -69,8 +69,19 @@ Rules that follow:
    paths. So a phase-1 session that merely has a DSN in its environment writes
    experiment, run and goal rows into KCA's control plane as a side effect.
 
+   **`kca kaggle push` is the fifth path, and it is conditional.** The push itself is
+   filesystem-and-Kaggle only, but it auto-watches the kernel run by default
+   (`kg.py:542-550`), and the watcher writes to Supabase on exactly two arguments:
+   `--run-id` reaches `db.set_run_analysis_jsonb` (`kg.py:839-848`) and `--competition`
+   reaches an `UPDATE submissions SET status = 'stalled'` (`kg.py:879-915`). Both are
+   `except Exception: pass` best-effort, so a phase-1 session gets no error and no signal
+   that it wrote phase-2 state.
+
    **Rule until a storage mode exists:** phase 1 does not run `kca run`, `kca goal`,
-   `kca explore` or `kca stuck`. Phase-1 experiment and run records live in
+   `kca explore` or `kca stuck`, and runs `kca kaggle push` **with `--no-watch`** — or, if
+   it wants the watch, **without `--run-id` and without `--competition`**, which are the
+   only two arguments that reach a DB write. Poll the kernel separately and record the
+   outcome in `competitions/<slug>/`. Phase-1 experiment and run records live in
    `competitions/<slug>/` and `runs/<competition>/<run_id>/` as files, and in the
    tracking issue. Unsetting the DSN is *not* the control — an unset variable is an
    accident away from being set.
@@ -216,8 +227,31 @@ enters a side state it also records, alongside `state`:
 | `external_ref` | For `NEEDS_RECONCILIATION`: the submission/kernel id whose outcome is unknown |
 
 **Where the state is recorded (phase 1):** `competitions/<slug>/competition.yaml:state`
-plus the fields above, mirrored into the tracking-issue body and the dashboard #199
-status column. One current state per competition; history lives in the ledgers (#191).
+plus the fields above. One current state per competition; history lives in the ledgers (#191).
+
+**Precedence, so that "mirrored" is deterministic.** Four surfaces carry competition
+status in phase 1, and a mirror that may be edited independently is a second authority.
+Strictly ordered:
+
+| Rank | Surface | Role |
+|---|---|---|
+| 1 | `competitions/<slug>/competition.yaml` — `state`, the side-state fields above, `status`, `best`, `current_blocker`, `next_task`, `last_updated` | **The only writable authority.** A state change is this file changing. |
+| 2 | `competitions/README.md` (dashboard) and the dashboard issue #199 | **Mirror.** Derived from rank 1, updated in the same change, never edited on its own. |
+| 3 | `competitions/<slug>/tracking.md` (+ `tracking_zh.md`) | **Narrative, not state.** Reasoning, experiment history, LB writeups, decisions and their evidence. It may hold facts rank 1 does not, but it may not hold a *different* `state`, `status` or `best`. |
+| 4 | The per-competition tracking issue (#86, #87, …) | **Human-facing mirror** of ranks 1 and 3, plus live discussion. Discussion is not state. |
+
+Two rules follow, and they are what makes a fresh session deterministic:
+
+- **On conflict, the lower rank is stale, not authoritative** — including when it is
+  obviously fresher. The session's job is to fix the mirror, not to infer a state from it,
+  and where the mirror carries evidence the YAML lacks (a score, a submission id), that
+  evidence is what the YAML update is *made of*. An unreconciled conflict is itself a
+  finding: record it in `current_blocker`.
+- **Mirrors are updated in the same change as rank 1**, never later. "Future status
+  updates live in `tracking.md`, not in the issue" (the note at the head of
+  `nvidia-nemotron/tracking.md` and `orbit-wars/tracking.md`) was written before this
+  vocabulary existed and is corrected by those files in this ADR's change: narrative moved
+  out of the issues, but the *state fields* were always rank 1's.
 
 **Field reconciliation — this replaces the two overlapping fields:**
 
@@ -245,8 +279,8 @@ that only the template speaks is two vocabularies, not one. The migration applie
 
 | Competition | was `phase:` / `status:` | now `state:` / `status:` |
 |---|---|---|
-| `arc-agi2` | `prep` / `research` | `ONBOARD` / `open` |
-| `arc-agi3` | `research` / `active` | `RESEARCH` / `open` |
+| `arc-agi2` | `prep` / `research` | `WAIT_HUMAN` (`resume_state: HUMAN_DIRECTION`) / `open` |
+| `arc-agi3` | `research` / `active` | `PAUSED_BUDGET` (`resume_state: PRE_SUBMIT_GATE`) / `open` |
 | `nvidia-nemotron` | `submission` / `active` | `FINDINGS` / `closed` |
 | `orbit-wars` | `iteration` / `active` | `FINDINGS` / `closed` |
 | `sec-attack` | `iteration` / `active` | `FINDINGS` / `closed` |
@@ -255,6 +289,28 @@ The three closed competitions land in `FINDINGS` because that is what is true of
 the competition is over and only the writeups and post-mortem remain. This incidentally
 corrects the three stale `status: active` values issue #195 was opened for; #195 keeps
 the rest of its scope (what under `competitions/` is source-controlled).
+
+**The two open competitions do not land on their old `phase` token at all**, and that is
+the migration working rather than failing. A rename would have carried the stale value
+across: both files said `research` / `prep` while the tree recorded work well past it —
+four arc-agi3 agents built, pushed and two scored (`arc-agi3/submissions.md`), and two
+arc-agi2 TTT rungs trained and evaluated at 0% (`competitions/README.md` 2026-06-29).
+Migrating a field means restating what is true, so each was re-derived from the freshest
+evidence in the tree, and each landed on a **side state** because that is what is true:
+
+- **`arc-agi3` → `PAUSED_BUDGET`, `resume_state: PRE_SUBMIT_GATE`.** Its next step is to
+  submit the two kernels that are built, pushed and queued, which needs a submission slot;
+  `budget.submissions.verified_daily_limit` is `null`, and §6 refuses a reservation
+  against a null cap. `submissions.md` records 1/account/day read on 2026-06-27, but
+  without `verified_source` / `verified_at` in the block that number is not verified in
+  the sense **A3** means, so the fail-closed reading stands.
+- **`arc-agi2` → `WAIT_HUMAN`, `resume_state: HUMAN_DIRECTION`.** Both rungs scored 0%,
+  the analysis is written (the lever is the data pipeline, not model size), and what
+  remains is a direction choice between a multi-day RE-ARC / synthetic-data pipeline and
+  a pivot to the Grand-Prize writeup. That is ADR-0006's "major direction change" and
+  §2's human column, so it waits. `decision_id` is `null` because the request channel is
+  follow-up #197; until it exists the request *is* `state_reason` plus the dashboard row,
+  and a null `decision_id` in `WAIT_HUMAN` means exactly that — never "no request".
 
 **Submission topology is per competition, never "upload a CSV".**
 `competition.yaml:submission_mode` already carries it, and `PRE_SUBMIT_GATE` →
@@ -321,13 +377,42 @@ applies only when all of the following are true, and each is checkable by readin
 
 | # | Precondition | Checkable by |
 |---|---|---|
-| **A1** | `autonomy.enabled` is not `false`, **and** the flag for the action at hand — `auto_submit` for a leaderboard submission, `auto_push` for a kernel push — is not `false` | `competitions/<slug>/kca-<slug>.yaml` |
-| **A2** | The competition's `budget:` block exists and every cap is set — no `null` (§6) | `competitions/<slug>/competition.yaml` |
-| **A3** | `budget.submissions.verified_daily_limit` carries `verified_source` / `verified_at` and is inside `verified_ttl` | the same block (§6) |
+| **A1** | The competition's autonomy config exists and is readable at the path `competition.yaml:autonomy_config` names, **and** in it `autonomy.enabled` is not `false`, **and** the flag for the action at hand — `auto_submit` for a leaderboard submission, `auto_push` for a kernel push — is not `false` | `competitions/<slug>/competition.yaml:autonomy_config` → that file |
+| **A2** | The competition's `budget:` block exists, every cap is set — no `null` — **and `cycle_anchor` is a real UTC timestamp**, without which no cycle window can be computed (§6) | `competitions/<slug>/competition.yaml` |
+| **A3** | `budget.submissions.verified_daily_limit` **and** `verified_reset_boundary` carry `verified_source` / `verified_at` and are inside `verified_ttl` — the limit is useless without knowing when the day rolls over | the same block (§6) |
 | **A4** | `launch`, `deadline` and the closing window are verified and inside `timing_verified_ttl` | the same file; otherwise `WAIT_HUMAN` (§5) |
-| **A5** | **Every** gate on the submit path refuses on failure rather than skipping — both the ADR-0020 §7 daily-limit guard and `kg.py`'s approval gate (fail-closed) | see the paragraphs below |
+| **A5** | **Every** gate on the submit path is fail-closed, all three of them: (a) the ADR-0020 §7 daily-limit guard refuses rather than proceeding, (b) `kg.py`'s approval gate defaults to requiring approval, and (c) the harness intercepts **every** submit *and* push command form — `kca kaggle submit/push`, `kaggle competitions submit`, `kaggle kernels push`, and the `python tools/kca/kca.py …` forms | see the paragraphs below |
 | **A6** | A submission-intent record is written and persisted before dispatch | §5 "Recording an autonomous submission" |
 | **A7** | Every shared budget scope it spends against has a reachable machine-absolute ledger + lock, reserving is atomic under that lock, and every cross-host scope has one designated driver host **for the scope** (not per competition) | §6 "A shared counter cannot live in a worktree" |
+
+**Which file A1 reads is declared, not guessed.** `kca-<slug>.yaml` is a convention, not
+a rule, and it is already broken in the tree: `nvidia-nemotron`'s file is
+`competitions/nvidia-nemotron/kca-nemo.yaml` (the alias, not the slug), so a checker
+resolving `kca-<slug>.yaml` would look for `kca-nvidia-nemotron.yaml`, find nothing, and
+have to decide what "nothing" means. So the path is a declared field —
+`competition.yaml:autonomy_config`, relative to the competition directory — and A1 reads
+that file and no other. Two consequences, both fail-closed:
+
+- **The block is read at the file's top level, and A1 fails without it.** "No
+  `autonomy_config`", "the named file is missing", "it does not parse" and "it has no
+  top-level `autonomy:` mapping" all fail. The last is the case that matters most, because
+  it is the one that reads as a *pass*: with no block, `autonomy.enabled` is not `false` and
+  neither action flag is `false`, so a literal check of the row succeeds while nothing was
+  checked at all. Both configs in the tree fail A1 today, for the two different reasons:
+  `competitions/arc-agi3/kca-arc-agi3.yaml` exists and parses but has no `autonomy:` block
+  anywhere, and `competitions/nvidia-nemotron/kca-nemo.yaml` has one but nested under its
+  `_base:` per-variant defaults key (`kca-nemo.yaml:51`), not at the top level. Neither is a
+  problem to fix here — both competitions are `FINDINGS`/`RESEARCH`-side and neither is
+  activating anything — but "the block is somewhere in the file" is not a checkable
+  condition, so the location is fixed: top level, or A1 fails. Moving nemo's block, or
+  teaching the reader a declared key path, belongs with the follow-up that writes the
+  reader.
+- **None of this contradicts ADR-0021 §2's "default ON".** That default says autonomy is
+  *permitted* without a config, and it stands. A1 asks a different question — can the three
+  vetoes be *read*? — and each failure case above answers it with "no". Unknown is never
+  unlimited (§6), here as everywhere.
+- **Glob-matching `kca-*.yaml` is not the fallback.** Two matches, or one matching an alias
+  of a different competition, is exactly the ambiguity the declared field removes.
 
 **`autonomy.enabled: false` is an absolute veto, checked before everything else.** It is
 the one-line opt-out ADR-0021 §2 gives a competition that needs strict human-in-the-loop,
@@ -358,7 +443,7 @@ policy preference. There are four layers, and it matters which one actually exec
 | # | Layer | What it would do | What it does today |
 |---|---|---|---|
 | 1 | ADR-0022 §5 (this section) | push/submit with no per-action **or per-batch** approval | **inactive** — no competition meets A1–A7 |
-| 2 | ADR-0021 §2 | push/submit with no per-action approval *if screening passes* | **unimplemented** — nothing under `tools/` / `src/` / `scripts/` reads the `autonomy:` block; it appears only in Markdown, so "screening passes" cannot be evaluated |
+| 2 | ADR-0021 §2 | push/submit with no per-action approval *if screening passes* | **unimplemented** — the block exists in exactly one file in the tree (`competitions/nvidia-nemotron/kca-nemo.yaml:51-68`; `rg '^\s*autonomy:' competitions` returns that line and no other), and nothing under `tools/` / `src/` / `scripts/` reads it, so "screening passes" cannot be evaluated |
 | 3 | `.kca/permissions/*.yaml` | `kaggle_submit` / `kaggle_push` = `default_decision: ask` in every profile (`default.yaml:2-9`, `permissive-dev.yaml:2-9`, `competition-runner.yaml:2-14`) | **not on the submit path** — the only production import of `permission_policy.resolve_for_skill` is `tools/kca/skill.py:15`; the installed `kca` entry point (`pyproject.toml:32-33`) reaches `tools/kca/kg.py` directly |
 | 4 | `tools/kca/kg.py` | the gate that the `kca kaggle submit` / `push` commands actually call | **fail-open** — see below |
 
@@ -402,10 +487,13 @@ claim that floor is enforced. It claims three things instead:
 - **Both gaps are follow-ups with `file:line` evidence**, below, so activation is blocked
   on them rather than the problem being rediscovered later.
 
-Neither fix belongs in this ADR. `OPERATION_DEFAULTS` is ADR-0006's documented default and
-`tests/test_m4_smoke.py:233-234` asserts the present value (*"Default: kaggle_submit=False
-→ should NOT raise"*), so changing it is a `kca` behaviour change needing its own PR and
-tests. `.claude/settings.json` and `.claude/hooks/guard_tool.py` are the harness's own
+Neither fix belongs in this ADR. `OPERATION_DEFAULTS` is ADR-0006's documented default, so
+changing it is a `kca` behaviour change needing its own PR. Note what does **not** protect it:
+`tests/test_m4_smoke.py:228-234` is named `test_approval_gate_allows_by_default` but passes an
+explicit `{"approval_gates": {"kaggle_submit": False}}`, so it never reads
+`OPERATION_DEFAULTS` and would not fail if the default flipped. The default is currently
+untested, which is a reason the follow-up must add a real test — `_check_approval_gate("kaggle_submit", {})`
+— not a reason to change it here. `.claude/settings.json` and `.claude/hooks/guard_tool.py` are the harness's own
 guard configuration: an agent session cannot write them — they are read-only in the
 sandbox, by design — and an agent widening or narrowing its own guard is the human's
 decision, not a side effect of a docs PR.
@@ -416,8 +504,11 @@ implements ADR-0020 §7 as an explicit *courtesy* guard: `tools/kca/kg.py:205-21
 `tools/kca/kg.py:252` reads `competitions.max_daily_submissions` from Supabase — a phase-2
 authority that phase 1 does not write (§1). Nothing in the tree reads
 `verified_daily_limit`, `require_repro` or `rules_check`. A fail-open courtesy guard is
-adequate under ADR-0021, where `beats_best` independently limits what gets submitted; it is
-**not** adequate under §5, which removes that limiter. Until a fail-closed gate consuming
+not adequate under **either** model. It would have been defensible under ADR-0021 if
+`beats_best` independently limited what gets submitted — but nothing evaluates `beats_best`
+either (same paragraph above), so that limiter is documentary too, and §5 removes it
+explicitly. Two documentary limiters do not make one real one. Until a fail-closed gate
+consuming
 the phase-1 YAML contract exists — *and* `kg.py`'s approval gate defaults to requiring
 approval rather than allowing it — *and* the harness intercepts every submit form, not just
 two of three push forms — no competition meets **A5**, and §5's submission autonomy is
@@ -448,16 +539,31 @@ required for the loop to proceed.
    real-money spend; metered API spend is).
 3. Ambiguous competition rules — including unverifiable or expired rule sources.
 4. **Accepting new terms, joining a competition, or any team change.**
-5. Final candidate promotion when the competition is closing soon (scenario 4
-   below).
+5. **Choosing the competition's final submissions** — which one or two runs are
+   entered as the final answer — whenever that choice is made. (ADR-0006's "final
+   submission selection".)
+6. Promoting a candidate when the competition is closing soon — scenario 4 below.
+   This is item 5's special case, kept as its own line because it also gates the
+   *ordinary* promotion of a better score once the closing window opens, when
+   picking the final entry is not yet on the table.
+7. **Adopting external data, or expanding training data beyond the competition's
+   own data.** (ADR-0006's "data policy decisions".) This is a rules-compliance
+   surface and a licence commitment, so it is gated whether or not the rules look
+   clear — distinct from item 3, which covers rules that are ambiguous.
 
 **This set is a floor, not a default, and it is NOT configurable.** ADR-0006 makes
 approval gates configurable per project / per competition / per job; that mechanism may
 only **tighten** the set above — add gates, or turn an autonomous action back into an
 approval. No project config, competition policy, `autonomy:` block or job override may
-remove or weaken any of the five. A config that appears to do so is a bug, and the action
-stays gated. Anything *not* in this set is genuinely autonomous inside budget; that is
-where ADR-0006's configurability applies.
+remove or weaken any of the seven. A config that appears to do so is a bug, and the action
+stays gated. Anything *not* in this set is genuinely autonomous inside budget **and inside
+the approved strategy** — the set lists irreversible *actions*, and §2's table separately
+reserves **direction changes** to the human. A direction change is not gated here because it
+is not an action: it is enforced by the state machine, which routes it through `WAIT_HUMAN`
+(`resume_state: HUMAN_DIRECTION`) rather than letting the agent adopt it (§3, and the
+ADR-0006 disposition below). The test for "is this a direction change?" is mechanical: if the
+next experiment is not derivable from the approved strategy, it is one. Inside those two
+boundaries, ADR-0006's configurability applies.
 
 **Harness carve-out (unchanged).** §5 governs *competition* actions. The Claude
 Code harness still asks before destructive host commands and credential/paid-API
@@ -472,8 +578,14 @@ differently under §5: scenario 2's unused slots are **spent** on exploration ra
 "not wasted", and scenario 3's N is bounded by the competition's **verified** daily limit,
 never an assumed 5. ADR-0021 §4 now points here — one copy.
 
-Target submission roughly 2 hours before the daily roll-over (00:00 UTC). Apply
-per competition day:
+Target submission roughly 2 hours before the daily roll-over — **which is whatever the
+competition says it is, not 00:00 UTC**. Kaggle sets this per competition: the Jaguar
+Re-identification rules say "the daily submission limit resets at midnight Central European
+Time", and a scheduler assuming UTC would submit into the wrong day and miscount the current
+one. The boundary is therefore read from the competition's own rules into
+`budget.submissions.verified_reset_boundary` with the same provenance the limit carries, and
+§5's **A3** fails while it is `null`. "Per competition day" below means a day delimited by
+that boundary. Apply per competition day:
 
 | Scenario | Condition | Action |
 |---|---|---|
@@ -581,6 +693,10 @@ budget:
     verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
     verified_source: null               # where that number was read (URL / API field)
     verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_reset_boundary: null       # WHEN the daily quota rolls over, as read from the
+                                        # competition's own rules: e.g. "00:00Z" or "00:00+01:00".
+                                        # Never assumed — Kaggle competitions differ, and a wrong
+                                        # boundary miscounts the day. null blocks submission.
     verified_ttl: 30d                   # past this the limit is unverified again and blocks
     reserve_for_human: 0
   failures:
@@ -649,11 +765,19 @@ the same answer from the same files:
 
 - `budget.cycle` is a duration; `budget.cycle_anchor` is the UTC timestamp the first cycle
   started. Cycle *n* runs `[anchor + n×cycle, anchor + (n+1)×cycle)`. All budget arithmetic
-  is UTC — the same clock the competition's daily roll-over uses.
+  is stored and computed in UTC, which is a *representation* choice and not a claim about
+  when anyone's day starts.
+- **The submissions dimension is the exception: its window is the competition's day, not
+  ours.** A per-day quota resets on the platform's boundary, so the `submissions` window
+  runs between consecutive `verified_reset_boundary` instants (converted to UTC for
+  storage), not between `cycle_anchor` multiples. Getting this wrong is not a rounding
+  error: an 01:00 UTC submission is the previous competition day under a CET boundary, and
+  a ledger that thinks otherwise reserves a slot the platform has already spent.
 - `verified_daily_limit` is inert without `verified_source` (where the number was read),
-  `verified_at` (when), and `verified_ttl` (how long that reading may be trusted). Past the
-  TTL the limit is *unverified* again and §5's **A3** fails — the competition drops
-  back to the ADR-0021 model rather than guessing.
+  `verified_at` (when), and `verified_ttl` (how long that reading may be trusted), and so
+  is `verified_reset_boundary` — a limit of 5/day says nothing usable until you know which
+  5 hours count as the same day. Past the TTL either field is *unverified* again and §5's
+  **A3** fails — the competition drops back to the ADR-0021 model rather than guessing.
 - The per-*team* daily submission quota and the per-*account* notebook/GPU quota are
   separate ledgers and are never traded against each other (#193).
 
@@ -691,6 +815,23 @@ It is runtime state, not project state: never committed, never inside a worktree
 the `competition.yaml` `budget:` block — that holds the **caps**, which are reviewed in git;
 this holds the **consumption**, which is not.
 
+**A per-competition cap is a scope too.** `budget.experiments.max_per_cycle`,
+`budget.compute.max_gpu_hours_per_cycle` and `budget.llm.max_metered_cost_per_cycle_usd` are
+per competition, and a cap with no counter bounds nothing: the repo side deliberately keeps no
+counter, so these must be reserved against the same ledger as the shared pools, under the
+scope identity `competition:<slug>`. Its cap values come from that competition's
+`budget:` block rather than from `competitions/_shared/budget.yaml`, and its window comes
+from `budget.cycle` anchored at `budget.cycle_anchor` — which is why **A2** requires the
+anchor to be set. Everything else — `O_EXCL` records, the lock, the reduction rule, the
+ceiling rule — is identical. A submission therefore reserves against *both*
+`competition:<slug>` and `team:<team>`, all-or-none, by the ordered multi-scope rule below.
+
+**`reserve_for_human` is subtracted from the agent's cap, not from the quota.**
+`budget.submissions.reserve_for_human: N` means the agent's effective cap for the cycle is
+`verified_daily_limit - N`; the reduction compares against that number, and the last `N`
+slots are refused to an autonomous reservation while remaining available to a human-approved
+one. `N` defaulting to `0` means no slots are held back.
+
 **Records are immutable; one file per reservation, created `O_EXCL`.** A YAML list read,
 modified and written back loses one of two concurrent reservations, and the loser's spend is
 invisible. An exclusive create either wins or fails:
@@ -701,7 +842,8 @@ id: RES-0007                # what submission-intent's `budget_reservation` poin
 dimension: submissions      # submissions | compute | llm | experiments | kernel_slots
 amount: 1
 unit: submission            # must equal the cap's `unit`; mismatches are rejected, not converted
-scope: team:<team>          # team:<team> | account:<name> | machine:<name> | subscription:<name>
+scope: team:<team>          # competition:<slug> | team:<team> | account:<name>
+                            #   | machine:<name> | subscription:<name>
 window:                     # the MATCHED CAP's window, never the competition's
   kind: fixed               #   `budget.cycle`. fixed | rolling | instantaneous
   id: 2026-09-15T00:00:00Z  #   == <window-id> in the path above
@@ -735,9 +877,12 @@ The two non-fixed kinds keep the same directory shape and differ only in **which
 in it are in scope** when reducing:
 
 - **`anchor: rolling`** (a sliding window, e.g. subscription usage over `5h`): the `rolling`
-  directory holds every record for that scope+dimension; reduction considers only those
-  whose `reserved_at` falls inside the window looking back from now. Older records are
-  inert and may be pruned.
+  directory holds every record for that scope+dimension. Reduction considers every record
+  that is either **still live** (no terminal sidecar) *or* whose `reserved_at` falls inside
+  the lookback window. A live reservation is **never** aged out: a job that outlasts the
+  window would otherwise vanish from the count while still consuming the resource, and its
+  capacity would be handed to someone else. Only *terminated* records older than the window
+  are inert, and only those may be pruned.
 - **`window: instantaneous`** (a ceiling on what is *held*, e.g. `kernel_slots`): the `held`
   directory has no time window, and reduction considers **live holds** — reservations with
   no terminal sidecar. These always end `outcome: released`, never `settled`: nothing was
@@ -776,6 +921,28 @@ human resolves it.
    `O_EXCL`-create the new record. Release the lock.
 3. Dispatch. Then write the terminal sidecar.
 
+**One job, several scopes: all-or-none, in one fixed order.** A submission spends against
+`competition:<slug>` *and* `team:<team>`; a GPU job against `competition:<slug>` and
+`machine:<name>`. Reserving them one at a time would let the first succeed and the second
+fail, leaving a phantom reservation that suppresses capacity nobody is using — or, worse,
+two jobs each holding one of the two locks and waiting for the other. So:
+
+1. **Collect every (scope, dimension) pair the job will spend against, before locking
+   anything.** A pair discovered mid-dispatch is a bug: release everything and start over.
+2. **Sort the scopes by their absolute ledger path and `flock` them in that order**,
+   ascending, without releasing any. A total order on the lock set is what makes deadlock
+   impossible; byte-wise path order is one every host computes identically.
+3. **Under all the locks: reconcile, reduce and compare every pair.** If *any* pair is over
+   its cap, create no record at all, release the locks, and enter `PAUSED_BUDGET` naming the
+   dimension that refused (§3's `state_reason`).
+4. **If all pass, `O_EXCL`-create every record, then release in reverse order.** The
+   records share one `ref`, so reduction still counts each once per scope, and settlement
+   writes one terminal sidecar per record.
+
+A partial failure at step 4 — some records created, one create failing — is the
+`NEEDS_RECONCILIATION` case: the created records stay (they are the honest record that
+capacity was taken) and are then explicitly `released` with evidence, never deleted.
+
 **A lock is machine-local; some scopes are not.** `flock` coordinates workers on one host. A
 `team:` scope does not stop there — the same Kaggle team quota is spendable from another
 machine, and no local lock can see that. For any scope that spans hosts, the local lock is
@@ -790,9 +957,15 @@ necessary but not sufficient, and two further rules apply:
   not spend against that scope, whichever competition is asking — so two competitions on
   one team reserve through the same host, against the same ledger, under the same lock,
   which is what makes the machine-local `flock` sufficient again.
-- **Reconcile before reserving**: the platform's own count of today's submissions is the
-  authority, read at the start of each cycle and after any `NEEDS_RECONCILIATION`. The local
-  ledger is a fast path over that truth, never a replacement for it.
+- **Reconcile before reserving — every time, under the lock.** For any scope whose quota
+  something outside the ledger can consume (a human submitting by hand, a teammate, another
+  tool), the platform's own count is the authority and it is read **immediately before each
+  reservation, inside the scope's lock**, not once per cycle. A count read at cycle start is
+  stale the moment anyone spends out of band, and a stale count is how the ledger reserves a
+  slot that is already gone. If that read fails, the reservation fails: `PAUSED_BUDGET`, not
+  "proceed on the local number". The local ledger is a fast path *within* a cycle for
+  detecting our own concurrent reservations; it is never the authority on what the platform
+  has already counted.
 
 If a scope's driver designation is missing, expired, or named differently by two
 competitions that share it, then **every** competition spending against that scope is
@@ -851,8 +1024,8 @@ competition's real limit has not been read.
 | Competition deadline passed | `RESULT_ANALYSIS` → `FINDINGS`; `STOPPED` only once the findings are recorded, or when a human stops it outright |
 | Budget exhausted, **or budget/quota state unconfirmable** | `PAUSED_BUDGET` |
 | Consecutive failures over the limit | `FAILED` → `WAIT_HUMAN` |
-| N consecutive experiments with no meaningful CV gain | `HUMAN_DIRECTION` (strategy review) |
-| Unexplained CV / LB divergence | `HUMAN_DIRECTION` — investigate before spending more slots |
+| N consecutive experiments with no meaningful CV gain | `WAIT_HUMAN`, `resume_state: HUMAN_DIRECTION` — the review needs a decision, and waiting for one never happens in `HUMAN_DIRECTION` (§3) |
+| Unexplained CV / LB divergence | `WAIT_HUMAN`, `resume_state: HUMAN_DIRECTION` — investigate and decide before spending more slots |
 | External data / licence / rule compatibility unclear | `WAIT_HUMAN` (gated point 3) |
 | Artifact, data version, or submission attribution unconfirmable | `NEEDS_RECONCILIATION` |
 
@@ -894,13 +1067,36 @@ per competition — not the merge date of this ADR.
 | §2 `autonomy.enabled` default ON, opt-out with `enabled: false` | **In force.** Per-competition opt-out is still one line. |
 | §2 `daily_submit_budget: 5` | **Superseded.** The limit is the *verified* per-team limit for that competition (`budget.submissions.verified_daily_limit`); an unverified limit blocks (§6), and 5 is never assumed. |
 | §2 "Human role: contribute ideas, unblock, course-correct" | **Widened.** The human's *routine* decision is cross-competition priority (§5). Ideas and course-correction remain welcome, but the loop does not wait for them. |
-| §2 Always-human-gated set (irreversible delete / over-budget spend / ambiguous rule / scenario 4) | **In force, extended** with "accepting new terms, joining a competition, or any team change" (§5.4). |
+| §2 Always-human-gated set (irreversible delete / over-budget spend / ambiguous rule / scenario 4) | **In force, extended from four items to seven** — with "accepting new terms, joining a competition, or any team change" (§5.4), "choosing the competition's final submissions" (§5.5) and "adopting external data or expanding beyond the competition's own data" (§5.7). The last two carry ADR-0006's intervention points forward; see the ADR-0006 table below. ADR-0021 §2 is amended in this change to list all seven. |
 | §2 Scope: "the KCA product agent" only | **Extended.** This model governs phase-1 Claude Code / Codex sessions as well, minus the harness carve-out. |
+| §2 "Autonomous actions must stay **auditable and reversible** … so a human can override or roll back after the fact" | **Superseded, and ADR-0021 is amended in this change.** A dispatched submission cannot be recalled and its quota slot does not come back, so "reversible" was never true of the action this model widens; calling it reversible made the stated mitigation look stronger than it is. The requirement is **auditable and supersedable** — kernel versions retained, submission ids recorded, a later submission able to replace an earlier one — and the binding protection is the reserve-before-dispatch cap in §6, not the record written afterwards (§5 "Recording an autonomous submission"). |
 | §3 eval / audit clarifications, `.agent/kca/audit.jsonl` namespacing | **In force, unchanged.** |
 
 Net effect: there is **one** autonomy model. ADR-0021 remains the source for the
 two-agent boundary and the per-competition `autonomy:` block schema; ADR-0022 is
 the source for how wide autonomy actually is and what the human decides.
+
+## Relationship to ADR-0006 (configurable approval gates)
+
+**Its mechanism is kept; its four "human intervention points" are dispositioned here, one by
+one.** ADR-0006 §"Human intervention points (unchanged)"
+(`docs/adr/0006-configurable-approval-gates.md:134-143`) says four things "always require
+human judgment". §5's always-gated set is a floor, so any of those four that §5 dropped
+without saying so would be a silently removed safety gate. Point by point:
+
+| ADR-0006 human intervention point | Disposition under ADR-0022 |
+|---|---|
+| **Budget exhaustion** | **Kept, and made mechanical.** §6 turns it from a judgement call into `PAUSED_BUDGET` plus always-gated item 2 ("real-money spend beyond the approved budget"). An exhausted cycle never extends itself; only the human extends it (§2). |
+| **Data policy decisions** | **Kept and strengthened** — now always-gated **item 7**, and phrased to bind whether or not the rules look clear, because it is a licence commitment as well as a rules question. |
+| **Final submission selection** | **Kept and generalised** — now always-gated **item 5**. An earlier draft of this ADR gated it only "when the competition is closing soon", which was *narrower* than ADR-0006; that closing-window case is now item 6, the special case, rather than the rule. |
+| **Major direction changes** | **Kept, and enforced in the state machine rather than in the gate list.** §2's table assigns "direction changes it chooses to make" to the human and "propose a direction change" to the agent; §3 makes that concrete — the agent enters `WAIT_HUMAN` with `resume_state: HUMAN_DIRECTION`, and `HUMAN_DIRECTION` is *applying* an answered decision, never deciding one. §6's review triggers (no CV gain, CV/LB divergence) route the same way. This is the one point that is not in the always-gated set, because that set enumerates irreversible actions; a direction change is a decision, and decisions are gated by the state machine. |
+
+Net effect: ADR-0006 is unchanged as a mechanism — per-project / per-competition /
+per-job gate configuration, resolving through the same override pattern — and none of
+its four intervention points is dropped. Two of them become explicit items in §5's
+floor, one becomes a budget state, and one becomes a state-machine transition. What
+ADR-0006's configurability may still do is **tighten**: add gates, or turn an
+autonomous action back into an approval. It may never remove one of the seven.
 
 ## Consequences
 
@@ -918,7 +1114,11 @@ the source for how wide autonomy actually is and what the human decides.
   now carry the `budget:` block, so the schema is real rather than promised. Its
   caps ship `null`: under §6 each null refuses the work that would spend against
   that dimension, and under A2/A3 it means no competition can activate §5 today. That is the intended behaviour — a number has
-  to be verified before it can bound anything. `competitions/_shared/budget.yaml`
+  to be verified before it can bound anything. **A1 also fails for all five**, for two
+  separate reasons worth recording: three competitions declare `autonomy_config: null`
+  because they have no autonomy config at all, `arc-agi3`'s config has no `autonomy:`
+  block, and `nvidia-nemotron`'s has one nested under `_base:` rather than at the top
+  level. So §5 is inactive on A1, A2, A3 and A5 independently — four locks, not one. `competitions/_shared/budget.yaml`
   is written when the first competition is selected on #199.
 - **This ADR does not implement recovery.** `RETRY_AT`, `NEEDS_RECONCILIATION`,
   leases, checkpoints and restart recovery are *named* here so there is one
@@ -950,8 +1150,10 @@ the source for how wide autonomy actually is and what the human decides.
 | **Recovery + fault-injection implementation and tests** | *needs an issue* |
 | **Fail-closed pre-submit gate** reading the phase-1 `budget:` contract — §5 activation condition **A5** | *needs an issue* |
 | **Harness does not gate Kaggle submission**: `.claude/settings.json:91-92` allow-lists `kaggle competitions submit` and `python tools/kca/kca.py kaggle submit`, and `guard_tool.py:171,177` matches no submit form (nor the installed `kca kaggle push`). Third part of **A5** | *needs an issue* — human-only: the agent cannot write its own guard config |
-| **`kg.py` approval gate is fail-open**: `OPERATION_DEFAULTS["kaggle_submit"] = False` (`kg.py:21-22`) and `_gate()` (`kg.py:53-59`) has no call sites, so `kca kaggle submit` dispatches unapproved. Also the second half of **A5** | *needs an issue* — touches ADR-0006's defaults and `tests/test_m4_smoke.py:233-234` |
-| **Atomic shared-budget reservation** — the machine-absolute lock + `O_EXCL` protocol and the cross-host driver designation behind **A7** | *needs an issue* |
+| **`kg.py` approval gate is fail-open**: `OPERATION_DEFAULTS["kaggle_submit"] = False` (`kg.py:21-22`) and `_gate()` (`kg.py:53-59`) has no call sites, so `kca kaggle submit` dispatches unapproved. Also the second half of **A5** | *needs an issue* — touches ADR-0006's defaults; must also add the missing default-behaviour test, since `tests/test_m4_smoke.py:228-234` passes an explicit policy and never exercises `OPERATION_DEFAULTS` |
+| **Atomic shared-budget reservation** — the machine-absolute lock + `O_EXCL` protocol, the ordered multi-scope rule, and the cross-host driver designation behind **A7** | *needs an issue* |
+| **`autonomy_config` reader** for **A1** — resolve the declared path, require a *top-level* `autonomy:` mapping, and fail closed on absent / unparseable / blockless. Includes moving `kca-nemo.yaml`'s block out of `_base:` | *needs an issue* |
+| **Verified quota reset boundary** — read `verified_reset_boundary` per competition and window the `submissions` dimension on it instead of on `cycle_anchor` (**A3**) | *needs an issue* |
 | **Filesystem-only storage mode** for `kca run/goal/explore/stuck` + a test proving phase 1 writes no KCA rows | *needs an issue* (not #192) |
 
 ## Cross-references

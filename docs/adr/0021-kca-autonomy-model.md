@@ -100,8 +100,11 @@ schema and one live model per competition at any time, never two.
 **Always human-gated, regardless of `autonomy.enabled`:** irreversible/permanent
 deletions, real-money spend beyond the configured budget, ambiguous competition
 rules, accepting new terms / joining a competition / any team change (added by
-ADR-0022 §5), and final candidate promotion when the competition is closing soon
-(scenario 4, ADR-0022 §5). These are exactly the points where the human "provides
+ADR-0022 §5), final candidate promotion when the competition is closing soon
+(scenario 4, ADR-0022 §5), **choosing the competition's final submissions whenever
+that choice is made** and **adopting external data or expanding training data
+beyond the competition's own data** (the last two added by ADR-0022 §5, carrying
+ADR-0006's "final submission selection" and "data policy decisions" forward). These are exactly the points where the human "provides
 direction / unblocks", not routine ops. Per ADR-0022 §5 this set is a **floor**:
 ADR-0006's per-project / per-competition gate configuration may only tighten it,
 never remove or weaken an entry.
@@ -110,8 +113,18 @@ never remove or weaken an entry.
 decide the human-gated points above. Everything else (screened push/submit,
 exploration within budget) runs autonomously and is reconstructable from
 `.agent/kca/audit.jsonl` + the run artifact. Autonomous actions must stay
-**auditable and reversible** (kernel versioning, recorded submissions) so a human
-can override or roll back after the fact.
+**auditable and supersedable** (kernel versioning, recorded submissions) so a human
+can see exactly what was sent and replace it with a later submission.
+
+> **Amended by ADR-0022** (§5 "Recording an autonomous submission", and its
+> "Relationship to ADR-0021" table). This paragraph said "auditable and **reversible**
+> … roll back after the fact". That was wrong about the action it governs: a dispatched
+> submission cannot be recalled and the quota slot it consumed does not come back, so
+> nothing rolls back. The requirement is unchanged in substance — a human must be able to
+> see and override — but the word mattered, because "reversible" made the mitigation for
+> irreversible, quota-consuming actions look stronger than it is. The protection that
+> actually binds is ADR-0022 §6's reserve-before-dispatch budget, applied *before* the
+> submission, not the audit record written after it.
 
 ### 3. eval / audit — clarified, not activated
 

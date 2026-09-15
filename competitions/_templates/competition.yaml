@@ -23,6 +23,10 @@ timing_verified_ttl: 30d      # past this, timing is stale -> WAIT_HUMAN (ADR-00
 primary_artifact: unknown  # notebook | script | agent | submission | unknown
 submission_mode: unknown   # file | notebook | kernel | agent | unknown
 data_policy: unknown       # kaggle | external | generated | unknown
+# Path to this competition's autonomy config, relative to this directory. ADR-0022 §5 A1
+# reads THIS file and no other -- `kca-<slug>.yaml` is a convention, not a rule, and the
+# slug is not always the filename. null, missing or unparseable => A1 FAILS (fail-closed).
+autonomy_config: null      # e.g. kca-<slug>.yaml
 last_updated: <YYYY-MM-DD>
 # ADR-0022 §6 budget envelope. `null` is an UNKNOWN, not "unlimited": a null cap
 # refuses the work that would spend against THAT dimension until it is set or
@@ -42,6 +46,9 @@ budget:
     verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
     verified_source: null               # where that number was read (URL / API field)
     verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_reset_boundary: null       # WHEN the daily quota resets, from the competition's
+                                        #   own rules: "00:00Z", "00:00+01:00", ... NEVER assumed
+                                        #   (Kaggle sets it per competition); null blocks submission
     verified_ttl: 30d                   # past this the limit is unverified again and blocks
     reserve_for_human: 0
   failures:

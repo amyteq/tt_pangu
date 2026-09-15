@@ -134,8 +134,11 @@ M15 closes the goal loop on real LB signal and pays down the ADR-0018 tech-debt.
 The new submit step runs **autonomously under the KCA autonomy model**
 (`docs/adr/0021-kca-autonomy-model.md`): when `kca-<slug>.yaml:autonomy.enabled`
 is true and `autonomy.screen` passes, KCA submits without per-action approval and
-records the intended-submission summary to `.agent/kca/audit.jsonl`. Scenario-4 /
-over-budget / ambiguous-rules stay human-gated. **Design intent, not current behaviour:**
+persists the intended-submission record at
+`competitions/<slug>/submissions/<timestamp>-<experiment>.yaml` before dispatch — ADR-0022
+§5's **A6**; `.agent/kca/audit.jsonl` is supplementary evidence, not the record. Scenario-4 /
+over-budget / ambiguous-rules stay human-gated, as do final-submission selection and
+external-data decisions (ADR-0022 §5's seven-item floor). **Design intent, not current behaviour:**
 no code evaluates `autonomy.screen`, so this paragraph describes what M15 was aiming at,
 not what the tree does. Nor is the approval gate above enforced — see it for the
 `file:line` evidence. Until the gates in ADR-0022 §5's condition A5 are implemented, the
