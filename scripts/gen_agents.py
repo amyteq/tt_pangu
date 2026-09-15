@@ -220,6 +220,9 @@ def skill_front_matter(name: str) -> dict[str, str]:
     for line in lines[1:]:
         if line.strip() == "---":
             break
+        # A comment is never a continuation and never a key, at any indentation.
+        if line.strip().startswith("#"):
+            continue
         if line.startswith((" ", "\t")) or ":" not in line:
             # A continuation or list item. Harmless under a key this reader ignores
             # (`allowed-tools:` and `tags:` are lists), but under `name:`/`description:`
@@ -229,6 +232,20 @@ def skill_front_matter(name: str) -> dict[str, str]:
                     f"{relative} front matter continues `{previous_key}:` onto another line.\n"
                     f"    {line.strip()[:80]!r}\n"
                     "  This reader supports single-line values for that key — write it as one line."
+                )
+            stripped = line.strip()
+            # An *unindented* line with no `:` is a bare scalar where YAML expects a
+            # mapping key, and a real loader rejects the whole block. Skipping it (it
+            # sits under a key this reader ignores) is how `--check` came to pass on a
+            # skill Codex silently refuses to load, and .agents/README.md advertised it.
+            # `- item` is a valid block sequence entry and `#` is a comment; both stay.
+            if stripped and not line.startswith((" ", "\t")) and not stripped.startswith(("-", "#")):
+                fail(
+                    f"{relative} front matter has a line that is not `key: value`, a list item, "
+                    "or a comment.\n"
+                    f"    {stripped[:80]!r}\n"
+                    "  YAML rejects a bare scalar between mapping keys, so Codex would drop the "
+                    "skill entirely while this reader still advertised it."
                 )
             continue
         key, _, raw = line.partition(":")

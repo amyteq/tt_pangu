@@ -148,17 +148,32 @@ or give each harness its own worktree checked out at the same SHA.
 **Collect it from a clean worktree.** Record the commit only when `git status` is clean —
 evidence gathered from a dirty tree names a commit whose files are not the ones that were
 measured, which is worse than naming no commit at all because it looks checkable. The same
-goes for the loader probe above. Both writers check this rather than trusting it, and each
-states in its own docstring what it cannot check:
+goes for the loader probe above.
 
-- `scripts/render_codex_probe.py` refuses unless the named commit is HEAD, its `AGENTS.md` is
-  byte-identical to the file being measured, **and** the dump's project-doc message contains
-  that same file — the last one is what catches a stale `probe.json` rendered after an edit.
-  The binary version in the header is read at render time, so render right after probing.
-- `scripts/write_codex_smoke_evidence.py` refuses unless the named commit is HEAD and nothing
-  outside the evidence directory is modified, staged **or untracked** — an untracked skill
-  under `.agents/skills/` is loaded by Codex and would not show in `git diff`. It cannot check
-  that the answer files came from the run you think they did; pass them explicitly.
+Both writers enforce that through one shared check, `scripts/evidence_provenance.py`, which
+refuses unless the named commit is HEAD and nothing differs from it — modified, staged or
+**untracked** — except the three files the writers themselves emit. Untracked counts because an
+untracked `.agents/skills/<name>/SKILL.md` is loaded by Codex and inflates a measured skill
+count without appearing in `git diff`. The exemption is that explicit list of three outputs, not
+the evidence directory: `smoke-prompt.txt` is an *input*, and the smoke header's "prompt
+unmodified" claim is worthless if an edited prompt is exempt from the check that backs it.
+
+It is one shared function because three consecutive review rounds found this section claiming a
+guarantee the scripts did not implement — first neither compared its commit argument to HEAD,
+then the renderer never looked at the working tree at all while this paragraph said both writers
+did. Two implementations meant two chances to be wrong.
+
+On top of that shared check, each writer verifies what only it can:
+
+- `scripts/render_codex_probe.py` — that `AGENTS.md` at the named commit is byte-identical to
+  the file being measured, **and** that the dump's project-doc message contains that same file,
+  which is what catches a stale `probe.json` rendered after an edit. The binary version in the
+  header is read at render time, so render right after probing.
+- `scripts/write_codex_smoke_evidence.py` — that both answer files exist and are non-empty.
+
+Neither can check which binary produced a dump or an answer file, or that an answer file came
+from the run you believe it did. Those stay attestations; pass the paths explicitly so the
+provenance is at least visible at the call site.
 
 Prompt (`docs/evidence/issue-189-codex-parity/smoke-prompt.txt`) asks, read-only, which skill
 initialises a run directory for `competitions/arc-agi2`, what the dev-phase secret policy

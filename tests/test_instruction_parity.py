@@ -347,6 +347,15 @@ def test_generator_refuses_a_hard_coded_codex_version(gen, tmp_path, monkeypatch
         ("alias", "description: *d"),
         ("multi-line quoted value", 'description: "Initialize a run\n  artifact directory."'),
         ("plain value continued on the next line", "description: Initialize a run\n  artifact directory."),
+        (
+            "bare scalar under an ignored key",
+            "description: Initialize a run artifact directory.\nallowed-tools: Read\nthis is not yaml",
+        ),
+        ("bare scalar before the read keys", "not-a-key\ndescription: Initialize a run artifact directory."),
+        (
+            "bare scalar after a list",
+            "description: Initialize a run artifact directory.\ntags:\n  - logging\nstray line",
+        ),
     ],
 )
 def test_generator_refuses_front_matter_outside_its_yaml_subset(gen, tmp_path, monkeypatch, label, replacement):
@@ -496,3 +505,187 @@ def test_generator_refuses_a_malformed_delta(gen, tmp_path, monkeypatch, label, 
     monkeypatch.setattr(gen, "REPO_ROOT", tmp_path)
     with pytest.raises(SystemExit):
         gen.delta_parts()
+
+
+# --- Round 6 -----------------------------------------------------------------
+# Every finding below was shipped text that was simply false. The tests exist so
+# the next false version fails rather than reads plausibly.
+
+
+@pytest.mark.parametrize(
+    "label,front_matter",
+    [
+        ("unindented list under an ignored key", "tags:\n- logging\n- handoff"),
+        ("comment line", "# a comment about the skill\nallowed-tools: Read"),
+        ("indented list under an ignored key", "allowed-tools:\n  - Read\n  - Bash(echo:*)"),
+    ],
+)
+def test_generator_accepts_valid_yaml_the_reader_does_not_parse(gen, tmp_path, monkeypatch, label, front_matter):
+    """Tightening the bare-scalar rule must not reject YAML a real loader accepts.
+
+    A block sequence may be written unindented and a comment may appear anywhere;
+    both are legal under `allowed-tools:` / `tags:`, which this reader skips. Only
+    a bare scalar where YAML expects a key is an error.
+    """
+    body = (CLAUDE_SKILLS / "kg-run" / "SKILL.md").read_text(encoding="utf-8")
+    original = next(line for line in body.splitlines() if line.startswith("description:"))
+    skill = tmp_path / "kg-run"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text(body.replace(original, f"{original}\n{front_matter}", 1), encoding="utf-8")
+    monkeypatch.setattr(gen, "CLAUDE_SKILLS", tmp_path)
+    assert gen.skill_front_matter("kg-run")["name"] == "kg-run"
+
+
+# `git push -f` is denied outright, not approvable. A doc that files it under
+# "requires approval" tells a harness the operation has a path to yes.
+FORCE_PUSH_TOKENS = ("force-push", "force push", "push -f", "push --force")
+APPROVAL_WORDS = ("approval", "approve", "approved", "approvable")
+
+
+def _sentences(text: str) -> list[str]:
+    return re.split(r"(?<=[.;:])\s+|\n", text)
+
+
+@pytest.mark.parametrize("doc", ["CLAUDE.md", "AGENTS.md", "PROJECT_STATE.md", *REQUIRED_READING])
+def test_force_push_is_never_described_as_approvable(doc: str):
+    """Force-push is denied, so no instruction file may offer it as a gated action."""
+    path = REPO_ROOT / doc
+    if not path.is_file():
+        pytest.skip(f"{doc} not present")
+    for sentence in _sentences(path.read_text(encoding="utf-8")):
+        low = sentence.lower()
+        if not any(token in low for token in FORCE_PUSH_TOKENS):
+            continue
+        if not any(word in low for word in APPROVAL_WORDS):
+            continue
+        assert any(word in low for word in ("denied", "deny", "never", "not approvable", "forbidden")), (
+            f"{doc} puts force-push in the same clause as approval without saying it is denied:\n"
+            f"    {sentence.strip()[:200]!r}\n"
+            "  CLAUDE.md denies force-push outright; a gate implies a path to yes."
+        )
+
+
+CJK = re.compile(r"[\u4e00-\u9fff]")
+CLAIMED_CJK_FILES = 127
+CJK_TOLERANCE = 20
+
+
+def test_the_stated_count_of_chinese_files_matches_the_repo():
+    """The Language rule states a repo fact, so measure it rather than trust it.
+
+    An earlier version also claimed those files are "mostly `worklogs/` and
+    `work/`". By file count that was false — 53 of 127 are under `competitions/` —
+    though by character volume those two hold ~81%. The claim was never measured
+    either way, which is the failure this test exists to prevent.
+    """
+    tracked = subprocess.run(
+        ["git", "ls-files"], cwd=REPO_ROOT, capture_output=True, text=True, check=True
+    ).stdout.split()
+    measured = 0
+    for name in tracked:
+        if name.endswith("_zh.md"):
+            continue
+        try:
+            text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        if CJK.search(text):
+            measured += 1
+
+    assert str(CLAIMED_CJK_FILES) in CLAUDE_MD.read_text(encoding="utf-8"), (
+        f"CLAUDE.md no longer states {CLAIMED_CJK_FILES}; update CLAIMED_CJK_FILES to match."
+    )
+    assert abs(measured - CLAIMED_CJK_FILES) <= CJK_TOLERANCE, (
+        f"CLAUDE.md says roughly {CLAIMED_CJK_FILES} tracked non-sidecar files are Chinese or "
+        f"mixed; {measured} actually are. Update the sentence — a harness reads it as fact."
+    )
+
+
+# --- the shared evidence-provenance check ------------------------------------
+# Three rounds running, docs/tooling/codex-parity.md claimed a guarantee the
+# writers did not implement. These tests are what make the claim true.
+
+PROVENANCE = REPO_ROOT / "scripts" / "evidence_provenance.py"
+
+
+@pytest.fixture(scope="module")
+def provenance():
+    spec = importlib.util.spec_from_file_location("evidence_provenance", PROVENANCE)
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture
+def scratch_repo(tmp_path):
+    """A throwaway repo with one committed evidence output and one committed input."""
+
+    def run(*args):
+        subprocess.run(["git", *args], cwd=tmp_path, capture_output=True, text=True, check=True)
+
+    run("init", "-q")
+    run("config", "user.email", "test@example.invalid")
+    run("config", "user.name", "test")
+    evidence = tmp_path / "docs" / "evidence" / "issue-189-codex-parity"
+    evidence.mkdir(parents=True)
+    (evidence / "smoke-prompt.txt").write_text("the prompt\n", encoding="utf-8")
+    (evidence / "smoke-codex.md").write_text("an answer\n", encoding="utf-8")
+    (tmp_path / "AGENTS.md").write_text("instructions\n", encoding="utf-8")
+    run("add", "-A")
+    run("commit", "-q", "-m", "fixture")
+    return tmp_path
+
+
+def test_provenance_accepts_a_clean_tree(provenance, scratch_repo):
+    provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
+
+
+def test_provenance_exempts_the_writers_own_outputs(provenance, scratch_repo):
+    """Re-running a writer rewrites its own output; that must not block the next one."""
+    out = scratch_repo / "docs" / "evidence" / "issue-189-codex-parity" / "smoke-codex.md"
+    out.write_text("a newer answer\n", encoding="utf-8")
+    provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
+
+
+def test_provenance_refuses_a_modified_prompt(provenance, scratch_repo):
+    """The smoke header claims the prompt was unmodified, so the prompt is not exempt.
+
+    The previous implementation exempted the whole evidence directory and would
+    have stamped that claim over an edited prompt.
+    """
+    prompt = scratch_repo / "docs" / "evidence" / "issue-189-codex-parity" / "smoke-prompt.txt"
+    prompt.write_text("a different prompt\n", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
+
+
+def test_provenance_refuses_an_untracked_loader_visible_file(provenance, scratch_repo):
+    """An untracked skill is loaded by Codex and never appears in `git diff`."""
+    skill = scratch_repo / ".agents" / "skills" / "ghost"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text("---\nname: ghost\n---\n", encoding="utf-8")
+    with pytest.raises(SystemExit):
+        provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
+
+
+def test_provenance_refuses_a_commit_that_is_not_head(provenance, scratch_repo):
+    (scratch_repo / "AGENTS.md").write_text("changed instructions\n", encoding="utf-8")
+    subprocess.run(["git", "commit", "-qam", "second"], cwd=scratch_repo, check=True, capture_output=True)
+    with pytest.raises(SystemExit):
+        provenance.verify_commit_is_head("test", "HEAD~1", root=scratch_repo)
+
+
+def test_provenance_accepts_head_by_sha(provenance, scratch_repo):
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=scratch_repo, capture_output=True, text=True, check=True
+    ).stdout.strip()
+    assert provenance.verify_commit_is_head("test", head, root=scratch_repo) == head[:7]
+
+
+def test_both_writers_use_the_shared_provenance_check():
+    """Neither writer may grow its own copy — that is how the two drifted apart."""
+    for script in ("render_codex_probe.py", "write_codex_smoke_evidence.py"):
+        source = (REPO_ROOT / "scripts" / script).read_text(encoding="utf-8")
+        assert "from evidence_provenance import" in source, f"{script} does not use the shared check"
+        assert "verify_tree_matches_commit" in source, f"{script} does not verify the tree"
