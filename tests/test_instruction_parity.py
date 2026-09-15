@@ -341,6 +341,9 @@ def test_generator_refuses_a_hard_coded_codex_version(gen, tmp_path, monkeypatch
         ("tagged folded scalar", "description: !!str >\n  Initialize a run artifact directory."),
         ("empty value", "description:"),
         ("anchor", "description: &d Initialize a run artifact directory."),
+        ("unterminated flow sequence", "description: [unterminated"),
+        ("unterminated flow mapping", "description: {a: b"),
+        ("duplicate key", "description: first\ndescription: second"),
         ("alias", "description: *d"),
         ("multi-line quoted value", 'description: "Initialize a run\n  artifact directory."'),
         ("plain value continued on the next line", "description: Initialize a run\n  artifact directory."),
@@ -418,7 +421,8 @@ REQUIRED_READING = [
     "PROJECT_STATE.md",
     "docs/engineering-practice.md",
 ]
-SUPERSESSION_MARKER = "Superseded"
+# Matched case-insensitively: "Partly superseded" is the same commitment.
+SUPERSESSION_MARKER = "superseded"
 
 
 @pytest.mark.parametrize("doc", REQUIRED_READING)
@@ -444,7 +448,7 @@ def test_required_reading_does_not_restate_retired_rules_unmarked(doc: str):
             if rule not in section:
                 continue
             heading = section.splitlines()[0].strip()
-            assert SUPERSESSION_MARKER in section, (
+            assert SUPERSESSION_MARKER.lower() in section.lower(), (
                 f"{doc} section {heading!r} states the retired rule {rule!r} with no "
                 f"{SUPERSESSION_MARKER!r} note, and AGENTS.md tells Codex to read this file. "
                 "Add the note (naming what is current), or remove the rule."

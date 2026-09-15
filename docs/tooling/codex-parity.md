@@ -137,10 +137,17 @@ or give each harness its own worktree checked out at the same SHA.
 **Collect it from a clean worktree.** Record the commit only when `git status` is clean —
 evidence gathered from a dirty tree names a commit whose files are not the ones that were
 measured, which is worse than naming no commit at all because it looks checkable. The same
-goes for the loader probe above. Both writers enforce this rather than trusting it:
-`scripts/render_codex_probe.py` refuses unless `AGENTS.md` at the named commit is the file it
-measured, and `scripts/write_codex_smoke_evidence.py` refuses if anything outside the evidence
-directory is uncommitted.
+goes for the loader probe above. Both writers check this rather than trusting it, and each
+states in its own docstring what it cannot check:
+
+- `scripts/render_codex_probe.py` refuses unless the named commit is HEAD, its `AGENTS.md` is
+  byte-identical to the file being measured, **and** the dump's project-doc message contains
+  that same file — the last one is what catches a stale `probe.json` rendered after an edit.
+  The binary version in the header is read at render time, so render right after probing.
+- `scripts/write_codex_smoke_evidence.py` refuses unless the named commit is HEAD and nothing
+  outside the evidence directory is modified, staged **or untracked** — an untracked skill
+  under `.agents/skills/` is loaded by Codex and would not show in `git diff`. It cannot check
+  that the answer files came from the run you think they did; pass them explicitly.
 
 Prompt (`docs/evidence/issue-189-codex-parity/smoke-prompt.txt`) asks, read-only, which skill
 initialises a run directory for `competitions/arc-agi2`, what the dev-phase secret policy
@@ -148,17 +155,18 @@ permits for `~/.kaggle/kaggle.json`, and which files said so — exercising proj
 and skill discovery at once.
 
 ```sh
-git rev-parse --short HEAD    # same repo state for both runs
+git status --porcelain        # must be empty: both harnesses read the working tree
+prompt=docs/evidence/issue-189-codex-parity/smoke-prompt.txt
 
-codex exec -m gpt-5.6-sol -c model_reasoning_effort=low --sandbox read-only \
-  < docs/evidence/issue-189-codex-parity/smoke-prompt.txt
+time codex exec -m gpt-5.6-sol -c model_reasoning_effort=low --sandbox read-only \
+  -o /tmp/smoke-codex.txt - < "$prompt"
 
-claude -p --model 'claude-opus-5[1m]' \
-  "$(cat docs/evidence/issue-189-codex-parity/smoke-prompt.txt)"
+time claude -p --model 'claude-opus-5[1m]' "$(cat "$prompt")" > /tmp/smoke-claude.txt
 
-# commit both answers with their provenance; refuses if anything outside
-# docs/evidence/issue-189-codex-parity/ is uncommitted
-python scripts/write_codex_smoke_evidence.py "$(git rev-parse --short HEAD)" <codex-s> <claude-s>
+# commit both answers with a header whose commit claim is verified, not asserted
+python scripts/write_codex_smoke_evidence.py \
+  --codex  /tmp/smoke-codex.txt  --codex-seconds  16 \
+  --claude /tmp/smoke-claude.txt --claude-seconds 17
 ```
 
 **Result — clean worktree at `bdddf1a`, 2026-09-15**, both harnesses run from the same commit
