@@ -1,11 +1,11 @@
 Loader probe — what Codex actually loads from this repo.
 
 Command:  CODEX_HOME=<isolated> codex debug prompt-input 'Start work on competitions/arc-agi2'
-Binary:   codex-cli 0.154.0
-Repo:     bdddf1a — verified: `git show bdddf1a:AGENTS.md` is byte-identical to the
-          file measured below, so these numbers reproduce from that commit.
-Measured: AGENTS.md on disk: 20153 bytes, 20015 characters
-          project-doc message in the prompt: 20144 characters
+Binary:   codex-cli 0.154.0 (as reported at render time)
+Repo:     4d295d8 — verified: it is HEAD, its AGENTS.md is byte-identical to the file
+          measured below, and the dump's project-doc message contains that same file.
+Measured: AGENTS.md on disk: 20445 bytes, 20305 characters
+          project-doc message in the prompt: 20434 characters
           = the file plus Codex's own wrapper (a '# AGENTS.md instructions for <abs path>'
             header and <INSTRUCTIONS> tags), so this total varies with the checkout path.
             The sentinels below, not the total, are what show the file loaded whole.
@@ -19,7 +19,7 @@ An isolated CODEX_HOME keeps the human's own config and user-level skills out of
 
 == developer message: skills catalogue (excerpt) ==
 ### Skill roots
-- `r0` = `/tmp/claude-1000/ch-probe4/skills/.system`
+- `r0` = `/tmp/claude-1000/ch-probe5/skills/.system`
 - `r1` = `/home/harry/test/tt_pangu/.claude/worktrees/issue-189-agents-parity/.agents/skills`
 ### Available skills
 
@@ -51,7 +51,7 @@ An isolated CODEX_HOME keeps the human's own config and user-level skills out of
      Regenerate: python scripts/gen_agents.py
      Verify:     python scripts/gen_agents.py --check   (also asserted by tests/test_instruction_parity.py)
 -->
-   [... 20144 chars total ...]
+   [... 20434 chars total ...]
 the KCA product agent may submit without asking; it is not a licence for the harness to skip
 the host-level confirmations above.
 

@@ -50,12 +50,23 @@ python scripts/render_codex_probe.py probe.json AGENTS.md \
   docs/evidence/issue-189-codex-parity/loader-probe.txt "$(git rev-parse --short HEAD)"
 ```
 
-Last run: **`codex-cli 0.154.0`** against a clean worktree at **`bdddf1a`**. That attribution is
-checked rather than asserted — the evidence file is only written if `git show bdddf1a:AGENTS.md`
-is byte-identical to the file whose load was measured, so the numbers reproduce from that commit.
-The only thing committed after it is this document and the evidence under
-`docs/evidence/issue-189-codex-parity/` — outputs of the run, never inputs to it. Raw excerpt at
-`docs/evidence/issue-189-codex-parity/loader-probe.txt`.
+Last run: **`codex-cli 0.154.0`** against a clean worktree at **`4d295d8`**. That attribution is
+checked rather than asserted — the evidence file is only written if `4d295d8` is HEAD, its
+`AGENTS.md` is byte-identical to the file whose load was measured, **and** the rendered dump
+actually carries that same file, so the numbers reproduce from that commit.
+Commits after it touch only this document, the evidence under
+`docs/evidence/issue-189-codex-parity/` and the writer scripts — outputs of the run and the tools
+that record it, never inputs to it. That is the claim that matters, and it is checkable rather
+than taken on trust:
+
+```sh
+git diff --name-only 4d295d8 HEAD -- AGENTS.md CLAUDE.md .agents .claude   # must be empty
+```
+
+If that prints anything, the numbers below describe a file that no longer exists and the probe
+needs re-running. It is deliberately **not** a CI test: re-collecting needs a local `codex`
+binary, and making every `CLAUDE.md` edit depend on one would cost more than the staleness it
+catches. Raw excerpt at `docs/evidence/issue-189-codex-parity/loader-probe.txt`.
 
 ### 1. `AGENTS.md` is loaded, in full
 
@@ -68,8 +79,8 @@ The prompt carries a `user` message beginning:
 <!-- GENERATED FILE — DO NOT EDIT BY HAND. ...
 ```
 
-`AGENTS.md` is **20 153 bytes / 20 015 characters** on disk; the project-doc message in the
-prompt is **20 144 characters**. The difference is Codex's own wrapper — the
+`AGENTS.md` is **20 445 bytes / 20 305 characters** on disk; the project-doc message in the
+prompt is **20 434 characters**. The difference is Codex's own wrapper — the
 `# AGENTS.md instructions for <absolute path>` header and the `<INSTRUCTIONS>` tags — so that
 total is path-dependent and is **not** a checksum of the file. What shows the file loaded whole
 is the pair of sentinels: the opening banner and the closing line of the appendix are both
@@ -165,21 +176,21 @@ time claude -p --model 'claude-opus-5[1m]' "$(cat "$prompt")" > /tmp/smoke-claud
 
 # commit both answers with a header whose commit claim is verified, not asserted
 python scripts/write_codex_smoke_evidence.py \
-  --codex  /tmp/smoke-codex.txt  --codex-seconds  16 \
-  --claude /tmp/smoke-claude.txt --claude-seconds 17
+  --codex  /tmp/smoke-codex.txt  --codex-seconds  15 \
+  --claude /tmp/smoke-claude.txt --claude-seconds 16
 ```
 
-**Result — clean worktree at `bdddf1a`, 2026-09-15**, both harnesses run from the same commit
+**Result — clean worktree at `4d295d8`, 2026-09-15**, both harnesses run from the same commit
 (full outputs, with their own provenance headers, under `docs/evidence/issue-189-codex-parity/`):
 
 | | Codex (`codex-cli 0.154.0`, `gpt-5.6-sol`) | Claude Code (`claude-opus-5[1m]`) |
 |---|---|---|
 | Skill found | `kg-run` | `kg-run` |
-| Run path | `runs/arc-agi2/<run_id>/` | `runs/arc-agi2/<run_id>/`, run id UTC `YYYYMMDD_HHMMSS`, with `meta.json`, `config.json`, `metrics.json`, `logs/`, `artifacts/` |
+| Run path | `runs/arc-agi2/<run_id>/` | `runs/arc-agi2/<run_id>/`, run id UTC `YYYYMMDD_HHMMSS`, with `meta.json`, `config.json`, `metrics.json`, `logs/`, `artifacts/`; `runs/` gitignored |
 | Secret policy | may read to use the credentials; forbids printing, sharing, logging or copying them externally | may **read** for use; never echo or copy into web fetches, logs, public PRs, comments ("read-for-use, not read-to-share") |
-| Cited instruction file | `AGENTS.md` | `CLAUDE.md` → *Environment configuration → Dev-phase secret policy* |
+| Cited instruction file | `AGENTS.md` | `CLAUDE.md:65` — *Dev-phase secret policy* |
 | Cited skill file | `.agents/skills/kg-run/SKILL.md` | `.claude/skills/kg-run/SKILL.md` |
-| Wall clock | 16 s | 17 s |
+| Wall clock | 15 s | 16 s |
 
 Both harnesses reached the same rules through their own surface, and each cited the surface it
 actually reads — which is exactly what the mirror is supposed to produce. The Claude side
