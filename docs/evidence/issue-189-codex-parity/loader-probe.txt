@@ -1,6 +1,20 @@
+Loader probe — what Codex actually loads from this repo.
+
+Command:  CODEX_HOME=<isolated> codex debug prompt-input 'Start work on competitions/arc-agi2'
+Binary:   codex-cli 0.154.0
+Repo:     a4de031 (clean worktree)
+Measured: AGENTS.md is 19290 bytes on disk, 19287 characters in the prompt
+          opening sentinel present: True
+          closing sentinel present: True
+          truncation marker: False
+          project skills listed under r1: 17
+
+`codex debug prompt-input` renders the model-visible prompt without a network call.
+An isolated CODEX_HOME keeps the human's own config and user-level skills out of it.
+
 == developer message: skills catalogue (excerpt) ==
 ### Skill roots
-- `r0` = `/tmp/claude-1000/ch-probe2/skills/.system`
+- `r0` = `/tmp/claude-1000/ch-probe3/skills/.system`
 - `r1` = `/home/harry/test/tt_pangu/.claude/worktrees/issue-189-agents-parity/.agents/skills`
 ### Available skills
 
@@ -31,8 +45,9 @@
      Sources: CLAUDE.md (shared rules) + docs/instructions/agents-delta.md (Codex delta).
      Regenerate: python scripts/gen_agents.py
      Verify:     python scripts/gen_agents.py --check   (also asserted by tests/test_instruction_parity.py)
+-->
    [... 19287 chars total ...]
-ce for the harness to skip
+the KCA product agent may submit without asking; it is not a licence for the harness to skip
 the host-level confirmations above.
 
 Phase 1 exists to compare harnesses, so say which one you are in the tracking issue when you

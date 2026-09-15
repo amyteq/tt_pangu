@@ -46,9 +46,11 @@ mkdir -p /tmp/codex-probe-home
 CODEX_HOME=/tmp/codex-probe-home codex debug prompt-input "Start work on competitions/arc-agi2" > probe.json
 ```
 
-Last run: **`codex-cli 0.154.0`**, repo state `15032b6` (the commit before this document's own
-fix commit; `AGENTS.md` has not changed since the probe — `gen_agents.py --check` proves it).
-Raw excerpt committed at `docs/evidence/issue-189-codex-parity/loader-probe.txt`.
+Last run: **`codex-cli 0.154.0`** against a clean worktree at **`a4de031`** — check that commit
+out and the numbers below reproduce. The only files committed after the probe are this document
+and the evidence under `docs/evidence/issue-189-codex-parity/`; neither is an input to it, and
+`gen_agents.py --check` proves `AGENTS.md` itself has not moved. Raw excerpt, with the command
+and the measured counts, at `docs/evidence/issue-189-codex-parity/loader-probe.txt`.
 
 ### 1. `AGENTS.md` is loaded, in full
 
@@ -124,6 +126,11 @@ directory", which *writes*: the second harness would then see a repo the first o
 modified, and the comparison would be of two different states. Either keep the task read-only,
 or give each harness its own worktree checked out at the same SHA.
 
+**Collect it from a clean worktree.** Record the commit only when `git status` is clean —
+evidence gathered from a dirty tree names a commit whose files are not the ones that were
+measured, which is worse than naming no commit at all because it looks checkable. The same
+goes for the loader probe above.
+
 Prompt (`docs/evidence/issue-189-codex-parity/smoke-prompt.txt`) asks, read-only, which skill
 initialises a run directory for `competitions/arc-agi2`, what the dev-phase secret policy
 permits for `~/.kaggle/kaggle.json`, and which files said so — exercising project-doc loading
@@ -139,17 +146,17 @@ claude -p --model 'claude-opus-5[1m]' \
   "$(cat docs/evidence/issue-189-codex-parity/smoke-prompt.txt)"
 ```
 
-**Result — repo state `15032b6`, 2026-09-15** (full outputs under
-`docs/evidence/issue-189-codex-parity/`):
+**Result — clean worktree at `a4de031`, 2026-09-15**, both harnesses run from the same commit
+(full outputs, with their own provenance headers, under `docs/evidence/issue-189-codex-parity/`):
 
 | | Codex (`codex-cli 0.154.0`, `gpt-5.6-sol`) | Claude Code (`claude-opus-5[1m]`) |
 |---|---|---|
 | Skill found | `kg-run` | `kg-run` |
-| Run path | `runs/arc-agi2/<run_id>/` | `runs/<competition>/<run_id>/` → `runs/arc-agi2/<run_id>/`, with `meta.json`, `config.json`, `metrics.json`, `logs/`, `artifacts/` |
-| Secret policy | read for use; no printing, sharing, logging or exfiltration | may **read** for use; never echo or copy into web fetches, logs, public PRs, comments ("read-for-use, not read-to-share") |
+| Run path | `runs/arc-agi2/<run_id>/`, run id UTC `YYYYMMDD_HHMMSS` | `runs/<competition>/<run_id>/` → `runs/arc-agi2/<run_id>/`, same run-id default, with `meta.json`, `config.json`, `metrics.json`, `logs/`, `artifacts/` |
+| Secret policy | may read for use; never expose or copy into outputs, logs, web requests, PRs, comments | may **read** for use; never echo or copy into web fetches, logs, public PRs, comments ("read-for-use, not read-to-share") |
 | Cited instruction file | `AGENTS.md` | `CLAUDE.md:65`, noting it is mirrored at `AGENTS.md:124` |
 | Cited skill file | `.agents/skills/kg-run/SKILL.md` | `.claude/skills/kg-run/SKILL.md` |
-| Wall clock | 21 s | 13 s |
+| Wall clock | 16 s | 16 s |
 
 Both harnesses reached the same rules through their own surface, and each cited the surface it
 actually reads — which is exactly what the mirror is supposed to produce. The Claude side
