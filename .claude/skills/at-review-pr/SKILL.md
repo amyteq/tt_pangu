@@ -1,6 +1,8 @@
 ---
-name: pr-review-loop
+name: at-review-pr
 description: Run bounded PR review and fix rounds with independent Codex or Claude Code sessions, evidence-linked dispositions, and a final full review before approval. Use for iterative PR review requests, not one-shot reviews or merging.
+argument-hint: "[rounds=10] [reviewer=codex] [writer=claude]"
+disable-model-invocation: false
 ---
 
 # PR review loop
@@ -10,18 +12,27 @@ This is development tooling, not a KCA runtime skill.
 
 ## Inputs and preflight
 
-Usage: `/pr-review-loop <rounds> [reviewer] [writer]`.
+Usage: `/at-review-pr [rounds] [reviewer] [writer]`.
 Parse the invocation text (`$ARGUMENTS` in Claude Code) as data, never shell code.
 
 | Position | Meaning | Validation / default |
 |---|---|---|
-| 1: `rounds` | Maximum numbered review/fix rounds | Required decimal integer greater than zero |
+| 1: `rounds` | Maximum numbered review/fix rounds | Optional, default `10`; a supplied value must be a decimal integer greater than zero |
 | 2: `reviewer` | Review provider | `codex` (default) or `claude` |
 | 3: `writer` | Fix/disposition provider | `claude` (default) or `codex` |
 
-Reject missing/invalid rounds, extra positional arguments, and unknown providers
-before writes or agent launches. Both roles may use the same provider but must
-have distinct sessions. Do not convert a round budget into an unlimited loop.
+Only an absent `rounds` takes the default: reject a supplied zero, negative,
+fractional, or non-numeric value, extra positional arguments, and unknown
+providers before writes or agent launches. Both roles may use the same provider
+but must have distinct sessions. Do not convert a round budget into an unlimited
+loop.
+
+Because `disable-model-invocation: false`, an agent may also start this loop from
+a natural-language goal (for example "open a PR, then run the review-fix loop up
+to 10 rounds until approved"). Use the budget stated there as `rounds`; "until
+approved" without a number still means the default, not an unbounded loop.
+Positional arguments take precedence over prose. Confirm the resolved rounds,
+providers, and PR before the first launch.
 
 1. Resolve the PR from explicit user context, otherwise the current branch's
    unique open PR. Ask only if missing or ambiguous. Record repository, PR URL,
