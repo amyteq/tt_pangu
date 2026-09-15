@@ -3,15 +3,18 @@ kaggle_slug: ai-agent-security-multi-step-tool-attacks
 title: AI Agent Security - Multi-Step Tool Attacks
 aliases: [sec-attack, secattack, agent-security, jed]
 tracking_issue: null            # no GitHub issue yet; status lives in this folder
-status: active
-phase: iteration                # research | baseline | iteration | submission | postmortem
+status: closed                 # open | closed | unknown -- is the official competition submission window open (was: active)
+state: FINDINGS                # ADR-0022 §3 canonical state (was phase: iteration)
 competition_type: simulation_agent   # red-team code competition (attack.py replayed by an evaluator)
 metric: normalized attack score (0-1000) = min(1000, raw/200000*1000); raw = Σ severity_weight + 2·unique_cells
 deadline: 2026-09-01            # ✓ verified 2026-09-13 via Kaggle API (closed 2026-09-01 23:59); CLOSED
 primary_artifact: script        # attack.py defining AttackAlgorithm(AttackAlgorithmBase)
 submission_mode: kernel          # Kaggle code competition; attack.py run inside the evaluator
 data_policy: generated           # no train/test CSV — a sandboxed agent environment + seed fixtures
-last_updated: 2026-06-26
+autonomy_config: null            # no autonomy config in this directory => ADR-0022 §5 A1 fails
+last_updated: 2026-09-15        # reconciled under ADR-0022 §3 (rank 1 is authoritative):
+                                #   private LB read 2026-09-13 after close, best public/private
+                                #   corrected to the xl v1 row, absence-from-leaderboard recorded
 sdk:
   package: aicomp-sdk
   version: "3.1.2"               # verified: pip downloaded + source-read 2026-06-26
@@ -24,14 +27,49 @@ confirmed:                       # source-verified from aicomp-sdk 3.1.2 + local
   default_guardrail: "optimal_public (report.json); private LB swaps held-out guardrail via AICOMP_ATTACK_GUARDRAIL_ID / entry-point group aicomp_sdk.attack_guardrails"
   replay_caps: "MAX_REPLAY_FINDINGS=2000; MAX_REPLAY_MESSAGES_PER_FINDING=32; EVALUATION_DEFAULT_MAX_TOOL_HOPS=4"
   scoring: "raw=Σ SEVERITY_W[sev]+2*unique_cells; normalized=min(1000, raw/200000*1000); scoring_mode=normalized"
+# ADR-0022 §6 budget envelope. Same KEY STRUCTURE as
+# competitions/_templates/competition.yaml; the VALUES are this competition's.
+# `null` is an UNKNOWN, not "unlimited": a null cap refuses the work that would
+# spend against THAT dimension (§6), and A2/A3 keep §5's relaxed autonomy inactive
+# until it is filled in from a verified source. PAUSED_BUDGET is entered when a
+# blocked dimension is needed to make progress — not merely because a cap is null.
+# This competition is closed and in FINDINGS: no cycle starts and nothing is
+# reserved against these caps. The block is present so the schema is uniform.
+budget:
+  cycle: 7d                             # window every max_per_cycle is measured over
+  cycle_anchor: null                    # UTC timestamp cycle 0 started; all arithmetic is UTC
+  experiments:
+    max_per_cycle: null
+  compute:
+    max_gpu_hours_per_cycle: null
+  llm:
+    max_turns_per_research_task: 100
+    max_metered_cost_per_cycle_usd: 0   # 0 = subscription-only spend; null blocks metered spend
+  submissions:
+    require_verified_competition_limit: true
+    verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
+    verified_source: null               # where that number was read (URL / API field)
+    verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_reset_boundary: null       # WHEN the daily quota resets, from the competition's
+                                        #   own rules; NEVER assumed. null blocks submission
+    verified_ttl: 30d                   # past this the limit is unverified again and blocks
+    reserve_for_human: 0
+  failures:
+    max_retries_per_task: 3
+    pause_after_consecutive_failures: 3
+  progress:
+    review_after_no_gain_experiments: 5
 best:
   cv_metric: normalized_attack_score
   cv_score: 18.0                 # bypass v1 (kernels/attack_bypass.py) vs optimal_public, InstructionAgent proxy; naive baseline 0.00
-  public_lb: null
-  private_lb: null
-  submission_id: null
-current_blocker: "bypass validated only on an instruction-following LLM proxy (no GPU) — needs a real gpt_oss run; private guardrail unknown (may close the 5-event-wash + http.post data-blind-spot holes). Official-page facts still unverified."
-next_task: "scale bypass to ~2000 chains + predicate-stacking; validate vs gpt_oss on snorlax 4090; build held-out guardrail for robustness; verify official-page logistics"
+  public_lb: null                # final eligibility UNKNOWN: absent from final leaderboard.
+                                 #   Observed candidate: sec-attack-jed-xl v1, sub 54183733,
+                                 #   public 7.200 / private 1.800 (submissions.md "Final results").
+                                 #   Those measurements are not evidence of final placement.
+  private_lb: null               # retain unknown until selection/eligibility is reconciled
+  submission_id: null            # no verified final eligible submission (ADR-0022 §3)
+current_blocker: "none — competition closed 2026-09-01. Open question for the post-mortem: we are ABSENT from the final 4,186-row leaderboard despite two COMPLETE non-zero submissions (submissions.md 'Final results'); 7.200 would have placed ~3115/4186 against a 46.425 top. Cause unknown — possibly no submission was ever *selected*, or the two ERROR rows affected eligibility."
+next_task: "Write up the transferable findings: breadth scaled linearly to 3x with no ceiling found, private == public/4 on every scored row (a fixed split, not a harder guardrail), and the submission-SELECTION lesson — verify selection explicitly before the deadline in any future code competition."
 source_notes:
   - aicomp-sdk 3.1.2 source (scoring.py, core/predicates.py, core/cells.py, attacks/contracts.py, attacks/baselines/attacker_goexplore.py, agents/deterministic_agent.py, guardrails/optimal.py) — read 2026-06-26 (authoritative)
   - competitions/sec-attack/research.md (full mechanics writeup)

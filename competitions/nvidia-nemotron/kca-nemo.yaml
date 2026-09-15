@@ -43,6 +43,11 @@ _base:
   # per-action approval once `screen` passes; flip `enabled: false` for strict
   # human-in-the-loop. NOTE: an annotation key for now (like lp/note) — the
   # metadata generator ignores it; runtime enforcement is the ADR-0021 follow-up.
+  #
+  # ADR-0022 §5 widens this model, but only once a competition meets its
+  # activation conditions (A1-A7). This competition closed 2026-06-15 and is in state
+  # FINDINGS, so it never activates: the values below keep their ADR-0021 meaning
+  # (all four `screen` criteria gate; `daily_submit_budget` caps).
   autonomy:
     enabled: true
     auto_push: true
@@ -53,11 +58,16 @@ _base:
       min_margin: 0.0
       require_repro: true          # seed + artifact path + exact command recorded
       rules_check: true            # rules / submission-limit / no-leakage check passed
-    human_gated:                   # still require a human even when enabled
+    human_gated:                   # ADDITIVE to the built-in floor, not the whole list:
+                                   # ADR-0021 §2's always-gated set applies whether or not
+                                   # it is repeated here, and cannot be shortened by config.
       - final_promotion_near_deadline
       - irreversible_delete
       - over_budget_spend
       - ambiguous_rule
+      - new_terms_or_team_change
+      - final_submission_selection   # whenever the choice is made, not only near the deadline
+      - external_data_or_data_policy  # adopting external data / expanding beyond comp data
 
 # --- baseline / early SFT kernel (v5–v7, dgxchen CoT corpus) ------------------
 baseline:

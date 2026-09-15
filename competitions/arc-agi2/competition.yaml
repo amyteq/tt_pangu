@@ -3,8 +3,15 @@ kaggle_slug: arc-prize-2026-arc-agi-2
 title: ARC Prize 2026 — ARC-AGI-2
 aliases: [arc, arc-agi2, arcprize]
 tracking_issue: null             # to be opened when the competition becomes active work
-status: research                 # research | active | submission | closed
-phase: prep                      # prep | baseline | iteration | submission
+status: open                   # open | closed | unknown -- is the official competition submission window open (was: research)
+state: WAIT_HUMAN              # ADR-0022 §3 canonical state (was phase: prep)
+# ADR-0022 §3: a side state records how to come back.
+resume_state: HUMAN_DIRECTION  # applying the answer, once there is one
+state_reason: "Direction choice, not an experiment choice. Three eval runs at 0%: rung-1 (0.5B), rung-2 (Qwen3-4B + ARC-2 train-task pretrain), and T2.5b (Qwen3-4B + RE-ARC pretrain, 2026-06-30). The RE-ARC pipeline is BUILT and VALIDATED end-to-end (tracking.md 2026-06-30), so the remaining gap is compute, not engineering: our dose is ~100x under the winning recipe (256x aug / ~98 H100-h / DFS decode / 8B vs 1 epoch / 6206 ex / 38 min / greedy on one 4090). The fork is (a) commit multi-day multi-GPU compute for the full recipe, or (b) pivot to the ARC Grand-Prize writeup with the validated pipeline as the deliverable. ADR-0006 'major direction change' / ADR-0022 §2 human column."
+decision_id: null              # no request channel exists yet (follow-up #197). Until it does,
+                               #   the request IS state_reason + the dashboard row. null here
+                               #   means 'no channel', never 'no request pending'.
+
 account_entered: true            # harrysun2006 is registered (Kaggle API userHasEntered, 2026-06-26)
 team_count: 967                  # 2026-06-26 read-only refresh
 competition_type: reasoning      # abstraction-and-reasoning (visual grid program induction)
@@ -20,10 +27,47 @@ primary_artifact: notebook       # code competition; notebook is the entry point
 submission_mode: notebook        # notebook -> submission.json {task_id:[{attempt_1,attempt_2}]} (confirmed)
 data_policy: kaggle              # public train(1000)+eval(120) on GitHub; semi-private(120) LB; private(120) final
 prize_pool_usd: 700000           # ARC-AGI-2 track (of $2M total ARC Prize 2026)
+last_updated: 2026-09-15         # reconciled against tracking.md through 2026-06-30 (T2.5a/T2.5b) + PR #159
+autonomy_config: null            # no autonomy config in this directory => ADR-0022 §5 A1 fails
+# ADR-0022 §6 budget envelope. Same KEY STRUCTURE as
+# competitions/_templates/competition.yaml; the VALUES are this competition's.
+# `null` is an UNKNOWN, not "unlimited": a null cap refuses the work that would
+# spend against THAT dimension (§6), and A2/A3 keep §5's relaxed autonomy inactive
+# until it is filled in from a verified source. PAUSED_BUDGET is entered when a
+# blocked dimension is needed to make progress — not merely because a cap is null.
+budget:
+  cycle: 7d                             # window every max_per_cycle is measured over
+  cycle_anchor: null                    # UTC timestamp cycle 0 started; all arithmetic is UTC
+  experiments:
+    max_per_cycle: null
+  compute:
+    max_gpu_hours_per_cycle: null
+  llm:
+    max_turns_per_research_task: 100
+    max_metered_cost_per_cycle_usd: 0   # 0 = subscription-only spend; null blocks metered spend
+  submissions:
+    require_verified_competition_limit: true
+    verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
+    verified_source: null               # where that number was read (URL / API field)
+    verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_reset_boundary: null       # WHEN the daily quota resets, from the competition's
+                                        #   own rules; NEVER assumed. null blocks submission
+    verified_ttl: 30d                   # past this the limit is unverified again and blocks
+    reserve_for_human: 0
+  failures:
+    max_retries_per_task: 3
+    pause_after_consecutive_failures: 3
+  progress:
+    review_after_no_gain_experiments: 5
 best:
   cv_metric: pass@2
-  cv_score: null                 # no local baseline yet
-  public_lb: null                # no submission yet
+  cv_score: 0.0                  # 0/20 on public eval THREE times: rung-1 (Qwen2.5-0.5B) 0/10
+                                 #   then 0/20; rung-2 (Qwen3-4B + ARC-2 train-task pretrain,
+                                 #   loss 0.16) 0/20 on 2026-06-29; T2.5b (Qwen3-4B + RE-ARC
+                                 #   pretrain, 4800-task corpus, loss ~0.29) 0/20 on 2026-06-30.
+                                 #   The oracle-decode harness reaches 100%, so the harness is
+                                 #   sound and the solver is the 0 (PR #159)
+  public_lb: null                # no Kaggle submission has ever been made for this competition
   private_lb: null
   submission_id: null
 constraints:
@@ -37,8 +81,8 @@ sota_baseline_kaggle: 0.2403     # NVARC, ARC Prize 2025 (ARC-AGI-2 inaugural), 
 public_lb_top_2026: 0.5056       # nvbanana, 2026-06-26 (2x the 2025 floor; ~33-35 pack behind)
 bonus_threshold: 0.85            # private eval; unlocks $150K bonus prize
 human_baseline: 0.66             # individual avg on public eval; panel 100%
-current_blocker: "no TTT baseline reproduced yet (env + local pass@2 harness are built)"
-next_task: "Read ARC Prize 2025 tech report (arXiv:2601.10904); scope + reproduce a TTT baseline (T2)"
+current_blocker: "Three consecutive no-gain runs at 0%. Neither model size nor the RE-ARC lever was the miss — the pipeline exists and ran clean; the dose does not. A non-zero score needs the full recipe at scale (large RE-ARC pretrain + DFS/PoE decode + ideally 8B), which is multi-day multi-GPU and budget.compute.max_gpu_hours_per_cycle is null. Blocked on the direction decision in state_reason, not on code."
+next_task: "Put the fork in state_reason to the human (dashboard #199). If (a): size the full-recipe run (RE-ARC dose, DFS/PoE decode, 8B) and the multi-GPU budget it needs, then fill budget.compute.max_gpu_hours_per_cycle. If (b): scope the Grand-Prize writeup from ttt-recipe.md + how-it-works.md + tracking.md, with the validated pipeline as the deliverable."
 source_notes:
   - arcprize.org/competitions/2026/arc-agi-2 (official)
   - arcprize.org/policy (Verified Testing Policy)
