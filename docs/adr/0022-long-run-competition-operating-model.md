@@ -327,6 +327,7 @@ applies only when all of the following are true, and each is checkable by readin
 | **A4** | `launch`, `deadline` and the closing window are verified and inside `timing_verified_ttl` | the same file; otherwise `WAIT_HUMAN` (§5) |
 | **A5** | The pre-submit gate refuses on failure rather than skipping (fail-closed) | see the paragraph below |
 | **A6** | A submission-intent record is written and persisted before dispatch | §5 "Recording an autonomous submission" |
+| **A7** | Every shared budget scope it spends against has a reachable ledger and a lock, and reserving is atomic under that lock | §6 "The ledger is a directory of immutable records" |
 
 **`autonomy.enabled: false` is an absolute veto, checked before everything else.** It is
 the one-line opt-out ADR-0021 §2 gives a competition that needs strict human-in-the-loop,
@@ -334,7 +335,7 @@ and no amount of evidence overrides it: a competition that has opted out never a
 however complete its budget block is. Evidence can only switch autonomy *on* where it was
 already permitted — it can never switch it on where it was refused.
 
-**Until a competition satisfies A1–A6, it runs under the narrower ADR-0021 §2 model** —
+**Until a competition satisfies A1–A7, it runs under the narrower ADR-0021 §2 model** —
 screened autonomy with `beats_best` as a gate — and a submission that cannot satisfy them
 is human-gated. This is deliberate: the widened licence and the machinery that bounds it
 ship together or not at all.
@@ -537,26 +538,49 @@ the same answer from the same files:
 *before* it starts and settles the actual consumption when it finishes. Counting only after
 every parallel worker has spent its resources guarantees an overrun.
 
-The ledger is a file, one record per reservation, under the competition that spends it:
+**The ledger is a directory of immutable records, never a list that is rewritten.** The
+budgets that matter most are *shared* — the per-team daily submission quota spans
+competitions, and a GPU spans everything on that machine — so several workers, in several
+worktrees, reserve against the same counter. A single YAML list read, modified and written
+back loses one of two concurrent reservations, and the loser's spend is invisible. One file
+per reservation, created exclusively, cannot lose a write:
 
 ```yaml
-# competitions/<slug>/budget/<cycle-id>.yaml   (cycle-id = the cycle's start, UTC)
+# competitions/<slug>/budget/<cycle-id>/RES-0007.yaml     (cycle-id = cycle start, UTC)
+# Created with O_EXCL: the create either wins or fails. Records are never edited in place;
+# settlement writes RES-0007.settled.yaml beside it.
+id: RES-0007                # what submission-intent's `budget_reservation` points at
+dimension: submissions      # submissions | compute | llm | experiments
+amount: 1
+scope: team:<team>          # team:<team> | account:<name> | machine:<name>
 cycle: {anchor: 2026-09-15T00:00:00Z, ends: 2026-09-22T00:00:00Z}
-reservations:
-  - id: RES-0007              # what submission-intent's `budget_reservation` points at
-    dimension: submissions    # submissions | compute | llm | experiments
-    amount: 1
-    scope: team               # team | account:<name> | machine:<name>
-    reserved_at: 2026-09-15T21:58:04Z
-    state: reserved           # reserved | settled | released
-    settled_amount: null      # filled on completion; released returns the reservation unspent
-    ref: EXP-027
+reserved_at: 2026-09-15T21:58:04Z
+state: reserved             # reserved | settled | released
+settled_amount: null        # settlement record; released returns the reservation unspent
+ref: EXP-027
 ```
 
-Two rules make it usable concurrently: a reservation is written **before** the external
-call, and a crash leaves a `reserved` record that is reconciled, not assumed — an orphaned
-reservation past the cycle end is released only after the external record is checked, the
-same discipline as `NEEDS_RECONCILIATION` (§3).
+**Atomicity is the check, not just the write.** Creating the file atomically is not enough:
+*counting the remaining capacity and then reserving* is two steps, and two workers can both
+read "one slot left". So every reservation against a **shared** scope happens under an
+exclusive lock on that scope:
+
+1. Take an exclusive lock on the scope — `flock` on
+   `competitions/_shared/budget/<scope>.lock`. One lock per shared counter, not per
+   competition, because the counter is what is shared.
+2. Under the lock: count live `reserved` + `settled` records for the scope in this cycle,
+   compare against the cap, and `O_EXCL`-create the new record. Release.
+3. Dispatch. Then write the settlement record.
+
+**If coordination is unavailable, nothing dispatches.** An unreachable shared ledger, an
+unobtainable lock, or a scope whose cap cannot be read is *not* a reason to proceed — it is
+`PAUSED_BUDGET`. This is the same fail-closed rule as A5, applied to the counter instead of
+the gate, and it is why an agent may never "reserve optimistically and settle later".
+
+A crash leaves a `reserved` record with no settlement. It is reconciled, not assumed: an
+orphan past the cycle end is released only after the external record is checked — the same
+discipline as `NEEDS_RECONCILIATION` (§3). Releasing an orphan without checking is how a
+submission gets made twice.
 
 **"Unknown" is never "unlimited".** A `null` in any cap is an unknown, and an
 unknown blocks: the cycle does not start and the competition sits in
@@ -631,7 +655,7 @@ the source for how wide autonomy actually is and what the human decides.
 - **Policy of record now — but §5 activates per competition, not on merge.** This ADR
   plus `CLAUDE.md` and `AGENTS.md` (which link it) are the loadable operating model.
   Merging it changes no competition's behaviour on its own: until a competition meets
-  §5's activation conditions A1–A6 it keeps running under ADR-0021 §2 and ADR-0020 §7/§8,
+  §5's activation conditions A1–A7 it keeps running under ADR-0021 §2 and ADR-0020 §7/§8,
   nightly batch approval included. The `CLAUDE.md` autonomous-submission table now
   lives here; `CLAUDE.md` links rather than duplicates it.
 - **`competition.yaml` gains `state` and loses `phase`**, and `status` narrows
@@ -670,6 +694,7 @@ the source for how wide autonomy actually is and what the human decides.
 | Decision request / notification channel (`WAIT_HUMAN` round trip) | #197 |
 | **Recovery + fault-injection implementation and tests** | *needs an issue* |
 | **Fail-closed pre-submit gate** reading the phase-1 `budget:` contract — §5 activation condition **A5** | *needs an issue* |
+| **Atomic shared-budget reservation** — the lock + `O_EXCL` protocol behind **A7** | *needs an issue* |
 | **Filesystem-only storage mode** for `kca run/goal/explore/stuck` + a test proving phase 1 writes no KCA rows | *needs an issue* (not #192) |
 
 ## Cross-references

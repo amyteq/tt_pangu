@@ -80,7 +80,7 @@ _base:
 
 **Which model is live for a competition.** This block is the schema for both models; the
 *semantics* of `screen` and `daily_submit_budget` depend on whether ADR-0022 §5 has been
-activated for that competition (it lists five checkable preconditions). Where §5 is not
+activated for that competition (ADR-0022 §5 lists the checkable conditions A1-A7). Where §5 is not
 active — which is every competition until a fail-closed pre-submit gate exists — the
 narrower reading on this page governs: all four `screen` criteria gate, and
 `daily_submit_budget` caps. Where it is active, the annotations above apply. There is one
