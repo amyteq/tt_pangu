@@ -14,7 +14,9 @@ status: unknown            # open | closed | unknown -- does the competition sti
 state: DISCOVER
 competition_type: unknown  # tabular | cv | nlp | llm | simulation_agent | notebook | unknown
 metric: <metric-or-unknown>
-deadline: null             # <YYYY-MM-DD or null>
+launch: null               # <YYYY-MM-DD or null>; with `deadline` defines competition_period
+deadline: null             # <YYYY-MM-DD or null>; the final submission deadline
+closing_window_days: null  # ADR-0022 §5; null => competition_period x 0.1, rounded up
 primary_artifact: unknown  # notebook | script | agent | submission | unknown
 submission_mode: unknown   # file | notebook | kernel | agent | unknown
 data_policy: unknown       # kaggle | external | generated | unknown
@@ -23,6 +25,7 @@ last_updated: <YYYY-MM-DD>
 # holds the competition in PAUSED_BUDGET until it is set or verified.
 budget:
   cycle: 7d                             # window every max_per_cycle is measured over
+  cycle_anchor: null                    # UTC timestamp cycle 0 started; all arithmetic is UTC
   experiments:
     max_per_cycle: null
   compute:
@@ -33,6 +36,9 @@ budget:
   submissions:
     require_verified_competition_limit: true
     verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
+    verified_source: null               # where that number was read (URL / API field)
+    verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_ttl: 30d                   # past this the limit is unverified again and blocks
     reserve_for_human: 0
   failures:
     max_retries_per_task: 3

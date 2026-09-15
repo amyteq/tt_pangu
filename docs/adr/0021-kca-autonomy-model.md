@@ -59,24 +59,41 @@ _base:
     enabled: true            # default true; false = strict human-in-the-loop
     auto_push: true          # kernel push without per-action approval
     auto_submit: true        # leaderboard submit without per-action approval
-    daily_submit_budget: 5   # never exceed the per-team quota
+    daily_submit_budget: 5   # SUPERSEDED by ADR-0022 §6 once §5 is active for the
+                             # competition: use the VERIFIED per-team limit from
+                             # competition.yaml:budget.submissions.verified_daily_limit.
+                             # 5 is never assumed, and an unverified limit blocks.
     screen:                  # ALL must pass for an autonomous SUBMIT
       beats_best: true       # must beat current best on trusted local validation
       min_margin: 0.0        # ...by at least this margin
-      require_repro: true    # seed + artifact path + exact command recorded
-      rules_check: true      # competition-rules / submission-limit / no-leakage check passed
+                             # ^ both SUPERSEDED by ADR-0022 §5 once active: they order
+                             #   candidates, they do not gate the submission
+      require_repro: true    # seed + artifact path + exact command recorded  (hard gate)
+      rules_check: true      # competition-rules / submission-limit / no-leakage  (hard gate)
     human_gated:             # still require a human even when enabled
-      - final_promotion_near_deadline   # = autonomous-submission-strategy scenario 4
+      - final_promotion_near_deadline   # = scenario 4 (ADR-0022 §5)
       - irreversible_delete
       - over_budget_spend
       - ambiguous_rule
+      - new_terms_or_team_change        # added by ADR-0022 §5
 ```
+
+**Which model is live for a competition.** This block is the schema for both models; the
+*semantics* of `screen` and `daily_submit_budget` depend on whether ADR-0022 §5 has been
+activated for that competition (it lists five checkable preconditions). Where §5 is not
+active — which is every competition until a fail-closed pre-submit gate exists — the
+narrower reading on this page governs: all four `screen` criteria gate, and
+`daily_submit_budget` caps. Where it is active, the annotations above apply. There is one
+schema and one live model per competition at any time, never two.
 
 **Always human-gated, regardless of `autonomy.enabled`:** irreversible/permanent
 deletions, real-money spend beyond the configured budget, ambiguous competition
-rules, and final candidate promotion when the competition is closing soon
-(§4 scenario 4 below). These are exactly the
-points where the human "provides direction / unblocks", not routine ops.
+rules, accepting new terms / joining a competition / any team change (added by
+ADR-0022 §5), and final candidate promotion when the competition is closing soon
+(scenario 4, ADR-0022 §5). These are exactly the points where the human "provides
+direction / unblocks", not routine ops. Per ADR-0022 §5 this set is a **floor**:
+ADR-0006's per-project / per-competition gate configuration may only tighten it,
+never remove or weaken an entry.
 
 **Human role under autonomy:** contribute ideas, unblock, course-correct, and
 decide the human-gated points above. Everything else (screened push/submit,
