@@ -20,13 +20,23 @@ can be compared on different competitions (discussion #185, issue #189).
 - Everything under **Shared rules** is generated verbatim from `CLAUDE.md`. If a rule here
   disagrees with `CLAUDE.md`, `CLAUDE.md` wins and the generator is broken — say so in the
   session instead of following the stale copy.
-- Where a shared rule names **"the Claude Code harness"**, read it as **"the harness you are
-  running in"**. The protections it describes — ask before destructive host commands, before
-  paid-API / credential use, before anything that touches the human's own machine or
-  accounts — are *harness* rules, and they bind Codex exactly as they bind Claude Code.
+- The shared rules were written for the Claude Code harness and name it throughout. Read those
+  mentions in **two different ways**, and do not collapse them into one:
+  - **Obligations bind you.** "The Claude Code harness still asks before X", "routing rules
+    binding on every Claude Code session" — these are *harness* duties, and they bind this
+    session exactly as they bind a Claude Code one. Ask before destructive host commands,
+    before paid-API / credential use, before anything touching the human's machine or accounts;
+    follow the GitHub routing rules as written.
+  - **Mechanisms are not yours.** `.claude/hooks/guard_tool.py`, `.claude/settings.json`
+    permissions, the `.agent/audit/tool-events.jsonl` trail — these describe machinery that
+    runs in Claude Code and **does not exist in this harness**. Never read a mention of them as
+    a statement that something is being enforced or recorded for you. Where a shared rule leans
+    on one, you honour it unaided; *The safety asymmetry* below says exactly where that bites.
 - The distinction that is **not** interchangeable is the one in *Two agents: Claude Code
   harness vs KCA product*. A rule about the KCA product agent is never automatically a rule
   about the harness you are, and vice versa; conflating them is the root cause of issue #65.
+  In particular, that section's "Claude Code harness" bullet describes Claude Code's
+  governance, not yours — yours is this file plus whatever approval mode the human has set.
 
 ## Read first
 
@@ -167,18 +177,30 @@ These apply only to harnesses reading this file; they are not part of the shared
 | `.claude/hooks/*.py` | **no** | Codex hooks come from `~/.codex/config.toml` / a managed hooks dir, never from the repo |
 | `.claude/settings.json` permissions | **no** | Codex approval policy and sandbox come from per-user config and CLI flags |
 
-Verified against `codex-cli 0.152.1`. The probe commands, the raw output, and what to
+Verified against `codex-cli 0.154.0`. The probe commands, the raw output, and what to
 re-check after a Codex upgrade are in `docs/tooling/codex-parity.md`.
 
 ## The safety asymmetry — read this before acting
 
 Claude Code sessions in this repo run behind `.claude/hooks/guard_tool.py`, a PreToolUse hook
-that *mechanically* denies permanent-deletion remote writes (`gh ... delete`, remote branch
-deletion, force-push, `scripts/sync_labels.py --apply`) and appends every tool event to
-`.agent/audit/tool-events.jsonl`. **Codex has no repo-level equivalent**, and a repo cannot
-ship one.
+that refuses a *pattern list* of destructive commands — force-push, remote branch deletion,
+`gh <resource> delete`, `scripts/sync_labels.py --apply`, and some host-destructive shell — and
+`.claude/hooks/audit_event.py`, a PostToolUse hook registered for `Bash`, `Edit` and `Write`
+(plus config changes) that appends those events to `.agent/audit/tool-events.jsonl`.
+**Codex has no repo-level equivalent of either**, and a repository cannot ship one: Codex hooks
+are per-user config, never repo-shipped.
 
-In Codex those rules are enforced only by your having read them here:
+Two things follow, and the second is easy to get wrong:
+
+1. **In this harness those rules are enforced only by your having read them here.** Nothing
+   will stop you.
+2. **Even in Claude Code the hook is a backstop, not a proof.** It matches patterns, not
+   intent: it recognises `gh issue delete …` but not every spelling of it (a global flag before
+   the subcommand, for one), and the audit trail covers `Bash`/`Edit`/`Write`, not every tool.
+   So "the hook would have caught it" is never a reason to attempt something — in either
+   harness.
+
+Concretely, in this session:
 
 - Do not run the permanent-deletion commands listed under *GitHub collaboration* without
   explicit human approval in the session.
@@ -187,7 +209,9 @@ In Codex those rules are enforced only by your having read them here:
   goes into a command that leaves the machine, a log, a PR, or a comment.
 - Nothing writes `.agent/audit/tool-events.jsonl` behind you. When you take an action the
   shared rules expect to be auditable, write the evidence where the rule says — the issue/PR
-  comment, the run artifact, or `.agent/audit.jsonl` for KCA-policy decisions.
+  comment, the run artifact, or KCA's own audit log (`.agent/kca/audit.jsonl` today; the path
+  is phase-2 work, see [#203](https://github.com/amyteq/tt_pangu/issues/203)) for KCA-policy
+  decisions.
 
 If you cannot honour a rule because this harness lacks the mechanism, say so in the session
 rather than proceeding.
@@ -195,7 +219,7 @@ rather than proceeding.
 ## Sub-agents
 
 `.claude/agents/` holds Claude Code sub-agent definitions (`design-red-team`, `safety-guard`,
-`milestone-reviewer`, `test-coverage-reviewer`, …). Codex 0.152.1 has no repo-level sub-agent
+`milestone-reviewer`, `test-coverage-reviewer`, …). Codex 0.154.0 has no repo-level sub-agent
 file format, so they are deliberately **not** mirrored into `.agents/`. When a shared workflow
 calls for one, run the equivalent review yourself, in-session, against the same checklist —
 the checklist lives in the matching skill or doc, not in the agent file — and say that the

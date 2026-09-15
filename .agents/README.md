@@ -53,7 +53,7 @@ Codex — a skill carrying them is still listed.
 
 | `.claude/` | Status in `.agents/` | Consequence |
 |---|---|---|
-| `agents/*.md` (sub-agent definitions) | **absent** — Codex 0.152.1 has no repo-level sub-agent format | Run the review in-session against the same checklist, and say it was not an independent agent. |
+| `agents/*.md` (sub-agent definitions) | **absent** — Codex 0.154.0 has no repo-level sub-agent format | Run the review in-session against the same checklist, and say it was not an independent agent. |
 | `hooks/*.py` (`guard_tool`, `format_gate`, `audit_event`) | **absent** — Codex hooks are per-user config (`~/.codex/config.toml` / a managed dir), never repo-shipped | Real safety asymmetry: in Codex the deletion / force-push / secret rules are enforced only by reading them, and no `.agent/audit/tool-events.jsonl` trail is written. See *The safety asymmetry* in `AGENTS.md`. |
 | `settings.json` (`permissions.allow` / `deny`) | **absent** — Codex approval policy and sandbox come from per-user config and CLI flags | The human sets Codex's approval mode; the repo cannot pre-approve commands for it. |
 

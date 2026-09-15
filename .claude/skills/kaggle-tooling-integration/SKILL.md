@@ -60,4 +60,4 @@ A battle-tested resolver lives in `experiments/tpu-getting-started/baseline-tl/b
 failure shows the real layout instead of an opaque "not found".
 
 ## Safety
-Never print or read Kaggle credentials. Never commit API tokens. Never bypass daily submission limits or competition rules.
+Kaggle credentials are **read-for-use, not read-to-share** (see the dev-phase secret policy in `CLAUDE.md` / `AGENTS.md`): read `~/.kaggle/kaggle.json` or the per-account `.vscode/.env.*` files to authenticate a call, but never echo a credential into the session, a log, a web fetch, a PR, or a comment. Never commit API tokens. Never bypass daily submission limits or competition rules.

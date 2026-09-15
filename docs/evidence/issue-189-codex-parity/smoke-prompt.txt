@@ -1,0 +1,5 @@
+Read-only task — do not create, modify, or delete any file. Using this repository's own instructions and skills, answer in at most 6 short lines:
+
+1. Which skill would you use to initialise a run artifact directory for a new experiment on competitions/arc-agi2, and what is the shape of the run directory path it creates?
+2. In one sentence: what does this repo's dev-phase secret policy permit you to do with ~/.kaggle/kaggle.json, and what does it forbid?
+3. Name the instruction file and the skill file that told you (1) and (2).

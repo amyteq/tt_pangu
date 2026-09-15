@@ -14,7 +14,8 @@ drift this script exists to prevent, so:
   .agents/README.md                                      (generated inventory)
 
 `.claude/agents/` and `.claude/hooks/` are deliberately NOT mirrored — Codex
-0.152.1 consumes neither; see `docs/tooling/codex-parity.md` for the evidence.
+consumes neither; see `docs/tooling/codex-parity.md` for the evidence and the
+version it was checked against (CODEX_VERSION below).
 
 Usage:
   python scripts/gen_agents.py            # write AGENTS.md and .agents/
@@ -45,6 +46,12 @@ AGENTS_README = AGENTS_DIR / "README.md"
 
 PREAMBLE_MARKER = "<!-- part: preamble -->"
 APPENDIX_MARKER = "<!-- part: appendix -->"
+
+# The Codex release the claims in the delta and in `.agents/README.md` were verified
+# against. Substituted for `{{CODEX_VERSION}}` so there is one place to bump after
+# re-running the probe (`docs/tooling/codex-parity.md` § After a Codex upgrade).
+CODEX_VERSION = "0.154.0"
+VERSION_TOKEN = "{{CODEX_VERSION}}"
 
 # Skills that are NOT mirrored, with the reason shown in `.agents/README.md`.
 # Everything else under `.claude/skills/` is mirrored automatically, so the
@@ -88,10 +95,25 @@ def claude_body() -> str:
     authoritative" language banner — is CLAUDE.md's front matter, not a shared
     rule: copied into AGENTS.md it would claim the generated file is the
     authority. AGENTS.md supplies its own header from the delta preamble.
+
+    Skipping a prefix silently is how a rule goes missing, so the prefix must
+    look like a title block and nothing else. A prose line before the first
+    `## ` is a real rule that would never reach Codex, and it stops generation
+    instead of being dropped.
     """
     lines = read_text(CLAUDE_MD).splitlines()
     for index, line in enumerate(lines):
         if line.startswith("## "):
+            for skipped in lines[:index]:
+                if skipped.strip() and not skipped.startswith(("# ", ">", "<!--")):
+                    fail(
+                        "CLAUDE.md has content before its first `## ` section that is not part of the\n"
+                        "  title block, so generating AGENTS.md would silently drop it:\n"
+                        f"    {skipped.strip()[:100]!r}\n"
+                        "  Move that rule into a `## ` section (it then reaches both harnesses), or, if it is\n"
+                        "  CLAUDE.md front matter, express the AGENTS.md equivalent in\n"
+                        "  docs/instructions/agents-delta.md and extend the allowed prefix here."
+                    )
             return "\n".join(lines[index:]).strip("\n")
     fail("CLAUDE.md has no `## ` section to split on")
     return ""  # unreachable; keeps type checkers happy
@@ -105,25 +127,71 @@ def delta_parts() -> tuple[str, str]:
             fail(f"{DELTA_MD.relative_to(REPO_ROOT)} is missing the marker {marker!r}")
     _, _, after_preamble = text.partition(PREAMBLE_MARKER)
     preamble, _, appendix = after_preamble.partition(APPENDIX_MARKER)
-    return preamble.strip("\n"), appendix.strip("\n")
+    substituted = (part.strip("\n").replace(VERSION_TOKEN, CODEX_VERSION) for part in (preamble, appendix))
+    return tuple(substituted)  # type: ignore[return-value]
+
+
+def skill_front_matter(name: str) -> dict[str, str]:
+    """The `name` / `description` keys of a skill's YAML front matter.
+
+    Deliberately not a YAML parser: skills are a flat `key: value` block and a
+    dependency here would have to be installed wherever `--check` runs, CI
+    included. Anything it cannot read is reported, never guessed.
+    """
+    lines = (CLAUDE_SKILLS / name / "SKILL.md").read_text(encoding="utf-8").splitlines()
+    if not lines or lines[0].strip() != "---":
+        fail(f".claude/skills/{name}/SKILL.md does not open with a `---` front-matter block")
+    fields: dict[str, str] = {}
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        if line.startswith((" ", "\t")) or ":" not in line:
+            continue  # continuation / list line: not a top-level key
+        key, _, value = line.partition(":")
+        fields[key.strip()] = value.strip().strip('"').strip("'")
+    else:
+        fail(f".claude/skills/{name}/SKILL.md front matter is never closed by a `---` line")
+    for required in ("name", "description"):
+        if not fields.get(required):
+            fail(f".claude/skills/{name}/SKILL.md front matter has no `{required}:`")
+    return fields
 
 
 def mirrored_skills() -> list[str]:
-    """Skill directory names to mirror, sorted, excludes applied."""
+    """Skill directory names to mirror, sorted, excludes applied.
+
+    Also validates the inventory, because the mirror publishes it to Codex: a
+    skill whose front-matter `name` disagrees with its directory is advertised
+    under one identity and symlinked under another, and a stale exclude renders
+    a phantom row in `.agents/README.md` that nothing else would catch.
+    """
     if not CLAUDE_SKILLS.is_dir():
         fail(f"missing skills directory: {CLAUDE_SKILLS.relative_to(REPO_ROOT)}")
-    names = [p.name for p in sorted(CLAUDE_SKILLS.iterdir()) if (p / "SKILL.md").is_file()]
-    return [name for name in names if name not in SKILL_EXCLUDES]
+    present = [p.name for p in sorted(CLAUDE_SKILLS.iterdir()) if (p / "SKILL.md").is_file()]
+    for stale in sorted(set(SKILL_EXCLUDES) - set(present)):
+        fail(
+            f"SKILL_EXCLUDES names {stale!r}, which is not a skill under .claude/skills/.\n"
+            "  A renamed or retired skill leaves a phantom 'Not mirrored' row in .agents/README.md —\n"
+            "  drop the entry, or point it at the new name."
+        )
+    declared: dict[str, str] = {}
+    for name in present:
+        declared_name = skill_front_matter(name)["name"]
+        if declared_name != name:
+            fail(
+                f".claude/skills/{name}/SKILL.md declares `name: {declared_name}` but lives in {name}/.\n"
+                "  Codex lists a skill under its front-matter name, so the two must agree."
+            )
+        if declared_name in declared:
+            fail(f"two skills both declare `name: {declared_name}` ({declared[declared_name]}, {name})")
+        declared[declared_name] = name
+    return [name for name in present if name not in SKILL_EXCLUDES]
 
 
 def skill_description(name: str) -> str:
-    """The `description:` front-matter line of a skill, for the README table."""
-    text = (CLAUDE_SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
-    for line in text.splitlines():
-        if line.startswith("description:"):
-            description = line.split(":", 1)[1].strip().strip('"')
-            return description.split(". ")[0].rstrip(".")
-    return ""
+    """First sentence of a skill's description, escaped for a markdown table."""
+    description = skill_front_matter(name)["description"]
+    return description.split(". ")[0].rstrip(".").replace("|", "\\|")
 
 
 def render_agents_md() -> str:
@@ -171,7 +239,7 @@ Codex — a skill carrying them is still listed.
 
 | `.claude/` | Status in `.agents/` | Consequence |
 |---|---|---|
-| `agents/*.md` (sub-agent definitions) | **absent** — Codex 0.152.1 has no repo-level sub-agent format | Run the review in-session against the same checklist, and say it was not an independent agent. |
+| `agents/*.md` (sub-agent definitions) | **absent** — Codex {CODEX_VERSION} has no repo-level sub-agent format | Run the review in-session against the same checklist, and say it was not an independent agent. |
 | `hooks/*.py` (`guard_tool`, `format_gate`, `audit_event`) | **absent** — Codex hooks are per-user config (`~/.codex/config.toml` / a managed dir), never repo-shipped | Real safety asymmetry: in Codex the deletion / force-push / secret rules are enforced only by reading them, and no `.agent/audit/tool-events.jsonl` trail is written. See *The safety asymmetry* in `AGENTS.md`. |
 | `settings.json` (`permissions.allow` / `deny`) | **absent** — Codex approval policy and sandbox come from per-user config and CLI flags | The human sets Codex's approval mode; the repo cannot pre-approve commands for it. |
 
@@ -208,6 +276,13 @@ def check_symlinks() -> list[str]:
 
 
 def write_symlinks() -> list[str]:
+    """Bring `.agents/skills/` to the expected symlink set.
+
+    A real directory where a symlink belongs is never deleted — it may be
+    someone's unmirrored work — but it is also never silently tolerated, since
+    `--check` would reject it on the next run and the write would have exited 0.
+    Both cases stop with a message naming the manual cleanup.
+    """
     changes: list[str] = []
     AGENTS_SKILLS.mkdir(parents=True, exist_ok=True)
     expected = mirrored_skills()
@@ -216,7 +291,12 @@ def write_symlinks() -> list[str]:
         target = f"../../.claude/skills/{name}"
         if link.is_symlink() and str(link.readlink()) == target:
             continue
-        if link.is_symlink() or link.exists():
+        if not link.is_symlink() and link.exists():
+            fail(
+                f".agents/skills/{name} is a real {'directory' if link.is_dir() else 'file'}, not a symlink.\n"
+                "  The mirror never deletes real content. Move or remove it by hand, then re-run."
+            )
+        if link.is_symlink():
             link.unlink()
         link.symlink_to(target, target_is_directory=True)
         changes.append(f"linked .agents/skills/{name}")
@@ -224,9 +304,10 @@ def write_symlinks() -> list[str]:
         if entry.name in expected:
             continue
         if not entry.is_symlink():
-            # Never delete real content that someone put here by hand; --check reports it.
-            changes.append(f"left .agents/skills/{entry.name} alone (not a symlink — remove it by hand)")
-            continue
+            fail(
+                f".agents/skills/{entry.name} is not a symlink and is not a mirrored skill.\n"
+                "  The mirror never deletes real content. Move or remove it by hand, then re-run."
+            )
         entry.unlink()
         changes.append(f"removed stale .agents/skills/{entry.name}")
     return changes
