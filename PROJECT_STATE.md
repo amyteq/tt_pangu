@@ -136,8 +136,10 @@ The new submit step runs **autonomously under the KCA autonomy model**
 is true and `autonomy.screen` passes, KCA submits without per-action approval and
 records the intended-submission summary to `.agent/kca/audit.jsonl`. Scenario-4 /
 over-budget / ambiguous-rules stay human-gated. **Design intent, not current behaviour:**
-no code evaluates `autonomy.screen`, so the approval gate above is what actually runs
-(ADR-0022 §5, "the narrower model is not implemented either").
+no code evaluates `autonomy.screen`, so this paragraph describes what M15 was aiming at,
+not what the tree does. Nor is the approval gate above enforced — see it for the
+`file:line` evidence. Until the gates in ADR-0022 §5's condition A5 are implemented, the
+submit step is neither autonomous nor gated: it is a human deciding, every time.
 
 M15 task breakdown (full scope in `docs/tasks/m15/`):
 
