@@ -393,20 +393,23 @@ have to decide what "nothing" means. So the path is a declared field —
 `competition.yaml:autonomy_config`, relative to the competition directory — and A1 reads
 that file and no other. Two consequences, both fail-closed:
 
-- **The block is read at the file's top level, and A1 fails without it.** "No
-  `autonomy_config`", "the named file is missing", "it does not parse" and "it has no
-  top-level `autonomy:` mapping" all fail. The last is the case that matters most, because
-  it is the one that reads as a *pass*: with no block, `autonomy.enabled` is not `false` and
-  neither action flag is `false`, so a literal check of the row succeeds while nothing was
-  checked at all. Both configs in the tree fail A1 today, for the two different reasons:
-  `competitions/arc-agi3/kca-arc-agi3.yaml` exists and parses but has no `autonomy:` block
-  anywhere, and `competitions/nvidia-nemotron/kca-nemo.yaml` has one but nested under its
-  `_base:` per-variant defaults key (`kca-nemo.yaml:51`), not at the top level. Neither is a
-  problem to fix here — both competitions are `FINDINGS`/`RESEARCH`-side and neither is
-  activating anything — but "the block is somewhere in the file" is not a checkable
-  condition, so the location is fixed: top level, or A1 fails. Moving nemo's block, or
-  teaching the reader a declared key path, belongs with the follow-up that writes the
-  reader.
+- **The block is read from one of two fixed places, and A1 fails if it is in neither or in
+  both.** ADR-0021 §2 documents the schema as living under the config's `_base:` key — the
+  per-variant defaults convention `kca-nemo.yaml` uses — while a competition with no variants
+  would naturally put it at the top level. Both are legitimate, so A1 accepts **exactly one
+  of**: a top-level `autonomy:` mapping, or `_base.autonomy`. Absent from both, present in
+  both, unparseable file, missing file, or no `autonomy_config` at all — every one of those
+  fails. "Present in both" fails for the same reason the rest do: A1 must be able to name
+  *the* value it checked, and two candidates name none.
+- **The blockless case is the one that matters most, because it reads as a pass.** With no
+  block anywhere, `autonomy.enabled` is not `false` and neither action flag is `false`, so a
+  literal check of the row succeeds while nothing was checked at all. That is
+  `competitions/arc-agi3/kca-arc-agi3.yaml` today: it exists, it parses, and it carries no
+  `autonomy:` block in either place, so arc-agi3 fails A1 — the right answer for a
+  competition sitting in `PAUSED_BUDGET` with `resume_state: PRE_SUBMIT_GATE`, one step from
+  a submission. `competitions/nvidia-nemotron/kca-nemo.yaml:51` has its block under `_base:`,
+  so it *is* A1-readable; nemo fails §5 on A2, A3 and A5 instead, on a competition that
+  closed 2026-06-15 and is in `FINDINGS`.
 - **None of this contradicts ADR-0021 §2's "default ON".** That default says autonomy is
   *permitted* without a config, and it stands. A1 asks a different question — can the three
   vetoes be *read*? — and each failure case above answers it with "no". Unknown is never
@@ -966,18 +969,49 @@ necessary but not sufficient, and two further rules apply:
   "proceed on the local number". The local ledger is a fast path *within* a cycle for
   detecting our own concurrent reservations; it is never the authority on what the platform
   has already counted.
+- **How the two numbers combine — stated, because adding them double-counts and replacing
+  loses live work.** For a scope+dimension that has an external authority:
+
+  ```text
+  remaining = cap − platform_count − Σ(live local reservations not inside platform_count)
+  ```
+
+  `platform_count` is the authority's own count for *this* window, read under the lock. The
+  sum walks the live reservations — those with no terminal sidecar — and correlates each by
+  the `external_id` its intent record carries:
+
+  | Live reservation | In the sum? |
+  |---|---|
+  | `external_id: null` — not dispatched yet, or the dispatch outcome is unknown | **Yes.** The slot is taken locally and the platform cannot know it |
+  | `external_id` present **and** found in the authority's records | **No** — `platform_count` already includes it. This is the case that would otherwise double-count |
+  | `external_id` present and **not** found | **Yes**, *and* raise `NEEDS_RECONCILIATION`: the platform should know about it and does not |
+
+  Reservations carrying a terminal sidecar are never added: `released` consumed nothing, and
+  `settled` is either already inside `platform_count` or belongs to a dimension the platform
+  does not count. If a live reservation cannot be correlated at all, it counts as **spent**
+  and the competition raises `NEEDS_RECONCILIATION` — fail-closed, the same direction as
+  everywhere else here.
+- **Dimensions with no external authority skip all of this.** `experiments`, `compute`,
+  `llm` and every `competition:<slug>` cap have no platform to ask, so `platform_count` does
+  not exist for them and the ledger reduction *is* the count. Which is exactly why the
+  ledger has to carry them at all (the per-competition scope above), rather than leaving a
+  declared cap with no counter behind it.
 
 If a scope's driver designation is missing, expired, or named differently by two
 competitions that share it, then **every** competition spending against that scope is
 `PAUSED_BUDGET` — not just the one that noticed. Two hosts believing they are the driver is
 precisely the double-submission this whole section exists to prevent.
 
-**A job that spends against several scopes reserves against all of them or none.** A single
-submission can consume a `team:` slot *and* an `account:` slot; a training run can consume
-machine GPU hours *and* metered USD. Reserve in a fixed order — scope identities sorted
-lexicographically, so two workers never take two locks in opposite orders — and if any
-scope refuses, release the reservations already made (terminal sidecar, `outcome:
-released`) and do not dispatch. Partial reservation is the deadlock and the overspend.
+**A job that spends against several scopes reserves against all of them or none** — a
+single submission consumes a `competition:<slug>` slot *and* a `team:` slot; a training run
+consumes machine GPU hours *and* metered USD. The procedure is the ordered four-step rule
+under "One job, several scopes" above, and it is the **only** one: collect every pair, lock
+in ascending absolute-path order, check every pair while holding all the locks, then create
+every record or none. In particular, do **not** reserve scope by scope and release what was
+already taken when a later scope refuses. That releases under contention — another worker
+can win the freed capacity between the release and the retry — and it is exactly the
+partial reservation the rule exists to prevent. Partial reservation is the deadlock and the
+overspend.
 
 **If coordination is unavailable, nothing dispatches.** An unreachable ledger directory, an
 unobtainable lock, an unreadable cap, or an unknown driver designation is *not* a reason to
@@ -1116,9 +1150,10 @@ autonomous action back into an approval. It may never remove one of the seven.
   that dimension, and under A2/A3 it means no competition can activate §5 today. That is the intended behaviour — a number has
   to be verified before it can bound anything. **A1 also fails for all five**, for two
   separate reasons worth recording: three competitions declare `autonomy_config: null`
-  because they have no autonomy config at all, `arc-agi3`'s config has no `autonomy:`
-  block, and `nvidia-nemotron`'s has one nested under `_base:` rather than at the top
-  level. So §5 is inactive on A1, A2, A3 and A5 independently — four locks, not one. `competitions/_shared/budget.yaml`
+  because they have no autonomy config at all, and `arc-agi3`'s config resolves but
+  carries no `autonomy:` block in either accepted location. Only `nvidia-nemotron`'s is
+  A1-readable (under `_base:`), and it fails A2, A3 and A5 instead. So §5 is inactive on
+  A1, A2, A3 and A5 independently — four locks, not one. `competitions/_shared/budget.yaml`
   is written when the first competition is selected on #199.
 - **This ADR does not implement recovery.** `RETRY_AT`, `NEEDS_RECONCILIATION`,
   leases, checkpoints and restart recovery are *named* here so there is one
@@ -1152,7 +1187,7 @@ autonomous action back into an approval. It may never remove one of the seven.
 | **Harness does not gate Kaggle submission**: `.claude/settings.json:91-92` allow-lists `kaggle competitions submit` and `python tools/kca/kca.py kaggle submit`, and `guard_tool.py:171,177` matches no submit form (nor the installed `kca kaggle push`). Third part of **A5** | *needs an issue* — human-only: the agent cannot write its own guard config |
 | **`kg.py` approval gate is fail-open**: `OPERATION_DEFAULTS["kaggle_submit"] = False` (`kg.py:21-22`) and `_gate()` (`kg.py:53-59`) has no call sites, so `kca kaggle submit` dispatches unapproved. Also the second half of **A5** | *needs an issue* — touches ADR-0006's defaults; must also add the missing default-behaviour test, since `tests/test_m4_smoke.py:228-234` passes an explicit policy and never exercises `OPERATION_DEFAULTS` |
 | **Atomic shared-budget reservation** — the machine-absolute lock + `O_EXCL` protocol, the ordered multi-scope rule, and the cross-host driver designation behind **A7** | *needs an issue* |
-| **`autonomy_config` reader** for **A1** — resolve the declared path, require a *top-level* `autonomy:` mapping, and fail closed on absent / unparseable / blockless. Includes moving `kca-nemo.yaml`'s block out of `_base:` | *needs an issue* |
+| **`autonomy_config` reader** for **A1** — resolve the declared path, accept the `autonomy:` mapping at the top level *or* under `_base:` but never both, and fail closed on absent / unparseable / blockless / ambiguous | *needs an issue* |
 | **Verified quota reset boundary** — read `verified_reset_boundary` per competition and window the `submissions` dimension on it instead of on `cycle_anchor` (**A3**) | *needs an issue* |
 | **Filesystem-only storage mode** for `kca run/goal/explore/stuck` + a test proving phase 1 writes no KCA rows | *needs an issue* (not #192) |
 
