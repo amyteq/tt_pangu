@@ -550,34 +550,65 @@ FORCE_PUSH_TOKENS = ("force-push", "force push", "push -f", "push --force")
 APPROVAL_WORDS = ("approval", "approve", "approved", "approvable")
 
 
-# Searching for a denial word is not enough: "force-push is **not denied** and
-# instead requires approval" contains one. The rule is inverted — every window
-# that mentions both must match a sanctioned phrasing AND carry no negation of it.
-SANCTIONED_DENIALS = (
-    "denied outright",
-    "is also denied",
-    "are denied",
-    "never force-push",
-    "no force-push",
-    "do not force-push",
-    "forbidden",
-    "refuses",
+# Searching for a denial word is not enough, in either direction. "force-push is
+# **not denied** and instead requires approval" contains one; and so does
+# "force-push requires explicit approval; direct pushes to main are forbidden",
+# where the denial belongs to a different clause entirely. So the denial has to
+# *bind* to the force-push mention: adjacent, with no approval language and no
+# sentence break between them.
+DENIAL_WORDS = (
+    r"\bdenied\b",
+    r"\bdeny\b",
+    r"\bforbidden\b",
+    r"\brefuses\b",
+    r"\bnever\b",
+    r"\bno\b",
+    r"\bnot\b",  # "do not force-push" — the repo's own phrasing
 )
 NEGATED_DENIALS = ("not denied", "n't denied", "no longer denied", "not be denied", "not forbidden")
-# A window rather than a sentence: "Force-push is allowed. It needs approval."
-# splits into two sentences that each look harmless on their own.
-WINDOW = 320
+WINDOW = 120
+BIND_GAP = 140
 
 
-def _windows_mentioning(text: str, tokens: tuple[str, ...]) -> list[str]:
-    low = text.lower()
-    spans = []
-    for token in tokens:
-        start = low.find(token)
-        while start != -1:
-            spans.append(low[max(0, start - WINDOW) : start + WINDOW])
-            start = low.find(token, start + 1)
-    return spans
+def _normalise(text: str) -> str:
+    """Lower-case, strip markdown emphasis, and fold curly apostrophes.
+
+    `**denied**` must read as `denied`, and "doesn't" typed with U+2019 must not
+    slip past a check written for the ASCII apostrophe.
+    """
+    folded = text.lower().replace("\u2019", "'").replace("\u2018", "'")
+    return folded.replace("*", "").replace("`", "")
+
+
+def _binds(norm: str, tok_start: int, tok_end: int) -> bool:
+    """Is there a denial that belongs to *this* mention rather than a neighbour?"""
+    for pattern in DENIAL_WORDS:
+        for match in re.finditer(pattern, norm):
+            if match.end() <= tok_start:
+                gap = norm[match.end() : tok_start]
+            elif match.start() >= tok_end:
+                gap = norm[tok_end : match.start()]
+            else:
+                continue
+            if len(gap) > BIND_GAP or "." in gap:
+                continue
+            if any(word in gap for word in APPROVAL_WORDS):
+                continue  # the denial is about something else in the same sentence
+            return True
+    return False
+
+
+def _force_push_problems(text: str) -> list[str]:
+    norm = _normalise(text)
+    problems = []
+    for token in FORCE_PUSH_TOKENS:
+        for match in re.finditer(re.escape(token), norm):
+            window = norm[max(0, match.start() - WINDOW) : match.end() + WINDOW]
+            if any(phrase in window for phrase in NEGATED_DENIALS):
+                problems.append(f"negates the denial: {window.strip()[:200]!r}")
+            elif any(word in window for word in APPROVAL_WORDS) and not _binds(norm, match.start(), match.end()):
+                problems.append(f"approval language with no bound denial: {window.strip()[:200]!r}")
+    return problems
 
 
 @pytest.mark.parametrize("doc", ["CLAUDE.md", "AGENTS.md", "PROJECT_STATE.md", *REQUIRED_READING])
@@ -586,19 +617,11 @@ def test_force_push_is_never_described_as_approvable(doc: str):
     path = REPO_ROOT / doc
     if not path.is_file():
         pytest.skip(f"{doc} not present")
-    for window in _windows_mentioning(path.read_text(encoding="utf-8"), FORCE_PUSH_TOKENS):
-        if not any(word in window for word in APPROVAL_WORDS):
-            continue
-        assert not any(phrase in window for phrase in NEGATED_DENIALS), (
-            f"{doc} negates the denial of force-push near approval language:\n"
-            f"    {window.strip()[:240]!r}\n"
-            "  CLAUDE.md denies force-push outright."
-        )
-        assert any(phrase in window for phrase in SANCTIONED_DENIALS), (
-            f"{doc} mentions force-push near approval language without stating it is denied:\n"
-            f"    {window.strip()[:240]!r}\n"
-            "  CLAUDE.md denies force-push outright; a gate implies a path to yes."
-        )
+    problems = _force_push_problems(path.read_text(encoding="utf-8"))
+    assert not problems, (
+        f"{doc} describes force-push as approvable:\n  " + "\n  ".join(problems) + "\n"
+        "  CLAUDE.md denies force-push outright; a gate implies a path to yes."
+    )
 
 
 @pytest.mark.parametrize(
@@ -608,22 +631,20 @@ def test_force_push_is_never_described_as_approvable(doc: str):
         ("Force-push is not denied and instead requires explicit human approval.", False),
         ("Force-push is allowed here. It requires explicit human approval.", False),
         ("Force-push requires explicit human approval from the owner.", False),
+        ("Force-push requires explicit approval; direct pushes to main are forbidden.", False),
+        ("Force-push is not denied\u2019 and requires approval.", False),
         ("Never force-push; approval cannot make it safe.", True),
+        ("Still forbidden: merging on red, direct pushes to `main`, and force-push.", True),
+        ("Force-push (`git push -f`) is also denied; deletions need approval.", True),
     ],
 )
 def test_the_force_push_rule_separates_these_cases(text: str, allowed: bool):
-    """The guard is the claim, so its own boundary cases are tested.
+    """The guard is itself a claim, so its boundary cases are tested.
 
-    The first negative case passed the round-6 version of this test: it contains
-    the word "denied".
+    Cases 2 and 5 each defeated an earlier version of this test: the first
+    contains the word "denied", the second a denial belonging to another clause.
     """
-    windows = _windows_mentioning(text, FORCE_PUSH_TOKENS)
-    flagged = any(
-        any(word in w for word in APPROVAL_WORDS)
-        and (any(phrase in w for phrase in NEGATED_DENIALS) or not any(phrase in w for phrase in SANCTIONED_DENIALS))
-        for w in windows
-    )
-    assert flagged is not allowed
+    assert (not _force_push_problems(text)) is allowed
 
 
 CJK = re.compile(r"[\u4e00-\u9fff]")
@@ -803,13 +824,163 @@ def test_provenance_still_exempts_an_output_renamed_onto_an_output(provenance, s
     provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
 
 
-def test_the_probe_renderer_checks_the_dumps_catalogue_against_the_tree():
+@pytest.fixture(scope="module")
+def renderer():
+    # The script imports its sibling `evidence_provenance`, which resolves because
+    # `python scripts/render_codex_probe.py` puts `scripts/` first on the path.
+    # Importing it here has to supply the same.
+    scripts = str(REPO_ROOT / "scripts")
+    if scripts not in sys.path:
+        sys.path.insert(0, scripts)
+    spec = importlib.util.spec_from_file_location("render_codex_probe", REPO_ROOT / "scripts" / "render_codex_probe.py")
+    module = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize(
+    "label,listed,mirrored,mismatch",
+    [
+        ("identical", ["a", "b"], ["a", "b"], False),
+        ("extra skill in the dump", ["a", "b", "ghost"], ["a", "b"], True),
+        ("skill missing from the dump", ["a"], ["a", "b"], True),
+        ("duplicated row", ["a", "a", "b"], ["a", "b"], True),
+    ],
+)
+def test_the_probe_renderer_compares_the_catalogue_as_a_sequence(renderer, label, listed, mirrored, mismatch):
     """Verifying the project doc says nothing about the skill inventory.
 
-    A dump whose catalogue lists a skill the mirror does not contain produced a
-    header certifying HEAD and reporting one skill too many — the same inflated
-    count as the untracked-skill case, arriving by a different route.
+    The duplicate case is the one a set comparison misses: the sets stay equal
+    while the reported count — the length of the list — goes up by one. A dump
+    with a duplicated row certified 18 skills against a 17-skill tree.
     """
-    source = (REPO_ROOT / "scripts" / "render_codex_probe.py").read_text(encoding="utf-8")
-    assert "the dump's skill catalogue is not this tree's" in source
-    assert ".agents" in source and "iterdir()" in source
+    assert (renderer.catalogue_mismatch(listed, mirrored) is not None) is mismatch
+
+
+# --- Round 8 -----------------------------------------------------------------
+# Rounds 1-7 banned two literal phrases from mirrored skills. Round 8 found the
+# same contradiction in two *other* skills, phrased differently. A phrase ban
+# catches the phrase; this catches the shape.
+#
+# A mirrored skill is read by both harnesses, after the project doc, with the
+# same authority. When one states that an operation the shared rules auto-allow
+# needs approval, it must say who it binds — the harness, the KCA product agent,
+# or just this skill — because the answer differs by agent (CLAUDE.md → *Two
+# agents*, ADR-0021) and an unscoped rule is applied to both.
+APPROVAL_CLAIM = re.compile(
+    r"(requires? (human |explicit )*approval|needs? (human |explicit )*approval"
+    r"|ask for (human )*approval|human-only|human approval)",
+    re.IGNORECASE,
+)
+GATED_OPERATIONS = ("submit", "merge", "push", "post a comment", "pr body", "remote write")
+# Operations CLAUDE.md really does gate on explicit human approval. An approval
+# rule naming one of these is correct for both agents, so it needs no scoping.
+PERMANENTLY_GATED = ("sync_labels", "permanent-deletion", "permanent deletion", "force-push", "--delete")
+SCOPING_TOKENS = (
+    "this skill",
+    "harness",
+    "kca",
+    "autonomy",
+    "adr-0021",
+    "product agent",
+    "read-and-report",
+    "read-only",
+)
+
+
+def _paragraphs(text: str) -> list[str]:
+    return [block for block in re.split(r"\n\s*\n", text) if block.strip()]
+
+
+def test_mirrored_skills_scope_every_approval_rule_they_state():
+    """An approval rule in a mirrored skill must say which agent it binds."""
+    offenders = []
+    for entry in sorted(AGENTS_SKILLS.iterdir()):
+        body = (entry / "SKILL.md").read_text(encoding="utf-8")
+        for block in _paragraphs(body):
+            low = block.lower()
+            if not APPROVAL_CLAIM.search(block):
+                continue
+            if not any(op in low for op in GATED_OPERATIONS):
+                continue
+            if any(token in low for token in SCOPING_TOKENS):
+                continue
+            if any(token in low for token in PERMANENTLY_GATED):
+                continue
+            offenders.append(f"{entry.name}: {' '.join(block.split())[:160]}")
+    assert not offenders, (
+        "mirrored skills state approval rules without saying which agent they bind:\n  "
+        + "\n  ".join(offenders)
+        + "\n  The harness asks before spending the human's credentials; KCA's push/submit is "
+        "autonomous by default once `autonomy.screen` passes (ADR-0021). An unscoped rule is "
+        "read as binding both."
+    )
+
+
+@pytest.mark.parametrize(
+    "block,scoped",
+    [
+        ("- Never submit automatically; ask for human approval first.", False),
+        ("- Harness (you, here): ask for human approval before you submit.", True),
+        ("- Do not merge from this skill; it requires human approval elsewhere.", True),
+        ("- Do not post a comment or merge — those remote writes require human approval.", False),
+        ("- Summarise the result and record the metric.", True),
+    ],
+)
+def test_the_skill_approval_rule_separates_these_cases(block: str, scoped: bool):
+    """Both counterexamples are the wording round 8 found in shipped skills."""
+    low = block.lower()
+    flagged = bool(
+        APPROVAL_CLAIM.search(block)
+        and any(op in low for op in GATED_OPERATIONS)
+        and not any(token in low for token in SCOPING_TOKENS)
+        and not any(token in low for token in PERMANENTLY_GATED)
+    )
+    assert flagged is not scoped
+
+
+def test_provenance_refuses_an_ignored_loader_visible_skill(provenance, scratch_repo):
+    """`git status` does not report ignored files, but Codex still loads them."""
+    (scratch_repo / ".gitignore").write_text(".agents/skills/ghost/\n", encoding="utf-8")
+    subprocess.run(["git", "add", ".gitignore"], cwd=scratch_repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-qm", "ignore"], cwd=scratch_repo, check=True, capture_output=True)
+    ghost = scratch_repo / ".agents" / "skills" / "ghost"
+    ghost.mkdir(parents=True)
+    (ghost / "SKILL.md").write_text("---\nname: ghost\n---\n", encoding="utf-8")
+    assert not subprocess.run(
+        ["git", "status", "--porcelain"], cwd=scratch_repo, capture_output=True, text=True
+    ).stdout.strip(), "fixture is wrong: the file should be invisible to plain `git status`"
+    with pytest.raises(SystemExit):
+        provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
+
+
+def test_provenance_ignores_ignored_files_that_no_harness_reads(provenance, scratch_repo):
+    """Scratch such as `.claude/.cc-writes/` must not fail the check.
+
+    The first version of this rule flagged every ignored path under `.claude/`,
+    which would have made it unusable in this repository.
+    """
+    (scratch_repo / ".gitignore").write_text(".claude/.cc-writes/\n", encoding="utf-8")
+    subprocess.run(["git", "add", ".gitignore"], cwd=scratch_repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-qm", "ignore"], cwd=scratch_repo, check=True, capture_output=True)
+    scratch = scratch_repo / ".claude" / ".cc-writes"
+    scratch.mkdir(parents=True)
+    (scratch / "log.json").write_text("{}\n", encoding="utf-8")
+    provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
+
+
+def test_provenance_refuses_changes_hidden_by_skip_worktree(provenance, scratch_repo):
+    """`git update-index --skip-worktree` tells git to ignore local edits."""
+    subprocess.run(
+        ["git", "update-index", "--skip-worktree", "AGENTS.md"],
+        cwd=scratch_repo,
+        check=True,
+        capture_output=True,
+    )
+    (scratch_repo / "AGENTS.md").write_text("tampered instructions\n", encoding="utf-8")
+    assert not subprocess.run(
+        ["git", "status", "--porcelain"], cwd=scratch_repo, capture_output=True, text=True
+    ).stdout.strip(), "fixture is wrong: the edit should be invisible to plain `git status`"
+    with pytest.raises(SystemExit):
+        provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)

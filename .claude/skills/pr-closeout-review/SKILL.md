@@ -33,8 +33,13 @@ For each section of the closeout template:
    If the diff touches `.claude/settings.json`, `.claude/hooks/*`,
    `env.example`, or `secrets`-adjacent files, the `area:security` label
    must be applied and a security-reviewer must be pinged.
-5. **Remote side effects.** If any "remote" box is checked, the closing
-   issue must record explicit human approval. Verify the link.
+5. **Remote side effects.** Non-destructive remote writes (`gh issue`/`pr`
+   create, edit, comment, close, merge; `gh label create|edit`; pushing a
+   feature branch) are auto-allowed in the dev phase and need no recorded
+   approval — do not report them as gaps. Only the permanent-deletion writes
+   listed in `CLAUDE.md` → *GitHub collaboration* (`gh … delete`, remote branch
+   deletion, `scripts/sync_labels.py --apply`, force-push) require explicit
+   human approval recorded on the closing issue. Verify that link.
 
 ## Output
 
@@ -53,8 +58,12 @@ Reasons (if needs-revision):
 
 ## Must not
 
-- Do not edit the PR body, post a comment, or merge — those are remote
-  writes that require human approval.
+- Do not edit the PR body, post a comment, or merge **from this skill**. This
+  is a read-and-report review: its output is a verdict for the caller to act on,
+  and a reviewer that edits what it is reviewing cannot be checked. It is not a
+  repository rule — `CLAUDE.md` → *GitHub collaboration* auto-allows
+  `gh pr edit|comment|merge` during the dev phase, and phase-1 self-merge of
+  your own feature-branch PR needs no separate approval once checks are green.
 - Do not declare a check `PASS` based only on the box being ticked; verify
   the linked evidence exists.
 - Do not approve a merge when `policy:approval-required` is set on the
