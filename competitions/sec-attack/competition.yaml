@@ -60,11 +60,12 @@ budget:
 best:
   cv_metric: normalized_attack_score
   cv_score: 18.0                 # bypass v1 (kernels/attack_bypass.py) vs optimal_public, InstructionAgent proxy; naive baseline 0.00
-  public_lb: null
-  private_lb: null
-  submission_id: null
-current_blocker: "bypass validated only on an instruction-following LLM proxy (no GPU) — needs a real gpt_oss run; private guardrail unknown (may close the 5-event-wash + http.post data-blind-spot holes). Official-page facts still unverified."
-next_task: "scale bypass to ~2000 chains + predicate-stacking; validate vs gpt_oss on snorlax 4090; build held-out guardrail for robustness; verify official-page logistics"
+  public_lb: 7.200               # sec-attack-jed-xl v1 (direct+deputy, max120/fanout60), 2026-06-29;
+                                 #   3.00x the 2.400 of max40/fanout20 -- breadth scaled linearly
+  private_lb: 1.800              # read 2026-09-13 after close; exactly public/4 on every scored row
+  submission_id: 54183733        # submissions.md "Iteration (2026-06-29)"
+current_blocker: "none — competition closed 2026-09-01. Open question for the post-mortem: we are ABSENT from the final 4,186-row leaderboard despite two COMPLETE non-zero submissions (submissions.md 'Final results'); 7.200 would have placed ~3115/4186 against a 46.425 top. Cause unknown — possibly no submission was ever *selected*, or the two ERROR rows affected eligibility."
+next_task: "Write up the transferable findings: breadth scaled linearly to 3x with no ceiling found, private == public/4 on every scored row (a fixed split, not a harder guardrail), and the submission-SELECTION lesson — verify selection explicitly before the deadline in any future code competition."
 source_notes:
   - aicomp-sdk 3.1.2 source (scoring.py, core/predicates.py, core/cells.py, attacks/contracts.py, attacks/baselines/attacker_goexplore.py, agents/deterministic_agent.py, guardrails/optimal.py) — read 2026-06-26 (authoritative)
   - competitions/sec-attack/research.md (full mechanics writeup)

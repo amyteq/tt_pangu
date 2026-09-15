@@ -132,8 +132,8 @@ planned 2026-06-17 — task specs + loop prompts drafted (`docs/milestones/m15/l
 
 M15 closes the goal loop on real LB signal and pays down the ADR-0018 tech-debt.
 The new submit step runs **autonomously under the KCA autonomy model**
-(`docs/adr/0021-kca-autonomy-model.md`): when `kca-<slug>.yaml:autonomy.enabled`
-is true and `autonomy.screen` passes, KCA submits without per-action approval and
+(`docs/adr/0021-kca-autonomy-model.md`): when `autonomy.enabled` is true in the file
+`competition.yaml:autonomy_config` names (ADR-0022 §5 **A1**) and `autonomy.screen` passes, KCA submits without per-action approval and
 persists the intended-submission record at
 `competitions/<slug>/submissions/<timestamp>-<experiment>.yaml` before dispatch — ADR-0022
 §5's **A6**; `.agent/kca/audit.jsonl` is supplementary evidence, not the record. Scenario-4 /

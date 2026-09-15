@@ -41,7 +41,10 @@ refers to an audit log, it must name the owner and the exact path.
 
 ### 2. KCA autonomy = screened-autonomy, configured per competition (default ON)
 
-Autonomy is a per-competition setting in `kca-<slug>.yaml` (`autonomy:` block).
+Autonomy is a per-competition setting in the file that
+`competitions/<slug>/competition.yaml:autonomy_config` names — conventionally
+`kca-<slug>.yaml`, but the field is the lookup and the convention is not (nemo's
+is `kca-nemo.yaml`). ADR-0022 §5's **A1** reads that file and no other.
 **Default: enabled.** A competition that needs strict human-in-the-loop must set
 `autonomy.enabled: false` explicitly.
 
@@ -53,11 +56,19 @@ under `tools/` / `src/` / `scripts/` reads the `autonomy:` block — and
 (`competition-runner.yaml` allows them only in `competition-finalization` /
 `human-approved` modes) — but that file is read only by `tools/kca/skill.py:15`, not by
 the installed `kca` CLI, whose own gate defaults to *allow* (`tools/kca/kg.py:21-22`). An unevaluable precondition is a failed one, so submissions are human-gated
-until the screen is implemented (ADR-0022 §5). The intended-submission summary (file, experiment id, expected score,
-reason) is written to `.agent/kca/audit.jsonl` instead of being posed as a question.
+until the screen is implemented (ADR-0022 §5). Instead of being posed as a question, the intended-submission summary (file, experiment
+id, expected score, reason) is **persisted as a record** at
+`competitions/<slug>/submissions/<timestamp>-<experiment>.yaml` before dispatch, and a
+submission whose record cannot be written does not dispatch — ADR-0022 §5's activation
+condition **A6**, which supersedes this paragraph's earlier wording. `.agent/kca/audit.jsonl`
+still receives the action, as supplementary evidence of what ran; it is not the record,
+because it is driver-specific, gitignored, and not owned by the competition.
 
-`autonomy:` schema (lives under `_base`, overridable per section; until the
-runtime reads it, it is an inert annotation key like `lb`/`note`):
+`autonomy:` schema. It lives **either** at the top level of the config file
+**or** under its `_base:` key (the per-variant defaults convention `kca-nemo.yaml`
+uses) — exactly one of the two, because two would be ambiguous and ADR-0022 §5's
+**A1** fails on ambiguity as it does on absence. Overridable per section. Until the
+runtime reads it, it is an inert annotation key like `lb`/`note`:
 
 ```yaml
 _base:
@@ -79,12 +90,17 @@ _base:
                              #   candidates, they do not gate the submission
       require_repro: true    # seed + artifact path + exact command recorded  (hard gate)
       rules_check: true      # competition-rules / submission-limit / no-leakage  (hard gate)
-    human_gated:             # still require a human even when enabled
+    human_gated:             # still require a human even when enabled. ADDITIVE to the
+                             #   floor: ADR-0022 §5's seven items apply whether or not they
+                             #   are repeated here, and config cannot shorten them.
       - final_promotion_near_deadline   # = scenario 4 (ADR-0022 §5)
       - irreversible_delete
       - over_budget_spend
       - ambiguous_rule
       - new_terms_or_team_change        # added by ADR-0022 §5
+      - final_submission_selection      # added by ADR-0022 §5 (ADR-0006's own gate), and
+                                        #   NOT only near the deadline
+      - external_data_or_data_policy    # added by ADR-0022 §5 (ADR-0006's own gate)
 ```
 
 **Which model is live for a competition.** This block is the schema for both models; the
@@ -160,8 +176,9 @@ list above.
 - **Policy of record now**; this ADR + the `CLAUDE.md` "Two agents" section +
   the per-comp `autonomy:` schema are the source of truth.
 - **Follow-ups (tracked, not in this ADR's PR):**
-  1. Runtime enforcement: `permission_policy.py` / the KCA runner reads
-     `kca-<slug>.yaml:autonomy`, evaluates the `screen` criteria, and
+  1. Runtime enforcement: `permission_policy.py` / the KCA runner resolves
+     `competition.yaml:autonomy_config`, reads its `autonomy:` block (top level
+     or under `_base:`), evaluates the `screen` criteria, and
      auto-allows screened push/submit while still gating the `human_gated` set;
      `guard_tool.py` made aware of competition autonomy so Claude-Code-driven
      `kca kaggle push/submit` for an autonomy-enabled comp does not pose a
@@ -169,6 +186,11 @@ list above.
   2. Per-comp `autonomy:` added to each active `kca-<slug>.yaml`.
   3. Optional: eval-gate activation. (Audit namespace separation — done.)
 - **Risk & mitigation:** auto-submit/push are outward-facing. Mitigations:
-  default budget cap, mandatory screening, full audit trail, reversibility
-  (kernel versions), and the always-human-gated set above. A competition can
+  the budget cap **reserved before dispatch** (ADR-0022 §6 — the one that actually
+  binds, because it is applied before the spend), mandatory screening, a full
+  audit trail, **supersedability** (kernel versions retained and submission ids
+  recorded, so a human can see what was sent and replace it with a later
+  submission), and the always-human-gated set above. Not *reversibility*: a
+  dispatched submission cannot be recalled and its quota slot does not come back
+  — see the amendment note in §2 and ADR-0022's "Relationship to ADR-0021". A competition can
   opt out with one line (`autonomy.enabled: false`).

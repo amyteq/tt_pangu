@@ -65,7 +65,7 @@ ADR-0023（#191）；在它合入之前，以 issue #191 为准。
    理由）**持久化成记录**，落在 `competitions/<slug>/submissions/<timestamp>-<experiment>.yaml`
    —— 记录写不下来就不 dispatch（ADR-0022 §5 启用条件 **A6**）。执行方的审计日志只是"跑过什么"的
    补充证据，从来不是那份记录：它是按 driver 走的、被 gitignore 的，也不属于这场比赛。硬性 gate 只有 `require_repro` 和 `rules_check`；`beats_best` / `min_margin` 只用来给候选
-   排序。`kca-<slug>.yaml` 里 `autonomy.enabled: false` 表示严格 human-in-the-loop。**始终需要人决定** —— 七项下限，配置只能加不能减：
+   排序。`autonomy.enabled: false` 表示严格 human-in-the-loop —— 这个开关在 `competition.yaml:autonomy_config` 指定的那个文件里（惯例是 `kca-<slug>.yaml`，但生效的是这个字段而不是惯例：nemo 的文件叫 `kca-nemo.yaml`）。**始终需要人决定** —— 七项下限，配置只能加不能减：
    不可逆删除、超预算的真金白银支出、比赛规则有歧义、接受新条款 / 加入比赛 / 任何组队变更、临近截止的
    最终提名、**选定本场比赛的最终提交（无论何时做这个选择，不只是临近截止）**、以及**采用外部数据或把
    训练数据扩到比赛自带数据之外**（后两项把 ADR-0006 的 "final submission selection" 与 "data policy
@@ -85,7 +85,7 @@ ADR-0023（#191）；在它合入之前，以 issue #191 为准。
 - 提交 / push 的审批遵循 `docs/adr/0022-long-run-competition-operating-model.md` §5 的放宽自主性模型
   （它放宽了 ADR-0021 §2），**但仅对已满足 §5 启用条件 A1-A7 的比赛生效；目前没有比赛满足，
   且 ADR-0021 §2 的回退层同样没有实现，因此仍需人批准**。四种场景的每日提交策略也在那里 —— 场景 4（多个候选都超过最好成绩、
-  且比赛临近截止）无论如何都交给人决定。`kca-<slug>.yaml` 里的 `auto_submit: false` /
+  且比赛临近截止）无论如何都交给人决定。`competition.yaml:autonomy_config` 指定文件里的 `auto_submit: false` /
   `auto_push: false` 即使 A1-A7 其余条件都通过，也一票否决该动作。
 - 提交拓扑按比赛而定 —— `competition.yaml:submission_mode`（`file | notebook | kernel | agent`）。
   kernel push **不等于**排行榜提交（#77）。
