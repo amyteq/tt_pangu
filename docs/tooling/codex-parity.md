@@ -50,12 +50,11 @@ python scripts/render_codex_probe.py probe.json AGENTS.md \
   docs/evidence/issue-189-codex-parity/loader-probe.txt "$(git rev-parse --short HEAD)"
 ```
 
-Last run: **`codex-cli 0.154.0`** against a clean worktree at **`a4de031`**. That attribution is
-checked rather than asserted — the evidence file is only written if `git show a4de031:AGENTS.md`
+Last run: **`codex-cli 0.154.0`** against a clean worktree at **`bdddf1a`**. That attribution is
+checked rather than asserted — the evidence file is only written if `git show bdddf1a:AGENTS.md`
 is byte-identical to the file whose load was measured, so the numbers reproduce from that commit.
-Files committed since are this document, the evidence under
-`docs/evidence/issue-189-codex-parity/`, and the generator's own guards; none is an input to the
-probe, and `gen_agents.py --check` proves `AGENTS.md` has not moved. Raw excerpt at
+The only thing committed after it is this document and the evidence under
+`docs/evidence/issue-189-codex-parity/` — outputs of the run, never inputs to it. Raw excerpt at
 `docs/evidence/issue-189-codex-parity/loader-probe.txt`.
 
 ### 1. `AGENTS.md` is loaded, in full
@@ -69,8 +68,8 @@ The prompt carries a `user` message beginning:
 <!-- GENERATED FILE — DO NOT EDIT BY HAND. ...
 ```
 
-`AGENTS.md` is **19 290 bytes / 19 158 characters** on disk; the project-doc message in the
-prompt is **19 287 characters**. The difference is Codex's own wrapper — the
+`AGENTS.md` is **20 153 bytes / 20 015 characters** on disk; the project-doc message in the
+prompt is **20 144 characters**. The difference is Codex's own wrapper — the
 `# AGENTS.md instructions for <absolute path>` header and the `<INSTRUCTIONS>` tags — so that
 total is path-dependent and is **not** a checksum of the file. What shows the file loaded whole
 is the pair of sentinels: the opening banner and the closing line of the appendix are both
@@ -138,7 +137,10 @@ or give each harness its own worktree checked out at the same SHA.
 **Collect it from a clean worktree.** Record the commit only when `git status` is clean —
 evidence gathered from a dirty tree names a commit whose files are not the ones that were
 measured, which is worse than naming no commit at all because it looks checkable. The same
-goes for the loader probe above.
+goes for the loader probe above. Both writers enforce this rather than trusting it:
+`scripts/render_codex_probe.py` refuses unless `AGENTS.md` at the named commit is the file it
+measured, and `scripts/write_codex_smoke_evidence.py` refuses if anything outside the evidence
+directory is uncommitted.
 
 Prompt (`docs/evidence/issue-189-codex-parity/smoke-prompt.txt`) asks, read-only, which skill
 initialises a run directory for `competitions/arc-agi2`, what the dev-phase secret policy
@@ -153,19 +155,23 @@ codex exec -m gpt-5.6-sol -c model_reasoning_effort=low --sandbox read-only \
 
 claude -p --model 'claude-opus-5[1m]' \
   "$(cat docs/evidence/issue-189-codex-parity/smoke-prompt.txt)"
+
+# commit both answers with their provenance; refuses if anything outside
+# docs/evidence/issue-189-codex-parity/ is uncommitted
+python scripts/write_codex_smoke_evidence.py "$(git rev-parse --short HEAD)" <codex-s> <claude-s>
 ```
 
-**Result — clean worktree at `a4de031`, 2026-09-15**, both harnesses run from the same commit
+**Result — clean worktree at `bdddf1a`, 2026-09-15**, both harnesses run from the same commit
 (full outputs, with their own provenance headers, under `docs/evidence/issue-189-codex-parity/`):
 
 | | Codex (`codex-cli 0.154.0`, `gpt-5.6-sol`) | Claude Code (`claude-opus-5[1m]`) |
 |---|---|---|
 | Skill found | `kg-run` | `kg-run` |
-| Run path | `runs/arc-agi2/<run_id>/`, run id UTC `YYYYMMDD_HHMMSS` | `runs/<competition>/<run_id>/` → `runs/arc-agi2/<run_id>/`, same run-id default, with `meta.json`, `config.json`, `metrics.json`, `logs/`, `artifacts/` |
-| Secret policy | may read for use; never expose or copy into outputs, logs, web requests, PRs, comments | may **read** for use; never echo or copy into web fetches, logs, public PRs, comments ("read-for-use, not read-to-share") |
-| Cited instruction file | `AGENTS.md` | `CLAUDE.md:65`, noting it is mirrored at `AGENTS.md:124` |
+| Run path | `runs/arc-agi2/<run_id>/` | `runs/arc-agi2/<run_id>/`, run id UTC `YYYYMMDD_HHMMSS`, with `meta.json`, `config.json`, `metrics.json`, `logs/`, `artifacts/` |
+| Secret policy | may read to use the credentials; forbids printing, sharing, logging or copying them externally | may **read** for use; never echo or copy into web fetches, logs, public PRs, comments ("read-for-use, not read-to-share") |
+| Cited instruction file | `AGENTS.md` | `CLAUDE.md` → *Environment configuration → Dev-phase secret policy* |
 | Cited skill file | `.agents/skills/kg-run/SKILL.md` | `.claude/skills/kg-run/SKILL.md` |
-| Wall clock | 16 s | 16 s |
+| Wall clock | 16 s | 17 s |
 
 Both harnesses reached the same rules through their own surface, and each cited the surface it
 actually reads — which is exactly what the mirror is supposed to produce. The Claude side
