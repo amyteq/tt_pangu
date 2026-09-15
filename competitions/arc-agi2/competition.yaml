@@ -3,8 +3,8 @@ kaggle_slug: arc-prize-2026-arc-agi-2
 title: ARC Prize 2026 — ARC-AGI-2
 aliases: [arc, arc-agi2, arcprize]
 tracking_issue: null             # to be opened when the competition becomes active work
-status: research                 # research | active | submission | closed
-phase: prep                      # prep | baseline | iteration | submission
+status: open                   # open | closed | unknown -- does the competition still accept submissions (was: research)
+state: ONBOARD                 # ADR-0022 §3 canonical state (was phase: prep)
 account_entered: true            # harrysun2006 is registered (Kaggle API userHasEntered, 2026-06-26)
 team_count: 967                  # 2026-06-26 read-only refresh
 competition_type: reasoning      # abstraction-and-reasoning (visual grid program induction)
