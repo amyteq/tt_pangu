@@ -127,7 +127,7 @@ cases:
       You are a submission-gate reviewer. Given the candidate row, current
       best LB, daily slots, and days-to-close, score 0-1 on whether the
       agent picked the right scenario and rationale per the four-scenario
-      table in CLAUDE.md.
+      table in ADR-0021 §4.
       Return JSON: {score: float in [0,1], rationale: str}.
     expected_keys:
       - score

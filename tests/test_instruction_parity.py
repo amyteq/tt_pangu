@@ -28,7 +28,7 @@ SHARED_RULES = [
     "Two agents: Claude Code harness vs KCA product",
     "autonomy.screen",
     "Read-for-use, not read-to-share",
-    ".agent/audit.jsonl",
+    ".agent/kca/audit.jsonl",
     ".agent/audit/tool-events.jsonl",
     "Non-destructive GitHub writes are auto-allowed during dev phase",
     "Permanent-deletion remote writes require explicit human approval",

@@ -82,12 +82,18 @@ def read_text(path: Path) -> str:
 
 
 def claude_body() -> str:
-    """`CLAUDE.md` with its H1 title line dropped (AGENTS.md supplies its own)."""
+    """`CLAUDE.md` from its first `## ` section onwards.
+
+    The title block above it — the H1 and CLAUDE.md's own "this file is
+    authoritative" language banner — is CLAUDE.md's front matter, not a shared
+    rule: copied into AGENTS.md it would claim the generated file is the
+    authority. AGENTS.md supplies its own header from the delta preamble.
+    """
     lines = read_text(CLAUDE_MD).splitlines()
     for index, line in enumerate(lines):
-        if line.startswith("# "):
-            return "\n".join(lines[index + 1 :]).strip("\n")
-    fail("CLAUDE.md has no H1 heading to split on")
+        if line.startswith("## "):
+            return "\n".join(lines[index:]).strip("\n")
+    fail("CLAUDE.md has no `## ` section to split on")
     return ""  # unreachable; keeps type checkers happy
 
 

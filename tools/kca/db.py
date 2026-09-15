@@ -2682,7 +2682,7 @@ def count_today_submissions(
     """Count submissions for a competition within the current UTC calendar day.
 
     The window is [UTC-midnight today, UTC-midnight tomorrow), matching
-    CLAUDE.md's "00:00 UTC roll-over" KCA strategy and ADR-0020 §7. Counts
+    the "00:00 UTC roll-over" KCA strategy (ADR-0021 §4) and ADR-0020 §7. Counts
     rows by ``submitted_at`` when present, else ``created_at`` (a prepared-
     but-not-yet-submitted row does not consume the daily budget until it is
     actually submitted, so only ``submitted_at`` is in scope here).
