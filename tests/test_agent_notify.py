@@ -84,7 +84,7 @@ def test_claude_notification_becomes_an_attention_push(config_path: Path, capsys
 
 def test_codex_turn_complete_becomes_an_info_push(config_path: Path, capsys, monkeypatch) -> None:
     result = _run(
-        ["--source", "codex", "--config", str(config_path), "--dry-run", json.dumps(CODEX_TURN_COMPLETE)],
+        ["--source", "codex", "--config", str(config_path), "--dry-run", "--content", json.dumps(CODEX_TURN_COMPLETE)],
         capsys=capsys,
     )
     assert result["level"] == "info"  # routine: deduped, capped, deferred at night
@@ -161,8 +161,8 @@ def test_secrets_in_an_event_body_are_redacted(config_path: Path, capsys, monkey
 
 
 def test_a_codex_turn_quoting_an_api_key_does_not_forward_it(config_path: Path, capsys) -> None:
-    """The prompt and the assistant reply are forwarded verbatim, so whatever
-    the session pasted is exactly what this channel would otherwise transmit."""
+    """With `--content` the prompt and reply are forwarded, so whatever the
+    session pasted is exactly what this channel would otherwise transmit."""
     leaky = dict(
         CODEX_TURN_COMPLETE,
         **{
@@ -171,7 +171,7 @@ def test_a_codex_turn_quoting_an_api_key_does_not_forward_it(config_path: Path, 
         },
     )
     result = _run(
-        ["--source", "codex", "--config", str(config_path), "--dry-run", json.dumps(leaky)],
+        ["--source", "codex", "--config", str(config_path), "--dry-run", "--content", json.dumps(leaky)],
         capsys=capsys,
     )
     text = next(c for c in result["channels"] if c["channel"] == "telegram")["payload"]["text"]
@@ -180,17 +180,17 @@ def test_a_codex_turn_quoting_an_api_key_does_not_forward_it(config_path: Path, 
     assert notify.REDACTED in text
 
 
-@pytest.mark.parametrize("switch", [["--no-content"], []])
-def test_no_content_sends_the_event_without_the_session_text(
+@pytest.mark.parametrize("switch", [[], ["--no-content"]])
+def test_session_text_is_not_forwarded_unless_asked_for(
     config_path: Path, capsys, monkeypatch, switch: list[str]
 ) -> None:
     """#206 F001: redaction masks credential *shapes*, never private data.
 
-    An operator under a competition's data rules turns the text off — by flag or
-    by env var — and still gets the event and the thread id.
+    So the default push is metadata only — event and thread id, no prompt, no
+    reply — and an operator under a competition's data rules has nothing to
+    remember. The deprecated `--no-content` is accepted as the same no-op, so a
+    hook line written against the old flag still runs.
     """
-    if not switch:
-        monkeypatch.setenv("KCA_NOTIFY_NO_CONTENT", "1")
     private = dict(
         CODEX_TURN_COMPLETE,
         **{
@@ -209,14 +209,43 @@ def test_no_content_sends_the_event_without_the_session_text(
     assert "thread 0199a1b2c3d4" in text
 
 
-def test_content_is_forwarded_by_default(config_path: Path, capsys) -> None:
-    """The default is still the point of the channel: what the session said."""
+@pytest.mark.parametrize("switch", [["--content"], []])
+def test_content_is_forwarded_when_the_owner_opts_in(config_path: Path, capsys, monkeypatch, switch: list[str]) -> None:
+    """One documented flag (or env var) still gets you what the session said."""
+    if not switch:
+        monkeypatch.setenv("KCA_NOTIFY_CONTENT", "1")
     result = _run(
-        ["--source", "codex", "--config", str(config_path), "--dry-run", json.dumps(CODEX_TURN_COMPLETE)],
+        ["--source", "codex", "--config", str(config_path), "--dry-run", *switch, json.dumps(CODEX_TURN_COMPLETE)],
         capsys=capsys,
     )
     text = next(c for c in result["channels"] if c["channel"] == "telegram")["payload"]["text"]
     assert "Fixed 3 lint errors" in text
+    assert "fix the failing ruff check" in text
+
+
+def test_a_claude_notification_still_carries_the_harness_status_line(config_path: Path, capsys, monkeypatch) -> None:
+    """#206 F001: metadata-only must still be a useful notification.
+
+    The Claude hook payload has no prompt or reply in it; `message` is the
+    harness's own status string, so it is metadata and survives the default.
+    """
+    monkeypatch.setattr(sys, "stdin", __import__("io").StringIO(json.dumps(CLAUDE_NOTIFICATION)))
+    result = _run(["--source", "claude", "--config", str(config_path), "--dry-run"], capsys=capsys)
+    text = next(c for c in result["channels"] if c["channel"] == "telegram")["payload"]["text"]
+    assert "permission to use Bash" in text
+    assert "abc123def456" in text
+
+
+def test_a_bad_command_line_never_fails_the_turn(config_path: Path, capsys) -> None:
+    """#206 F013: argparse exits 2 on a rejected flag; this program never does.
+
+    A stale hook command line — an old flag name after a rename — must degrade to
+    "no notification", not to a failed turn.
+    """
+    assert agent_notify.main(["--source", "invalid"]) == 0
+    assert agent_notify.main(["--flag-we-renamed-away", "--source", "claude"]) == 0
+    assert agent_notify.main([]) == 0
+    assert "bad arguments; nothing sent" in capsys.readouterr().err
 
 
 def test_a_long_assistant_message_is_clipped_after_redaction(config_path: Path, capsys) -> None:
@@ -225,7 +254,7 @@ def test_a_long_assistant_message_is_clipped_after_redaction(config_path: Path, 
     tail = "x" * agent_notify.MAX_BODY_CHARS
     leaky = dict(CODEX_TURN_COMPLETE, **{"last-assistant-message": f"ghp_0123456789abcdefghijABCDEFGHIJ0123 {tail}"})
     result = _run(
-        ["--source", "codex", "--config", str(config_path), "--dry-run", json.dumps(leaky)],
+        ["--source", "codex", "--config", str(config_path), "--dry-run", "--content", json.dumps(leaky)],
         capsys=capsys,
     )
     text = next(c for c in result["channels"] if c["channel"] == "telegram")["payload"]["text"]

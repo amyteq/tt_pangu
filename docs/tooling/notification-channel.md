@@ -127,7 +127,9 @@ notify = [
 
 Codex fires `agent-turn-complete` (payload: `type`, `thread-id`, `turn-id`, `cwd`, `input-messages`, `last-assistant-message`), which maps to level `info` — routine traffic, so it is deduped for 3 h, deferred out of quiet hours, and counted against the daily budget. Override with `--level attention` if you want every Codex turn to break through, but expect the volume.
 
-Both adapters forward harness text — your prompt and the assistant's reply — so everything they build is redacted and length-bounded before it leaves the process. Redaction masks credential *shapes*, not "text that might be private": arbitrary private competition data has no shape to match on. The recipient is your own chat, and the whole point of these events is to tell you what the session said, so forwarding is the default — but when you are working under a competition's data rules, add `--no-content` (or export `KCA_NOTIFY_NO_CONTENT=1`) and the push carries only the event, the label and the session/thread id. See [What can never reach a notification](#what-can-never-reach-a-notification).
+**Session text is opt-in.** By default a push carries metadata only: the event, the label (the cwd basename when you pass no `--label`), the session/thread id, and — on the Claude side — the harness's own status line, the one it writes itself ("Claude needs your permission to use Bash"). Your prompt and the assistant's reply are forwarded only when you add `--content` (or export `KCA_NOTIFY_CONTENT=1`); `--no-content` is still accepted as a no-op so an older hook line keeps running.
+
+That default is not timidity about a private chat: `tools/kca/notify.py` states as a binding invariant that no private competition payload leaves in a notification, and redaction masks credential *shapes*, not "text that might be private" — arbitrary competition data has no shape to match on. Everything the adapters do build is redacted and length-bounded before it leaves the process. See [What can never reach a notification](#what-can-never-reach-a-notification).
 
 Check either wiring without touching Telegram:
 
@@ -195,7 +197,7 @@ Dedupe and the daily cap are backed by a JSONL ledger under `state_dir` (`.agent
 
 ### What can never reach a notification
 
-Every transmitted title, body, summary, option label and link goes through `redact()` and is clipped (200 chars for a title, 2000 for a body, 120 per option label, 10 option lines on a card). A rendered decision card is additionally clipped to Telegram's 4096-character limit at a boundary that cannot leave a broken HTML entity, so a long label degrades the card instead of failing the push. `redact()` masks, in order:
+Every transmitted title, body, summary, option label and link goes through `redact()` and is clipped (200 chars for a title, 2000 for a body, 120 per option label, 10 option lines on a card). A rendered decision card is additionally held under Telegram's 4096-character limit without ever slicing the assembled HTML: each field is bounded *after* escaping (`&` becomes `&amp;`, so escaping expands), then the card re-renders with fewer options, then whole rendered lines are dropped. A cut inside `<code>…</code>` would make Telegram reject the message and lose the gate entirely, so a long label degrades the card instead of failing the push. `redact()` masks, in order:
 
 * credential shapes — Telegram bot tokens, `sk-…` / `sk-proj-…` / `sk-ant-…` keys, GitHub PATs, Google, Slack, Hugging Face and GitLab tokens, JWTs, `Bearer` / `Basic` / `Digest` credentials, PEM private-key blocks;
 * an `Authorization:` / `Proxy-Authorization:` line — masked to the end of the line, because the whole value is the credential, scheme included;
@@ -203,9 +205,9 @@ Every transmitted title, body, summary, option label and link goes through `reda
 * the literal values *this* config resolves to, so a body quoting our own chat id or bot token cannot echo it back;
 * everything the shared `stuck.redact_escalation_payload` filter knows: DSNs, `user:pass@host`, AWS key ids, CTF flags.
 
-It deliberately does **not** mask "anything that looks like a number", and it exempts the plural `tokens` fields (`tokens: 1500 remaining`, `max_tokens: 4096`) and hyphenated names like `sk-learn-baseline`: a redaction that silences a gate or eats the operator's own sentence is a worse outcome than the leak it prevents. `decision_id` and option ids are the one field rendered verbatim (they must round-trip through `/decide`), so a secret-shaped id is rejected at creation instead.
+It deliberately does **not** mask "anything that looks like a number": a named budget field whose value *is* a count is exempt (`tokens: 1500 remaining`, `max_tokens: 4096`), as are hyphenated names like `sk-learn-baseline`. The exemption needs both halves — an exact field name from a short list and a numeric value — so `TOKENS_SECRET=…`, `API_TOKENS=…` and `max_tokens=sk-live-…` all still mask. The reason for any exemption at all: a redaction that silences a gate or eats the operator's own sentence is a worse outcome than the leak it prevents. `decision_id` and option ids are the one field rendered verbatim (they must round-trip through `/decide`), so a secret-shaped id is rejected at creation instead.
 
-What it therefore does **not** guarantee: private competition data, which has no credential shape. A sentence an agent wrote about the private split is transmitted as written. Two things bound that — the only recipient is your own `TELEGRAM_CHAT_ID_ME` chat, and the harness adapters take `--no-content` / `KCA_NOTIFY_NO_CONTENT=1` to stop forwarding session text at all.
+What it therefore does **not** guarantee: private competition data, which has no credential shape. A sentence an agent wrote about the private split would be transmitted as written — which is why the harness adapters do not forward session text at all unless you pass `--content` / `KCA_NOTIFY_CONTENT=1`, and why the only recipient is your own `TELEGRAM_CHAT_ID_ME` chat. `kca notify send --body …` is a deliberate send: what you put in the body is what is transmitted, redaction aside.
 
 ## Running it
 
