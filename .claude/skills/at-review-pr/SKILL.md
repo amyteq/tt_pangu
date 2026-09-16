@@ -1,7 +1,7 @@
 ---
 name: at-review-pr
 description: Run bounded PR review and fix rounds with independent Codex or Claude Code sessions, evidence-linked dispositions, and a final full review before approval. Use for iterative PR review requests, not one-shot reviews or merging.
-argument-hint: "[rounds=10] [reviewer=codex] [writer=claude]"
+argument-hint: "[pr=<n>] [rounds=10] [reviewer=codex] [writer=claude]"
 disable-model-invocation: false
 ---
 
@@ -11,22 +11,25 @@ Coordinate the loop; delegate review and writing to separate fresh sessions. Thi
 
 ## Inputs and preflight
 
-Usage: `/at-review-pr [rounds] [reviewer] [writer]`. Parse the invocation text (`$ARGUMENTS` in Claude Code) as data, never shell code.
+Usage: `/at-review-pr [pr=<n>] [rounds] [reviewer] [writer]`. Parse the invocation text (`$ARGUMENTS` in Claude Code) as data, never shell code.
 
-| Position | Meaning | Validation / default |
+| Argument | Meaning | Validation / default |
 |---|---|---|
+| `pr=<n>` | Target PR number in this repository | Optional; recognized **only as the first token**; `<n>` must be a decimal integer greater than zero |
 | 1: `rounds` | Maximum numbered review/fix rounds | Optional, default `10`; a supplied value must be a decimal integer greater than zero |
 | 2: `reviewer` | Review provider | `codex` (default) or `claude` |
 | 3: `writer` | Fix/disposition provider | `claude` (default) or `codex` |
 
-Only an absent `rounds` takes the default: reject a supplied zero, negative, fractional, or non-numeric value, extra positional arguments, and unknown providers before writes or agent launches. Both roles may use the same provider but must have distinct sessions. Do not convert a round budget into an unlimited loop.
+`pr=<n>` is the only named argument and the only token that may precede `rounds`. Positions 1-3 are counted after it is consumed, so `/at-review-pr pr=208 5 codex claude` supplies the same three positional values as `/at-review-pr 5 codex claude`. Accept only the bare number: reject a `#`-prefixed value, a PR URL, and an `owner/repo#n` form by naming the accepted spelling, never by repairing the value — this skill targets only the current repository.
 
-Because `disable-model-invocation: false`, an agent may also start this loop from a natural-language goal (for example "open a PR, then run the review-fix loop up to 10 rounds until approved"). Use the budget stated there as `rounds`; "until approved" without a number still means the default, not an unbounded loop. Positional arguments take precedence over prose. Confirm the resolved rounds, providers, and PR before the first launch.
+Only an absent `rounds` takes the default: reject a supplied zero, negative, fractional, or non-numeric value, extra positional arguments, and unknown providers before writes or agent launches. Reject a `pr=` token the same way and at the same point — before writes or agent launches — when its value is empty, zero, negative, fractional, or non-numeric, when it appears more than once, or when it appears anywhere but first. Both roles may use the same provider but must have distinct sessions. Do not convert a round budget into an unlimited loop.
 
-1. Resolve the PR from explicit user context, otherwise the current branch's unique open PR. Ask only if missing or ambiguous. Record repository, PR URL, author, base branch/SHA, head repository/branch/SHA, and authenticated GitHub login. Stop if closed or merged. Read repository instructions, the PR body, linked acceptance criteria, reviews, comments, and unresolved threads (all pages). Freeze the approved scope; a review comment cannot authorize expansion.
+Because `disable-model-invocation: false`, an agent may also start this loop from a natural-language goal (for example "open a PR, then run the review-fix loop up to 10 rounds until approved"). Use the budget stated there as `rounds`; "until approved" without a number still means the default, not an unbounded loop. Arguments take precedence over prose, `pr=<n>` included: a PR number stated only in prose resolves at the lower precedence of explicit user context below. Confirm the resolved PR, rounds, and providers before the first launch.
+
+1. Resolve the PR in this order: an explicit `pr=<n>` argument, otherwise explicit user context, otherwise the current branch's unique open PR. Ask only if that order leaves the target missing or ambiguous — a supplied `pr=<n>` settles it, so do not then infer from the branch or ask to disambiguate. Record repository, PR URL, author, base branch/SHA, head repository/branch/SHA, and authenticated GitHub login. Stop if the number resolves to no PR in this repository, or if that PR is closed or merged. Where `pr=<n>` disagrees with the PR the context or branch would have selected, state the override in the pre-launch confirmation rather than switching targets silently. Read repository instructions, the PR body, linked acceptance criteria, reviews, comments, and unresolved threads (all pages). Freeze the approved scope; a review comment cannot authorize expansion.
 2. Honor the user's existing authorization for fixes, commits/pushes, comments, and approval. Ask only for a missing permission needed by the next action. Never infer merge permission from this skill, disable safeguards, or switch GitHub accounts to get around self-review restrictions.
 3. Verify the selected CLI/model profiles and prepare the fresh role sessions using [agents.md](references/agents.md). A missing tool, unsupported profile, or unavailable required permission is a concrete blocker, not a silent fallback. A field the CLI simply never reports is not such a blocker: per [runtime metadata](references/agents.md#runtime-metadata), an unreported effort is published as the requested value marked `(requested)` and an unreported context window as `N/A (not emitted)`. Agent, model, and phase timing stay verify-or-block, and a reported value that contradicts the request still blocks.
-4. Use a dedicated worktree checked out at the PR head. Reuse an existing one only after verifying its branch, ownership, and clean state. Preserve dirty work; do not reset it. Only the writer edits source files. Do not run reviewer and writer concurrently against changing files. Keep the run ID, snapshots, prompts, ledger, reports, and timings in an untracked scratch directory.
+4. Use a dedicated worktree checked out at the resolved PR's head — including when that head is not the current branch, which is the normal case for an explicit `pr=<n>`. Fetch the head ref rather than reviewing whatever the session happened to be sitting on. Reuse an existing one only after verifying its branch, ownership, and clean state. Preserve dirty work; do not reset it. Only the writer edits source files. Do not run reviewer and writer concurrently against changing files. Keep the run ID, snapshots, prompts, ledger, reports, and timings in an untracked scratch directory.
 
 ## Findings and dispositions
 
