@@ -639,6 +639,15 @@ def test_generator_accepts_valid_yaml_the_reader_does_not_parse(gen, tmp_path, m
 #   * Code is scanned rather than skipped, so a *new* fenced example that mentions one of
 #     the topics needs a pin row too. That is the price of tagging instead of ignoring,
 #     and it buys the direction that matters: a rule demoted into a fence is reported.
+#   * Which block a sentence sits in is read off markdown structure — fences, indentation
+#     and all seven of CommonMark's raw-HTML start conditions — but not off container
+#     nesting: a block start indented past column 3, which inside a list item's content
+#     opens one, is not read as a start. That under-tags rather than misses. Markup that
+#     shares a line with the sentence, inline or indented past the column, lands in the
+#     pinned text, because `_plain` strips markdown emphasis and ticks and never HTML, so
+#     the edit is reported as altered text instead of as a new tag. Only markup on its own
+#     line can leave a sentence byte-identical, and that is the case the conditions decide;
+#     `test_the_mention_scanner_extracts_these_sentences` carries both halves.
 #
 # The pinned text is the sentence with markdown emphasis and code ticks removed and its
 # whitespace collapsed: those are rendering, so a bold/plain or hard-wrap/soft-wrap
@@ -656,17 +665,41 @@ def test_generator_accepts_valid_yaml_the_reader_does_not_parse(gen, tmp_path, m
 # as an addition and a removal. `_blocks` reads that off markdown structure, which is
 # decidable, and never off what the sentence says.
 #
-# Both blocks are tagged, and that is the whole of why the tag means anything. Tagging only
+# Every block is tagged, and that is the whole of why the tag means anything. Tagging only
 # code left the prose tag as *absence of a prefix*, which document text can supply for
 # itself: a prose sentence beginning with the literal characters `[code] ` pinned exactly
 # as the same sentence inside a fence, so that one code-to-prose move stayed invisible.
-# Two tags, neither a prefix of the other, make the map injective by construction: the
-# tags differ at their second character, so the block is decided before any of the
-# sentence is read and no text the sentence carries can change it. The cost is a tag on
-# every row, which also makes the block explicit to read rather than implied by a missing
-# prefix.
+# Tags of which none is a prefix of another make the map injective by construction: the
+# block is decided before any of the sentence is read, and no text the sentence carries
+# can change it. The cost is a tag on every row, which also makes the block explicit to
+# read rather than implied by a missing prefix.
+#
+# Markdown code is not the only way to change what a sentence *is*. A raw HTML block is
+# passed through untouched, so `<pre>` around a rule makes it preformatted code and
+# `<!-- -->` around it takes it out of the rendered document altogether — neither is a
+# wording change, and both pinned byte-identical to the prose rule they replaced until
+# this was written. So raw HTML tags by what the reader is left with, which is the same
+# question the fence split asks:
+#
+#   * `<pre>` is `[code] `, because that is what the page shows — the same tag a fence
+#     gets, for the same reason.
+#   * A block whose text still renders but whose markdown no longer runs — `<div>`,
+#     `<table>`, and the rest of CommonMark's conditions 6 and 7, plus `<textarea>` — is
+#     `[html] `. A bullet in there is the characters `- `, not a list item, and
+#     `<div style="display:none">` is not visible at all; neither is prose.
+#   * A block the reader never sees — an HTML comment, `<script>`, `<style>`, a
+#     processing instruction, a declaration, CDATA — is `[hidden] `. It earns its own tag
+#     because the sentence has left the document rather than changed style, and the diff
+#     row is then the difference between "this rule became an example" and "this rule is
+#     gone". Commenting a rule out is the worst of these edits and should read as such.
 CODE_PIN = "[code] "
 PROSE_PIN = "[prose] "
+HTML_PIN = "[html] "
+HIDDEN_PIN = "[hidden] "
+# Total: `_line_blocks` returns one of these for every line it does not drop, and
+# `test_the_block_tags_are_total_and_none_is_a_prefix_of_another` holds the two
+# properties the pin rests on.
+BLOCK_TAGS = (PROSE_PIN, CODE_PIN, HTML_PIN, HIDDEN_PIN)
 MENTION_BREAK = re.compile(
     r"""(?<=[.!?])[*`"')\]]*\s+"""  # a sentence ends — trailing emphasis or bracket and all
     r"|\n\s*\n"  # a block ends
@@ -821,8 +854,68 @@ def _fence_delimiter(line: str) -> re.Match[str] | None:
     return opener
 
 
-def _code_lines(lines: list[str]) -> list[bool | None]:
-    """Per line: code, prose, or `None` for a fence delimiter, which is neither.
+# CommonMark § "HTML blocks", by start condition, in the spec's order — which is what
+# keeps `<![CDATA[` out of condition 4's `<!` + letter. Each row is (start, end, tag):
+# `end` closes the block on the line that matches it (conditions 1-5, where a blank line
+# does *not* end the block), or is `None` for the two conditions a blank line closes
+# (6 and 7). Condition 1 is split three ways because its four tag names do not render
+# alike: `<pre>` is preformatted, `<script>` / `<style>` are not shown at all, and
+# `<textarea>` is neither.
+HTML_NAME = r"[A-Za-z][A-Za-z0-9-]*"
+HTML_ATTRIBUTE = r"""\s+[A-Za-z_:][A-Za-z0-9_.:-]*(?:\s*=\s*(?:[^\s"'=<>`]+|'[^']*'|"[^"]*"))?"""
+HTML_RAW_CLOSE = re.compile(r"</(?:pre|script|style|textarea)>", re.I)
+# Condition 6's list of block-level names, as the spec gives it (both `search` and
+# `source`, which different spec versions list). A name outside it reaches condition 7.
+HTML_BLOCK_NAMES = (
+    "address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|"
+    "details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|"
+    "h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|"
+    "noframes|ol|optgroup|option|p|param|search|section|source|summary|table|tbody|td|"
+    "tfoot|th|thead|title|tr|track|ul"
+)
+HTML_BLOCKS: tuple[tuple[re.Pattern[str], re.Pattern[str] | None, str], ...] = (
+    (re.compile(r"^ {0,3}<pre(?=[\s>]|$)", re.I), HTML_RAW_CLOSE, CODE_PIN),
+    (re.compile(r"^ {0,3}<(?:script|style)(?=[\s>]|$)", re.I), HTML_RAW_CLOSE, HIDDEN_PIN),
+    (re.compile(r"^ {0,3}<textarea(?=[\s>]|$)", re.I), HTML_RAW_CLOSE, HTML_PIN),
+    (re.compile(r"^ {0,3}<!--"), re.compile(r"-->"), HIDDEN_PIN),
+    (re.compile(r"^ {0,3}<\?"), re.compile(r"\?>"), HIDDEN_PIN),
+    (re.compile(r"^ {0,3}<!\[CDATA\["), re.compile(r"\]\]>"), HIDDEN_PIN),
+    (re.compile(r"^ {0,3}<![A-Za-z]"), re.compile(r">"), HIDDEN_PIN),
+    (re.compile(rf"^ {{0,3}}</?(?:{HTML_BLOCK_NAMES})(?=[\s>]|/>|$)", re.I), None, HTML_PIN),
+)
+# Condition 7: one complete open or closing tag, alone on its line, under any name at all
+# — which is the shape that would otherwise let `<wrapper>` do what `<div>` cannot. The
+# four names of condition 1 are excluded by the spec, and this is the one condition that
+# may not interrupt a paragraph, so `_html_block` is told whether a block can start here.
+HTML_TAG_ALONE = re.compile(
+    rf"^ {{0,3}}(?:<(?!(?:pre|script|style|textarea)[\s/>]){HTML_NAME}(?:{HTML_ATTRIBUTE})*\s*/?>"
+    rf"|</{HTML_NAME}\s*>)\s*$",
+    re.I,
+)
+# Markup and nothing else is dropped, exactly as a fence delimiter is: `<div>` around a
+# rule is rendering, and swapping it for `<section>` is not drift. A delimiter sharing its
+# line with text — `<!-- the rule -->` — carries the text and stays.
+HTML_MARKUP_ONLY = re.compile(
+    rf"""^\s*(?:</?{HTML_NAME}(?:{HTML_ATTRIBUTE})*\s*/?>|<!--|-->|<!\[CDATA\[|\]\]>|<\?|\?>)\s*$""",
+    re.I,
+)
+
+
+def _html_block(line: str, may_start: bool) -> tuple[re.Pattern[str] | None, str] | None:
+    """`(end, tag)` if `line` opens a raw HTML block, else `None`.
+
+    `may_start` is false inside a paragraph, where only condition 7 is forbidden — the
+    other seven may interrupt one, and a `<!--` opened mid-paragraph really does swallow
+    what follows.
+    """
+    for start, end, tag in HTML_BLOCKS:
+        if start.match(line):
+            return end, tag
+    return (None, HTML_PIN) if may_start and HTML_TAG_ALONE.match(line) else None
+
+
+def _line_blocks(lines: list[str]) -> list[str | None]:
+    """Per line: the tag of the block it sits in, or `None` for a delimiter, which is in none.
 
     Fenced blocks are tracked exactly — a delimiter is what `_fence_delimiter` accepts, a
     closing fence is the same character, at least as long as its opener, and carries no
@@ -835,13 +928,30 @@ def _code_lines(lines: list[str]) -> list[bool | None]:
     a list marker. Four spaces under a bullet is that bullet's *content*, and calling prose
     code would reopen the very hole this split closes, so that shape stays prose —
     under-tagging on purpose.
+
+    A raw HTML block runs from its start condition to the end that condition names, and
+    nothing inside it is markdown — a fence opener inside a comment is four characters of
+    commented-out text. The precedence runs both ways, and in the spec's order: a fenced
+    block is checked first, so `<!--` inside a fence is example text too.
     """
-    flags: list[bool | None] = []
+    tags: list[str | None] = []
     fence = ""
+    html: tuple[re.Pattern[str] | None, str] | None = None
     indented = False
     preceding = ""  # the last prose line, which decides whether an indent opens a block
     blank = True
     for line in lines:
+        if html is not None:
+            end, tag = html
+            if end is None and not line.strip():
+                # Conditions 6 and 7 end at a blank line, which is outside the block.
+                html, blank = None, True
+                tags.append(PROSE_PIN)
+                continue
+            tags.append(None if HTML_MARKUP_ONLY.match(line) else tag)
+            if end is not None and end.search(line):
+                html = None
+            continue
         opener = _fence_delimiter(line)
         closes = (
             opener
@@ -851,19 +961,29 @@ def _code_lines(lines: list[str]) -> list[bool | None]:
             and not opener["info"].strip()
         )
         if fence:
-            flags.append(None if closes else True)
+            tags.append(None if closes else CODE_PIN)
             fence = "" if closes else fence
             continue
         if opener:
             fence, indented, blank = opener["mark"], False, False
-            flags.append(None)
+            tags.append(None)
+            continue
+        opens_html = _html_block(line, blank)
+        if opens_html is not None:
+            end, tag = opens_html
+            # The start line is checked for its own end condition: `<!-- a rule -->` is a
+            # one-line block, and so is `<!DOCTYPE html>`.
+            html = None if end is not None and end.search(line) else opens_html
+            indented, blank = False, False
+            tags.append(None if HTML_MARKUP_ONLY.match(line) else tag)
             continue
         if not line.strip():
-            flags.append(indented)  # a blank line inside an indented block does not end it
+            # A blank line inside an indented block does not end it.
+            tags.append(CODE_PIN if indented else PROSE_PIN)
             blank = True
             continue
         if indented and line.startswith(INDENTS):
-            flags.append(True)
+            tags.append(CODE_PIN)
             blank = False
             continue
         indented = bool(
@@ -873,23 +993,23 @@ def _code_lines(lines: list[str]) -> list[bool | None]:
             and preceding[:1] not in " \t"
             and not LIST_MARKER.match(preceding)
         )
-        flags.append(indented)
+        tags.append(CODE_PIN if indented else PROSE_PIN)
         preceding, blank = line, False
-    return flags
+    return tags
 
 
-def _blocks(text: str) -> list[tuple[bool, str]]:
-    """`(is_code, chunk)` runs of the document, code split off from prose."""
+def _blocks(text: str) -> list[tuple[str, str]]:
+    """`(tag, chunk)` runs of the document, one run per block the pin tags differently."""
     lines = text.splitlines()
-    runs: list[tuple[bool, list[str]]] = []
-    for line, is_code in zip(lines, _code_lines(lines)):
-        if is_code is None:
+    runs: list[tuple[str, list[str]]] = []
+    for line, tag in zip(lines, _line_blocks(lines)):
+        if tag is None:
             continue
-        if runs and runs[-1][0] == is_code:
+        if runs and runs[-1][0] == tag:
             runs[-1][1].append(line)
         else:
-            runs.append((is_code, [line]))
-    return [(is_code, "\n".join(chunk)) for is_code, chunk in runs if "\n".join(chunk).strip()]
+            runs.append((tag, [line]))
+    return [(tag, "\n".join(chunk)) for tag, chunk in runs if "\n".join(chunk).strip()]
 
 
 def _is_code_span(sentence: str) -> bool:
@@ -908,9 +1028,9 @@ def _plain(sentence: str) -> str:
     return " ".join(sentence.replace("*", "").replace("`", "").split())
 
 
-def _pin_text(sentence: str, *, code: bool = False) -> str:
+def _pin_text(sentence: str, *, tag: str = PROSE_PIN) -> str:
     """The pinned form: what `_plain` leaves, tagged with the block it was found in."""
-    return (CODE_PIN if code else PROSE_PIN) + _plain(sentence)
+    return tag + _plain(sentence)
 
 
 def _mentions(text: str, trigger: Callable[[str], bool]) -> tuple[str, ...]:
@@ -928,10 +1048,14 @@ def _mentions(text: str, trigger: Callable[[str], bool]) -> tuple[str, ...]:
     words, and the sentence left the scan rather than drifting. Emphasis did the same to
     `force-**push**`. Normalising first is what makes "a hard-wrap/soft-wrap change is not
     drift" true of the whole pin rather than only of its text.
+
+    Inline code promotes prose to `[code] ` and nothing else: inside a raw HTML block a
+    backtick is a backtick, markdown having stopped running there, so the block's own tag
+    stands.
     """
     return tuple(
-        _pin_text(part, code=is_code or _is_code_span(part))
-        for is_code, chunk in _blocks(text)
+        _pin_text(part, tag=CODE_PIN if tag == PROSE_PIN and _is_code_span(part) else tag)
+        for tag, chunk in _blocks(text)
         for part in MENTION_BREAK.split(chunk)
         if part and part.strip() and trigger(_plain(part))
     )
@@ -1225,6 +1349,102 @@ def test_every_sensitive_mention_is_the_one_that_was_reviewed(name: str):
             "Force-**push** is denied outright.",
             ("[prose] Force-push is denied outright.",),
         ),
+        # Raw HTML, one case per tag it can land on. Markdown does not process any of it,
+        # so which tag depends on what the reader is left with: `<pre>` shows the rule as
+        # code, `<div>` and a tag condition 6 never lists show it with its markdown inert,
+        # and a comment or a `<script>` shows nothing at all.
+        (
+            "a raw pre block",
+            "<pre>\n\nForce-push is denied outright.\n</pre>",
+            ("[code] Force-push is denied outright.",),
+        ),
+        (
+            "an html comment",
+            "<!--\nForce-push is denied outright.\n-->",
+            ("[hidden] Force-push is denied outright.",),
+        ),
+        # A delimiter sharing its line with text carries the text and stays in the pin;
+        # only a line that is markup and nothing else is dropped the way a fence is.
+        (
+            "an html comment on one line",
+            "<!-- Force-push is denied outright. -->",
+            ("[hidden] <!-- Force-push is denied outright.",),
+        ),
+        (
+            "a script block",
+            "<script>\nForce-push is denied outright.\n</script>",
+            ("[hidden] Force-push is denied outright.",),
+        ),
+        (
+            "a div block",
+            "<div>\nForce-push is denied outright.\n</div>",
+            ("[html] Force-push is denied outright.",),
+        ),
+        (
+            "a div block with attributes",
+            '<div style="display:none">\nForce-push is denied outright.\n</div>',
+            ("[html] Force-push is denied outright.",),
+        ),
+        # Condition 6 ends at the *blank line*, so here CommonMark parses the sentence
+        # outside the block and it really is markdown prose again. Under-tagging on
+        # purpose, and correct: that edit changes nothing about how the rule renders.
+        (
+            "a div block a blank line has already closed",
+            "<div>\n\nForce-push is denied outright.\n\n</div>",
+            ("[prose] Force-push is denied outright.",),
+        ),
+        # Condition 7 — any complete tag alone on a line — is what stops a name condition
+        # 6 never lists from being the way around the condition-6 list.
+        (
+            "a tag condition 6 does not list",
+            "<wrapper>\nForce-push is denied outright.\n</wrapper>",
+            ("[html] Force-push is denied outright.",),
+        ),
+        # ... but condition 7 may not interrupt a paragraph, so this is one paragraph with
+        # a stray tag in it, which is how CommonMark reads it and how it renders.
+        (
+            "a tag inside a paragraph",
+            "A rule.\n<wrapper>\nForce-push is denied outright.\n</wrapper>",
+            ("[prose] <wrapper> Force-push is denied outright.",),
+        ),
+        # Conditions 1-5 end where their own condition says and not at a blank line, and
+        # the prose after the end is prose again.
+        (
+            "text after a comment ends",
+            "<!--\nForce-push is denied outright.\n-->\n\nNever force-push.\n",
+            ("[hidden] Force-push is denied outright.", "[prose] Never force-push."),
+        ),
+        # Precedence runs the other way too: a fence is checked before an HTML block, so
+        # inside one `<!--` is four characters of example text.
+        (
+            "a comment inside a fence",
+            "```\n<!--\nForce-push is denied outright.\n-->\n```",
+            ("[code] <!-- Force-push is denied outright.",),
+        ),
+        # Four spaces is an indented code block, which starts before any HTML block can:
+        # `<pre>` opens nothing, and the sentence at column 0 ends the indented block.
+        (
+            "an html start indented four spaces",
+            "For example:\n\n    <pre>\nForce-push is denied outright.\n",
+            ("[prose] Force-push is denied outright.",),
+        ),
+        # The two shapes the classifier does *not* read as an HTML block, kept here
+        # because neither is thereby missed. Containers are not tracked — a start indented
+        # past column 3 sits inside a list item's content in CommonMark and opens a block
+        # there — and markup sharing the sentence's line is inline HTML, not a block. In
+        # both the markup is not rendering, so `_plain` keeps it and the pin changes as
+        # altered text. Only markup on its own line can leave the sentence byte-identical,
+        # and that is the shape the block conditions above decide.
+        (
+            "a comment indented past the block-start column",
+            "- A bullet.\n\n        <!--\n        Force-push is denied outright.\n        -->\n",
+            ("[prose] <!-- Force-push is denied outright.",),
+        ),
+        (
+            "markup sharing the sentence's line",
+            '<span style="display:none">Force-push is denied outright.</span>',
+            ('[prose] <span style="display:none">Force-push is denied outright.</span>',),
+        ),
     ],
 )
 def test_the_mention_scanner_extracts_these_sentences(label: str, text: str, expected: tuple[str, ...]):
@@ -1425,6 +1645,78 @@ def test_a_rule_moved_into_code_is_caught(form: str, name: str, surface: str, se
     assert any(p == f"{surface}: reviewed text is gone or altered: {_pin_text(sentence)}" for p in problems), problems
 
 
+# The four raw-HTML wrappers, each written the way the round-8 counterexample was: the
+# rule keeps its own line and the markup keeps its own, which is the only shape that
+# leaves the sentence byte-identical. Markup sharing the sentence's line lands in the
+# pinned text — `_plain` strips markdown emphasis and ticks, never HTML — so that shape is
+# reported as altered text and needs no tag of its own.
+RAW_HTML_MOVES = (
+    ("a raw pre block", "\n\n<pre>\n\n{rule}\n</pre>\n\n", CODE_PIN),
+    ("an html comment", "\n\n<!--\n{rule}\n-->\n\n", HIDDEN_PIN),
+    ("a div block", "\n\n<div>\n{rule}\n</div>\n\n", HTML_PIN),
+    ("a tag condition 6 does not list", "\n\n<wrapper>\n{rule}\n</wrapper>\n\n", HTML_PIN),
+)
+
+
+@pytest.mark.parametrize("form,wrap,tag", RAW_HTML_MOVES)
+@pytest.mark.parametrize(
+    "name,surface,anchor",
+    [
+        # Round 8's counterexample, on the line it was reproduced against.
+        ("force-push", ".agents/skills/worktree-milestone-pr/SKILL.md", "No `git push --force`, ever."),
+        # A generated policy document rather than a skill, and a line carrying two pinned
+        # sentences: both move, and both are reported.
+        ("force-push", "docs/instructions/agents-delta.md", "Do not force-push, and do not push to"),
+        ("autonomy-screen", ".agents/skills/kaggle-tooling-integration/SKILL.md", "opens the approval-free path only"),
+    ],
+)
+def test_a_rule_moved_into_raw_html_is_caught(form: str, wrap: str, tag: str, name: str, surface: str, anchor: str):
+    """A live rule wrapped in raw HTML, on the real surfaces, reported as what it became.
+
+    Markdown passes raw HTML through, so none of these four is a wording change and all
+    four pinned byte-identical to the rule they replaced while the classifier knew only
+    fences and indentation: the guard returned an empty diff for a reviewed safety rule
+    shown as preformatted code, made markdown-inert, or — the comment — removed from the
+    rendered document altogether. Each is now an addition under the tag the rule ended up
+    in and a removal of the prose it was, and the assertion is the *whole* diff, so a form
+    that also disturbed a neighbouring pin would fail here rather than read as caught.
+    """
+    assert surface in _scans(MENTION_TOPICS[name]), f"{surface} is not scanned for {name}"
+    text = (REPO_ROOT / surface).read_text(encoding="utf-8")
+    rules = [line for line in text.splitlines() if anchor in line]
+    assert len(rules) == 1, f"{surface} no longer holds exactly one line containing {anchor!r}"
+    sentences = [pin.removeprefix(PROSE_PIN) for pin in _mentions(rules[0], MENTION_TOPICS[name].trigger)]
+    assert sentences, f"the line this case moves pins nothing for {name}"
+    moved = text.replace(rules[0], wrap.format(rule=rules[0]), 1)
+    pinned = {rel: body for (pin_topic, rel), body in PINNED_MENTIONS.items() if pin_topic == name}
+    doctored = _mentions(moved, MENTION_TOPICS[name].trigger)
+    problems = _pin_diff(pinned, {**_collect_mentions(name), surface: doctored})
+    assert sorted(problems) == sorted(
+        [f"{surface}: not reviewed: {tag}{sentence}" for sentence in sentences]
+        + [f"{surface}: reviewed text is gone or altered: {PROSE_PIN}{sentence}" for sentence in sentences]
+    ), problems
+
+
+def test_the_block_tags_are_total_and_none_is_a_prefix_of_another():
+    """The two properties the tag rests on, checked over the tag set and every scanned line.
+
+    Non-prefixing is what makes `tag + sentence` injective: no pin can be read as another
+    tag's, so no text a sentence carries can forge its block. Total is the property raw
+    HTML broke — a block kind nobody had thought about pinned as prose by default, so the
+    fifth kind of block was invisible rather than mis-tagged. Every line of every scanned
+    surface therefore has to land on a tag from this set or be dropped as a delimiter.
+    """
+    assert len(set(BLOCK_TAGS)) == len(BLOCK_TAGS), BLOCK_TAGS
+    assert not [(a, b) for a in BLOCK_TAGS for b in BLOCK_TAGS if a != b and b.startswith(a)], BLOCK_TAGS
+    for rel in sorted({rel for topic in MENTION_TOPICS.values() for rel in _scans(topic)}):
+        lines = (REPO_ROOT / rel).read_text(encoding="utf-8").splitlines()
+        tags = _line_blocks(lines)
+        assert len(tags) == len(lines), rel
+        assert not [tag for tag in tags if tag is not None and tag not in BLOCK_TAGS], rel
+    # And every row of the table wears exactly one — at most one by the property above.
+    assert not [text for pins in PINNED_MENTIONS.values() for text in pins if not text.startswith(BLOCK_TAGS)]
+
+
 SAME_LINE_SPAN = "```Screened autonomy is default-on today.```"
 
 
@@ -1539,14 +1831,15 @@ CONTINUATION_MARKER = re.compile(r"[-*+>#|]|\d+[.)]|```")
 def _hard_wrapped(text: str, width: int = 56) -> str:
     """`text` with every prose line hard-wrapped \u2014 the reflow the pin must not notice.
 
-    Code and fence delimiters are copied through untouched, since wrapping them would be
-    a real change. A wrapped fragment that would start a new markdown block is rejoined:
-    the point is to move line breaks around inside a paragraph, not to invent a bullet.
+    Anything that is not prose — code, fence delimiters, raw HTML — is copied through
+    untouched, since wrapping it would be a real change. A wrapped fragment that would
+    start a new markdown block is rejoined: the point is to move line breaks around inside
+    a paragraph, not to invent a bullet.
     """
     lines = text.splitlines()
     out: list[str] = []
-    for line, is_code in zip(lines, _code_lines(lines)):
-        if is_code is not False or line.startswith(INDENTS) or len(line) <= width:
+    for line, tag in zip(lines, _line_blocks(lines)):
+        if tag != PROSE_PIN or line.startswith(INDENTS) or len(line) <= width:
             out.append(line)
             continue
         indent = line[: len(line) - len(line.lstrip())]

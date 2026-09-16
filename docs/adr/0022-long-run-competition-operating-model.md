@@ -689,12 +689,7 @@ ADR-0021's `screen` block is retained with a changed role:
 
 #### Recording an autonomous submission — driver-neutral, written before dispatch
 
-The audit trail is the mitigation that makes wide autonomy acceptable, so it cannot depend
-on which harness happens to be driving. Phase 1 names **both** Claude Code and Codex as
-drivers (§1), but `.claude/hooks/audit_event.py` is a Claude Code hook: it fires only for
-Claude Code sessions, and it stores the generic tool payload — it does not require, or
-validate, the fields §5 depends on. There is no `.agents/` mirror on this branch (issue
-#189). So the harness hook log is **evidence, not the record**.
+The audit trail is the mitigation that makes wide autonomy acceptable, so it cannot depend on which harness happens to be driving. Phase 1 names **both** Claude Code and Codex as drivers (§1), but `.claude/hooks/audit_event.py` is a Claude Code hook: it fires only for Claude Code sessions, and it stores the generic tool payload — it does not require, or validate, the fields §5 depends on. The `.agents/` mirror added for issue #189 gives Codex no counterpart: it mirrors the skills, and Codex hooks are per-user configuration (`~/.codex/config.toml` or a managed directory) rather than anything a repository ships. So the harness hook log is **evidence, not the record**.
 
 The record is a **submission-intent file**, written and flushed *before* the external call
 and owned by the competition, not by the driver:
