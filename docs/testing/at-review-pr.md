@@ -2,9 +2,9 @@
 
 Issue: [#207](https://github.com/amyteq/tt_pangu/issues/207). Validated 2026-09-15
 against base `8f950823257aa2476fa356294d13448ab196ac60`, then re-checked on
-2026-09-16 after the round-1 review of
+2026-09-16 after rounds 1 and 2 of the live loop on
 [PR #208](https://github.com/amyteq/tt_pangu/pull/208) (the skill was named
-`pr-review-loop` in the earlier revision; that live loop is still running).
+`pr-review-loop` in the earlier revision).
 
 The deliverable is a Markdown development skill and two supporting references.
 It adds no execution service, helper scripts, runtime configuration, or test code.
@@ -142,16 +142,34 @@ part of the repository is unaffected. The round-1 writer's JSON also confirmed
 `modelUsage["claude-opus-5[1m]"].contextWindow == 1000000` and
 `canonicalModel == "claude-opus-5"` on stdout — the direct evidence behind F002.
 
+Round 2 was a full closing verification review of head `bddee5c` by the same
+reviewer profile (`codex exec`, `gpt-5.6-sol`, `xhigh`, read-only). It found F001
+and F002 resolved, raised one residual P2 — F003, that this record's Limits
+section still asserted an offline boundary its own live probes and live rounds had
+outgrown — and returned an approval-eligible verdict with no unresolved P0/P1.
+F003 is dispositioned in round 3 by the Limits section below.
+
 ## Limits
 
-This is an offline behavioral and syntax validation. It does not prove live model
-access, the installed provider's runtime metadata schema, or GitHub review
-permissions. The behavioral scenarios were simulated against the 2026-09-15
-revision and were not re-run afterwards; the rejection cases above cover an
-explicit zero/fractional value, not the now-defaulting absent `rounds`. The
-metadata probes above are live and provider-specific, but they were run by the
-coordinator rather than through a full loop, and they cover CLI 0.154.0 /
-2.1.273 only. The live loop on PR #208 is the ongoing end-to-end exercise; its
-completed rounds are recorded on that PR rather than here. At invocation time the skill checks
-actual profile metadata, final base/head, and permissions before accepting phase
-output or approving. Actual model access failures must remain visible blockers.
+**Proven live, on this host.** The installed providers' runtime-metadata schema —
+which signature fields exist, and on which stream — for Codex CLI 0.154.0 and
+Claude Code 2.1.273. Live model access for both providers. Two real reviewer
+phases (`codex exec`, `gpt-5.6-sol`, `xhigh`, read-only) and one real writer phase
+(`claude -p`, `claude-opus-5[1m]`, `--effort xhigh` requested, 1M context window
+confirmed in `modelUsage`). One real review → fix → verification cycle on PR #208,
+ending in a clean closing review.
+
+**Still not proven.** GitHub review permissions for a formal `APPROVE`: the
+signed-in user authored PR #208, so self-approval is impossible and that path is
+untested end to end. The 2026-09-15 behavioral scenarios were simulated against
+that revision, were not re-run afterwards, and their rejection cases cover an
+explicit zero/fractional `rounds` rather than the now-defaulting absent value.
+Findings coverage rests on two reviewer phases against one small Markdown PR, not
+on a broad or adversarial corpus. Results are pinned to those two CLI versions.
+And the writer phase could not write under `.claude/skills/**`, so the
+writer-edits-then-commits path was exercised only via coordinator escalation on
+this PR.
+
+At invocation time the skill checks actual profile metadata, final base/head, and
+permissions before accepting phase output or approving. Actual model access
+failures must remain visible blockers.
