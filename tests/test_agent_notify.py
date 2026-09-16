@@ -180,6 +180,45 @@ def test_a_codex_turn_quoting_an_api_key_does_not_forward_it(config_path: Path, 
     assert notify.REDACTED in text
 
 
+@pytest.mark.parametrize("switch", [["--no-content"], []])
+def test_no_content_sends_the_event_without_the_session_text(
+    config_path: Path, capsys, monkeypatch, switch: list[str]
+) -> None:
+    """#206 F001: redaction masks credential *shapes*, never private data.
+
+    An operator under a competition's data rules turns the text off — by flag or
+    by env var — and still gets the event and the thread id.
+    """
+    if not switch:
+        monkeypatch.setenv("KCA_NOTIFY_NO_CONTENT", "1")
+    private = dict(
+        CODEX_TURN_COMPLETE,
+        **{
+            "input-messages": ["score PRIVATE_COMPETITION_PAYLOAD row_17 target=1"],
+            "last-assistant-message": "row_17 target=1 leaks the private split",
+        },
+    )
+    result = _run(
+        ["--source", "codex", "--config", str(config_path), "--dry-run", *switch, json.dumps(private)],
+        capsys=capsys,
+    )
+    text = next(c for c in result["channels"] if c["channel"] == "telegram")["payload"]["text"]
+    assert "PRIVATE_COMPETITION_PAYLOAD" not in text
+    assert "row_17" not in text
+    assert "agent-turn-complete" in text
+    assert "thread 0199a1b2c3d4" in text
+
+
+def test_content_is_forwarded_by_default(config_path: Path, capsys) -> None:
+    """The default is still the point of the channel: what the session said."""
+    result = _run(
+        ["--source", "codex", "--config", str(config_path), "--dry-run", json.dumps(CODEX_TURN_COMPLETE)],
+        capsys=capsys,
+    )
+    text = next(c for c in result["channels"] if c["channel"] == "telegram")["payload"]["text"]
+    assert "Fixed 3 lint errors" in text
+
+
 def test_a_long_assistant_message_is_clipped_after_redaction(config_path: Path, capsys) -> None:
     """Clip first and a token split in half leaks its prefix; redact first and
     it cannot."""

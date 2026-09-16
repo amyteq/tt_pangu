@@ -182,6 +182,43 @@ def test_redaction_leaves_ordinary_operator_text_alone() -> None:
     assert notify.redact(text) == text
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "tokens: 1500 remaining",
+        "max_tokens: 4096 and total_tokens: 12000",
+        "branch sk-learn-baseline beat sk-learn-tuned-v2 by 0.004",
+        "db_password: hunter2-sentinel-value was wrong, retry tomorrow",
+    ],
+)
+def test_redaction_keeps_the_operator_fields_a_gate_is_read_for(text: str) -> None:
+    """#206 F010: a budget number or a branch name is the reason in the message.
+
+    The last case is the boundary — the *value* after a secret-named field is
+    masked, but the operator's sentence after it survives.
+    """
+    out = notify.redact(text)
+    for keep in ("1500 remaining", "4096", "12000", "sk-learn-baseline", "was wrong, retry tomorrow"):
+        if keep in text:
+            assert keep in out
+
+
+@pytest.mark.parametrize(
+    "payload, leaked",
+    [
+        ("Authorization: Basic dXNlcjpwYXNzd29yZA==", "dXNlcjpwYXNzd29yZA=="),
+        ("curl -H 'Authorization: Basic dXNlcjpwYXNzd29yZA==' https://x", "dXNlcjpwYXNzd29yZA=="),
+        ("proxy-authorization = Digest username=admin, response=0123456789abcdef", "0123456789abcdef"),
+        ("sk-proj-FAKESENTINELvalue0123456789abcdef", "FAKESENTINELvalue0123456789abcdef"),
+    ],
+)
+def test_a_credential_is_masked_past_its_first_token(payload: str, leaked: str) -> None:
+    """#206 F001: masking only the scheme word left the credential in the clear."""
+    out = notify.redact(payload)
+    assert leaked not in out
+    assert notify.REDACTED in out
+
+
 def test_a_configured_chat_id_is_masked_even_though_it_is_only_digits(cfg: dict, monkeypatch) -> None:
     """Shape rules cannot know a chat id — but this config resolves ours."""
     monkeypatch.setenv("TELEGRAM_CHAT_ID_ME", "987654321")
@@ -328,6 +365,27 @@ def test_telegram_card_offers_no_button_that_nothing_would_answer() -> None:
     record = notify.render_github_comment(req)
     assert "Tapping a button" not in record
     assert "only way to answer" in record
+
+
+def test_a_decision_card_never_exceeds_the_telegram_message_limit() -> None:
+    """#206 F011: a valid decision with long labels must still be sendable.
+
+    Telegram rejects a body over 4096 characters, so an unbounded label used to
+    fail the primary push and leave the gate `partial`.
+    """
+    cfg = notify.load_config(REPO_ROOT / ".kca" / "notify.yml")
+    req = _request(
+        summary="s" * 4000,
+        competition="c" * 2000,
+        options=[("ship", "L" * 5000), ("hold", "hold the run")]
+        + [(f"opt{i}", f"option {i} " * 40) for i in range(30)],
+    )
+    text = notify.render_telegram_text(req, cfg)
+    assert len(text) <= notify.TELEGRAM_MAX_CHARS
+    # The first options stay answerable and the elision is visible, not silent.
+    assert f"/decide {req.decision_id} ship" in text
+    assert "more option(s)" in text
+    assert "…" in text
 
 
 def test_callback_data_stays_within_the_phase_1b_contract() -> None:
@@ -515,6 +573,10 @@ def test_dry_run_writes_nothing_and_masks_the_chat_id(cfg: dict) -> None:
     assert telegram["dry_run"] is True
     assert telegram["payload"]["chat_id"] == "<TELEGRAM_CHAT_ID_ME>"
     assert not notify.ledger_path(cfg).exists()
+    # #206 F012: a rehearsal creates nothing at all — not the ledger, not the
+    # lock file, not the state directory it would live in.
+    assert not (notify.state_dir(cfg) / "ledger.lock").exists()
+    assert not notify.state_dir(cfg).exists()
 
 
 def test_gate_without_an_issue_reports_a_failed_record_leg(cfg: dict) -> None:
@@ -603,8 +665,10 @@ def test_the_ledger_lock_is_exclusive_but_never_swallows_a_gate(cfg: dict, monke
 
     with notify.ledger_lock(cfg) as locked:
         assert locked is True
+    # A dry run reports `serialized: false` whether or not the lock is free: it
+    # appends nothing, so it takes no lock and creates no state (#206 F012).
     free = notify.dispatch(cfg, level="gate", title="t2", body="b", issue=197, now=noon, dry_run=True)
-    assert free["serialized"] is True
+    assert free["serialized"] is False
 
 
 def test_a_corrupt_ledger_line_never_blocks_a_send(cfg: dict) -> None:
