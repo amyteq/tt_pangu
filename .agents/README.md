@@ -17,6 +17,7 @@ Nothing here is hand-maintained. `python scripts/gen_agents.py` writes it, and `
 | Skill | Symlink target | What it is for |
 |---|---|---|
 | `agent-iteration-review` | `../../.claude/skills/agent-iteration-review` | Use after tests, validation, benchmark, submission, or CTF solver results are available |
+| `at-refine-issue` | `../../.claude/skills/at-refine-issue` | Refine an existing GitHub issue into an executable work order — observable acceptance criteria, one standalone task-instructions comment, and copyable /goal and plain-language launch prompts built on that comment's real permalink |
 | `at-review-pr` | `../../.claude/skills/at-review-pr` | Run bounded PR review and fix rounds with independent Codex or Claude Code sessions, evidence-linked dispositions, and a final full review before approval |
 | `ctf-sandbox` | `../../.claude/skills/ctf-sandbox` | Use for authorized CTF challenge solving only: local challenge analysis, sandboxed exploitation, solver scripts, flags, and writeups within explicitly provided scope |
 | `design-archaeology` | `../../.claude/skills/design-archaeology` | Use before implementing any migration, rewrite, take-over, or port of legacy scripts / configs |
