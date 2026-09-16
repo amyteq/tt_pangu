@@ -803,6 +803,107 @@ def test_a_disabled_record_channel_is_a_failed_gate_not_a_skip(cfg: dict, monkey
         notify.validate_config(cfg)
 
 
+def test_a_gate_routed_to_no_record_channel_is_not_sent(cfg: dict, monkeypatch) -> None:
+    """#206 F002: omitting the record channel from `levels.gate.channels` is the
+    same missing system of record as disabling it, and must fail the same way."""
+    monkeypatch.setattr(notify, "send_telegram", lambda cfg, **kw: {"ok": True, "channel": "telegram"})
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    cfg["levels"]["gate"]["channels"] = ["telegram"]
+
+    with pytest.raises(ValueError, match="no system-of-record channel"):
+        notify.validate_config(cfg)
+
+    out = notify.dispatch(cfg, level="gate", title="t", body="b", issue=197, now=noon)
+    record = next(c for c in out["channels"] if c["channel"] == "record")
+    assert record["ok"] is False
+    assert (out["status"], out["ok"]) == ("partial", False)
+    assert notify.exit_code_for(out) == notify.EXIT_RUNTIME
+    # A push-only level routed to Telegram alone is still perfectly fine.
+    assert notify.dispatch(cfg, level="info", title="t", body="b", now=noon)["status"] == "sent"
+
+
+def test_the_budget_is_serialised_even_without_fcntl(cfg: dict, monkeypatch) -> None:
+    """#206 F003: on a platform with no `fcntl` the lock used to degrade to no
+    serialisation *and* skip the routine fail-closed rule — the one case that
+    needs it most. The `O_CREAT|O_EXCL` fallback holds the same contract."""
+    monkeypatch.setattr(notify, "fcntl", None)
+    monkeypatch.setattr(notify, "send_telegram", lambda cfg, **kw: {"ok": True, "channel": "telegram"})
+    monkeypatch.setattr(notify, "post_github_comment", lambda cfg, **kw: {"ok": True, "channel": "github"})
+    cfg["limits"]["lock_wait_s"] = 0.05
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+
+    with notify.ledger_lock(cfg) as held:
+        assert held is True  # the fallback really acquires
+        with notify.ledger_lock(cfg) as second:
+            assert second is False  # …and really excludes a second holder
+        routine = notify.dispatch(cfg, level="digest", title="d", body="b", now=noon)
+        assert (routine["status"], routine["serialized"]) == ("deferred", False)
+        gate = notify.dispatch(cfg, level="gate", title="g", body="b", issue=197, now=noon)
+        assert (gate["status"], gate["serialized"]) == ("sent", False)
+
+    assert notify.dispatch(cfg, level="digest", title="d", body="b", now=noon)["status"] == "sent"
+    # …and `doctor` names the mechanism rather than implying flock everywhere.
+    assert not (notify.state_dir(cfg) / "ledger.lock").exists()
+
+
+def test_compaction_keeps_every_routine_send_of_the_live_day(cfg: dict, monkeypatch) -> None:
+    """#206 F014: the daily cap counts every same-day routine `sent` entry, so
+    pinning only the last one per level lets two collapse into one and a third
+    push through the 2/day budget."""
+    monkeypatch.setattr(notify, "send_telegram", lambda cfg, **kw: {"ok": True, "channel": "telegram"})
+    monkeypatch.setattr(notify, "LEDGER_MAX_BYTES", 400)
+    monkeypatch.setattr(notify, "LEDGER_KEEP_ENTRIES", 5)
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+
+    # Both of today's allowed routine sends are the same level…
+    assert notify.dispatch(cfg, level="info", title="one", body="b", now=noon)["status"] == "sent"
+    assert notify.dispatch(cfg, level="info", title="two", body="b", now=noon)["status"] == "sent"
+    # …then newer traffic pushes them out of the newest-N window.
+    for idx in range(40):
+        notify.append_ledger(cfg, {"ts": noon.isoformat(), "level": "gate", "key": f"k{idx}", "status": "partial"})
+
+    entries = notify.read_ledger(cfg)
+    assert len(entries) < 42  # the ledger really was compacted
+    assert notify.routine_sends_today(cfg, entries, noon) == 2
+    third = notify.dispatch(cfg, level="info", title="three", body="b", now=noon)
+    assert third["status"] == "rate_limited"
+    assert "2/2" in third["reason"]
+
+
+def test_an_unserialised_writer_does_not_rewrite_the_ledger(cfg: dict, monkeypatch) -> None:
+    """#206 F015: compaction is a read/rewrite/`os.replace`, so a gate that had
+    to write without the lock must not do it — its snapshot can be stale by the
+    time it replaces the file, silently discarding the lock holder's line."""
+    import fcntl
+
+    monkeypatch.setattr(notify, "send_telegram", lambda cfg, **kw: {"ok": True, "channel": "telegram"})
+    monkeypatch.setattr(notify, "post_github_comment", lambda cfg, **kw: {"ok": True, "channel": "github"})
+    monkeypatch.setattr(notify, "LEDGER_MAX_BYTES", 400)
+    monkeypatch.setattr(notify, "LEDGER_KEEP_ENTRIES", 5)
+    cfg["limits"]["lock_wait_s"] = 0.05
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    for idx in range(40):
+        notify.append_ledger(cfg, {"ts": noon.isoformat(), "level": "gate", "key": f"k{idx}", "status": "partial"})
+
+    path = notify.ledger_path(cfg)
+    lock_file = notify.state_dir(cfg) / "ledger.lock"
+    with lock_file.open("a+", encoding="utf-8") as holder:
+        fcntl.flock(holder.fileno(), fcntl.LOCK_EX)
+        # Pad past the size bound so compaction *would* fire if it were allowed.
+        padding = json.dumps({"ts": noon.isoformat(), "level": "gate", "status": "partial"})
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write("\n".join(padding for _ in range(40)) + "\n")
+        padded = len(notify.read_ledger(cfg))
+        gate = notify.dispatch(cfg, level="gate", title="g", body="b", issue=197, now=noon)
+        assert (gate["status"], gate["serialized"]) == ("sent", False)
+        assert len(notify.read_ledger(cfg)) == padded + 1  # nothing was rewritten away
+        fcntl.flock(holder.fileno(), fcntl.LOCK_UN)
+
+    # The next serialised send does compact, so the bound is still enforced.
+    assert notify.dispatch(cfg, level="gate", title="g2", body="b", issue=197, now=noon)["status"] == "sent"
+    assert len(notify.read_ledger(cfg)) < padded
+
+
 def test_a_corrupt_ledger_line_never_blocks_a_send(cfg: dict) -> None:
     """Valid JSON of the wrong type is as likely as invalid JSON, and either one
     must not take down the channel — including the doctor you would diagnose with."""

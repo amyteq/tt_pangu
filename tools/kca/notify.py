@@ -58,7 +58,7 @@ import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterable, Iterator
 from zoneinfo import ZoneInfo
 
 import yaml
@@ -123,6 +123,9 @@ LOCK_POLL_S = 0.05
 # from the configured transport timeouts rather than being a flat 10 s;
 # `limits.lock_wait_s` overrides it for an operator who knows better.
 LOCK_WAIT_MARGIN_S = 10.0
+# How long past the wait ceiling a lock file must sit untouched before the
+# fcntl-less fallback treats it as abandoned by a process that died holding it.
+LOCK_STALE_MARGIN_S = 60.0
 DEFAULT_TELEGRAM_TIMEOUT_S = 15
 GITHUB_TIMEOUT_S = 90
 LEDGER_MAX_BYTES = 512_000
@@ -320,6 +323,19 @@ def is_required_channel(level: str, channel: str, cfg: dict[str, Any]) -> bool:
     return str(channel_cfg.get("role") or ("record" if channel == "github" else "")) == "record"
 
 
+def missing_record_channel(level: str, names: Iterable[str], cfg: dict[str, Any]) -> bool:
+    """Does ``level`` need a system of record that ``names`` does not route to?
+
+    The guarantee has to survive every way a config can omit the record, not
+    only a record channel that is listed and disabled: a `gate` routed to
+    ``[telegram]`` alone files nothing either, and used to be accepted by
+    :func:`validate_config` and reported as `sent` (#206 F002).
+    """
+    if level not in RECORD_REQUIRED_LEVELS:
+        return False
+    return not any(is_required_channel(level, name, cfg) for name in names)
+
+
 def validate_config(cfg: dict[str, Any]) -> None:
     """Raise ValueError on a config that would fail at send time."""
     if int(cfg.get("version") or 0) != 1:
@@ -341,7 +357,13 @@ def validate_config(cfg: dict[str, Any]) -> None:
         if unknown:
             raise ValueError(f"notify config: levels.{level} references unknown channel(s) {unknown}")
         # Catch the F002 shape at load time as well as at send time: a level
-        # that needs a record cannot route it through a disabled channel.
+        # that needs a record cannot route it through a disabled channel, and
+        # cannot leave the record channel off its routing list either.
+        if missing_record_channel(level, names, cfg):
+            raise ValueError(
+                f"notify config: levels.{level}.channels {names} routes to no system-of-record channel — "
+                f"a {level} without a record is not a decision that was filed"
+            )
         off = [n for n in names if is_required_channel(level, n, cfg) and not (channels.get(n) or {}).get("enabled")]
         if off:
             raise ValueError(
@@ -598,23 +620,35 @@ def ledger_lock(cfg: dict[str, Any], timeout_s: float | None = None, *, create: 
     anyway and defers a routine `digest`/`info` (#206 F003) — and the wait
     itself comes from :func:`lock_wait_s`, which outlasts the transports.
 
+    ``flock`` where ``fcntl`` exists, :func:`_exclusive_create_lock` where it
+    does not; either way a routine send that cannot take it fails closed, and
+    ``kca notify doctor`` reports which mechanism is in use.
+
     ``create=False`` skips locking entirely and creates nothing. A dry run
     appends no ledger entry, so it has nothing to serialise, and it is the
     command an operator rehearses with — including from a hook — so it must not
     leave a state directory or a `ledger.lock` behind (#206 F012).
     """
-    if fcntl is None or not create:  # pragma: no branch - fcntl exists on Linux/macOS
+    if not create:
         yield False
         return
     path = state_dir(cfg) / "ledger.lock"
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        yield False
+        return
+    wait_s = lock_wait_s(cfg) if timeout_s is None else float(timeout_s)
+    if fcntl is None:  # pragma: no cover - exercised by monkeypatching fcntl to None
+        with _exclusive_create_lock(path, wait_s) as acquired:
+            yield acquired
+        return
+    try:
         handle = path.open("a+", encoding="utf-8")
     except OSError:
         yield False
         return
     acquired = False
-    wait_s = lock_wait_s(cfg) if timeout_s is None else float(timeout_s)
     deadline = time.monotonic() + max(wait_s, 0.0)
     try:
         while True:
@@ -631,6 +665,52 @@ def ledger_lock(cfg: dict[str, Any], timeout_s: float | None = None, *, create: 
         if acquired:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
         handle.close()
+
+
+@contextmanager
+def _exclusive_create_lock(path: Path, wait_s: float) -> Iterator[bool]:
+    """`O_CREAT|O_EXCL` stand-in for `flock` where `fcntl` does not exist.
+
+    Without it, a platform with no ``fcntl`` had *no* serialisation at all, and
+    the routine fail-closed rule was skipped there as well — the one case that
+    needs it most (#206 F003). An exclusive create is atomic on every platform
+    CPython supports, so the budget stays serialised; the cost is that a process
+    killed while holding it leaves the file behind, which is why an untouched
+    lock older than the wait ceiling is reclaimed once.
+    """
+    fd: int | None = None
+    reclaimed = False
+    deadline = time.monotonic() + max(wait_s, 0.0)
+    while True:
+        try:
+            fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+            break
+        except FileExistsError:
+            try:
+                age = time.time() - path.stat().st_mtime
+            except OSError:
+                age = 0.0
+            if not reclaimed and age > max(wait_s, 0.0) + LOCK_STALE_MARGIN_S:
+                reclaimed = True
+                try:
+                    path.unlink()
+                except OSError:
+                    pass
+                continue
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(LOCK_POLL_S)
+        except OSError:
+            break
+    try:
+        yield fd is not None
+    finally:
+        if fd is not None:
+            os.close(fd)
+            try:
+                path.unlink()
+            except OSError:
+                pass
 
 
 def read_ledger(cfg: dict[str, Any]) -> list[dict[str, Any]]:
@@ -657,12 +737,22 @@ def read_ledger(cfg: dict[str, Any]) -> list[dict[str, Any]]:
     return entries
 
 
-def append_ledger(cfg: dict[str, Any], entry: dict[str, Any]) -> None:
+def append_ledger(cfg: dict[str, Any], entry: dict[str, Any], *, compact: bool = True) -> None:
+    """Append one entry, and compact only when the caller holds the lock.
+
+    The append itself is a single ``O_APPEND`` write and is safe unserialised,
+    which is what lets a `gate` record itself without the lock. Compaction is
+    not: it is a read → rewrite → :func:`os.replace`, so an unserialised writer
+    doing it can drop a line another process appended after its snapshot (#206
+    F015). Deferring compaction to the next serialised send costs nothing — the
+    ledger is trimmed by size, not on a schedule.
+    """
     path = ledger_path(cfg)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
-    compact_ledger(cfg)
+    if compact:
+        compact_ledger(cfg)
 
 
 def compact_ledger(cfg: dict[str, Any]) -> int:
@@ -670,35 +760,62 @@ def compact_ledger(cfg: dict[str, Any]) -> int:
 
     This file is appended to for the life of the project, and every dispatch
     reads it whole, so an unbounded ledger makes notifications progressively
-    slower. The current day (the budget) and the longest dedupe window are both
-    far inside ``LEDGER_KEEP_ENTRIES`` at a two-routine-pushes-per-day cap. The
-    last `sent` entry per level is *not*: ``suppress_unchanged`` compares against
-    it however old it is, so a newest-N window on its own silently re-enables
-    the digest it was meant to hold back (#206 F004). Those few entries are
-    therefore pinned, in place and in order, whatever their age.
+    slower. What survives compaction has to be enough to answer every question
+    the policy asks of the ledger, so a newest-N window on its own is not
+    enough. Two classes of entry are pinned in place and in order, whatever
+    their age:
+
+    * the last `sent` entry per level — ``suppress_unchanged`` compares against
+      it however old it is, so dropping it silently re-enables the digest it
+      was meant to hold back (#206 F004);
+    * the routine `sent` entries of the ledger's most recent day, up to the
+      daily cap — the cap counts *all* of them, so pinning only the last one per
+      level lets two same-level sends collapse into one and a third push through
+      (#206 F014). Keeping ``cap`` of them is enough: once that many survive the
+      budget already reads as spent, so the pin cannot grow without bound.
+
+    "Most recent day" is the local date of the newest timestamp in the file, not
+    the wall clock: compaction runs right after an append, so that day is the
+    day whose budget is live, and the rule stays testable without a clock.
 
     Returns the number of lines dropped.
     """
     path = ledger_path(cfg)
     try:
-        if path.stat().st_size <= LEDGER_MAX_BYTES:
+        size = path.stat().st_size
+        if size <= LEDGER_MAX_BYTES:
             return 0
         lines = [ln for ln in path.read_text(encoding="utf-8", errors="replace").splitlines() if ln.strip()]
         if len(lines) <= LEDGER_KEEP_ENTRIES:
             return 0
         keep = set(range(len(lines) - LEDGER_KEEP_ENTRIES, len(lines)))
         pinned: dict[str, int] = {}
+        sent_days: list[tuple[int, dt.date, str]] = []
         for index, line in enumerate(lines):
             try:
                 parsed = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if isinstance(parsed, dict) and parsed.get("status") == "sent" and parsed.get("level"):
-                pinned[str(parsed["level"])] = index
+            if not isinstance(parsed, dict) or parsed.get("status") != "sent" or not parsed.get("level"):
+                continue
+            level = str(parsed["level"])
+            pinned[level] = index
+            ts = _parse_ts(parsed.get("ts"))
+            if ts:
+                sent_days.append((index, ts.astimezone(_tz(cfg)).date(), level))
         keep.update(pinned.values())
+        cap = int((cfg.get("limits") or {}).get("routine_pushes_per_day") or 0)
+        if sent_days and cap > 0:
+            latest_day = max(day for _, day, _ in sent_days)
+            live = [i for i, day, level in sent_days if day == latest_day and level in ROUTINE_LEVELS]
+            keep.update(live[-cap:])
         kept = [lines[i] for i in sorted(keep)]
-        # A unique temp name: a process that is writing without the lock (a
-        # `gate` that could not take it) must not clobber another rewrite.
+        # Re-check the size the snapshot was taken at: an unserialised `gate`
+        # may have appended since, and rewriting from a stale snapshot would
+        # discard its line. Compaction is an optimisation, so skipping this
+        # round is free — the next serialised send trims the file (#206 F015).
+        if path.stat().st_size != size:
+            return 0
         tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
         tmp.write_text("\n".join(kept) + "\n", encoding="utf-8")
         os.replace(tmp, path)
@@ -1244,7 +1361,8 @@ def dispatch(
                 entries, key, SUPPRESSION_LOG_MINUTES, moment, status=status
             )
             if not dry_run and not repeat:
-                append_ledger(cfg, entry)
+                # Only a serialised writer compacts: see :func:`append_ledger`.
+                append_ledger(cfg, entry, compact=bool(locked))
             return {
                 "ok": status not in FAILED_STATUSES,
                 "status": status,
@@ -1261,7 +1379,7 @@ def dispatch(
             # processes both take the last slot (#206 F003). A `gate` or an
             # `attention` still goes out unserialised — never dropped for a lock
             # — and a dry run takes no lock because it appends nothing.
-            if level in ROUTINE_LEVELS and not locked and not dry_run and fcntl is not None:
+            if level in ROUTINE_LEVELS and not locked and not dry_run:
                 return _record(
                     "deferred",
                     {
@@ -1307,8 +1425,22 @@ def dispatch(
                     },
                 )
 
+        routed = list(spec.get("channels") or [])
         results: list[dict[str, Any]] = []
-        for channel in spec.get("channels") or []:
+        # A dispatch cannot report `sent` for a level whose contract includes the
+        # record when nothing in its routing *is* the record. `validate_config`
+        # rejects that config, but `dispatch` is also called with dicts built in
+        # process, so the guarantee is enforced here too (#206 F002).
+        if missing_record_channel(level, routed, cfg):
+            results.append(
+                {
+                    "ok": False,
+                    "channel": "record",
+                    "error": f"levels.{level}.channels {routed} routes to no system-of-record channel; "
+                    f"a {level} cannot be filed",
+                }
+            )
+        for channel in routed:
             channel_cfg = (cfg.get("channels") or {}).get(channel) or {}
             if not channel_cfg.get("enabled"):
                 # "Off by configuration" is a successful skip for a push channel
@@ -1459,6 +1591,16 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             checks.append({"name": "gh auth", "ok": False, "detail": redact(str(exc))})
+
+    # Which mechanism serialises the budget, named rather than assumed: the
+    # routine fail-closed rule is only as good as the lock behind it (#206 F003).
+    checks.append(
+        {
+            "name": "ledger lock",
+            "ok": True,
+            "detail": "flock" if fcntl is not None else "O_CREAT|O_EXCL fallback (no fcntl on this platform)",
+        }
+    )
 
     moment = _now(cfg)
     entries = read_ledger(cfg)
