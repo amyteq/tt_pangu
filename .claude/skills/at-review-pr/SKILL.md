@@ -47,6 +47,11 @@ providers, and PR before the first launch.
 3. Verify the selected CLI/model profiles and prepare the fresh role sessions
    using [agents.md](references/agents.md). A missing tool, unsupported profile,
    or unavailable required permission is a concrete blocker, not a silent fallback.
+   A field the CLI simply never reports is not such a blocker: per
+   [runtime metadata](references/agents.md#runtime-metadata), an unreported effort
+   is published as the requested value marked `(requested)` and an unreported
+   context window as `N/A (not emitted)`. Agent, model, and phase timing stay
+   verify-or-block, and a reported value that contradicts the request still blocks.
 4. Use a dedicated worktree checked out at the PR head. Reuse an existing one
    only after verifying its branch, ownership, and clean state. Preserve dirty
    work; do not reset it. Only the writer edits source files. Do not run reviewer

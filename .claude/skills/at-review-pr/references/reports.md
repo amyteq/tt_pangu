@@ -32,8 +32,7 @@ Verdict: continue / approval-eligible / blocked / budget-exhausted.
 Unresolved P0/P1: IDs or none. Residual P2/P3: IDs or none.
 
 ---
-🔎 ACTUAL_AGENT ACTUAL_MODEL, ACTUAL_EFFORT · read-only head: [HEAD_SHA_SHORT](HEAD_COMMIT_URL) · context: OBSERVED_CONTEXT_OR_NA · STARTED_TIMESTAMP..ENDED_TIMESTAMP TZ · MEASURED_ELAPSED
-Requested profile: REQUESTED_PROFILE · metadata evidence: LOCAL_REFERENCE · VERDICT
+🔎 ACTUAL_AGENT·ACTUAL_MODEL·ACTUAL_EFFORT · read-only head: [HEAD_SHA_SHORT](HEAD_COMMIT_URL) · context: OBSERVED_CONTEXT_OR_NA · STARTED_TIMESTAMP TZ · MEASURED_ELAPSED · VERDICT
 ```
 
 In round 1 write `previous review: none` and `writer disposition: none` as plain
@@ -58,40 +57,42 @@ Cover every open finding. Propose follow-ups without filing new issues unless
 authorized. State failed or unrun tests; do not imply a rebuttal/deferral is accepted.
 
 ---
-✏️ ACTUAL_AGENT ACTUAL_MODEL, ACTUAL_EFFORT · head: [RESULT_SHA_SHORT](RESULT_COMMIT_URL) · context: OBSERVED_CONTEXT_OR_NA · STARTED_TIMESTAMP..ENDED_TIMESTAMP TZ · MEASURED_ELAPSED
-Requested profile: REQUESTED_PROFILE · metadata evidence: LOCAL_REFERENCE
+✏️ ACTUAL_AGENT·ACTUAL_MODEL·ACTUAL_EFFORT · head: [RESULT_SHA_SHORT](RESULT_COMMIT_URL) · context: OBSERVED_CONTEXT_OR_NA · STARTED_TIMESTAMP TZ · MEASURED_ELAPSED
 ```
 
 ## Signature fields
 
-Each signature is exactly two rendered lines: end the first with two trailing
-spaces so both join one block, and separate fields with ` · `. The coordinator
-fills them from that phase's execution evidence, never from estimates or from the
-text of the launch command.
+Each signature is a single rendered line: fields joined by ` · `, with the
+provider triple joined by `·` without spaces. The coordinator fills it from that
+phase's execution evidence, never from estimates or from the launch command text.
 
 | Field | Meaning | Example |
 |---|---|---|
-| `ACTUAL_AGENT ACTUAL_MODEL, ACTUAL_EFFORT` | Provider, model, and reasoning effort the session actually reported | `codex gpt-5.6-sol, xhigh` |
-| `OBSERVED_CONTEXT_OR_NA` | Context window available to that session as reported — not tokens consumed | `context: 1M`, `context: 400k`, `context: N/A (not emitted)` |
-| `STARTED_TIMESTAMP..ENDED_TIMESTAMP TZ` | Coordinator wall clock around the phase, each `yyyy-MM-dd HH:mm`, with the zone named once | `2026-09-16 08:24..2026-09-16 08:28 AEST` |
+| `ACTUAL_AGENT·ACTUAL_MODEL·ACTUAL_EFFORT` | Provider, model, and reasoning effort for the session | `codex·gpt-5.6-sol·xhigh`, `claude·claude-opus-5·xhigh (requested)` |
+| `OBSERVED_CONTEXT_OR_NA` | Context window available to that session as reported — not tokens consumed | `context: 1M`, `context: 200k`, `context: N/A (not emitted)` |
+| `STARTED_TIMESTAMP TZ` | Coordinator wall clock when the phase started, `yyyy-MM-dd HH:mm`, zone named | `2026-09-16 08:24 AEST` |
 | `MEASURED_ELAPSED` | Measured duration of that phase as `H:mm` | `0:04` (4 minutes), `1:37` (1 hour 37 minutes) |
-| `REQUESTED_PROFILE` | Provider/model/effort (and context variant) requested at launch | `codex/gpt-5.6-sol/xhigh`, `claude/claude-opus-5[1m]/xhigh` |
-| `LOCAL_REFERENCE` | Where the sanitized per-phase metadata for these fields is kept | local-only `r1-review.metadata.json` (CLI header plus measured timing) |
-| `VERDICT` (reviewer only) | Outcome label for this review | `CHANGE REQUIRED`, `APPROVAL ELIGIBLE`, `APPROVED`, `BLOCKED`, `BUDGET EXHAUSTED` |
+| `VERDICT` (reviewer only) | Outcome label for this review; always the last field | `CHANGE REQUIRED`, `APPROVAL ELIGIBLE`, `APPROVED`, `BLOCKED`, `BUDGET EXHAUSTED` |
 
-Elapsed hours are unbounded and minutes are rounded, so a sub-minute phase shows
-`0:00`; keep the raw ISO timestamps and seconds in the metadata file instead of
-inflating the published value. Use the phase's own wall time, not total loop time.
+The end timestamp, the requested profile, and the per-phase metadata file are
+recorded in scratch under [runtime metadata](agents.md#runtime-metadata) rather
+than published here. Elapsed hours are unbounded and minutes are rounded, so a
+sub-minute phase shows `0:00`; keep raw ISO timestamps and seconds in that file
+instead of inflating the published value. Use the phase's own wall time, not
+total loop time.
 
-`N/A (not emitted)` belongs only to a context field the CLI genuinely never
-reports. Required metadata — agent, model, effort, start/end — that cannot be
-observed stays `unverified` and blocks the phase; do not substitute a plausible
-value or read one back from the launch flags. `REQUESTED_PROFILE` records what was
-asked for, so any mismatch with the actual fields is a blocker, not a footnote.
-For `LOCAL_REFERENCE`, link committed evidence when it exists; otherwise name the
-local-only scratch file and say it is local. Publish only the non-secret summary,
-never raw transcripts, tokens, or credentials. If a phase failed before model
-execution, say "not run" rather than signing it.
+`ACTUAL_EFFORT` is the value the CLI reported. When a CLI reports no effort at
+all, publish the requested value with a trailing ` (requested)` — for example
+`claude·claude-opus-5·xhigh (requested)` — and note in the metadata file that
+this CLI has no echo. An unreported effort does **not** block the phase.
+Agent, model, and phase timing stay verify-or-block: when those cannot be
+observed, mark them `unverified` and stop rather than substituting a plausible
+value. `N/A (not emitted)` belongs only to a context field the CLI genuinely
+never reports. A value that contradicts the request — a different model, a
+fallback notice, an effort cap, a rejected `--effort` value — is a blocker, not a
+footnote. Publish only the non-secret summary, never raw transcripts, tokens, or
+credentials. If a phase failed before model execution, say "not run" rather than
+signing it.
 
 The body `Verdict:` line records loop state; the footer `VERDICT` labels the
 review outcome. Keep them consistent:
