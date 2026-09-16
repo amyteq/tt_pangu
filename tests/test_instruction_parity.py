@@ -618,18 +618,31 @@ def test_generator_accepts_valid_yaml_the_reader_does_not_parse(gen, tmp_path, m
 #     this test, paste the literal it prints over the matching rows of
 #     `PINNED_MENTIONS`, and quote the before/after in the PR body — a reworded rule is
 #     a policy change and is reviewed as one.
-#   * `MENTION_TOPICS`' triggers are the one enumeration left, and an omission there
-#     leaves a sentence *unpinned* rather than wrongly admitted. That is a stated scope
-#     limit rather than a defeated adjudication: a mention spelled in none of these ways
-#     ("rewriting published history needs sign-off") is out of scope, not examined and
-#     passed. They are written broad for exactly that reason — matching too much only
-#     pins more sentences, which costs review time and nothing else.
+#   * `MENTION_TOPICS`' triggers and `POLICY_SURFACES` are the two enumerations left, and
+#     an omission in either leaves a sentence *unpinned* rather than wrongly admitted.
+#     That is a stated scope limit rather than a defeated adjudication: a mention spelled
+#     in none of these ways ("rewriting published history needs sign-off"), or written on
+#     a file nobody is told to read, is out of scope — not examined and passed. Both are
+#     written broad for exactly that reason: matching too much only pins more sentences,
+#     which costs review time and nothing else.
+#   * Code is scanned rather than skipped, so a *new* fenced example that mentions one of
+#     the topics needs a pin row too. That is the price of tagging instead of ignoring,
+#     and it buys the direction that matters: a rule demoted into a fence is reported.
 #
 # The pinned text is the sentence with markdown emphasis and code ticks removed and its
 # whitespace collapsed: those are rendering, so a bold/plain or hard-wrap/soft-wrap
 # change is not drift. Stripping `*` does mangle a glob (`.kca/permissions/*.yaml` pins
 # as `.kca/permissions/.yaml`); the pin only ever compares itself to itself, so that
 # costs readability and not correctness.
+#
+# Being code is not rendering, though. A rule moved into a fenced block, or wrapped whole
+# in inline code, stops being a rule and becomes an illustration — and with the ticks
+# stripped it would otherwise pin byte-identical to the prose it replaced, so the edit
+# would pass unseen. The pin therefore carries the block its sentence was found in: code
+# pins under `[code] `, prose pins bare, and moving one into the other is reported as an
+# addition and a removal. `_blocks` reads that off markdown structure, which is decidable,
+# and never off what the sentence says.
+CODE_PIN = "[code] "
 MENTION_BREAK = re.compile(
     r"""(?<=[.!?])[*`"')\]]*\s+"""  # a sentence ends — trailing emphasis or bracket and all
     r"|\n\s*\n"  # a block ends
@@ -657,10 +670,34 @@ class _MentionTopic(NamedTuple):
     review_note: str
 
 
+# Every document a harness is pointed at, scanned for every topic. One list rather than
+# one per topic, because a file loaded by one topic and not another is how half of round
+# 5's report happened: AGENTS.md pinned three force-push sentences while
+# `docs/instructions/agents-delta.md` — the file AGENTS.md generates those very sentences
+# from — was scanned for the autonomy topic and not for force-push. A surface that never
+# mentions a topic costs nothing to list and catches the first sentence that does.
+POLICY_SURFACES = tuple(
+    dict.fromkeys(
+        (
+            "CLAUDE.md",  # the project doc itself
+            "AGENTS.md",  # its Codex mirror
+            "PROJECT_STATE.md",
+            *REQUIRED_READING,  # AGENTS.md sends Codex to these; checked above
+            "docs/instructions/agents-delta.md",  # the Codex delta AGENTS.md is built from
+            ".agents/README.md",  # required reading: AGENTS.md:27, agents-delta.md:37
+            "docs/architecture/platform-vs-runtime-agents.md",  # the two-agents distinction
+            "docs/adr/0022-long-run-competition-operating-model.md",  # required reading: AGENTS.md:25
+        )
+    )
+)
+# Deliberately not listed: `CLAUDE_zh.md`, which its own header calls a human-reading
+# mirror and never authoritative, and `docs/tooling/codex-parity.md`, which records
+# evidence about the harnesses rather than instructing one.
+
 MENTION_TOPICS = {
     "force-push": _MentionTopic(
         trigger=lambda sentence: bool(FORCE_PUSH_MENTION.search(sentence)),
-        docs=tuple(dict.fromkeys(("CLAUDE.md", "AGENTS.md", "PROJECT_STATE.md", *REQUIRED_READING))),
+        docs=POLICY_SURFACES,
         skills=True,
         review_note=(
             "Check the new wording still denies force-push outright and offers no route to yes. "
@@ -669,17 +706,7 @@ MENTION_TOPICS = {
     ),
     "autonomy-screen": _MentionTopic(
         trigger=lambda sentence: bool(SCREEN_MENTION.search(sentence)),
-        docs=tuple(
-            dict.fromkeys(
-                (
-                    "CLAUDE.md",
-                    "AGENTS.md",
-                    "docs/instructions/agents-delta.md",
-                    "docs/architecture/platform-vs-runtime-agents.md",
-                    *REQUIRED_READING,
-                )
-            )
-        ),
+        docs=POLICY_SURFACES,
         skills=True,
         review_note=(
             "Check the new wording still says the grant is off. ADR-0022 §5 gates it on activation "
@@ -688,6 +715,10 @@ MENTION_TOPICS = {
     ),
     "approval-rule": _MentionTopic(
         trigger=_states_an_approval_rule,
+        # Skills only, by design rather than by omission: the question this topic asks —
+        # whom does this approval rule bind? — is one `CLAUDE.md` and `AGENTS.md` answer
+        # in their own voice, section by section. It is a skill, read by both harnesses
+        # after the project doc, that has to name its subject.
         docs=(),
         skills=True,
         review_note=(
@@ -699,19 +730,113 @@ MENTION_TOPICS = {
 }
 
 
-def _pin_text(sentence: str) -> str:
-    """The pinned form: emphasis and code ticks gone, whitespace collapsed."""
-    return " ".join(sentence.replace("*", "").replace("`", "").split())
+CODE_FENCE = re.compile(r"^ {0,3}(?P<mark>```+|~~~+)(?P<info>.*)$")
+LIST_MARKER = re.compile(r"(?:[-*+>]|\d+[.)])\s")
+INLINE_CODE = re.compile(r"`+[^`]*(?:`+|$)")
+WORD = re.compile(r"\w")
+INDENTS = ("    ", "\t")
+
+
+def _code_lines(lines: list[str]) -> list[bool | None]:
+    """Per line: code, prose, or `None` for a fence delimiter, which is neither.
+
+    Fenced blocks are tracked exactly — a closing fence is the same character, at least as
+    long as its opener, and carries no info string. The ``` and ~~~ lines themselves are
+    dropped so that the fence character and its info string stay out of the pin: swapping
+    ```` ```sh ```` for ```` ```bash ```` is rendering, like emphasis.
+
+    An indented block is recognised only in the shape CommonMark leaves no room to argue
+    about: a blank line, then four spaces, under a line that starts at column 0 and is not
+    a list marker. Four spaces under a bullet is that bullet's *content*, and calling prose
+    code would reopen the very hole this split closes, so that shape stays prose —
+    under-tagging on purpose.
+    """
+    flags: list[bool | None] = []
+    fence = ""
+    indented = False
+    preceding = ""  # the last prose line, which decides whether an indent opens a block
+    blank = True
+    for line in lines:
+        opener = CODE_FENCE.match(line)
+        closes = (
+            opener
+            and fence
+            and opener["mark"][0] == fence[0]
+            and len(opener["mark"]) >= len(fence)
+            and not opener["info"].strip()
+        )
+        if fence:
+            flags.append(None if closes else True)
+            fence = "" if closes else fence
+            continue
+        if opener:
+            fence, indented, blank = opener["mark"], False, False
+            flags.append(None)
+            continue
+        if not line.strip():
+            flags.append(indented)  # a blank line inside an indented block does not end it
+            blank = True
+            continue
+        if indented and line.startswith(INDENTS):
+            flags.append(True)
+            blank = False
+            continue
+        indented = bool(
+            blank
+            and line.startswith(INDENTS)
+            and preceding
+            and preceding[:1] not in " \t"
+            and not LIST_MARKER.match(preceding)
+        )
+        flags.append(indented)
+        preceding, blank = line, False
+    return flags
+
+
+def _blocks(text: str) -> list[tuple[bool, str]]:
+    """`(is_code, chunk)` runs of the document, code split off from prose."""
+    lines = text.splitlines()
+    runs: list[tuple[bool, list[str]]] = []
+    for line, is_code in zip(lines, _code_lines(lines)):
+        if is_code is None:
+            continue
+        if runs and runs[-1][0] == is_code:
+            runs[-1][1].append(line)
+        else:
+            runs.append((is_code, [line]))
+    return [(is_code, "\n".join(chunk)) for is_code, chunk in runs if "\n".join(chunk).strip()]
+
+
+def _is_code_span(sentence: str) -> bool:
+    """True when the sentence is code the whole way through — `like this`, and nothing else.
+
+    A sentence that *contains* code spans is prose, and `_pin_text` drops the ticks so that
+    back-ticking a filename is not drift. A sentence that *is* one is not prose at all.
+    `INLINE_CODE` lets an unterminated span run to the end of the string because
+    `MENTION_BREAK` takes the closing tick with it when it ends a sentence on ``.` ``.
+    """
+    return "`" in sentence and not WORD.search(INLINE_CODE.sub(" ", sentence))
+
+
+def _pin_text(sentence: str, *, code: bool = False) -> str:
+    """The pinned form: emphasis and code ticks gone, whitespace collapsed, block tagged."""
+    return (CODE_PIN if code else "") + " ".join(sentence.replace("*", "").replace("`", "").split())
 
 
 def _mentions(text: str, trigger: Callable[[str], bool]) -> tuple[str, ...]:
     """Every pinnable sentence of `text` that the trigger matches, in document order.
 
     `MENTION_BREAK` is a deterministic split, not a linguistically correct one, and it
-    does not need to be: the pin makes no claim about what a sentence means, only that
-    the same document splits the same way twice.
+    does not need to be: the pin makes no claim about what a sentence means, only that the
+    same document splits the same way twice. It runs inside a block rather than across the
+    document, so a rule and the example under it can never merge into one pin.
     """
-    return tuple(_pin_text(part) for part in MENTION_BREAK.split(text) if part and part.strip() and trigger(part))
+    return tuple(
+        _pin_text(part, code=is_code or _is_code_span(part))
+        for is_code, chunk in _blocks(text)
+        for part in MENTION_BREAK.split(chunk)
+        if part and part.strip() and trigger(part)
+    )
 
 
 def _skill_surfaces() -> list[str]:
@@ -774,6 +899,19 @@ PINNED_MENTIONS: dict[tuple[str, str], tuple[str, ...]] = {
     ("force-push", "docs/engineering-practice.md"): (
         "Unchanged: no direct pushes to main, no force-push, no merging on red or pending checks, someone else's PR stays theirs to approve, and permanent-deletion remote writes still require explicit human approval.",
     ),
+    # The same three sentences as AGENTS.md above, on the file AGENTS.md generates them
+    # from. `gen_agents.py --check` keeps the pair identical; pinning both means an edit
+    # here is named on the file it was made in.
+    ("force-push", "docs/instructions/agents-delta.md"): (
+        "Claude Code sessions in this repo run behind .claude/hooks/guard_tool.py, a PreToolUse hook that refuses a pattern list of destructive commands — force-push, remote branch deletion, gh <resource> delete, scripts/sync_labels.py --apply, and some host-destructive shell — and .claude/hooks/audit_event.py, a PostToolUse hook registered for Bash, Edit and Write (plus config changes) that appends those events to .agent/audit/tool-events.jsonl.",
+        "- Do not force-push, and do not push to main.",
+        "Neither is approvable: the shared rules deny force-push outright rather than gating it.",
+    ),
+    # A comparison-table row, not an approval rule: it records that Codex ships no hooks,
+    # so the force-push denial binds it by being read rather than by being enforced.
+    ("force-push", ".agents/README.md"): (
+        "| hooks/.py (guard_tool, format_gate, audit_event) | absent — Codex hooks are per-user config (~/.codex/config.toml / a managed dir), never repo-shipped | Real safety asymmetry: in Codex the deletion / force-push / secret rules are enforced only by reading them, and no .agent/audit/tool-events.jsonl trail is written.",
+    ),
     ("force-push", ".agents/skills/at-review-pr/SKILL.md"): (
         "No force-push, direct push to the base branch, or merge.",
     ),
@@ -795,6 +933,14 @@ PINNED_MENTIONS: dict[tuple[str, str], tuple[str, ...]] = {
         "The new submit step runs autonomously under the KCA autonomy model (docs/adr/0021-kca-autonomy-model.md): when autonomy.enabled is true in the file competition.yaml:autonomy_config names (ADR-0022 §5 A1) and autonomy.screen passes, KCA submits without per-action approval and persists a transactional intended-submission record in Supabase before dispatch — ADR-0022 §5's A6.",
         "Design intent, not current behaviour: no code evaluates autonomy.screen, so this paragraph describes what M15 was aiming at, not what the tree does.",
     ),
+    # ADR-0022 §5 itself. The sentence states which model applies on paper while A1-A7 go
+    # unmet; the paragraph immediately under it ("Neither the widened nor the narrower
+    # model is implemented", :482) carries the implementation gap, and `beats_best` is a
+    # gate in ADR-0021 §2 precisely because §5 demotes it to an ordering key (:470). So it
+    # agrees with CLAUDE.md principle 6 — and it is one edit away from not agreeing.
+    ("autonomy-screen", "docs/adr/0022-long-run-competition-operating-model.md"): (
+        "Until a competition satisfies A1–A7, it runs under the narrower ADR-0021 §2 model — screened autonomy with beats_best as a gate.",
+    ),
     ("autonomy-screen", ".agents/skills/kaggle-experiment-loop/SKILL.md"): (
         "ADR-0022 §5 opens the approval-free path only for a competition meeting activation conditions A1-A7; no competition meets them, ADR-0021 §2's earlier screened grant is unimplemented, and no code reads the block, so KCA's submissions are asked for too.",
     ),
@@ -804,8 +950,11 @@ PINNED_MENTIONS: dict[tuple[str, str], tuple[str, ...]] = {
     ("approval-rule", ".agents/skills/kaggle-experiment-loop/SKILL.md"): (
         "Do not submit automatically: a submission spends the human's Kaggle credentials and daily quota, so present file path, experiment ID, local metric, expected leaderboard behavior and risk, and ask for human approval.",
     ),
+    # `[code] ` because this one lives inside a ```sh block: it is the annotated command,
+    # not a prose rule. The tag is what makes the reverse edit — a prose rule demoted into
+    # a fence — visible; see `test_a_rule_moved_into_code_is_caught`.
     ("approval-rule", ".agents/skills/labels-sync/SKILL.md"): (
-        "# Apply (REMOTE WRITE — requires explicit human approval BEFORE running) python scripts/sync_labels.py --apply --i-mean-it",
+        "[code] # Apply (REMOTE WRITE — requires explicit human approval BEFORE running) python scripts/sync_labels.py --apply --i-mean-it",
     ),
 }
 
@@ -857,6 +1006,43 @@ def test_every_sensitive_mention_is_the_one_that_was_reviewed(name: str):
         ),
         ("spelled with a flag", "Do not `git push --force-with-lease`.", ("Do not git push --force-with-lease.",)),
         ("no mention", "Permanent deletions need explicit human approval.", ()),
+        # Code is not rendering: a rule that becomes an example pins differently, so the
+        # move is drift. Which block a sentence sits in is read off markdown structure.
+        ("bare fence", "```\nForce-push is denied outright.\n```", ("[code] Force-push is denied outright.",)),
+        ("fence with an info string", "```sh\ngit push -f  # never\n```", ("[code] git push -f # never",)),
+        ("tilde fence", "~~~\nForce-push is denied outright.\n~~~", ("[code] Force-push is denied outright.",)),
+        (
+            "a whole sentence in inline code",
+            "`Force-push is denied outright.`",
+            ("[code] Force-push is denied outright.",),
+        ),
+        # ... but a sentence that merely *contains* code spans is still prose, which is
+        # what keeps back-ticking a path from reading as a policy change.
+        ("code spans inside prose", "Force-push (`git push -f`) is denied.", ("Force-push (git push -f) is denied.",)),
+        (
+            "an inline-code sentence ending a paragraph",
+            "Deletions need approval. `Force-push is denied outright.`\n",
+            ("[code] Force-push is denied outright.",),
+        ),
+        # An indented code block under a paragraph is code; four spaces under a bullet is
+        # that bullet's own continuation, and stays prose.
+        (
+            "indented block",
+            "For example:\n\n    Force-push is denied outright.\n",
+            ("[code] Force-push is denied outright.",),
+        ),
+        (
+            "indented under a bullet",
+            "- A bullet.\n\n    Force-push is denied outright.\n",
+            ("Force-push is denied outright.",),
+        ),
+        # A fence ends a sentence as surely as a full stop: the rule and the example under
+        # it stay two pins rather than merging into one.
+        (
+            "prose then fence",
+            "Force-push is denied outright\n```\ngit push -f\n```",
+            ("Force-push is denied outright", "[code] git push -f"),
+        ),
     ],
 )
 def test_the_mention_scanner_extracts_these_sentences(label: str, text: str, expected: tuple[str, ...]):
@@ -945,6 +1131,25 @@ def test_the_round_4_counterexamples_are_all_caught(name: str, surface: str, sen
             "ADR-0022 §5 opens the approval-free path only for a competition meeting activation conditions **A1-A7**;",
             "ADR-0021 §2's screened autonomy is default-on, so pushes and submissions need no approval;",
         ),
+        # The three surfaces round 5 found unscanned, each mutated the way it would drift.
+        (
+            "autonomy-screen",
+            "docs/adr/0022-long-run-competition-operating-model.md",
+            "**Until a competition satisfies A1–A7, it runs under the narrower ADR-0021 §2 model** —",
+            "**Every competition runs under ADR-0021 §2's screened autonomy today** —",
+        ),
+        (
+            "force-push",
+            ".agents/README.md",
+            "Real safety asymmetry: in Codex the deletion / force-push / secret rules are enforced only by reading them",
+            "In Codex the deletion / force-push / secret rules are advisory, so a force-push may be approved in session",
+        ),
+        (
+            "force-push",
+            "docs/instructions/agents-delta.md",
+            "- Do not force-push, and do not push to `main`.",
+            "- Do not force-push without the owner's recorded approval.",
+        ),
     ],
 )
 def test_a_mutated_rule_on_a_real_surface_is_caught(name: str, surface: str, original: str, mutated: str):
@@ -957,6 +1162,45 @@ def test_a_mutated_rule_on_a_real_surface_is_caught(name: str, surface: str, ori
     assert all(p.startswith(f"{surface}: ") for p in problems), problems
     assert any(p.startswith(f"{surface}: not reviewed: ") for p in problems), problems
     assert any(p.startswith(f"{surface}: reviewed text is gone or altered: ") for p in problems), problems
+
+
+@pytest.mark.parametrize("form", ["a bare fence", "inline code"])
+@pytest.mark.parametrize(
+    "name,surface,sentence",
+    [
+        (
+            "force-push",
+            "CLAUDE.md",
+            "Force-push (`git push -f` / `--force-with-lease`) is also denied.",
+        ),
+        (
+            "autonomy-screen",
+            ".agents/skills/kaggle-tooling-integration/SKILL.md",
+            "ADR-0022 \u00a75 opens the approval-free path only for a competition meeting activation "
+            "conditions **A1-A7**; no competition meets them, ADR-0021 \u00a72's earlier screened grant "
+            "is unimplemented, and no code reads the block, so KCA's pushes and submissions are "
+            "asked for too.",
+        ),
+    ],
+)
+def test_a_rule_moved_into_code_is_caught(form: str, name: str, surface: str, sentence: str):
+    """A live rule demoted to an example is drift, and it used to be invisible.
+
+    Both forms leave the wording alone and change only what the wording *is*: normative
+    prose becomes a code sample. Before `_blocks`, the ticks were stripped and the block
+    ignored, so both pinned byte-identical to the rule they replaced and `_pin_diff`
+    returned `[]` on the real `CLAUDE.md` and the real skill.
+    """
+    text = (REPO_ROOT / surface).read_text(encoding="utf-8")
+    assert sentence in text, f"{surface} no longer contains the sentence this case moves"
+    plain = sentence.replace("`", "").replace("*", "")
+    hidden = f"\n\n```\n{plain}\n```\n\n" if form == "a bare fence" else f"`{plain}`"
+    doctored = _mentions(text.replace(sentence, hidden), MENTION_TOPICS[name].trigger)
+    pinned = {rel: body for (pin_topic, rel), body in PINNED_MENTIONS.items() if pin_topic == name}
+    problems = _pin_diff(pinned, {**_collect_mentions(name), surface: doctored})
+    assert all(p.startswith(f"{surface}: ") for p in problems), problems
+    assert any(p.startswith(f"{surface}: not reviewed: {CODE_PIN}") for p in problems), problems
+    assert any(p == f"{surface}: reviewed text is gone or altered: {_pin_text(sentence)}" for p in problems), problems
 
 
 CJK = re.compile(r"[\u4e00-\u9fff]")
