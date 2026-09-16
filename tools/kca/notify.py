@@ -95,11 +95,13 @@ MAX_TITLE_CHARS = 200
 MAX_BODY_CHARS = 2000
 # Telegram rejects a `sendMessage` body over 4096 characters. A decision card is
 # assembled from validated ids plus free-text labels, so every free-text part is
-# bounded and the assembled card is clipped as a backstop — an over-long label
-# must not turn a gate into a failed push (#206 F011).
+# bounded *after HTML escaping* and the card degrades by whole lines — an
+# over-long label must not turn a gate into a failed push (#206 F011).
 TELEGRAM_MAX_CHARS = 4096
 MAX_CARD_FIELD_CHARS = 120
 MAX_OPTION_LABEL_CHARS = 120
+MAX_CARD_SUMMARY_CHARS = 500
+MAX_CARD_URL_CHARS = 400
 MAX_RENDERED_OPTIONS = 10
 # Any configured secret shorter than this is not masked by value — masking a
 # 2-character value would blank out unrelated text for no security gain.
@@ -175,11 +177,38 @@ _SECRET_ASSIGNMENT_RE = re.compile(
     r"(\"[^\"\n]*\"|'[^'\n]*'|\S+)"
 )
 
-# Names that merely *contain* a keyword but are ordinary operator reporting.
-# `tokens: 1500 remaining` and `max_tokens: 4096` are budget fields, not
-# credentials, and masking them removes the number the human needs (#206 F010).
-# The singular `token=…` / `TOKENS_SECRET=…` still masks.
-_OPERATOR_FIELD_RE = re.compile(r"(?i)(?:^|[_.\-])tokens(?:$|[_.\-])")
+# Names that are ordinary operator reporting rather than credentials.
+# `tokens: 1500 remaining` and `max_tokens: 4096` are budget fields, and masking
+# them removes the number the human needs (#206 F010). The exemption is an
+# *exact* name list, not a "contains a `tokens` component" rule: the component
+# rule also exempted `TOKENS_SECRET=…`, `API_TOKENS=…` and `max_tokens_secret=…`,
+# which read as credentials and now mask again (#206 F010, round 3).
+_OPERATOR_FIELD_NAMES = frozenset(
+    {
+        "tokens",
+        "max_tokens",
+        "min_tokens",
+        "num_tokens",
+        "n_tokens",
+        "total_tokens",
+        "input_tokens",
+        "output_tokens",
+        "prompt_tokens",
+        "completion_tokens",
+        "cached_tokens",
+        "reasoning_tokens",
+        "max_output_tokens",
+        "max_input_tokens",
+        "tokens_used",
+        "tokens_left",
+        "tokens_remaining",
+    }
+)
+
+# …and the exemption only applies to a value that *is* a budget number. A count
+# cannot be an opaque credential, so `max_tokens=4096` survives while
+# `max_tokens=sk-live-abcdef` does not (#206 F010, round 3).
+_COUNT_VALUE_RE = re.compile(r"""\A["']?[+-]?\d[\d,_]*(?:\.\d+)?["']?\Z""")
 
 # An `Authorization` header value is a credential *in its entirety* — scheme,
 # payload and any continuation — so unlike a named assignment it is masked to
@@ -220,9 +249,13 @@ def _configured_secret_values(cfg: dict[str, Any] | None) -> tuple[str, ...]:
 
 
 def _mask_assignment(match: re.Match[str]) -> str:
-    """Mask the value of `SECRET_NAME=value`, unless the name is operator text."""
+    """Mask the value of `SECRET_NAME=value`, unless it is a budget count.
+
+    Both halves of the exemption are required: an exact operator field name *and*
+    a numeric value. Either one alone let a credential through (#206 F010).
+    """
     name = match.group(1)
-    if _OPERATOR_FIELD_RE.search(name):
+    if name.casefold() in _OPERATOR_FIELD_NAMES and _COUNT_VALUE_RE.match(match.group(3)):
         return match.group(0)
     return f"{name}{match.group(2)}{REDACTED}"
 
@@ -238,8 +271,9 @@ def redact(text: Any, cfg: dict[str, Any] | None = None) -> str:
 
     It masks *credential shapes and credential-named fields*, not "text that
     might be private": arbitrary private competition data has no shape, so the
-    defence against that is the single private recipient plus the `--no-content`
-    opt-out in ``scripts/agent_notify.py``, not this function (#206 F001/F010).
+    defence against that is not this function but the rule that session text is
+    never forwarded unless asked for — ``scripts/agent_notify.py`` pushes
+    metadata only until ``--content`` is passed (#206 F001/F010).
     """
     scrubbed = str(text)
     for pattern in _SECRET_VALUE_RES:
@@ -857,48 +891,63 @@ def _tg_escape(text: Any) -> str:
     return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def _clip_html(text: str, limit: int) -> str:
-    """Bound an already-escaped HTML message without leaving a broken fragment.
+def _tg_escape_clip(text: Any, limit: int) -> str:
+    """Escape for `parse_mode=HTML` and bound the **escaped** length.
 
-    The per-field bounds above should make this unreachable; it is the backstop
-    that makes "a card is never over Telegram's limit" true by construction
-    rather than by arithmetic (#206 F011). A truncated `&amp;` or `<a href=…`
-    would make Telegram reject the whole message, so the cut is pulled back to
-    the last safe boundary and any unclosed tag is dropped with the tail.
+    Escaping expands — 500 characters of `&` become 2500 of `&amp;` — so a field
+    bounded in source characters could still push an assembled card past
+    Telegram's limit (#206 F011). Entities are appended whole, so the bound can
+    never land inside an `&amp;`.
     """
-    if len(text) <= limit:
-        return text
-    cut = text[: limit - 1]
-    cut = re.sub(r"<[^>]*$", "", cut)  # a tag opened but not closed by the cut
-    cut = re.sub(r"&[A-Za-z#0-9]*$", "", cut)  # a half-written entity
-    if "<" in cut and cut.count("<") != cut.count(">"):  # pragma: no cover - defensive
-        cut = cut[: cut.rfind("<")]
-    return cut + "…"
+    escaped = _tg_escape(text)
+    if len(escaped) <= limit:
+        return escaped
+    out: list[str] = []
+    used = 0
+    for char in str(text):
+        piece = _tg_escape(char)
+        if used + len(piece) > limit - 1:
+            break
+        out.append(piece)
+        used += len(piece)
+    return "".join(out) + "…"
 
 
-def render_telegram_text(req: DecisionRequest, cfg: dict[str, Any]) -> str:
-    """The compact push card. Detail lives in the GitHub record it links to.
+def _fit_html_lines(lines: list[str], limit: int) -> str:
+    """Bound an assembled card by dropping **whole rendered lines**.
 
-    It spells out the `/decide` line for every option because that comment is
-    the answer path in phase 1a — the card itself is read-only.
+    Slicing the joined string is what broke here: a cut after `<code>` but before
+    `</code>` leaves unbalanced markup, Telegram rejects the message outright and
+    the whole gate is lost (#206 F011). Every line this module renders opens and
+    closes its own tags, so dropping trailing lines cannot unbalance anything —
+    the card degrades instead of failing.
     """
-    summary = clip(redact(req.summary, cfg), 500)
-    # Clip before escaping, never after: cutting `&amp;` in half would emit a
-    # broken entity into a parse_mode=HTML message.
-    shown = req.options[:MAX_RENDERED_OPTIONS]
+    if len("\n".join(lines)) <= limit:
+        return "\n".join(lines)
+    kept = list(lines)
+    while kept and len("\n".join(kept)) + 2 > limit:  # +2 leaves room for the "…" line
+        kept.pop()
+    kept.append("…")
+    return "\n".join(kept)
+
+
+def _card_lines(req: DecisionRequest, cfg: dict[str, Any], keep: int) -> list[str]:
+    """One rendered card at a given option count — each line self-contained HTML."""
     answers = [
-        f"<code>/decide {_tg_escape(req.decision_id)} {_tg_escape(opt_id)}</code> — "
-        f"{_tg_escape(clip(redact(label, cfg), MAX_OPTION_LABEL_CHARS))}"
-        for opt_id, label in shown
+        f"<code>/decide {_tg_escape_clip(req.decision_id, MAX_CARD_FIELD_CHARS)} "
+        f"{_tg_escape_clip(opt_id, MAX_CARD_FIELD_CHARS)}</code> — "
+        f"{_tg_escape_clip(redact(label, cfg), MAX_OPTION_LABEL_CHARS)}"
+        for opt_id, label in req.options[:keep]
     ]
-    if len(req.options) > len(shown):
-        answers.append(f"… {len(req.options) - len(shown)} more option(s) — see the record on GitHub")
+    hidden = len(req.options) - keep
+    if hidden > 0:
+        answers.append(f"… {hidden} more option(s) — see the record on GitHub")
     lines = [
-        f"🔔 <b>Decision</b> — <code>{_tg_escape(req.decision_id)}</code>",
-        f"🏁 {_tg_escape(clip(redact(req.competition, cfg), MAX_CARD_FIELD_CHARS) or '—')}",
-        f"#️⃣ plan <code>{_tg_escape(clip(redact(req.plan_hash, cfg), MAX_CARD_FIELD_CHARS))}</code>",
+        f"🔔 <b>Decision</b> — <code>{_tg_escape_clip(req.decision_id, MAX_CARD_FIELD_CHARS)}</code>",
+        f"🏁 {_tg_escape_clip(redact(req.competition, cfg), MAX_CARD_FIELD_CHARS) or '—'}",
+        f"#️⃣ plan <code>{_tg_escape_clip(redact(req.plan_hash, cfg), MAX_CARD_FIELD_CHARS)}</code>",
         "",
-        _tg_escape(summary),
+        _tg_escape_clip(redact(req.summary, cfg), MAX_CARD_SUMMARY_CHARS),
         "",
         "✍️ <b>Answer by commenting on the record</b> (this card has no buttons to tap):",
         *answers,
@@ -906,15 +955,35 @@ def render_telegram_text(req: DecisionRequest, cfg: dict[str, Any]) -> str:
         "".join(
             [
                 "⏳ expires ",
-                _tg_escape(clip(redact(req.expires_at, cfg), MAX_CARD_FIELD_CHARS)),
+                _tg_escape_clip(redact(req.expires_at, cfg), MAX_CARD_FIELD_CHARS),
                 " — no reply ≠ approval",
             ]
         ),
     ]
     url = req.issue_url(cfg)
-    if url:
+    if url and len(_tg_escape(url)) <= MAX_CARD_URL_CHARS:
+        # An href is clipped by dropping the line, never mid-URL: half a link is
+        # a link to somewhere else.
         lines += ["", f'📎 <a href="{_tg_escape(url)}">record on GitHub</a>']
-    return _clip_html(("\n".join(lines)), TELEGRAM_MAX_CHARS)
+    return lines
+
+
+def render_telegram_text(req: DecisionRequest, cfg: dict[str, Any]) -> str:
+    """The compact push card. Detail lives in the GitHub record it links to.
+
+    It spells out the `/decide` line for every option because that comment is
+    the answer path in phase 1a — the card itself is read-only.
+
+    Over-long input degrades in two safe steps, never by cutting the assembled
+    HTML: re-render with fewer options first, then drop whole trailing lines
+    (#206 F011).
+    """
+    keep = min(len(req.options), MAX_RENDERED_OPTIONS)
+    while True:
+        lines = _card_lines(req, cfg, keep)
+        if len("\n".join(lines)) <= TELEGRAM_MAX_CHARS or keep == 0:
+            return _fit_html_lines(lines, TELEGRAM_MAX_CHARS)
+        keep -= 1
 
 
 def build_keyboard(req: DecisionRequest, cfg: dict[str, Any]) -> dict[str, Any]:

@@ -204,6 +204,29 @@ def test_redaction_keeps_the_operator_fields_a_gate_is_read_for(text: str) -> No
 
 
 @pytest.mark.parametrize(
+    "text, leaked",
+    [
+        ("TOKENS_SECRET=opaque-short-value", "opaque-short-value"),
+        ("API_TOKENS=abcdef-ghijkl-mnopqr", "abcdef-ghijkl-mnopqr"),
+        ("max_tokens_secret=abcdef-ghijkl", "abcdef-ghijkl"),
+        ("tokens_secret: abcdef-ghijkl", "abcdef-ghijkl"),
+        # An exact budget name, but the value is plainly not a budget.
+        ("max_tokens=sk-live-abcdefghijkl", "sk-live-abcdefghijkl"),
+    ],
+)
+def test_the_budget_field_exemption_does_not_cover_credential_names(text: str, leaked: str) -> None:
+    """#206 F010 (round 3): the exemption was a `tokens` *component* match.
+
+    That let `TOKENS_SECRET=…` through unmasked. It now needs an exact operator
+    field name **and** a numeric value, so anything that reads as a credential —
+    or a budget name carrying a non-numeric value — masks again.
+    """
+    out = notify.redact(text)
+    assert leaked not in out
+    assert notify.REDACTED in out
+
+
+@pytest.mark.parametrize(
     "payload, leaked",
     [
         ("Authorization: Basic dXNlcjpwYXNzd29yZA==", "dXNlcjpwYXNzd29yZA=="),
@@ -392,6 +415,27 @@ def test_a_decision_card_never_exceeds_the_telegram_message_limit() -> None:
     assert f"/decide {req.decision_id} ship" in text
     assert "more option(s)" in text
     assert "…" in text
+
+
+def test_a_card_that_hits_the_backstop_is_still_balanced_html() -> None:
+    """#206 F011 (round 3): the backstop used to cut between `<code>` tags.
+
+    Escaping expands — `&` becomes `&amp;` — so escaped text can reach 4096 even
+    with every field bounded in source characters. Slicing the assembled string
+    there leaves `<code>` unclosed and Telegram rejects the *whole* card, losing
+    the gate. Only balanced markup is sendable.
+    """
+    cfg = notify.load_config(REPO_ROOT / ".kca" / "notify.yml")
+    req = _request(
+        summary="&" * 28,
+        options=[(f"o{i}", "&" * 120) for i in range(12)],
+    )
+    text = notify.render_telegram_text(req, cfg)
+    assert len(text) <= notify.TELEGRAM_MAX_CHARS
+    for tag in ("code", "b", "a"):
+        assert text.count(f"<{tag}>") + text.count(f"<{tag} ") == text.count(f"</{tag}>")
+    assert text.count("<") == text.count(">")
+    assert "&amp" not in text.replace("&amp;", "")  # no half-written entity survived
 
 
 def test_callback_data_stays_within_the_phase_1b_contract() -> None:
