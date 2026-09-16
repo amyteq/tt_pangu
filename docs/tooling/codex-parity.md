@@ -37,13 +37,15 @@ python scripts/render_codex_probe.py probe.json AGENTS.md \
   docs/evidence/issue-189-codex-parity/loader-probe.txt "$(git rev-parse --short HEAD)"
 ```
 
-Last run: **`codex-cli 0.154.0`** against a clean worktree at **`f3876cc`**. That attribution is checked rather than asserted — the evidence file is only written if `f3876cc` is HEAD, the worktree matches it apart from the evidence outputs, its `AGENTS.md` is byte-identical to the file whose load was measured, **and** the rendered dump actually carries that same file, so the numbers reproduce from that commit. Every number below is therefore a measurement *of that commit*, not a claim about the current tree, and the difference is checkable rather than taken on trust:
+Last run: **`codex-cli 0.154.0`** against a clean worktree at **`52b81cf`**. That attribution is checked rather than asserted — the evidence file is only written if `52b81cf` is HEAD, the worktree matches it apart from the evidence outputs, its `AGENTS.md` is byte-identical to the file whose load was measured, **and** the rendered dump actually carries that same file, so the numbers reproduce from that commit. Every number below is therefore a measurement *of that commit*, not a claim about the current tree, and the difference is checkable rather than taken on trust:
 
 ```sh
-git diff --name-only f3876cc HEAD -- AGENTS.md CLAUDE.md .agents .claude   # must be empty
+git diff --name-only 52b81cf HEAD -- AGENTS.md CLAUDE.md .agents .claude   # must be empty
 ```
 
 If that prints anything, the numbers below describe a file that no longer exists and the probe needs re-running — a `CLAUDE.md` edit, a delta edit and a skill-body edit all change what a harness loads. It is deliberately **not** a CI test: re-collecting needs a local `codex` binary, and making every `CLAUDE.md` edit depend on one would cost more than the staleness it catches. Raw excerpt at `docs/evidence/issue-189-codex-parity/loader-probe.txt`.
+
+That has already happened once on this branch: merging `main` brought in a nineteenth skill, `gen_agents.py` mirrored it, and `.agents/README.md` changed — all loader-visible, so both the probe and the paired smoke answers were re-collected at the merge commit rather than left describing an eighteen-skill tree. The `--check` drift test caught the mirror gap in CI; the staleness of the evidence it did not, which is why the command above is worth running by hand before trusting a number on this page.
 
 ### 1. `AGENTS.md` is loaded, in full
 
@@ -56,7 +58,7 @@ The prompt carries a `user` message beginning:
 <!-- GENERATED FILE — DO NOT EDIT BY HAND. ...
 ```
 
-At `f3876cc`, `AGENTS.md` was **25 447 bytes / 25 253 characters** on disk and the project-doc message in the prompt was **25 382 characters**. The difference is Codex's own wrapper — the `# AGENTS.md instructions for <absolute path>` header and the `<INSTRUCTIONS>` tags — so that total is path-dependent and is **not** a checksum of the file. Those three numbers move with every edit and are re-measured by the renderer; the evidence excerpt holds the authoritative copy, attributed to the commit it was taken at. What shows the file loaded whole is not a total but the pair of sentinels: the opening banner and the closing line of the appendix are both present, and no truncation marker appears.
+At `52b81cf`, `AGENTS.md` was **25 447 bytes / 25 253 characters** on disk and the project-doc message in the prompt was **25 382 characters**. The difference is Codex's own wrapper — the `# AGENTS.md instructions for <absolute path>` header and the `<INSTRUCTIONS>` tags — so that total is path-dependent and is **not** a checksum of the file. Those three numbers move with every edit and are re-measured by the renderer; the evidence excerpt holds the authoritative copy, attributed to the commit it was taken at. What shows the file loaded whole is not a total but the pair of sentinels: the opening banner and the closing line of the appendix are both present, and no truncation marker appears.
 
 > **Budget:** Codex truncates the project doc at `project_doc_max_bytes` (32 KiB by default) and says so in its log, *not* in the prompt. A silently half-loaded `AGENTS.md` would drop whichever rules sort last. `tests/test_instruction_parity.py` fails if `AGENTS.md` crosses 32 KiB, and that test — not a sentence here — is what keeps the margin honest. The margin is **not** static: ADR-0022 (#201) took `AGENTS.md` from 20 471 to 24 646 bytes in one merge, and the round-1 fixes took it to 25 447, so the headroom fell from 12 297 bytes (~12.0 KiB) to **7 321 bytes (~7.1 KiB)** across two changes neither of which set out to grow it. Watch it when `CLAUDE.md` grows.
 
@@ -68,7 +70,7 @@ At `f3876cc`, `AGENTS.md` was **25 447 bytes / 25 253 characters** on disk and t
 - `r1` = `<repo>/.agents/skills`
 ```
 
-All **18** mirrored skills appear under `### Available skills` as `- <name>: <description> (file: r1/<name>/SKILL.md)` — every one of them a symlink into `.claude/skills/`. A skill is listed under its front-matter `name`, not its directory name (which is why `gen_agents.py` fails when the two disagree), and Claude-Code-only front-matter keys (`allowed-tools`, `argument-hint`) do not stop a skill being listed.
+All **19** mirrored skills appear under `### Available skills` as `- <name>: <description> (file: r1/<name>/SKILL.md)` — every one of them a symlink into `.claude/skills/`. A skill is listed under its front-matter `name`, not its directory name (which is why `gen_agents.py` fails when the two disagree), and Claude-Code-only front-matter keys (`allowed-tools`, `argument-hint`) do not stop a skill being listed.
 
 Codex's front-matter reader is not PyYAML, and the difference is load-bearing for two shipped skills. A plain scalar containing `: ` — `description: Use for authorized CTF challenge solving only: local challenge analysis…` — makes `yaml.safe_load` raise `ScannerError`, but Codex lists the skill and reproduces the description in full, which is also exactly what `gen_agents.py` extracts. Probed with fixture skills on `codex-cli 0.154.0`: `description: Review: check files` is listed; a sequence (`- Bash: true`) or a nested mapping (`  child: value`) under a key that already has a scalar value is **not** — those two skills vanish from the catalogue entirely. So the generator's hand parser is permissive about the first and refuses the second two on purpose. It tracks the loader, not the spec.
 
@@ -134,16 +136,16 @@ python scripts/write_codex_smoke_evidence.py \
   --claude /tmp/smoke-claude.txt --claude-seconds 16
 ```
 
-**Result — clean worktree at `f3876cc`, 2026-09-17**, both harnesses run from the same commit (full outputs, with their own provenance headers, under `docs/evidence/issue-189-codex-parity/`):
+**Result — clean worktree at `52b81cf`, 2026-09-17**, both harnesses run from the same commit (full outputs, with their own provenance headers, under `docs/evidence/issue-189-codex-parity/`):
 
 | | Codex (`codex-cli 0.154.0`, `gpt-5.6-sol`) | Claude Code (`claude-opus-5[1m]`) |
 |---|---|---|
 | Skill found | `kg-run` | `kg-run` |
-| Run path | `runs/arc-agi2/<run_id>/` | `runs/arc-agi2/<run_id>/`, run id UTC `YYYYMMDD_HHMMSS`, with `meta.json`, `config.json`, `metrics.json`, `logs/`, `artifacts/`; `runs/` gitignored |
+| Run path | `runs/arc-agi2/<run_id>/`, run id UTC `YYYYMMDD_HHMMSS` | `runs/arc-agi2/<run_id>/`, run id UTC `YYYYMMDD_HHMMSS`, with `meta.json`, `config.json`, `metrics.json`, `logs/`, `artifacts/`; `runs/` gitignored |
 | Secret policy | may read to use the credentials; forbids printing, sharing, logging or copying them externally | may **read** for use; never echo or copy into web fetches, logs, public PRs, comments ("read-for-use, not read-to-share") |
-| Cited instruction file | `AGENTS.md` | `CLAUDE.md` — *Environment configuration* / *Dev-phase secret policy* |
+| Cited instruction file | `AGENTS.md` | `CLAUDE.md` — *Environment configuration* / *Dev-phase secret policy*, noted as mirrored in `AGENTS.md` |
 | Cited skill file | `.agents/skills/kg-run/SKILL.md` | `.claude/skills/kg-run/SKILL.md` |
-| Wall clock | 15 s | 16 s |
+| Wall clock | 11 s | 19 s |
 
 Both harnesses reached the same rules through their own surface, and each cited the surface it actually reads — which is exactly what the mirror is supposed to produce. The Claude side answered in more detail; that is a model/harness difference, not an instruction difference.
 
