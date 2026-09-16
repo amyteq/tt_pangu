@@ -21,16 +21,10 @@ This skill is used by a **development harness** (Claude Code / Codex) driving Ka
 on the human's own machine and account. It is not KCA's submission policy — keep the two
 apart (`CLAUDE.md` → *Two agents*, issue #65):
 
-- **Harness (you, here).** A remote write or submission spends the human's Kaggle credentials
-  and daily quota, so ask first. That is the same rule as "the Claude Code harness still asks
-  for paid-API/credential use", and it binds a Codex session identically.
-- **KCA product agent.** Governed by `kca-<slug>.yaml:autonomy` — default **on**, so once
-  `autonomy.screen` passes KCA pushes and submits without per-action approval and writes the
-  summary to its audit log instead (`CLAUDE.md` principle 6, ADR-0021). Do not quote this
-  skill at KCA as a reason to ask.
+- **Harness (you, here).** A remote write or submission spends the human's Kaggle credentials and daily quota, so ask first. That is the same rule as "the Claude Code harness still asks for paid-API/credential use", and it binds a Codex session identically.
+- **KCA product agent.** Governed by its competition's `autonomy` block — the file `competition.yaml:autonomy_config` names, conventionally `kca-<slug>.yaml` — and that block is configuration, not permission. ADR-0022 §5 opens the approval-free path only for a competition meeting activation conditions **A1-A7**; no competition meets them, ADR-0021 §2's earlier screened grant is unimplemented, and no code reads the block, so KCA's pushes and submissions are asked for too. Where the grant is open, the record is the submission intent persisted under `competitions/<slug>/submissions/` before dispatch — never an audit log (`CLAUDE.md` principle 6).
 
-Either way the same facts are required before a Kaggle submission — in the approval request
-if you are the harness, in the audit summary if you are KCA:
+Either way the same facts are required before a Kaggle submission — in the approval request if you are the harness, in the persisted submission record if you are KCA:
 
 - competition slug.
 - file path.
