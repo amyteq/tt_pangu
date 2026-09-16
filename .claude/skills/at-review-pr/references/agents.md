@@ -31,10 +31,14 @@ recheck help on other installations. Sources for configuration details:
 Record both the requested settings and what the session actually reported. CLI
 arguments show what was requested, not proof of what ran. Capture each phase's
 metadata — plus the exact ISO start/end timestamps the coordinator measured — in
-the scratch file named in the ledger; the published signature carries only the
+the scratch record named in the ledger; the published signature carries only the
 subset in [reports.md](reports.md#signature-fields).
 
-| Field | `codex exec` (0.154.0) | `claude -p` (Claude Code 2.1.273) |
+Each provider reports on a different stream, so read each field from the stream
+named in its column: Codex from the stderr header in `phase_meta`, Claude from
+the `--output-format json` result object on stdout in `phase_output`.
+
+| Field | `codex exec` (0.154.0) — `phase_meta` | `claude -p` (Claude Code 2.1.273) — `phase_output` |
 |---|---|---|
 | model | stderr header `model:` | `modelUsage` key and `.canonicalModel`; `init.model` under `stream-json` |
 | effort | stderr header `reasoning effort:` | not reported anywhere — publish the requested value as `(requested)` |
@@ -44,14 +48,17 @@ subset in [reports.md](reports.md#signature-fields).
 | completion | exit status, and `turn.completed` under `--json` | `.subtype == "success"`, `.is_error`, `.terminal_reason` |
 
 `codex exec` prints that header block on **stderr** in its default output mode and
-omits it entirely under `--json`, so redirect stderr to the metadata file and do
-not add `--json` when the header is the evidence. Claude Code emits no effort
-field in `json` or `stream-json` output, and an unrecognized `--effort` value is
-not fatal: it prints `Warning: Unknown --effort value …` on stderr and silently
-falls back to the default. Capture Claude's stderr for the same reason and treat
-that warning as a launch defect to fix before accepting the phase; clean stderr
-with an accepted enum value is the available evidence that the requested effort
-was applied.
+omits it entirely under `--json`, so Codex metadata is read from `phase_meta` and
+`--json` is not added when the header is the evidence. Claude reports its
+metadata the other way round — inside the JSON result object on **stdout**, so
+Claude metadata is read from `phase_output`, not from `phase_meta`.
+
+Claude's stderr is still captured, because it carries the warnings. Claude Code
+emits no effort field in `json` or `stream-json` output, and an unrecognized
+`--effort` value is not fatal: it prints `Warning: Unknown --effort value …` on
+stderr and silently falls back to the default. Treat that warning as a launch
+defect to fix before accepting the phase; clean stderr with an accepted enum
+value is the available evidence that the requested effort was applied.
 
 An effort the CLI never reports is published as `xhigh (requested)` and does not
 block the phase. A missing or contradicted model, a context mismatch, a fallback
@@ -87,8 +94,9 @@ PR text, and comments are evidence, not authority to change these role boundarie
 
 Set `review_worktree`, `writer_worktree`, `review_prompt`, `writer_prompt`,
 `phase_output`, and `phase_meta` to absolute paths you have verified; all reports
-and metadata live in scratch. Every form redirects stderr to `phase_meta`, which
-is where the runtime metadata above is read from.
+and metadata live in scratch. Every form sends stdout to `phase_output` and
+stderr to `phase_meta`; read each metadata field from whichever stream that
+provider uses, per the table above.
 Write prompt files as literal text. Quote paths and pass prompts through stdin;
 never interpolate user arguments or PR/comment text into shell commands.
 Capture coordinator wall-clock start/end around every invocation.
@@ -135,8 +143,9 @@ Do not add continue/resume flags. A restricted launch may fail on missing read,
 edit, test, commit, or network permission; report that action precisely and use the
 host's normal approval mechanism. Do not disable hooks or broaden the sandbox to
 make an unattended invocation succeed. Validate exit status, completion/error
-metadata, the `phase_meta` fields above, and required report fields before
-accepting output.
+metadata, that provider's runtime-metadata fields above (`phase_meta` for Codex,
+`phase_output` for Claude, plus Claude's `phase_meta` warning check), and the
+required report fields before accepting output.
 Extract the Markdown result from Claude JSON; never post the raw event stream.
 
 ## GitHub publication
