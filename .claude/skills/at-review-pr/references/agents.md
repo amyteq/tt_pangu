@@ -44,14 +44,18 @@ the `--output-format json` result object on stdout in `phase_output`.
 | effort | stderr header `reasoning effort:` | not reported anywhere — publish the requested value as `(requested)` |
 | context window | not reported → `context: N/A (not emitted)` | `result.modelUsage[<model>].contextWindow` |
 | session id | stderr header `session id:` | `.session_id` |
-| sandbox / tools | stderr header `sandbox:` and `approval:` | `init.tools`, `init.permissionMode` |
+| sandbox / tools | stderr header `sandbox:` and `approval:` | `init.tools`, `init.permissionMode` — `stream-json` only, absent under `json` |
 | completion | exit status, and `turn.completed` under `--json` | `.subtype == "success"`, `.is_error`, `.terminal_reason` |
 
 `codex exec` prints that header block on **stderr** in its default output mode and
 omits it entirely under `--json`, so Codex metadata is read from `phase_meta` and
 `--json` is not added when the header is the evidence. Claude reports its
 metadata the other way round — inside the JSON result object on **stdout**, so
-Claude metadata is read from `phase_output`, not from `phase_meta`.
+Claude metadata is read from `phase_output`, not from `phase_meta`. The launch
+forms below use single-result `--output-format json`, which emits no `init`
+event, so the fields to verify from Claude's `phase_output` are model, context,
+session and completion; tools and permission mode are optional extra evidence
+that only a `stream-json` launch can supply.
 
 Claude's stderr is still captured, because it carries the warnings. Claude Code
 emits no effort field in `json` or `stream-json` output, and an unrecognized
@@ -143,9 +147,10 @@ Do not add continue/resume flags. A restricted launch may fail on missing read,
 edit, test, commit, or network permission; report that action precisely and use the
 host's normal approval mechanism. Do not disable hooks or broaden the sandbox to
 make an unattended invocation succeed. Validate exit status, completion/error
-metadata, that provider's runtime-metadata fields above (`phase_meta` for Codex,
-`phase_output` for Claude, plus Claude's `phase_meta` warning check), and the
-required report fields before accepting output.
+metadata, that provider's observable runtime-metadata fields above (`phase_meta`
+for Codex, `phase_output` for Claude, excluding the `stream-json`-only rows, plus
+Claude's `phase_meta` warning check), and the required report fields before
+accepting output.
 Extract the Markdown result from Claude JSON; never post the raw event stream.
 
 ## GitHub publication
