@@ -143,32 +143,43 @@ part of the repository is unaffected. The round-1 writer's JSON also confirmed
 `canonicalModel == "claude-opus-5"` on stdout — the direct evidence behind F002.
 
 Round 2 was a full closing verification review of head `bddee5c` by the same
-reviewer profile (`codex exec`, `gpt-5.6-sol`, `xhigh`, read-only). It found F001
-and F002 resolved, raised one residual P2 — F003, that this record's Limits
-section still asserted an offline boundary its own live probes and live rounds had
-outgrown — and returned an approval-eligible verdict with no unresolved P0/P1.
-F003 is dispositioned in round 3 by the Limits section below.
+reviewer profile (`codex exec`, `gpt-5.6-sol`, `xhigh`, read-only). It did not
+close clean: it found F001 and F002 resolved but raised one residual P2 — F003,
+that this record's Limits section still asserted an offline boundary its own live
+probes and live rounds had outgrown — alongside an approval-eligible verdict with
+no unresolved P0/P1.
+
+| Round | Phase | Outcome |
+|---|---|---|
+| 3 | writer (`claude -p`, `claude-opus-5[1m]`, `--effort xhigh`) | Edited this file and committed `09b214e` **itself, with no permission denial** — `docs/` is outside the protected skill path, so no coordinator escalation was needed |
+| 4 | reviewer (same profile as rounds 1–2) | Full review of `09b214e`: F001/F002 still resolved, no new findings, no unresolved P0/P1, but **F003 reopened** — the round-3 writer described the loop while its own round was still running, so the record kept counting one writer phase and calling round 2 clean |
+
+The round-4 writer phase fixes that staleness in this revision; the round-4
+verification of the fix had not run when this paragraph was written.
 
 ## Limits
 
 **Proven live, on this host.** The installed providers' runtime-metadata schema —
 which signature fields exist, and on which stream — for Codex CLI 0.154.0 and
-Claude Code 2.1.273. Live model access for both providers. Two real reviewer
-phases (`codex exec`, `gpt-5.6-sol`, `xhigh`, read-only) and one real writer phase
-(`claude -p`, `claude-opus-5[1m]`, `--effort xhigh` requested, 1M context window
-confirmed in `modelUsage`). One real review → fix → verification cycle on PR #208,
-ending in a clean closing review.
+Claude Code 2.1.273. Live model access for both providers. Three real reviewer
+phases (`codex exec`, `gpt-5.6-sol`, `xhigh`, read-only) — the round-1 full
+review, the round-2 closing verification, and the round-4 verification — and two
+real writer phases (`claude -p`, `claude-opus-5[1m]`, `--effort xhigh` requested,
+1M context window confirmed in `modelUsage`). Two real review → fix →
+verification cycles on PR #208; neither verification closed clean, since round 2
+raised F003 and round 4 reopened it.
 
 **Still not proven.** GitHub review permissions for a formal `APPROVE`: the
 signed-in user authored PR #208, so self-approval is impossible and that path is
 untested end to end. The 2026-09-15 behavioral scenarios were simulated against
 that revision, were not re-run afterwards, and their rejection cases cover an
 explicit zero/fractional `rounds` rather than the now-defaulting absent value.
-Findings coverage rests on two reviewer phases against one small Markdown PR, not
-on a broad or adversarial corpus. Results are pinned to those two CLI versions.
-And the writer phase could not write under `.claude/skills/**`, so the
-writer-edits-then-commits path was exercised only via coordinator escalation on
-this PR.
+Findings coverage rests on three reviewer phases against one small Markdown PR,
+not on a broad or adversarial corpus. Results are pinned to those two CLI
+versions. And the writer-phase block is specific to `.claude/skills/**`: the
+round-3 writer edited this file and committed unaided, so the
+writer-edits-then-commits path is proven outside that path, but no writer phase
+has yet edited the skill's own files without coordinator escalation.
 
 At invocation time the skill checks actual profile metadata, final base/head, and
 permissions before accepting phase output or approving. Actual model access
