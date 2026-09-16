@@ -906,11 +906,18 @@ def test_the_pin_reports_every_kind_of_change(label: str, pinned: dict, found: d
     ],
 )
 def test_the_round_4_counterexamples_are_all_caught(name: str, surface: str, sentence: str):
-    """Sentences added to a real surface, checked against the real pin."""
+    """Sentences added to a real surface, checked against the real pin.
+
+    The whole topic is rescanned and only `surface` swapped for the doctored text, so
+    the diff has to be *about the added sentence*. Diffing one surface against the
+    whole table would report every other pinned file as missing and pass either way.
+    """
     topic = MENTION_TOPICS[name]
     text = (REPO_ROOT / surface).read_text(encoding="utf-8") + "\n\n" + sentence + "\n"
     pinned = {rel: body for (pin_topic, rel), body in PINNED_MENTIONS.items() if pin_topic == name}
-    assert _pin_diff(pinned, {surface: _mentions(text, topic.trigger)})
+    found = {**_collect_mentions(name), surface: _mentions(text, topic.trigger)}
+    problems = _pin_diff(pinned, found)
+    assert problems and all(p.startswith(f"{surface}: not reviewed: ") for p in problems), problems
 
 
 @pytest.mark.parametrize(
@@ -945,8 +952,11 @@ def test_a_mutated_rule_on_a_real_surface_is_caught(name: str, surface: str, ori
     text = (REPO_ROOT / surface).read_text(encoding="utf-8")
     assert original in text, f"{surface} no longer contains the sentence this case mutates"
     pinned = {rel: body for (pin_topic, rel), body in PINNED_MENTIONS.items() if pin_topic == name}
-    found = {surface: _mentions(text.replace(original, mutated), MENTION_TOPICS[name].trigger)}
-    assert _pin_diff(pinned, found)
+    doctored = _mentions(text.replace(original, mutated), MENTION_TOPICS[name].trigger)
+    problems = _pin_diff(pinned, {**_collect_mentions(name), surface: doctored})
+    assert all(p.startswith(f"{surface}: ") for p in problems), problems
+    assert any(p.startswith(f"{surface}: not reviewed: ") for p in problems), problems
+    assert any(p.startswith(f"{surface}: reviewed text is gone or altered: ") for p in problems), problems
 
 
 CJK = re.compile(r"[\u4e00-\u9fff]")
