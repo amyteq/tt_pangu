@@ -2,11 +2,11 @@ Loader probe — what Codex actually loads from this repo.
 
 Command:  CODEX_HOME=<isolated> codex debug prompt-input 'Start work on competitions/arc-agi2'
 Binary:   codex-cli 0.154.0 (as reported at render time)
-Repo:     81c4709 — verified: it is HEAD, the worktree matches it apart from the
+Repo:     f3876cc — verified: it is HEAD, the worktree matches it apart from the
           evidence outputs, its AGENTS.md is byte-identical to the file measured
           below, and the dump's project-doc message contains that same file.
-Measured: AGENTS.md on disk: 24646 bytes, 24461 characters
-          project-doc message in the prompt: 24590 characters
+Measured: AGENTS.md on disk: 25447 bytes, 25253 characters
+          project-doc message in the prompt: 25382 characters
           = the file plus Codex's own wrapper (a '# AGENTS.md instructions for <abs path>'
             header and <INSTRUCTIONS> tags), so this total varies with the checkout path.
             The sentinels below, not the total, are what show the file loaded whole.
@@ -53,12 +53,12 @@ An isolated CODEX_HOME keeps the human's own config and user-level skills out of
      Regenerate: python scripts/gen_agents.py
      Verify:     python scripts/gen_agents.py --check   (also asserted by tests/test_instruction_parity.py)
 -->
-   [... 24590 chars total ...]
-the KCA product agent may submit without asking; it is not a licence for the harness to skip
-the host-level confirmations above.
+   [... 25382 chars total ...]
 
-Phase 1 exists to compare harnesses, so say which one you are in the tracking issue when you
-record a result — a run driven from Codex and one driven from Claude Code are different data
-points, not interchangeable ones.
+Per-competition code and config live under `competitions/<slug>/`; in phase 1 that directory plus the competition's tracking issue are the state of record. The file `competition.yaml:autonomy_config` names — conventionally `kca-<slug>.yaml` — holds that competition's `autonomy` block, budgets and schedules, and it describes what the **KCA product agent** would be permitted to submit without asking.
+
+Read it as configuration, not as permission, and never as a licence for the harness — you — to skip the confirmations above. The wide grant switches on only for a competition that satisfies ADR-0022 §5's activation conditions **A1-A7**; no competition satisfies them, ADR-0021 §2's screened fallback is unimplemented, and no code reads the `autonomy:` block at all. So in this session, **ask before every Kaggle submission and every kernel push**, exactly as *Operating principles* → 6 says. A kernel push is not a leaderboard submission (#77), and both are asked for.
+
+Phase 1 exists to compare harnesses, so say which one you are in the tracking issue when you record a result — a run driven from Codex and one driven from Claude Code are different data points, not interchangeable ones.
 
 </INSTRUCTIONS>
