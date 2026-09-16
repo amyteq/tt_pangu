@@ -1,6 +1,6 @@
 # at-review-pr skill validation
 
-Issue: [#207](https://github.com/amyteq/tt_pangu/issues/207). Validated 2026-09-15 against base `8f950823257aa2476fa356294d13448ab196ac60`, then re-checked on 2026-09-16 after rounds 1 and 2 of the live loop on [PR #208](https://github.com/amyteq/tt_pangu/pull/208) (the skill was named `pr-review-loop` in the earlier revision).
+Issue: [#207](https://github.com/amyteq/tt_pangu/issues/207). Validated 2026-09-15 against base `8f950823257aa2476fa356294d13448ab196ac60`, then re-checked on 2026-09-16 across the live runs of the loop on [PR #208](https://github.com/amyteq/tt_pangu/pull/208) (the skill was named `pr-review-loop` in the earlier revision).
 
 The deliverable is a Markdown development skill and two supporting references. It adds no execution service, helper scripts, runtime configuration, or test code. The [skill](../../.claude/skills/at-review-pr/SKILL.md) is canonical; the [README](../../README.md#claude-code-project-skills) supplies discovery and invocation.
 
@@ -84,16 +84,25 @@ That is a real operating limitation worth stating plainly: **a Claude writer pha
 
 Round 2 was a full closing verification review of head `bddee5c` by the same reviewer profile (`codex exec`, `gpt-5.6-sol`, `xhigh`, read-only). It did not close clean: it found F001 and F002 resolved but raised one residual P2 — F003, that this record's Limits section still asserted an offline boundary its own live probes and live rounds had outgrown — alongside an approval-eligible verdict with no unresolved P0/P1.
 
-| Round | Phase | Outcome |
-|---|---|---|
-| 3 | writer (`claude -p`, `claude-opus-5[1m]`, `--effort xhigh`) | Edited this file and committed `09b214e` **itself, with no permission denial** — `docs/` is outside the protected skill path, so no coordinator escalation was needed |
-| 4 | reviewer (same profile as rounds 1–2) | Full review of `09b214e`: F001/F002 still resolved, no new findings, no unresolved P0/P1, but **F003 reopened** — the round-3 writer described the loop while its own round was still running, so the record kept counting one writer phase and calling round 2 clean |
+The run then closed inside its budget. Its full phase ledger, with the head each phase saw and the wall-clock time it took:
 
-The round-4 writer phase fixes that staleness in this revision; the round-4 verification of the fix had not run when this paragraph was written.
+| Round | Phase | Head | Elapsed | Outcome |
+|---|---|---|---|---|
+| 1 | review (full) | `21d155e` | 0:07 | F001 (P1) and F002 (P1) opened |
+| 1 | writer | `bddee5c` | 0:03 | Every write under `.claude/skills/**` denied; the exact edits were specified and the coordinator applied them |
+| 2 | review (full, closing) | `bddee5c` | 0:08 | F001 and F002 resolved; F003 (P2) opened |
+| 3 | writer | `09b214e` | 0:02 | Edited this file and committed it **unaided, with no permission denial** — `docs/` is outside the protected skill path, so no coordinator escalation was needed |
+| 4 | review (full) | `09b214e` | 0:06 | F001/F002 still resolved and no unresolved P0/P1, but **F003 reopened** — the round-3 writer described the loop while its own round was still running, so the record kept counting one writer phase and calling round 2 clean |
+| 4 | writer | `66457d6` | 0:02 | Edited this file and committed unaided, same as round 3 |
+| 5 | review (full) | `66457d6` | 0:08 | F003 resolved; F004 (P2) opened |
+| 5 | writer | `012362a` | 0:01 | Denied under `.claude/skills/**` again; the edits were specified and the coordinator applied them |
+| — | terminal verification (full) | `012362a` | 0:05 | F001–F004 all resolved, no new findings, AC1–AC7 met, verdict approval-eligible |
+
+Measured totals: budget 10 rounds, 5 used; 5 reviewer phases (4 numbered plus the terminal verification) and 4 writer phases, of which 2 committed unaided under `docs/` and 2 were blocked under `.claude/skills/**`; 4 findings raised (2×P1, 2×P2), 4 fixed, 0 rebutted, 0 deferred, F003 reopened once; 0:56 wall clock, 19:44–20:40 AEST on 2026-09-16. Every review phase ran `codex`·`gpt-5.6-sol`·`xhigh`; every writer phase ran `claude`·`claude-opus-5`·`xhigh (requested)`, with `modelUsage["claude-opus-5[1m]"].contextWindow == 1000000` observed. The published ledger for this run is its [loop-closed summary](https://github.com/amyteq/tt_pangu/pull/208#issuecomment-5696170588).
 
 ## Second author review (2026-09-16)
 
-The owner reviewed the completed loop and raised formatting, honesty and terminology defects that the loop itself had not caught, because none of them is visible from inside a single phase. All are fixed at this head.
+The owner reviewed the completed loop and raised formatting, honesty and terminology defects that the loop itself had not caught, because none of them is visible from inside a single phase. The coordinator applied all of them directly, as commit `69b8184`; that is an ordinary edit answering review comments, not a loop phase, and it is not counted in the phase totals above.
 
 | Request | Change |
 |---|---|
@@ -112,10 +121,16 @@ The owner asked for the `.claude/skills/**` write restriction to be lifted so a 
 
 Lifting it therefore requires a human-owned settings change, not an agent one. Until then the established fallback holds and is documented in the loop record: the writer reports the exact denied action together with its full intended edit, and the coordinator applies it verbatim. Both round-1 and round-5 writers did exactly that, and every edit they specified is present at this head.
 
+## Second live run on PR #208, run `pr208-20260916c` (2026-09-16, in flight)
+
+A second run started on head `69b8184`, the coordinator commit above. Its round-1 full review (`codex exec`, `gpt-5.6-sol`, `xhigh`, read-only) has completed and raised two findings: **F003 reopened** (P2), because this record's Limits section and its round table still described run `pr208-20260916b` as three reviewer phases stopping at round 4, contradicting that run's own published summary; and **F005** (P3), the `/at-review-pr` entry this PR adds to the README being hard-wrapped across eleven lines against [ADR-0024](../adr/0024-markdown-soft-wrap.md), which the same PR introduces.
+
+This revision is that run's round-1 writer phase, fixing both. Its verification has not run, so this run's outcome is not yet recorded here — only that its round-1 review completed and what it found.
+
 ## Limits
 
-**Proven live, on this host.** The installed providers' runtime-metadata schema — which signature fields exist, and on which stream — for Codex CLI 0.154.0 and Claude Code 2.1.273. Live model access for both providers. Three real reviewer phases (`codex exec`, `gpt-5.6-sol`, `xhigh`, read-only) — the round-1 full review, the round-2 closing verification, and the round-4 verification — and two real writer phases (`claude -p`, `claude-opus-5[1m]`, `--effort xhigh` requested, 1M context window confirmed in `modelUsage`). Two real review → fix → verification cycles on PR #208; neither verification closed clean, since round 2 raised F003 and round 4 reopened it.
+**Proven live, on this host.** The installed providers' runtime-metadata schema — which signature fields exist, and on which stream — for Codex CLI 0.154.0 and Claude Code 2.1.273. Live model access for both providers. Run `pr208-20260916b` ran to completion: 5 real reviewer phases (`codex exec`, `gpt-5.6-sol`, `xhigh`, read-only) — 4 numbered reviews plus the terminal verification — and 4 real writer phases (`claude -p`, `claude-opus-5[1m]`, `--effort xhigh` requested, 1M context window confirmed in `modelUsage`). Four full review → fix → re-review cycles on PR #208: the first three verifications did not close clean (round 2 raised F003, round 4 reopened it, round 5 raised F004), and the terminal verification of `012362a` did close clean with all four findings resolved and no new ones. Run `pr208-20260916c` has so far added one more reviewer phase of the same profile, its round-1 review of `69b8184`.
 
-**Still not proven.** GitHub review permissions for a formal `APPROVE`: the signed-in user authored PR #208, so self-approval is impossible and that path is untested end to end. The 2026-09-15 behavioral scenarios were simulated against that revision, were not re-run afterwards, and their rejection cases cover an explicit zero/fractional `rounds` rather than the now-defaulting absent value. Findings coverage rests on three reviewer phases against one small Markdown PR, not on a broad or adversarial corpus. Results are pinned to those two CLI versions. And the writer-phase block is specific to `.claude/skills/**`: the round-3 writer edited this file and committed unaided, so the writer-edits-then-commits path is proven outside that path, but no writer phase has yet edited the skill's own files without coordinator escalation.
+**Still not proven.** GitHub review permissions for a formal `APPROVE`: the signed-in user authored PR #208, so self-approval is impossible and that path is untested end to end. The 2026-09-15 behavioral scenarios were simulated against that revision, were not re-run afterwards, and their rejection cases cover an explicit zero/fractional `rounds` rather than the now-defaulting absent value. Findings coverage rests on six reviewer phases across two runs against the same one small Markdown PR — still a single narrow corpus, not a broad or adversarial one. Results are pinned to those two CLI versions. And the writer-phase block is specific to `.claude/skills/**`: the round-3 and round-4 writers edited this file and committed unaided, so the writer-edits-then-commits path is proven outside that path, but no writer phase has yet edited the skill's own files without coordinator escalation.
 
 At invocation time the skill checks actual profile metadata, final base/head, and permissions before accepting phase output or approving. Actual model access failures must remain visible blockers.
