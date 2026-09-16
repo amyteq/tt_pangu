@@ -64,7 +64,10 @@ What that authorizes, and what it does not. Refinement authority is never implem
 
 **Standalone task instructions:** [Implementation task, revision R](<real permalink>). The comment carries the complete work order and AC1–ACn; no prior chat context is required.
 
-Ready for explicit human dispatch. Creating this issue and comment has not started implementation. Sending either prompt below authorizes the work described in the task comment.
+Status — keep exactly one of these two sentences, the one that matches the labels this issue actually carries:
+
+- *Ready:* Ready for explicit human dispatch. Creating this issue and comment has not started implementation. Sending either prompt below authorizes the work described in the task comment.
+- *Blocked:* **Not ready for dispatch:** `<the unresolved decision, named>` is open, so this issue carries `decision:needed` and `ai:blocked`. Creating this issue and comment has not started implementation, and the prompts below must not be sent until a human settles that decision and the block is lifted.
 
 **Goal prompt** (where the harness supports `/goal`):
 
@@ -101,7 +104,7 @@ Each criterion states its own evidence — the command and its result, the file 
 Keep these visible rather than smoothing them away:
 
 - **Assumption:** the drafter's inference, written as an assumption and flagged for the owner to confirm or correct.
-- **Open decision:** a question whose two plausible answers produce different acceptance criteria. It keeps the issue `decision:needed` and `ai:blocked` until a human settles it.
+- **Open decision:** a question whose two plausible answers produce different acceptance criteria. It keeps the issue `decision:needed` and `ai:blocked` until a human settles it, and it forces the *Blocked* status sentence in the Execution section — a body that says "ready for explicit human dispatch" while carrying `ai:blocked` tells the human the opposite of what its labels say.
 - **Recommendation:** a suggestion the owner has not adopted. It never appears in Scope.
 - **Confirmed decision:** cite the comment or discussion that settled it, so a later reader can check.
 
