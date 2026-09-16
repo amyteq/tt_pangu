@@ -2,18 +2,18 @@ Loader probe — what Codex actually loads from this repo.
 
 Command:  CODEX_HOME=<isolated> codex debug prompt-input 'Start work on competitions/arc-agi2'
 Binary:   codex-cli 0.154.0 (as reported at render time)
-Repo:     92ab69b — verified: it is HEAD, the worktree matches it apart from the
+Repo:     81c4709 — verified: it is HEAD, the worktree matches it apart from the
           evidence outputs, its AGENTS.md is byte-identical to the file measured
           below, and the dump's project-doc message contains that same file.
-Measured: AGENTS.md on disk: 20471 bytes, 20329 characters
-          project-doc message in the prompt: 20458 characters
+Measured: AGENTS.md on disk: 24646 bytes, 24461 characters
+          project-doc message in the prompt: 24590 characters
           = the file plus Codex's own wrapper (a '# AGENTS.md instructions for <abs path>'
             header and <INSTRUCTIONS> tags), so this total varies with the checkout path.
             The sentinels below, not the total, are what show the file loaded whole.
           opening sentinel present: True
           closing sentinel present: True
           truncation marker: False
-          project skills listed under r1: 17
+          project skills listed under r1: 18
 
 `codex debug prompt-input` renders the model-visible prompt without a network call.
 An isolated CODEX_HOME keeps the human's own config and user-level skills out of it.
@@ -26,6 +26,7 @@ An isolated CODEX_HOME keeps the human's own config and user-level skills out of
 
 -- project skills listed from r1 --
 - agent-iteration-review: Use after tests, validation, benchmark, submission, or CTF solver results are available. Reviews evidence and decides whether to continue, revert, ask human, or stop. (file: r1/agent-iteration-review/SKILL.md)
+- at-review-pr: Run bounded PR review and fix rounds with independent Codex or Claude Code sessions, evidence-linked dispositions, and a final full review before approval. Use for iterative PR review requests, not one-shot reviews or merging. (file: r1/at-review-pr/SKILL.md)
 - ctf-sandbox: Use for authorized CTF challenge solving only: local challenge analysis, sandboxed exploitation, solver scripts, flags, and writeups within explicitly provided scope. (file: r1/ctf-sandbox/SKILL.md)
 - design-archaeology: Use before implementing any migration, rewrite, take-over, or port of legacy scripts / configs. Produces a structured 10-section archaeology report with file:line citations and explicit open questions; read-only; blocks code changes until report exists. (file: r1/design-archaeology/SKILL.md)
 - github-issue-triage: Triage one or more GitHub issues — propose label adds/removes and a triage comment, gated by deterministic rules. Never grants ai:ready without confirmed decisions and clear acceptance criteria. (file: r1/github-issue-triage/SKILL.md)
@@ -52,7 +53,7 @@ An isolated CODEX_HOME keeps the human's own config and user-level skills out of
      Regenerate: python scripts/gen_agents.py
      Verify:     python scripts/gen_agents.py --check   (also asserted by tests/test_instruction_parity.py)
 -->
-   [... 20458 chars total ...]
+   [... 24590 chars total ...]
 the KCA product agent may submit without asking; it is not a licence for the harness to skip
 the host-level confirmations above.
 

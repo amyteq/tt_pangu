@@ -50,8 +50,8 @@ python scripts/render_codex_probe.py probe.json AGENTS.md \
   docs/evidence/issue-189-codex-parity/loader-probe.txt "$(git rev-parse --short HEAD)"
 ```
 
-Last run: **`codex-cli 0.154.0`** against a clean worktree at **`92ab69b`**. That attribution is
-checked rather than asserted — the evidence file is only written if `92ab69b` is HEAD, the
+Last run: **`codex-cli 0.154.0`** against a clean worktree at **`81c4709`**. That attribution is
+checked rather than asserted — the evidence file is only written if `81c4709` is HEAD, the
 worktree matches it apart from the evidence outputs, its `AGENTS.md` is byte-identical to the
 file whose load was measured, **and** the rendered dump actually carries that same file, so the
 numbers reproduce from that commit. Commits after it touch only this document and the evidence
@@ -59,7 +59,7 @@ under `docs/evidence/issue-189-codex-parity/` — outputs of the run, never inpu
 the claim that matters, and it is checkable rather than taken on trust:
 
 ```sh
-git diff --name-only 92ab69b HEAD -- AGENTS.md CLAUDE.md .agents .claude   # must be empty
+git diff --name-only 81c4709 HEAD -- AGENTS.md CLAUDE.md .agents .claude   # must be empty
 ```
 
 If that prints anything, the numbers below describe a file that no longer exists and the probe
@@ -78,8 +78,8 @@ The prompt carries a `user` message beginning:
 <!-- GENERATED FILE — DO NOT EDIT BY HAND. ...
 ```
 
-`AGENTS.md` is **20 471 bytes / 20 329 characters** on disk; the project-doc message in the
-prompt is **20 458 characters**. The difference is Codex's own wrapper — the
+`AGENTS.md` is **24 646 bytes / 24 461 characters** on disk; the project-doc message in the
+prompt is **24 590 characters**. The difference is Codex's own wrapper — the
 `# AGENTS.md instructions for <absolute path>` header and the `<INSTRUCTIONS>` tags — so that
 total is path-dependent and is **not** a checksum of the file. What shows the file loaded whole
 is the pair of sentinels: the opening banner and the closing line of the appendix are both
@@ -88,7 +88,9 @@ present, and no truncation marker appears.
 > **Budget:** Codex truncates the project doc at `project_doc_max_bytes` (32 KiB by default)
 > and says so in its log, *not* in the prompt. A silently half-loaded `AGENTS.md` would drop
 > whichever rules sort last. `tests/test_instruction_parity.py` fails if `AGENTS.md` crosses
-> 32 KiB; keep `CLAUDE.md` lean rather than raising the limit.
+> 32 KiB; keep `CLAUDE.md` lean rather than raising the limit. The margin is **not** static:
+> ADR-0022 (#201) took `AGENTS.md` from 20 471 to 24 646 bytes in one merge, so the headroom
+> fell from ~11.5 KiB to ~7.4 KiB. Watch it when `CLAUDE.md` grows.
 
 ### 2. `.agents/skills/` is a real Codex skill root, and symlinks are followed
 
@@ -98,7 +100,7 @@ present, and no truncation marker appears.
 - `r1` = `<repo>/.agents/skills`
 ```
 
-All **17** mirrored skills appear under `### Available skills` as
+All **18** mirrored skills appear under `### Available skills` as
 `- <name>: <description> (file: r1/<name>/SKILL.md)` — every one of them a symlink into
 `.claude/skills/`. A skill is listed under its front-matter `name`, not its directory name
 (which is why `gen_agents.py` fails when the two disagree), and Claude-Code-only front-matter
@@ -190,11 +192,11 @@ time claude -p --model 'claude-opus-5[1m]' < "$prompt" > /tmp/smoke-claude.txt
 
 # commit both answers with a header whose commit claim is verified, not asserted
 python scripts/write_codex_smoke_evidence.py \
-  --codex  /tmp/smoke-codex.txt  --codex-seconds  18 \
-  --claude /tmp/smoke-claude.txt --claude-seconds 15
+  --codex  /tmp/smoke-codex.txt  --codex-seconds  16 \
+  --claude /tmp/smoke-claude.txt --claude-seconds 17
 ```
 
-**Result — clean worktree at `92ab69b`, 2026-09-15**, both harnesses run from the same commit
+**Result — clean worktree at `81c4709`, 2026-09-17**, both harnesses run from the same commit
 (full outputs, with their own provenance headers, under `docs/evidence/issue-189-codex-parity/`):
 
 | | Codex (`codex-cli 0.154.0`, `gpt-5.6-sol`) | Claude Code (`claude-opus-5[1m]`) |
@@ -204,7 +206,7 @@ python scripts/write_codex_smoke_evidence.py \
 | Secret policy | may read to use the credentials; forbids printing, sharing, logging or copying them externally | may **read** for use; never echo or copy into web fetches, logs, public PRs, comments ("read-for-use, not read-to-share") |
 | Cited instruction file | `AGENTS.md` | `CLAUDE.md` — *Environment configuration* / *Dev-phase secret policy* |
 | Cited skill file | `.agents/skills/kg-run/SKILL.md` | `.claude/skills/kg-run/SKILL.md` |
-| Wall clock | 18 s | 15 s |
+| Wall clock | 16 s | 17 s |
 
 Both harnesses reached the same rules through their own surface, and each cited the surface it
 actually reads — which is exactly what the mirror is supposed to produce. The Claude side
