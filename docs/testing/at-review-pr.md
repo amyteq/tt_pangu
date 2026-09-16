@@ -18,7 +18,7 @@ The [skill](../../.claude/skills/at-review-pr/SKILL.md) is canonical; the
 | Skill Creator `quick_validate.py` on the skill directory | PASS: frontmatter/name/body validation | AC1, AC7 |
 | Relative Markdown references | PASS: all 3 skill-internal links resolve | AC1, AC7 |
 | Installed CLI help | PASS: documented options exist in Codex 0.154.0 and Claude Code 2.1.272 | AC2 |
-| Four launch examples, executed with local stub CLIs | PASS: shell syntax, quoted model/config/MCP arguments, literal stdin, and process-local Claude effort | AC2 |
+| Four launch examples, executed with local stub CLIs | PASS: shell syntax, quoted model/config/MCP arguments, literal stdin, and the then-present process-local Claude effort variable (since removed — see the round-2 probes) | AC2 |
 | Independent behavioral simulation | PASS after the correction below; cases listed below | AC1–AC6 |
 | `python -m pytest tests/ services/decision_api/tests -q --tb=short -p no:cacheprovider --basetemp=/tmp/issue207-pytest-clean` | 402 passed, 47 skipped in 39.22 s | AC7 |
 | `ruff check --no-cache .` | PASS (Ruff 0.15.14) | AC7 |
@@ -89,14 +89,40 @@ the installed `quick_validate.py` accepts only the portable Agent Skills keys, s
 its rejection is a validator limitation rather than a skill defect. No validator,
 hook, or settings file was modified to obtain these results.
 
+## CLI runtime-metadata probes (2026-09-16, round 2)
+
+The round-1 loop stopped because Claude's effort setting could not be observed.
+The author then decided that an unobservable effort may be published as the
+requested value. These probes establish, per CLI, which signature fields are
+actually retrievable, and are the evidence behind
+[runtime metadata](../../.claude/skills/at-review-pr/references/agents.md#runtime-metadata).
+
+| Probe | Observed |
+|---|---|
+| `codex exec --model gpt-5.6-sol --config model_reasoning_effort=xhigh --sandbox read-only --ephemeral` (default output) | stderr header block: `model: gpt-5.6-sol`, `provider: openai`, `approval: never`, `sandbox: read-only`, **`reasoning effort: xhigh`**, `session id:`; no context window |
+| Same command with `--json` | only `thread.started`, `turn.started`, `item.completed`, `turn.completed` — the header, model and effort are absent |
+| `claude -p --output-format stream-json --verbose` | `system`/`init` carries `model`, `tools`, `permissionMode`, `claude_code_version`; the final `result` carries `modelUsage[<model>].contextWindow`, `canonicalModel`, `terminal_reason`, `is_error`. **No effort field in any event** |
+| `claude -p --effort bogus` | exit 0 with stderr `Warning: Unknown --effort value 'bogus' — ignoring it and using the default effort. Valid values: low, medium, high, xhigh, max.` — an invalid value is non-fatal, so stderr must be captured |
+| `CLAUDE_CODE_EFFORT_LEVEL=bogus claude -p --effort high` | no warning and no behavior change: the variable is not recognized by Claude Code 2.1.273, so the earlier env-var prefix in the launch forms was unsupported and is removed |
+
+Consequences applied to the skill: `codex exec` keeps its default output mode and
+redirects stderr to the phase metadata file, because `--json` would discard the
+only model/effort evidence; every launch form now captures stderr; effort that a
+CLI never reports is published as `xhigh (requested)` and no longer blocks a
+phase, while agent, model and timing stay verify-or-block. Codex CLI 0.154.0 and
+Claude Code 2.1.273; probes used a cheap model where the field's presence, not
+its value, was the question.
+
 ## Limits
 
 This is an offline behavioral and syntax validation. It does not prove live model
 access, the installed provider's runtime metadata schema, or GitHub review
 permissions. The behavioral scenarios were simulated against the 2026-09-15
 revision and were not re-run afterwards; the rejection cases above cover an
-explicit zero/fractional value, not the now-defaulting absent `rounds`. A live
-loop on PR #208 is in progress but not complete, so no finished
-review/fix/approval cycle is recorded here. At invocation time the skill checks
+explicit zero/fractional value, not the now-defaulting absent `rounds`. The
+metadata probes above are live and provider-specific, but they were run by the
+coordinator rather than through a full loop, and they cover CLI 0.154.0 /
+2.1.273 only. The live loop on PR #208 is the ongoing end-to-end exercise; its
+completed rounds are recorded on that PR rather than here. At invocation time the skill checks
 actual profile metadata, final base/head, and permissions before accepting phase
 output or approving. Actual model access failures must remain visible blockers.
