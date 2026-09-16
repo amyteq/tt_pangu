@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -34,6 +35,19 @@ SECRET_TOKEN = "8123456789:AAF_ThisLooksExactlyLikeARealBotToken12345"
 SECRET_DSN = "postgresql://postgres:s3cr3t@10.0.0.4:5432/postgres"
 
 MELBOURNE = notify.ZoneInfo("Australia/Melbourne")
+
+
+@pytest.fixture(autouse=True)
+def no_real_credentials(monkeypatch) -> None:
+    """Strip inherited TELEGRAM_* values so no test can reach a live bot.
+
+    `tests/conftest.py::db_url` loads `.vscode/.env` into os.environ for the
+    whole session, and `resolve_secret` reads os.environ first — without this,
+    a full-suite run could send a real message from a unit test. Tests that
+    want a token set it themselves after this fixture has run.
+    """
+    for key in [k for k in os.environ if k.startswith("TELEGRAM")]:
+        monkeypatch.delenv(key, raising=False)
 
 
 @pytest.fixture
@@ -103,8 +117,8 @@ def test_env_file_loader_only_reads_allowlisted_prefixes(tmp_path: Path) -> None
         "\n".join(
             [
                 "# comment",
-                f"TELEGRAM_BOT_TOKEN={SECRET_TOKEN}",
-                'TELEGRAM_CHAT_ID_HARRY="123456"',
+                f"TELEGRAM_BOT1_TOKEN={SECRET_TOKEN}",
+                'TELEGRAM_CHAT_ID_ME="123456"',
                 "export TELEGRAM_EXTRA=ok",
                 "CTFTIME_PASSWORD=not-yours",
                 f"SUPABASE_DB_URL={SECRET_DSN}",
@@ -114,8 +128,8 @@ def test_env_file_loader_only_reads_allowlisted_prefixes(tmp_path: Path) -> None
         encoding="utf-8",
     )
     loaded = notify.load_env_file(env_file)
-    assert set(loaded) == {"TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID_HARRY", "TELEGRAM_EXTRA"}
-    assert loaded["TELEGRAM_CHAT_ID_HARRY"] == "123456"  # quotes stripped
+    assert set(loaded) == {"TELEGRAM_BOT1_TOKEN", "TELEGRAM_CHAT_ID_ME", "TELEGRAM_EXTRA"}
+    assert loaded["TELEGRAM_CHAT_ID_ME"] == "123456"  # quotes stripped
     assert "CTFTIME_PASSWORD" not in loaded
     assert "SUPABASE_DB_URL" not in loaded
 
@@ -295,8 +309,8 @@ def test_gate_bypasses_quiet_hours(cfg: dict) -> None:
 
 def test_identical_routine_message_is_deduped(cfg: dict) -> None:
     noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
-    first = notify.dispatch(cfg, level="info", title="status", body="no change", now=noon)
-    assert first["status"] == "sent" or first["channels"]  # transport may fail; the ledger entry is the point
+    first = notify.dispatch(cfg, level="info", title="status", body="no change", now=noon, dry_run=True)
+    assert first["status"] == "sent"
     notify.append_ledger(
         cfg,
         {
@@ -306,7 +320,7 @@ def test_identical_routine_message_is_deduped(cfg: dict) -> None:
             "status": "sent",
         },
     )
-    again = notify.dispatch(cfg, level="info", title="status", body="no change", now=noon)
+    again = notify.dispatch(cfg, level="info", title="status", body="no change", now=noon, dry_run=True)
     assert again["status"] == "deduped"
     # A changed body is a real update and goes out.
     changed = notify.dispatch(cfg, level="info", title="status", body="LB moved to 0.96", now=noon, dry_run=True)
@@ -339,7 +353,7 @@ def test_dry_run_writes_nothing_and_masks_the_chat_id(cfg: dict) -> None:
     out = notify.dispatch(cfg, level="info", title="t", body="b", now=noon, dry_run=True)
     telegram = next(c for c in out["channels"] if c["channel"] == "telegram")
     assert telegram["dry_run"] is True
-    assert telegram["payload"]["chat_id"] == "<TELEGRAM_CHAT_ID_HARRY>"
+    assert telegram["payload"]["chat_id"] == "<TELEGRAM_CHAT_ID_ME>"
     assert not notify.ledger_path(cfg).exists()
 
 
@@ -370,7 +384,7 @@ def test_notify_is_registered_in_the_kca_cli() -> None:
 def test_decision_cli_dry_run_emits_json(cfg: dict, tmp_path: Path, capsys, monkeypatch) -> None:
     config_path = tmp_path / "notify.yml"
     config_path.write_text(notify.yaml.safe_dump(cfg), encoding="utf-8")
-    monkeypatch.setenv("TELEGRAM_CHAT_ID_HARRY", "42")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID_ME", "42")
 
     from kca import main
 
@@ -423,8 +437,9 @@ def test_exit_code_separates_suppression_from_failure(status: str, expected: int
 def test_doctor_reports_read_only_and_no_secret_value(tmp_path: Path, cfg: dict, capsys, monkeypatch) -> None:
     config_path = tmp_path / "notify.yml"
     config_path.write_text(notify.yaml.safe_dump(cfg), encoding="utf-8")
-    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", SECRET_TOKEN)
-    monkeypatch.setenv("TELEGRAM_CHAT_ID_HARRY", "123456789")
+    monkeypatch.setenv("TELEGRAM_BOT1_TOKEN", SECRET_TOKEN)
+    monkeypatch.setenv("TELEGRAM_BOT2_TOKEN", SECRET_TOKEN)
+    monkeypatch.setenv("TELEGRAM_CHAT_ID_ME", "123456789")
 
     from kca import main
 
@@ -436,3 +451,77 @@ def test_doctor_reports_read_only_and_no_secret_value(tmp_path: Path, cfg: dict,
     assert {c["detail"] for c in payload["checks"] if "TELEGRAM" in c["name"]} == {"set"}
     assert SECRET_TOKEN not in out
     assert "123456789" not in out
+    # Both bots are preflighted, not just the default one.
+    assert {c["name"] for c in payload["checks"] if c["name"].startswith("bot ")} == {
+        "bot bot1: TELEGRAM_BOT1_TOKEN",
+        "bot bot2: TELEGRAM_BOT2_TOKEN",
+    }
+
+
+# ---------------------------------------------------------------------------
+# One bot per agent entry (#187 §3)
+# ---------------------------------------------------------------------------
+
+
+def test_shipped_config_declares_one_bot_per_agent_entry() -> None:
+    telegram = notify.load_config(REPO_ROOT / ".kca" / "notify.yml")["channels"]["telegram"]
+    assert set(telegram["bots"]) == {"bot1", "bot2"}
+    assert telegram["default_bot"] == "bot1"
+    assert [b["token_env"] for b in telegram["bots"].values()] == ["TELEGRAM_BOT1_TOKEN", "TELEGRAM_BOT2_TOKEN"]
+
+
+def test_resolve_bot_precedence(cfg: dict) -> None:
+    """Explicit --bot wins, then the recipient's bot, then default_bot."""
+    assert notify.resolve_bot(cfg)[0] == "bot1"
+    assert notify.resolve_bot(cfg, "bot2")[0] == "bot2"
+    assert notify.resolve_bot(cfg, None, {"bot": "bot2"})[0] == "bot2"
+    assert notify.resolve_bot(cfg, "bot1", {"bot": "bot2"})[0] == "bot1"
+    with pytest.raises(KeyError, match="unknown telegram bot"):
+        notify.resolve_bot(cfg, "bot9")
+
+
+def test_send_reports_which_bot_it_used(cfg: dict) -> None:
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    out = notify.dispatch(cfg, level="info", title="t", body="b", bot="bot2", now=noon, dry_run=True)
+    telegram = next(c for c in out["channels"] if c["channel"] == "telegram")
+    assert telegram["bot"] == "bot2"
+
+
+def test_legacy_single_token_config_is_rejected_with_a_migration_hint(cfg: dict) -> None:
+    cfg["channels"]["telegram"]["token_env"] = "TELEGRAM_BOT_TOKEN"
+    with pytest.raises(ValueError, match="no longer supported"):
+        notify.validate_config(cfg)
+
+
+@pytest.mark.parametrize(
+    "mutate, needle",
+    [
+        (lambda c: c["channels"]["telegram"].__setitem__("default_bot", "nope"), "default_bot"),
+        (lambda c: c["channels"]["telegram"]["bots"]["bot1"].pop("token_env"), "token_env is required"),
+        (lambda c: c["channels"]["telegram"]["recipients"]["harry"].__setitem__("bot", "ghost"), "unknown bot"),
+    ],
+)
+def test_validate_config_rejects_broken_bot_wiring(cfg: dict, mutate, needle: str) -> None:
+    mutate(cfg)
+    with pytest.raises(ValueError, match=needle):
+        notify.validate_config(cfg)
+
+
+# ---------------------------------------------------------------------------
+# `attention` — an agent session is blocked on the human
+# ---------------------------------------------------------------------------
+
+
+def test_attention_bypasses_quiet_hours_and_the_daily_cap(cfg: dict) -> None:
+    night = dt.datetime(2026, 9, 15, 23, 30, tzinfo=MELBOURNE)
+    for idx in range(5):  # budget already blown by routine traffic
+        notify.append_ledger(cfg, {"ts": night.isoformat(), "level": "info", "key": f"k{idx}", "status": "sent"})
+    out = notify.dispatch(cfg, level="attention", title="permission needed", body="Bash(rm)", now=night, dry_run=True)
+    assert out["status"] == "sent"
+    assert [c["channel"] for c in out["channels"]] == ["telegram"]
+
+
+def test_attention_is_not_counted_as_routine(cfg: dict) -> None:
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    notify.append_ledger(cfg, {"ts": noon.isoformat(), "level": "attention", "key": "a", "status": "sent"})
+    assert notify.routine_sends_today(cfg, notify.read_ledger(cfg), noon) == 0
