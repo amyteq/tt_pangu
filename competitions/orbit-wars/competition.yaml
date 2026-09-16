@@ -3,8 +3,8 @@ kaggle_slug: orbit-wars
 title: Orbit Wars
 aliases: [orbit, "orbit wars"]
 tracking_issue: 87               # GitHub issue #87 (historical hub; future updates live here)
-status: active
-phase: iteration
+status: closed                 # open | closed | unknown -- is the official competition submission window open (was: active)
+state: FINDINGS                # ADR-0022 §3 canonical state (was phase: iteration)
 competition_type: simulation_agent
 metric: skill-rating (μ) ladder, 1v1 (2-player), μ0=600, pairwise win/loss μ update
 deadline: 2026-06-23             # final eval ~2 weeks after
@@ -13,16 +13,56 @@ competition_id: 138420
 primary_artifact: agent
 submission_mode: agent           # single-file agent (or tar.gz) on kaggle_environments; <=5/day, latest 2 scored
 data_policy: generated           # self-play + public-agent suite on the engine; public episode dataset for replay mining
-last_updated: 2026-06-14         # ladder confirmed via read-only Kaggle API refresh 2026-06-14
+autonomy_config: null            # no autonomy config in this directory => ADR-0022 §5 A1 fails
+last_updated: 2026-09-15         # reconciled against tracking.md + live/ under ADR-0022 §3
+                                 #   (rank 1 is authoritative). The 2026-06-14 ladder refresh was
+                                 #   superseded by the 06-16 refresh and the 06-17/06-18 work
+# ADR-0022 §6 budget envelope. Same KEY STRUCTURE as
+# competitions/_templates/competition.yaml; the VALUES are this competition's.
+# `null` is an UNKNOWN, not "unlimited": a null cap refuses the work that would
+# spend against THAT dimension (§6), and A2/A3 keep §5's relaxed autonomy inactive
+# until it is filled in from a verified source. PAUSED_BUDGET is entered when a
+# blocked dimension is needed to make progress — not merely because a cap is null.
+# This competition is closed and in FINDINGS: no cycle starts and nothing is
+# reserved against these caps. The block is present so the schema is uniform.
+budget:
+  cycle: 7d                             # window every max_per_cycle is measured over
+  cycle_anchor: null                    # UTC timestamp cycle 0 started; all arithmetic is UTC
+  experiments:
+    max_per_cycle: null
+  compute:
+    max_gpu_hours_per_cycle: null
+  llm:
+    max_turns_per_research_task: 100
+    max_metered_cost_per_cycle_usd: 0   # 0 = subscription-only spend; null blocks metered spend
+  submissions:
+    require_verified_competition_limit: true
+    verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
+    verified_source: null               # where that number was read (URL / API field)
+    verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_reset_boundary: null       # WHEN the daily quota resets, from the competition's
+                                        #   own rules; NEVER assumed. null blocks submission
+    verified_ttl: 30d                   # past this the limit is unverified again and blocks
+    reserve_for_human: 0
+  failures:
+    max_retries_per_task: 3
+    pause_after_consecutive_failures: 3
+  progress:
+    review_after_no_gain_experiments: 5
 best:
   cv_metric: suite-average win% (ladder-predictive opponent suite)
   cv_score: 0.548                # v2.1 suite-avg baseline; our line ~54% maps to ladder ~556-686
-  public_lb: 686.1               # best OWN-agent ladder peak (Forecast v3); v3.2 current 660.0
-  attributed_entry_lb: 1151.0    # adapted-kuni05 (attributed public agent) peak; current re-submit 1085.4
-  private_lb: null               # not released
-  submission_id: null            # Kaggle submissions API exposes no numeric id
-current_blocker: "strong-tier cliff: ~100% vs weak agents, 0-15% vs strong tier (evogen 1093 / multifocus / kuni05 1240); 7 single-mechanism levers failed"
-next_task: "v4 Scheduler next cut (counter-attack window / cluster-targeted hammer); freeze best-2 for re-submission in last 3 days (D2)"
+  public_lb: null                # final eligible own-agent score UNKNOWN (ADR-0022 §3).
+                                 #   Historical measurement: v4 Scheduler 703.9, sub 53730511,
+                                 #   at the 2026-06-16 refresh; evicted by the later rotfix pair.
+                                 #   See tracking.md; do not promote an evicted entry to final best.
+  attributed_entry_lb: 1151.0    # adapted-kuni05 (attributed public agent) peak; 1069.9 at the
+                                 #   same 06-16 refresh (slow downward drift)
+  private_lb: null               # final score not established by the available evidence
+  submission_id: null            # final eligible own entry unverified; last candidates
+                                 #   53769740 / 53769744 have no recorded settled score
+current_blocker: "none — competition closed 2026-06-23. Two open questions for the post-mortem, both unresolved in available evidence: (1) the LAST own agents submitted are the B11 rotation-fix pair (subs 53769740 / 53769744, 2026-06-17, both `neutral` awaiting episodes) and their settled ladder mu was never recorded, so our true final own-agent mu is unknown — 703.9 is the last measured number, from the agent the rotfix evicted; (2) the final standing was never captured before this record was reconciled"
+next_task: "Write up the transferable findings: (1) INS-009 — the strong-tier cliff was largely bug B11 (planet-rotation off-by-one, one tick ahead in every predictor), not strategy: fixing it took win-rate vs evogen 13.8% -> 45.0% (+31pt) and sun-launches 9% -> 0%, which revises the '7 single-mechanism levers failed' narrative this field used to assert; (2) local arena under-discriminates within our own cluster (blind at mu 640-703) while separating gross tiers, so ladder probes beat local gates; (3) rotation-relay refuted quantitatively (riding 2.35 < flying 2.39 u/step). Recover the settled mu of 53769740 / 53769744 if the API still serves it"
 source_notes:
   - GitHub issue #87 (strategy & tracking hub)
   - competitions/orbit-wars/README.md (detailed log), EPISODES.md, LEAGUE.md, VALIDATION.md

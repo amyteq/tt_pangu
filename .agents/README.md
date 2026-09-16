@@ -23,6 +23,7 @@ and lists the skill under its front-matter `name`.
 | Skill | Symlink target | What it is for |
 |---|---|---|
 | `agent-iteration-review` | `../../.claude/skills/agent-iteration-review` | Use after tests, validation, benchmark, submission, or CTF solver results are available |
+| `at-review-pr` | `../../.claude/skills/at-review-pr` | Run bounded PR review and fix rounds with independent Codex or Claude Code sessions, evidence-linked dispositions, and a final full review before approval |
 | `ctf-sandbox` | `../../.claude/skills/ctf-sandbox` | Use for authorized CTF challenge solving only: local challenge analysis, sandboxed exploitation, solver scripts, flags, and writeups within explicitly provided scope |
 | `design-archaeology` | `../../.claude/skills/design-archaeology` | Use before implementing any migration, rewrite, take-over, or port of legacy scripts / configs |
 | `github-issue-triage` | `../../.claude/skills/github-issue-triage` | Triage one or more GitHub issues — propose label adds/removes and a triage comment, gated by deterministic rules |

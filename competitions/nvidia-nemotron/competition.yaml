@@ -3,23 +3,69 @@ kaggle_slug: nvidia-nemotron-model-reasoning-challenge
 title: NVIDIA Nemotron Model Reasoning Challenge
 aliases: [nemo, nemotron]
 tracking_issue: 86               # GitHub issue #86 (historical hub; future updates live here)
-status: active
-phase: submission
+status: closed                 # open | closed | unknown -- is the official competition submission window open (was: active)
+state: FINDINGS                # ADR-0022 §3 canonical state (was phase: submission)
 competition_type: llm
 metric: accuracy (extracted \boxed{} answer; exact match or numeric within 1e-2)
 deadline: 2026-06-15             # 23:59 UTC (issue #86 snapshot)
 primary_artifact: notebook
 submission_mode: kernel          # rank<=32 LoRA adapter -> submission.zip via Kaggle kernel
 data_policy: kaggle              # + public Kaggle datasets (huikang corpus / replay-math / wheels), real training (no repack)
-last_updated: 2026-06-15         # LB confirmed via read-only Kaggle API refresh 2026-06-15
+autonomy_config: kca-nemo.yaml   # ADR-0022 §5 A1 reads this file and no other -- note the slug
+                                 #   (nvidia-nemotron) is NOT this filename, which is why the
+                                 #   field exists. Block is under `_base`, so A1 can read it
+last_updated: 2026-09-15         # reconciled against submissions.md + postmortems/ under
+                                 #   ADR-0022 §3 (rank 1 is authoritative). Private LB released
+                                 #   2026-06-16 and backfilled here; state/status unchanged
+# ADR-0022 §6 budget envelope. Same KEY STRUCTURE as
+# competitions/_templates/competition.yaml; the VALUES are this competition's.
+# `null` is an UNKNOWN, not "unlimited": a null cap refuses the work that would
+# spend against THAT dimension (§6), and A2/A3 keep §5's relaxed autonomy inactive
+# until it is filled in from a verified source. PAUSED_BUDGET is entered when a
+# blocked dimension is needed to make progress — not merely because a cap is null.
+# This competition is closed and in FINDINGS: no cycle starts and nothing is
+# reserved against these caps. The block is present so the schema is uniform.
+budget:
+  cycle: 7d                             # window every max_per_cycle is measured over
+  cycle_anchor: null                    # UTC timestamp cycle 0 started; all arithmetic is UTC
+  experiments:
+    max_per_cycle: null
+  compute:
+    max_gpu_hours_per_cycle: null
+  llm:
+    max_turns_per_research_task: 100
+    max_metered_cost_per_cycle_usd: 0   # 0 = subscription-only spend; null blocks metered spend
+  submissions:
+    require_verified_competition_limit: true
+    verified_daily_limit: null          # fill at ONBOARD from the competition's own rules; never assume 5
+    verified_source: null               # where that number was read (URL / API field)
+    verified_at: null                   # <YYYY-MM-DD> it was read
+    verified_reset_boundary: null       # WHEN the daily quota resets, from the competition's
+                                        #   own rules; NEVER assumed. null blocks submission
+    verified_ttl: 30d                   # past this the limit is unverified again and blocks
+    reserve_for_human: 0
+  failures:
+    max_retries_per_task: 3
+    pause_after_consecutive_failures: 3
+  progress:
+    review_after_no_gain_experiments: 5
 best:
   cv_metric: accuracy
   cv_score: null                 # per-kernel held-out only; not a single canonical CV
-  public_lb: 0.86               # best OWN real-training (nemo-merge-soup = SVD soup of v14+c1+b1); broke the 0.85 ceiling
-  private_lb: null
-  submission_id: null            # submission IDs not recorded in available evidence
-current_blocker: "none — 0.85 ceiling broken by nemo-merge-soup (0.86), an SVD model-soup of comparable+complementary adapters (v14+c1+b1)"
-next_task: "Hold 0.86 to close (deadline 2026-06-15); post-comp: T12 local metric, KCA-core YAML (#85)"
+  public_lb: 0.86               # ELIGIBLE best (ADR-0022 §3 `best` rule): nemo-merge-soup =
+                                #   SVD soup of v14+c1+b1, submitted 2026-06-15 03:22 and SELECTED
+                                #   for private scoring. Broke the v14 0.85 ceiling
+  private_lb: 0.85              # released 2026-06-16; the selected soup aged 0.86 -> 0.85.
+                                #   harrysun2006 public rank 150/4350; private top 0.92 (no shake-up).
+                                #   NOT 0.86: `nemo-eq-aug` scored 0.86 / 0.86 -- our best private of
+                                #   the whole campaign -- but on 2026-06-16 09:22, in the 100/day LATE
+                                #   window AFTER the 06-15 deadline, so it counted for nothing.
+                                #   `best` is the eligible best (§3); the late result lives in
+                                #   tracking.md + submissions.md "Late-submission window"
+  submission_id: null           # Kaggle's submissions API exposes no numeric id for this
+                                #   competition (submissions.md header); (date + description) is the key
+current_blocker: "none — competition closed 2026-06-15, private LB released 2026-06-16, post-mortem written (postmortems/2026-06-16-final-postmortem.md). Held finding for the post-mortem: the campaign's best PRIVATE score (eq-aug 0.86/0.86, full-coverage single-epoch SFT) was only discovered in the post-deadline window — the coverage lever existed before the deadline and was not tried in time"
+next_task: "Write up the transferable findings: (1) model-soup of comparable+complementary adapters beats each member (0.85 -> 0.86); (2) coverage is the lever, dose is not (eq-aug 0.86/0.86 at full coverage x1; x2 regresses to 0.82 private); (3) eq-aug does not soup — the soup lever needs hard-tail-robust members; (4) public->private was robust, and the one hedge that paid (+0.01) was the weaker-public b2. Then: T12 local metric, KCA-core YAML (#85)"
 source_notes:
   - GitHub issue #86 (strategy & tracking hub)
   - competitions/nvidia-nemotron/kernels/README.md
