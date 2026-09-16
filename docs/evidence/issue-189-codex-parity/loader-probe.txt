@@ -2,7 +2,7 @@ Loader probe — what Codex actually loads from this repo.
 
 Command:  CODEX_HOME=<isolated> codex debug prompt-input 'Start work on competitions/arc-agi2'
 Binary:   codex-cli 0.154.0 (as reported at render time)
-Repo:     f3876cc — verified: it is HEAD, the worktree matches it apart from the
+Repo:     52b81cf — verified: it is HEAD, the worktree matches it apart from the
           evidence outputs, its AGENTS.md is byte-identical to the file measured
           below, and the dump's project-doc message contains that same file.
 Measured: AGENTS.md on disk: 25447 bytes, 25253 characters
@@ -13,19 +13,20 @@ Measured: AGENTS.md on disk: 25447 bytes, 25253 characters
           opening sentinel present: True
           closing sentinel present: True
           truncation marker: False
-          project skills listed under r1: 18
+          project skills listed under r1: 19
 
 `codex debug prompt-input` renders the model-visible prompt without a network call.
 An isolated CODEX_HOME keeps the human's own config and user-level skills out of it.
 
 == developer message: skills catalogue (excerpt) ==
 ### Skill roots
-- `r0` = `/tmp/codex-probe-home/skills/.system`
+- `r0` = `/home/harry/.codex-probe-issue189/skills/.system`
 - `r1` = `/home/harry/test/tt_pangu/.claude/worktrees/issue-189-agents-parity/.agents/skills`
 ### Available skills
 
 -- project skills listed from r1 --
 - agent-iteration-review: Use after tests, validation, benchmark, submission, or CTF solver results are available. Reviews evidence and decides whether to continue, revert, ask human, or stop. (file: r1/agent-iteration-review/SKILL.md)
+- at-refine-issue: Refine an existing GitHub issue into an executable work order — observable acceptance criteria, one standalone task-instructions comment, and copyable /goal and plain-language launch prompts built on that comment's real permalink. Use when a human asks to refine, sharpen, or prepare an issue for dispatch; it never implements the issue. (file: r1/at-refine-issue/SKILL.md)
 - at-review-pr: Run bounded PR review and fix rounds with independent Codex or Claude Code sessions, evidence-linked dispositions, and a final full review before approval. Use for iterative PR review requests, not one-shot reviews or merging. (file: r1/at-review-pr/SKILL.md)
 - ctf-sandbox: Use for authorized CTF challenge solving only: local challenge analysis, sandboxed exploitation, solver scripts, flags, and writeups within explicitly provided scope. (file: r1/ctf-sandbox/SKILL.md)
 - design-archaeology: Use before implementing any migration, rewrite, take-over, or port of legacy scripts / configs. Produces a structured 10-section archaeology report with file:line citations and explicit open questions; read-only; blocks code changes until report exists. (file: r1/design-archaeology/SKILL.md)
