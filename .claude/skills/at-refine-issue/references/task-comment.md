@@ -4,7 +4,7 @@ One comment, one complete work order. The comment is what a launch prompt points
 
 The test: **hand the permalink to a fresh session with no other context, and it can do the work.** If it would have to scroll the thread, reconstruct instructions from earlier comments, or ask what "the approach we agreed" was, the comment is incomplete.
 
-Write soft-wrapped Markdown: one paragraph, list item, or table row per physical line. Leave a blank line before every `---`.
+Write soft-wrapped Markdown: one paragraph, list item, or table row per physical line. Leave a blank line before every `---`. The repository rule binds comment bodies too: [ADR-0024](../../../../docs/adr/0024-markdown-soft-wrap.md).
 
 ## Marker
 

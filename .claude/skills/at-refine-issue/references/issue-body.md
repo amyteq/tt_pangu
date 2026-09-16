@@ -2,7 +2,7 @@
 
 The shape a refined issue takes in this repository. Fill every section with observed facts; delete a section only when it genuinely does not apply, and say so rather than leaving a heading with no content. Keep the issue and its [task comment](task-comment.md) consistent — the acceptance criteria in particular are one list published twice.
 
-Write soft-wrapped Markdown: one paragraph, list item, or table row per physical line, with no hard line break inside it. GitHub wraps to the reader's viewport, so a hard-wrapped paragraph renders ragged at every other width. Leave a blank line before every `---`, or the paragraph above it parses as a setext H2 and silently renders as a heading.
+Write soft-wrapped Markdown: one paragraph, list item, or table row per physical line, with no hard line break inside it. GitHub wraps to the reader's viewport, so a hard-wrapped paragraph renders ragged at every other width. Leave a blank line before every `---`, or the paragraph above it parses as a setext H2 and silently renders as a heading. This is the repository rule for issue and comment bodies alike: [ADR-0024](../../../../docs/adr/0024-markdown-soft-wrap.md).
 
 The issue form at `.github/ISSUE_TEMPLATE/feature-work.yml` defines the minimum fields triage needs — mission, context, scope, non-goals, acceptance criteria, tests, evidence, area, priority, safety. A refined body must still answer all of them, even when the issue was opened without the form.
 
