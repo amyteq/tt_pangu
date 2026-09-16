@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -80,25 +81,34 @@ def _clip(text: str, limit: int = MAX_BODY_CHARS) -> str:
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
-def build_message(source: str, payload: dict, label: str | None) -> tuple[str, str, str | None]:
-    """Return (title, body, event_level). Never raises on a shape surprise."""
+def build_message(
+    source: str, payload: dict, label: str | None, *, content: bool = True
+) -> tuple[str, str, str | None]:
+    """Return (title, body, event_level). Never raises on a shape surprise.
+
+    ``content=False`` (``--no-content`` / ``KCA_NOTIFY_NO_CONTENT=1``) sends the
+    event and its session/thread id but **not** the prompt or the assistant
+    reply. Redaction masks credential *shapes*; it cannot recognise private
+    competition data, so an operator working under a competition's data rules
+    turns the text off rather than trusting a filter (#206 F001).
+    """
     tag = label or Path(str(payload.get("cwd") or REPO_ROOT)).name
     if source == "codex":
         event = str(payload.get("type") or "codex-event")
         inputs = payload.get("input-messages") or []
-        prompt = _clip(inputs[0] if isinstance(inputs, list) and inputs else "", 160)
+        prompt = _clip(inputs[0] if isinstance(inputs, list) and inputs else "", 160) if content else ""
         title = f"Codex · {tag} · {event}"
-        body = _clip(payload.get("last-assistant-message") or "")
+        body = _clip(payload.get("last-assistant-message") or "") if content else ""
         if prompt:
             body = f"↪ {prompt}\n\n{body}" if body else f"↪ {prompt}"
         thread = str(payload.get("thread-id") or "")
         if thread:
-            body = f"{body}\n\nthread {thread[:12]}"
+            body = f"{body}\n\nthread {thread[:12]}" if body else f"thread {thread[:12]}"
         return title, body or "(no message)", CODEX_EVENT_LEVELS.get(event)
 
     event = str(payload.get("hook_event_name") or "ClaudeEvent")
     title = f"Claude Code · {tag} · {event}"
-    body = _clip(payload.get("message") or payload.get("reason") or "")
+    body = _clip(payload.get("message") or payload.get("reason") or "") if content else ""
     session = str(payload.get("session_id") or "")
     if session:
         body = f"{body}\n\nsession {session[:12]}" if body else f"session {session[:12]}"
@@ -113,6 +123,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--recipient", default=None)
     parser.add_argument("--label", default=None, help="short name for this entry, e.g. 'ayla1 · kaggle'")
     parser.add_argument("--config", default=None)
+    parser.add_argument(
+        "--no-content",
+        action="store_true",
+        dest="no_content",
+        help="send the event only — no prompt, no assistant reply (or set KCA_NOTIFY_NO_CONTENT=1)",
+    )
     parser.add_argument("--dry-run", action="store_true", dest="dry_run")
     args, rest = parser.parse_known_args(argv if argv is not None else sys.argv[1:])
 
@@ -122,8 +138,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[agent_notify] unreadable {args.source} payload: {exc}", file=sys.stderr)
         return 0
 
+    content = not (args.no_content or os.environ.get("KCA_NOTIFY_NO_CONTENT", "").strip() not in ("", "0", "false"))
     try:
-        title, body, event_level = build_message(args.source, payload, args.label)
+        title, body, event_level = build_message(args.source, payload, args.label, content=content)
     except Exception as exc:  # a shape we have never seen is still not fatal
         print(f"[agent_notify] unusable {args.source} payload: {notify.redact(exc)}", file=sys.stderr)
         return 0

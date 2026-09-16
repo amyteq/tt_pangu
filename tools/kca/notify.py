@@ -89,6 +89,14 @@ REDACTED = "[REDACTED]"
 # into a push or a record.
 MAX_TITLE_CHARS = 200
 MAX_BODY_CHARS = 2000
+# Telegram rejects a `sendMessage` body over 4096 characters. A decision card is
+# assembled from validated ids plus free-text labels, so every free-text part is
+# bounded and the assembled card is clipped as a backstop — an over-long label
+# must not turn a gate into a failed push (#206 F011).
+TELEGRAM_MAX_CHARS = 4096
+MAX_CARD_FIELD_CHARS = 120
+MAX_OPTION_LABEL_CHARS = 120
+MAX_RENDERED_OPTIONS = 10
 # Any configured secret shorter than this is not masked by value — masking a
 # 2-character value would blank out unrelated text for no security gain.
 MIN_MASKABLE_SECRET_CHARS = 6
@@ -126,8 +134,11 @@ _TELEGRAM_TOKEN_RE = re.compile(r"\b\d{6,12}:[A-Za-z0-9_-]{30,}")
 _SECRET_VALUE_RES = (
     _TELEGRAM_TOKEN_RE,
     # OpenAI-style keys, including the project form `sk-proj-…`. `sk-ant-…` is
-    # already handled by stuck.py; this generalises it.
-    re.compile(r"\bsk-(?:[A-Za-z0-9]{1,16}-)*[A-Za-z0-9_-]{8,}"),
+    # already handled by stuck.py; this generalises it. The long run is
+    # deliberately hyphen-free and ≥16 chars: `sk-learn-baseline` is a branch
+    # name an operator may well put in a gate, and masking it would eat the
+    # reason out of the message (#206 F010).
+    re.compile(r"\bsk-(?:[A-Za-z0-9]{1,12}-){0,4}[A-Za-z0-9_]{16,}"),
     # GitHub PATs / OAuth tokens.
     re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{20,})"),
     re.compile(r"\bAIza[A-Za-z0-9_-]{20,}"),  # Google API key
@@ -136,7 +147,10 @@ _SECRET_VALUE_RES = (
     re.compile(r"\bglpat-[A-Za-z0-9_-]{16,}"),  # GitLab
     # A JWT / signed session cookie.
     re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
-    re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]{12,}"),
+    # HTTP auth schemes. `Bearer` alone is not enough: `Basic <base64>` carries
+    # user:password, and masking only the scheme word left the payload in the
+    # clear (#206 F001).
+    re.compile(r"(?i)\b(?:bearer|basic|digest|negotiate|apikey)\s+[A-Za-z0-9._~+/=-]{12,}"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----"),
 )
 
@@ -146,9 +160,20 @@ _SECRET_VALUE_RES = (
 # without redacting every digit in the body.
 _SECRET_ASSIGNMENT_RE = re.compile(
     r"(?i)\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|ACCESS_KEY|CREDENTIAL"
-    r"|PRIVATE_KEY|SESSION_KEY|CHAT_ID|AUTHORIZATION)[A-Z0-9_]*)(\s*[:=]\s*)"
+    r"|PRIVATE_KEY|SESSION_KEY|CHAT_ID)[A-Z0-9_]*)(\s*[:=]\s*)"
     r"(\"[^\"\n]*\"|'[^'\n]*'|\S+)"
 )
+
+# Names that merely *contain* a keyword but are ordinary operator reporting.
+# `tokens: 1500 remaining` and `max_tokens: 4096` are budget fields, not
+# credentials, and masking them removes the number the human needs (#206 F010).
+# The singular `token=…` / `TOKENS_SECRET=…` still masks.
+_OPERATOR_FIELD_RE = re.compile(r"(?i)(?:^|[_.\-])tokens(?:$|[_.\-])")
+
+# An `Authorization` header value is a credential *in its entirety* — scheme,
+# payload and any continuation — so unlike a named assignment it is masked to
+# the end of the line rather than one whitespace-delimited token (#206 F001).
+_AUTH_HEADER_RE = re.compile(r"(?im)^(.*?\b(?:proxy-)?authorization)(\s*[:=]\s*)(\S.*)$")
 
 # Deterministic reply contract. The answer is an option id on a `/decide` line;
 # anything after it is recorded as context but never parsed as the decision.
@@ -179,18 +204,33 @@ def _configured_secret_values(cfg: dict[str, Any] | None) -> tuple[str, ...]:
     return tuple(v for v in values if len(v) >= MIN_MASKABLE_SECRET_CHARS)
 
 
+def _mask_assignment(match: re.Match[str]) -> str:
+    """Mask the value of `SECRET_NAME=value`, unless the name is operator text."""
+    name = match.group(1)
+    if _OPERATOR_FIELD_RE.search(name):
+        return match.group(0)
+    return f"{name}{match.group(2)}{REDACTED}"
+
+
 def redact(text: Any, cfg: dict[str, Any] | None = None) -> str:
     """Mask secret-shaped substrings in anything we are about to transmit.
 
-    Three layers, cheapest first: known credential shapes, `SECRET_NAME=value`
-    assignments, and — when ``cfg`` is given — the literal values this config
+    Four layers, cheapest first: known credential shapes, `Authorization:` header
+    lines (masked whole), `SECRET_NAME=value` assignments (name kept, value
+    masked), and — when ``cfg`` is given — the literal values this config
     resolves to. Everything then goes through the shared
     ``stuck.redact_escalation_payload`` filter (DSNs, AWS ids, flags).
+
+    It masks *credential shapes and credential-named fields*, not "text that
+    might be private": arbitrary private competition data has no shape, so the
+    defence against that is the single private recipient plus the `--no-content`
+    opt-out in ``scripts/agent_notify.py``, not this function (#206 F001/F010).
     """
     scrubbed = str(text)
     for pattern in _SECRET_VALUE_RES:
         scrubbed = pattern.sub(REDACTED, scrubbed)
-    scrubbed = _SECRET_ASSIGNMENT_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}{REDACTED}", scrubbed)
+    scrubbed = _AUTH_HEADER_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}{REDACTED}", scrubbed)
+    scrubbed = _SECRET_ASSIGNMENT_RE.sub(_mask_assignment, scrubbed)
     for value in _configured_secret_values(cfg):
         scrubbed = scrubbed.replace(value, REDACTED)
     return str(redact_escalation_payload(scrubbed))
@@ -457,7 +497,7 @@ def dedupe_key(level: str, title: str, body: str) -> str:
 
 
 @contextmanager
-def ledger_lock(cfg: dict[str, Any], timeout_s: float | None = None) -> Iterator[bool]:
+def ledger_lock(cfg: dict[str, Any], timeout_s: float | None = None, *, create: bool = True) -> Iterator[bool]:
     """Serialise read → decide → append → send across processes and worktrees.
 
     Without it two agents can both read a spent-but-not-yet-recorded budget and
@@ -468,8 +508,13 @@ def ledger_lock(cfg: dict[str, Any], timeout_s: float | None = None) -> Iterator
     raising or dropping the message. Overshooting a routine budget by one is a
     better failure than a `gate` that never reaches the human because another
     process was wedged holding the lock.
+
+    ``create=False`` skips locking entirely and creates nothing. A dry run
+    appends no ledger entry, so it has nothing to serialise, and it is the
+    command an operator rehearses with — including from a hook — so it must not
+    leave a state directory or a `ledger.lock` behind (#206 F012).
     """
-    if fcntl is None:  # pragma: no cover - not reachable on Linux/macOS
+    if fcntl is None or not create:  # pragma: no branch - fcntl exists on Linux/macOS
         yield False
         return
     path = state_dir(cfg) / "ledger.lock"
@@ -742,6 +787,25 @@ def _tg_escape(text: Any) -> str:
     return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+def _clip_html(text: str, limit: int) -> str:
+    """Bound an already-escaped HTML message without leaving a broken fragment.
+
+    The per-field bounds above should make this unreachable; it is the backstop
+    that makes "a card is never over Telegram's limit" true by construction
+    rather than by arithmetic (#206 F011). A truncated `&amp;` or `<a href=…`
+    would make Telegram reject the whole message, so the cut is pulled back to
+    the last safe boundary and any unclosed tag is dropped with the tail.
+    """
+    if len(text) <= limit:
+        return text
+    cut = text[: limit - 1]
+    cut = re.sub(r"<[^>]*$", "", cut)  # a tag opened but not closed by the cut
+    cut = re.sub(r"&[A-Za-z#0-9]*$", "", cut)  # a half-written entity
+    if "<" in cut and cut.count("<") != cut.count(">"):  # pragma: no cover - defensive
+        cut = cut[: cut.rfind("<")]
+    return cut + "…"
+
+
 def render_telegram_text(req: DecisionRequest, cfg: dict[str, Any]) -> str:
     """The compact push card. Detail lives in the GitHub record it links to.
 
@@ -749,26 +813,38 @@ def render_telegram_text(req: DecisionRequest, cfg: dict[str, Any]) -> str:
     the answer path in phase 1a — the card itself is read-only.
     """
     summary = clip(redact(req.summary, cfg), 500)
+    # Clip before escaping, never after: cutting `&amp;` in half would emit a
+    # broken entity into a parse_mode=HTML message.
+    shown = req.options[:MAX_RENDERED_OPTIONS]
     answers = [
-        f"<code>/decide {_tg_escape(req.decision_id)} {_tg_escape(opt_id)}</code> — {_tg_escape(redact(label, cfg))}"
-        for opt_id, label in req.options
+        f"<code>/decide {_tg_escape(req.decision_id)} {_tg_escape(opt_id)}</code> — "
+        f"{_tg_escape(clip(redact(label, cfg), MAX_OPTION_LABEL_CHARS))}"
+        for opt_id, label in shown
     ]
+    if len(req.options) > len(shown):
+        answers.append(f"… {len(req.options) - len(shown)} more option(s) — see the record on GitHub")
     lines = [
         f"🔔 <b>Decision</b> — <code>{_tg_escape(req.decision_id)}</code>",
-        f"🏁 {_tg_escape(redact(req.competition, cfg) or '—')}",
-        f"#️⃣ plan <code>{_tg_escape(redact(req.plan_hash, cfg))}</code>",
+        f"🏁 {_tg_escape(clip(redact(req.competition, cfg), MAX_CARD_FIELD_CHARS) or '—')}",
+        f"#️⃣ plan <code>{_tg_escape(clip(redact(req.plan_hash, cfg), MAX_CARD_FIELD_CHARS))}</code>",
         "",
         _tg_escape(summary),
         "",
         "✍️ <b>Answer by commenting on the record</b> (this card has no buttons to tap):",
         *answers,
         "",
-        "".join(["⏳ expires ", _tg_escape(redact(req.expires_at, cfg)), " — no reply ≠ approval"]),
+        "".join(
+            [
+                "⏳ expires ",
+                _tg_escape(clip(redact(req.expires_at, cfg), MAX_CARD_FIELD_CHARS)),
+                " — no reply ≠ approval",
+            ]
+        ),
     ]
     url = req.issue_url(cfg)
     if url:
         lines += ["", f'📎 <a href="{_tg_escape(url)}">record on GitHub</a>']
-    return "\n".join(lines)
+    return _clip_html(("\n".join(lines)), TELEGRAM_MAX_CHARS)
 
 
 def build_keyboard(req: DecisionRequest, cfg: dict[str, Any]) -> dict[str, Any]:
@@ -1009,7 +1085,7 @@ def dispatch(
     body = clip(redact(body, cfg), MAX_BODY_CHARS)
     key = dedupe_key(level, title, body)
 
-    with ledger_lock(cfg) as locked:
+    with ledger_lock(cfg, create=not dry_run) as locked:
         entries = read_ledger(cfg)
 
         def _record(status: str, detail: dict[str, Any]) -> dict[str, Any]:

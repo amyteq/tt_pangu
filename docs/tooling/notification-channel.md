@@ -127,7 +127,7 @@ notify = [
 
 Codex fires `agent-turn-complete` (payload: `type`, `thread-id`, `turn-id`, `cwd`, `input-messages`, `last-assistant-message`), which maps to level `info` — routine traffic, so it is deduped for 3 h, deferred out of quiet hours, and counted against the daily budget. Override with `--level attention` if you want every Codex turn to break through, but expect the volume.
 
-Both adapters forward harness text — your prompt and the assistant's reply — so everything they build is redacted and length-bounded before it leaves the process. See [What can never reach a notification](#what-can-never-reach-a-notification).
+Both adapters forward harness text — your prompt and the assistant's reply — so everything they build is redacted and length-bounded before it leaves the process. Redaction masks credential *shapes*, not "text that might be private": arbitrary private competition data has no shape to match on. The recipient is your own chat, and the whole point of these events is to tell you what the session said, so forwarding is the default — but when you are working under a competition's data rules, add `--no-content` (or export `KCA_NOTIFY_NO_CONTENT=1`) and the push carries only the event, the label and the session/thread id. See [What can never reach a notification](#what-can-never-reach-a-notification).
 
 Check either wiring without touching Telegram:
 
@@ -189,18 +189,22 @@ Dedupe and the daily cap are backed by a JSONL ledger under `state_dir` (`.agent
 
 * It is **one ledger per repository, not per worktree**: a relative `state_dir` resolves against the primary checkout, because the budget protects a human's phone rather than a directory.
 * The read → decide → send → append sequence runs under a `flock` on `.agent/notify/ledger.lock`, so two agents cannot both spend the last of the budget. The lock is best effort by design — after 10 s it sends unserialised (`serialized: false` in the result) rather than dropping a `gate` because another process was wedged.
+* `--dry-run` takes no lock and creates nothing — not the ledger, not `ledger.lock`, not the state directory: it appends nothing, so it has nothing to serialise, and it reports `serialized: false`.
 * A suppressed outcome is recorded once per hour per message, not once per hook invocation, and the file is compacted to its newest entries once it crosses ~500 KB. A line that is not a JSON object is skipped, so a corrupted ledger cannot take the channel — or `doctor` — down.
 
 ### What can never reach a notification
 
-Every transmitted title, body, summary, option label and link goes through `redact()` and is clipped (200 chars for a title, 2000 for a body). `redact()` masks, in order:
+Every transmitted title, body, summary, option label and link goes through `redact()` and is clipped (200 chars for a title, 2000 for a body, 120 per option label, 10 option lines on a card). A rendered decision card is additionally clipped to Telegram's 4096-character limit at a boundary that cannot leave a broken HTML entity, so a long label degrades the card instead of failing the push. `redact()` masks, in order:
 
-* credential shapes — Telegram bot tokens, `sk-…` / `sk-proj-…` / `sk-ant-…` keys, GitHub PATs, Google, Slack, Hugging Face and GitLab tokens, JWTs, `Authorization: Bearer …`, PEM private-key blocks;
+* credential shapes — Telegram bot tokens, `sk-…` / `sk-proj-…` / `sk-ant-…` keys, GitHub PATs, Google, Slack, Hugging Face and GitLab tokens, JWTs, `Bearer` / `Basic` / `Digest` credentials, PEM private-key blocks;
+* an `Authorization:` / `Proxy-Authorization:` line — masked to the end of the line, because the whole value is the credential, scheme included;
 * `NAME=value` / `NAME: value` where the name itself says secret (`*TOKEN*`, `*SECRET*`, `*API_KEY*`, `*PASSWORD*`, `*CHAT_ID*`, …) — the name is kept, only the value is masked;
 * the literal values *this* config resolves to, so a body quoting our own chat id or bot token cannot echo it back;
 * everything the shared `stuck.redact_escalation_payload` filter knows: DSNs, `user:pass@host`, AWS key ids, CTF flags.
 
-It deliberately does **not** mask "anything that looks like a number": a redaction that silences a gate or eats the operator's own sentence is a worse outcome than the leak it prevents. `decision_id` and option ids are the one field rendered verbatim (they must round-trip through `/decide`), so a secret-shaped id is rejected at creation instead.
+It deliberately does **not** mask "anything that looks like a number", and it exempts the plural `tokens` fields (`tokens: 1500 remaining`, `max_tokens: 4096`) and hyphenated names like `sk-learn-baseline`: a redaction that silences a gate or eats the operator's own sentence is a worse outcome than the leak it prevents. `decision_id` and option ids are the one field rendered verbatim (they must round-trip through `/decide`), so a secret-shaped id is rejected at creation instead.
+
+What it therefore does **not** guarantee: private competition data, which has no credential shape. A sentence an agent wrote about the private split is transmitted as written. Two things bound that — the only recipient is your own `TELEGRAM_CHAT_ID_ME` chat, and the harness adapters take `--no-content` / `KCA_NOTIFY_NO_CONTENT=1` to stop forwarding session text at all.
 
 ## Running it
 
