@@ -15,7 +15,7 @@ The deliverable is a Markdown development skill plus two references. It adds no 
 | Skill registered by the harness from the worktree | PASS: listed as `at-refine-issue` with the frontmatter description after the file was written | AC1 |
 | Documented `gh` forms exist in the installed CLI (2.100.0) | PASS: `gh issue comment -R/--repo -F/--body-file`, `gh issue edit -F/--body-file`, and `gh api -F key=@path` (documented file-reading form) all present in `--help` | AC1, AC3 |
 
-The diff is Markdown-only, so pytest and Ruff are recorded as unchanged-baseline evidence rather than as coverage of new behavior. `git diff --stat origin/main HEAD` is the proof: 5 files, +502 lines, no Python touched. The `ruff format` failure is inherited and out of scope — this PR does not reformat unrelated competition files. The pytest runs used `~/micromamba/envs/v3.12.12/bin/python` with `SUPABASE_DB_URL` unset and `KCA_SKIP_DOTENV=1`, so the 90 skips are the DB-backed tests with no local Supabase to reach.
+The diff is Markdown-only, so pytest and Ruff are recorded as unchanged-baseline evidence rather than as coverage of new behavior. `git diff --stat origin/main HEAD` is the proof: 5 files, +557 lines, no Python touched. The `ruff format` failure is inherited and out of scope — this PR does not reformat unrelated competition files. The pytest runs used `~/micromamba/envs/v3.12.12/bin/python` with `SUPABASE_DB_URL` unset and `KCA_SKIP_DOTENV=1`, so the 90 skips are the DB-backed tests with no local Supabase to reach.
 
 ## Automated checks
 
