@@ -30,6 +30,11 @@ SHARED_RULES = [
     "Two agents: Claude Code harness vs KCA product",
     "autonomy_config",
     "A1-A7",
+    # The operative half of principle 6. `autonomy_config` and `A1-A7` are tokens
+    # that can sit anywhere in either file; this is the instruction a harness has
+    # to act on, so it is required verbatim rather than inferred from their
+    # presence. See `_screened_autonomy_problems` for the other half of the rule.
+    "ask before every Kaggle submission or kernel push",
     "Read-for-use, not read-to-share",
     ".agent/kca/audit.jsonl",
     ".agent/audit/tool-events.jsonl",
@@ -638,6 +643,26 @@ def test_force_push_is_never_described_as_approvable(doc: str):
     )
 
 
+def test_force_push_is_never_described_as_approvable_in_a_mirrored_skill():
+    """The same rule, applied where it was actually broken.
+
+    Scanning five top-level docs left the skills out, and a mirrored skill is read
+    by both harnesses *after* the project doc. `pr-closeout-review` listed
+    force-push among the writes that "require explicit human approval recorded on
+    the closing issue" — a reviewer following it would treat an approval record as
+    a valid route to an operation CLAUDE.md denies outright.
+    """
+    offenders = []
+    for entry in sorted(AGENTS_SKILLS.iterdir()):
+        for problem in _force_push_problems((entry / "SKILL.md").read_text(encoding="utf-8")):
+            offenders.append(f"{entry.name}: {problem}")
+    assert not offenders, (
+        "mirrored skills describe force-push as approvable:\n  " + "\n  ".join(offenders) + "\n"
+        "  CLAUDE.md denies force-push outright; a gate implies a path to yes. Fix the skill "
+        "under .claude/skills/ — the mirror is a symlink to it."
+    )
+
+
 @pytest.mark.parametrize(
     "text,allowed",
     [
@@ -890,7 +915,13 @@ APPROVAL_CLAIM = re.compile(
 GATED_OPERATIONS = ("submit", "merge", "push", "post a comment", "pr body", "remote write")
 # Operations CLAUDE.md really does gate on explicit human approval. An approval
 # rule naming one of these is correct for both agents, so it needs no scoping.
-PERMANENTLY_GATED = ("sync_labels", "permanent-deletion", "permanent deletion", "force-push", "--delete")
+#
+# `force-push` was on this list and did not belong: CLAUDE.md denies force-push
+# outright rather than gating it, so filing it here exempted the one paragraph
+# that most needed checking — `pr-closeout-review` listed it among writes that
+# "require explicit human approval", and both this guard and the force-push guard
+# (which only read five top-level docs) let it through.
+PERMANENTLY_GATED = ("sync_labels", "permanent-deletion", "permanent deletion", "--delete")
 SCOPING_TOKENS = (
     "this skill",
     "harness",
@@ -927,8 +958,8 @@ def test_mirrored_skills_scope_every_approval_rule_they_state():
         "mirrored skills state approval rules without saying which agent they bind:\n  "
         + "\n  ".join(offenders)
         + "\n  The harness asks before spending the human's credentials; KCA's push/submit is "
-        "autonomous by default once `autonomy.screen` passes (ADR-0021). An unscoped rule is "
-        "read as binding both."
+        "governed by its own competition config and by ADR-0022 §5's activation conditions "
+        "A1-A7, not by a skill. An unscoped rule is read as binding both."
     )
 
 
@@ -940,6 +971,11 @@ def test_mirrored_skills_scope_every_approval_rule_they_state():
         ("- Do not merge from this skill; it requires human approval elsewhere.", True),
         ("- Do not post a comment or merge — those remote writes require human approval.", False),
         ("- Summarise the result and record the metric.", True),
+        # Naming a permanently gated write is correct for both agents and needs no
+        # scoping; naming force-push that way is not, because force-push is denied
+        # rather than gated — which is why it is no longer in PERMANENTLY_GATED.
+        ("- Only the permanent-deletion remote writes require explicit human approval.", True),
+        ("- A force-push of the branch requires explicit human approval.", False),
     ],
 )
 def test_the_skill_approval_rule_separates_these_cases(block: str, scoped: bool):
@@ -998,3 +1034,159 @@ def test_provenance_refuses_changes_hidden_by_skip_worktree(provenance, scratch_
     ).stdout.strip(), "fixture is wrong: the edit should be invisible to plain `git status`"
     with pytest.raises(SystemExit):
         provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
+
+
+# --- Merging ADR-0022 -------------------------------------------------------
+# ADR-0022 §5 replaced "screened autonomy is on by default" with a grant that is
+# off until a competition meets activation conditions A1-A7 — and records that no
+# competition does, that ADR-0021 §2's fallback is unimplemented, and that nothing
+# in the tree enforces either. `SHARED_RULES` used to require the literal
+# `autonomy.screen` in both harnesses; when the merge removed that phrase from
+# CLAUDE.md the entry was repointed at `autonomy_config` + `A1-A7`, which only
+# asks whether two tokens appear *somewhere*. Both did, while four later documents
+# still told an agent that passing the screen is what makes a submission
+# approval-free. A later document outranks the project doc in practice, so the
+# mention has to carry its own status.
+SCREEN_TOKENS = ("autonomy.screen", "screened autonomy", "screened, default-on", "screened grant")
+# Any one of these, in the same paragraph, is enough: they all say the grant is
+# not in force. Deliberately loose about wording — the point is that no paragraph
+# describes the screen as live with nothing beside it.
+SCREEN_STATUS_MARKERS = (
+    "a1-a7",
+    "activation condition",
+    "unimplemented",
+    "not yet",
+    "no code",
+    "design intent",
+    "not current behaviour",
+    "none has",
+    "never implemented",
+)
+
+
+def _screened_autonomy_problems(text: str) -> list[str]:
+    """Paragraphs that name the autonomy screen without saying it is not in force."""
+    problems = []
+    for block in _paragraphs(text):
+        low = block.lower().replace("`", "").replace("*", "")
+        if not any(token in low for token in SCREEN_TOKENS):
+            continue
+        if any(marker in low for marker in SCREEN_STATUS_MARKERS):
+            continue
+        problems.append(" ".join(block.split())[:200])
+    return problems
+
+
+# Instruction surfaces: what a harness loads, plus the hand-written sources those
+# are generated from. Milestone and task docs under `docs/milestones/` and
+# `docs/tasks/` are records of what M15 aimed at and are not scanned.
+SCREENED_AUTONOMY_SURFACES = [
+    "CLAUDE.md",
+    "AGENTS.md",
+    "docs/instructions/agents-delta.md",
+    "docs/architecture/platform-vs-runtime-agents.md",
+    *REQUIRED_READING,
+]
+
+
+@pytest.mark.parametrize("doc", SCREENED_AUTONOMY_SURFACES)
+def test_screened_autonomy_is_never_stated_as_live(doc: str):
+    problems = _screened_autonomy_problems((REPO_ROOT / doc).read_text(encoding="utf-8"))
+    assert not problems, (
+        f"{doc} describes the autonomy screen as though passing it were current permission:\n  "
+        + "\n  ".join(problems)
+        + "\n  ADR-0022 §5 gates that grant on activation conditions A1-A7, no competition meets "
+        "them, and no code reads the `autonomy:` block — so say that beside the mention, or drop it."
+    )
+
+
+def test_mirrored_skills_do_not_state_screened_autonomy_as_live():
+    """Same rule, applied where a stale mention outranks the project doc."""
+    offenders = []
+    for entry in sorted(AGENTS_SKILLS.iterdir()):
+        for problem in _screened_autonomy_problems((entry / "SKILL.md").read_text(encoding="utf-8")):
+            offenders.append(f"{entry.name}: {problem}")
+    assert not offenders, (
+        "mirrored skills describe the autonomy screen as current permission:\n  "
+        + "\n  ".join(offenders)
+        + "\n  A triggered skill is read after the project doc, so this is the rule in front of the "
+        "agent. Fix the skill under .claude/skills/ — the mirror is a symlink to it."
+    )
+
+
+@pytest.mark.parametrize(
+    "block,allowed",
+    [
+        ("Once `autonomy.screen` passes KCA submits without per-action approval.", False),
+        ("The approval-gate rows are superseded by ADR-0021's screened, default-on autonomy.", False),
+        ("`kca-<slug>.yaml` — `autonomy.screen`, budgets — is the source of truth for what KCA may submit.", False),
+        ("`autonomy.screen` is design intent, not code: nothing evaluates it.", True),
+        ("The screened grant applies only once A1-A7 are met, and none is.", True),
+        ("Screened autonomy is unimplemented, so ask.", True),
+        ("Budgets and schedules live in the per-competition config.", True),
+    ],
+)
+def test_the_screened_autonomy_rule_separates_these_cases(block: str, allowed: bool):
+    """The guard is a claim about wording, so its boundary cases are tested.
+
+    Cases 1-3 are the three shipped wordings the merge left behind (a mirrored
+    skill, the architecture note, the Codex appendix); case 4 is PROJECT_STATE.md's,
+    which is why that file passes without an edit.
+    """
+    assert (not _screened_autonomy_problems(block)) is allowed
+
+
+# --- A colon inside a plain description -------------------------------------
+# `description: Review: check files` is invalid YAML — `yaml.safe_load` raises
+# `ScannerError` — and the hand parser reads it as the full value. That looks like
+# the split F003 closed, and it is not one: the reader's contract is what the
+# *loaders* accept, and Codex accepts this. Probed on codex-cli 0.154.0 with
+# fixture skills in a scratch repo and an isolated CODEX_HOME: `colon-desc` was
+# listed with its description reproduced in full, while the two F003 shapes
+# (`- Bash: true`, an indented `child: value`) produced no catalogue entry at all.
+# Two shipped skills depend on the tolerance, so rejecting it would stop
+# generation for skills both harnesses load today.
+COLON_DESCRIPTION_SKILLS = ("ctf-sandbox", "kaggle-experiment-loop")
+LOADER_PROBE = REPO_ROOT / "docs" / "evidence" / "issue-189-codex-parity" / "loader-probe.txt"
+
+
+@pytest.mark.parametrize(
+    "label,replacement",
+    [
+        ("the reported input", "description: Review: check files"),
+        ("a colon with no space after it", "description: see file:line for the citation"),
+        ("the shape two shipped skills use", "description: Use for one thing only: the other thing."),
+    ],
+)
+def test_generator_reads_a_plain_description_containing_a_colon(gen, tmp_path, monkeypatch, label, replacement):
+    """Accepted on purpose, and the whole value is kept — not truncated at the colon."""
+    body = (CLAUDE_SKILLS / "kg-run" / "SKILL.md").read_text(encoding="utf-8")
+    original = next(line for line in body.splitlines() if line.startswith("description:"))
+    skill = tmp_path / "kg-run"
+    skill.mkdir()
+    (skill / "SKILL.md").write_text(body.replace(original, replacement, 1), encoding="utf-8")
+    monkeypatch.setattr(gen, "CLAUDE_SKILLS", tmp_path)
+    assert gen.skill_front_matter("kg-run")["description"] == replacement.split(": ", 1)[1]
+
+
+@pytest.mark.parametrize("name", COLON_DESCRIPTION_SKILLS)
+def test_the_colon_descriptions_the_generator_reads_are_what_codex_listed(gen, name: str):
+    """The tolerance is measured, not assumed — against the committed dump.
+
+    If a description here is edited, this fails until the loader probe is re-run
+    (`docs/tooling/codex-parity.md` § After a Codex upgrade). That is the intended
+    cost: the claim is that `gen_agents.py` advertises exactly what Codex listed,
+    and a stale dump cannot support it.
+    """
+    description = gen.skill_front_matter(name)["description"]
+    assert ": " in description, (
+        f"{name} no longer carries a colon in its description, so it no longer evidences the "
+        "tolerance this test pins. Point the test at a skill that does, or drop it."
+    )
+    expected = f"- {name}: {description} (file: r1/{name}/SKILL.md)"
+    assert expected in LOADER_PROBE.read_text(encoding="utf-8"), (
+        f"the committed Codex dump does not list {name} with the description gen_agents.py reads:\n"
+        f"    {expected}\n"
+        "  Either the loader stopped accepting a colon in a plain description, or the dump is "
+        "stale — re-run scripts/render_codex_probe.py."
+    )
