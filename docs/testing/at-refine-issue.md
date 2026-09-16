@@ -9,13 +9,13 @@ The deliverable is a Markdown development skill plus two references. It adds no 
 | Check | Result | AC |
 |---|---|---|
 | `ruff check --no-cache .` | PASS, "All checks passed!" (Ruff 0.15.14) | AC8 |
-| `ruff format --check --no-cache .` | Pre-existing failure: 20 files would be reformatted, 371 already formatted — identical on `main` at `8f95082` and in this worktree, all in untouched competition/analysis files | AC8 |
-| `python -m pytest tests/ services/decision_api/tests -q` | 359 passed, 90 skipped in 33.91 s — unchanged by this diff, which touches no Python | AC8 |
+| `ruff format --check --no-cache .` | Pre-existing failure: 20 files would be reformatted, 372 already formatted (371 before the `origin/main` merge) — identical on `main` and in this worktree, all 20 in untouched competition/analysis files | AC8 |
+| `python -m pytest tests/ services/decision_api/tests -q` | 372 passed, 90 skipped in 32.88 s after merging `origin/main` at `1fc0355`. Before that merge, on base `8f95082`: 359 passed, 90 skipped in 33.91 s, identical to the same command run against the unmodified `main` checkout (359 passed, 90 skipped in 33.27 s). The rise from 359 to 372 comes from #201 and #208 landing on `main`, not from this diff | AC8 |
 | `git diff --check` | PASS, no whitespace errors | AC8 |
 | Skill registered by the harness from the worktree | PASS: listed as `at-refine-issue` with the frontmatter description after the file was written | AC1 |
 | Documented `gh` forms exist in the installed CLI (2.100.0) | PASS: `gh issue comment -R/--repo -F/--body-file`, `gh issue edit -F/--body-file`, and `gh api -F key=@path` (documented file-reading form) all present in `--help` | AC1, AC3 |
 
-The diff is Markdown-only, so pytest and Ruff are recorded as unchanged-baseline evidence rather than as coverage of new behavior. The `ruff format` failure is inherited and out of scope: this PR does not reformat unrelated competition files. The pytest run used `~/micromamba/envs/v3.12.12/bin/python` with `SUPABASE_DB_URL` unset and `KCA_SKIP_DOTENV=1`, so the 90 skips are the DB-backed tests that have no local Supabase to reach; the same command on `main` at `8f95082` skips the same set.
+The diff is Markdown-only, so pytest and Ruff are recorded as unchanged-baseline evidence rather than as coverage of new behavior. `git diff --stat origin/main HEAD` is the proof: 5 files, +502 lines, no Python touched. The `ruff format` failure is inherited and out of scope — this PR does not reformat unrelated competition files. The pytest runs used `~/micromamba/envs/v3.12.12/bin/python` with `SUPABASE_DB_URL` unset and `KCA_SKIP_DOTENV=1`, so the 90 skips are the DB-backed tests with no local Supabase to reach.
 
 ## Automated checks
 
