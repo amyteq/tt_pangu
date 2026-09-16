@@ -74,7 +74,10 @@ preserving existing IDs/links; match duplicates by cause and location, not wordi
 | `rebuttal-accepted` | Reviewer agrees the reported defect is not valid |
 | `deferred-accepted` | Reviewer accepts tracking the valid issue without fixing it here |
 
-The writer must disposition every open finding, including P2/P3. Rejected or
+The writer must disposition every open finding routed to its phase, including
+P2/P3. A finding first raised by the closing verification-only review reaches no
+writer phase: record such a P2/P3 as residual work under its ID rather than
+awaiting a disposition, while such a P0/P1 still blocks approval. Rejected or
 unsupported claims return to `open` with the same ID. The reviewer, not the
 writer, adjudicates pending states. A valid deferred P0/P1 **still blocks
 approval**; deferral is not resolution. An accepted P2/P3 deferral need not recur
@@ -120,10 +123,11 @@ concerns separately as scope proposals; do not implement them without authorizat
    After the last writer phase, run one fresh **verification-only full review**
    of the resulting published head and all new dispositions, even when that writer
    only rebutted/deferred. Publish it and adjudicate the ledger. It grants **no
-   extra writer phase**. Apply the terminal approval check: residual P2/P3 alone
-   permit approval with their IDs recorded and the fix budget exhausted. Pending
-   dispositions or valid P0/P1 end `budget-exhausted` (or `blocked` for a concrete
-   blocker), without approval.
+   extra writer phase**, so a P2/P3 it raises needs no writer disposition. Apply
+   the terminal approval check: residual P2/P3 alone permit approval with their
+   IDs recorded and the fix budget exhausted. Pending dispositions or a valid
+   P0/P1 — including one this closing review raised first — end `budget-exhausted`
+   (or `blocked` for a concrete blocker), without approval.
 
 There are at most `rounds` writer phases. Closing full reviews are read-only
 verification, not extra fix rounds. For `rounds=1`, do a full review, at most one
@@ -135,7 +139,8 @@ delta review or before reviewing the last writer's output.
 
 Approval eligibility requires a completed full review of the final published
 base/head pair, no pending/unadjudicated dispositions, and no unresolved valid
-P0/P1 (including accepted deferrals). Final P2/P3 findings alone do not block;
+P0/P1 (including accepted deferrals). Final P2/P3 findings alone do not block,
+whether a writer dispositioned them or the closing review raised them first;
 record them as residual work if the budget is exhausted. Incomplete validation
 that prevents a reliable review is a blocker, not evidence of zero findings.
 

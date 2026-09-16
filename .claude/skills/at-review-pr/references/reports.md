@@ -53,8 +53,9 @@ Push: verified remote head / no code changes / blocked (reason)
 | F001 | fixed-pending-review | Concrete fix | commit link + test result | reviewer verification |
 | F002 | deferred-pending-review | Scope or effort reason | supporting evidence | impact, follow-up proposal |
 
-Cover every open finding. Propose follow-ups without filing new issues unless
-authorized. State failed or unrun tests; do not imply a rebuttal/deferral is accepted.
+Cover every open finding handed to this phase. Propose follow-ups without filing
+new issues unless authorized. State failed or unrun tests; do not imply a
+rebuttal/deferral is accepted.
 
 ---
 ✏️ ACTUAL_AGENT·ACTUAL_MODEL·ACTUAL_EFFORT · head: [RESULT_SHA_SHORT](RESULT_COMMIT_URL) · context: OBSERVED_CONTEXT_OR_NA · STARTED_TIMESTAMP TZ · MEASURED_ELAPSED

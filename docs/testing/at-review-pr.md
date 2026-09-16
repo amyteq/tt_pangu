@@ -113,6 +113,35 @@ phase, while agent, model and timing stay verify-or-block. Codex CLI 0.154.0 and
 Claude Code 2.1.273; probes used a cheap model where the field's presence, not
 its value, was the question.
 
+## Live loop on PR #208, run `pr208-20260916b` (2026-09-16)
+
+The skill was exercised against its own PR. Round 1 reviewer: `codex exec`
+`gpt-5.6-sol` at `xhigh`, read-only, full review of `8f95082..21d155e`; the
+stderr header confirmed model and effort, so that phase is fully attested. It
+raised two P1 findings and both were valid:
+
+| ID | Finding | Outcome |
+|---|---|---|
+| F001 | "The writer must disposition every open finding, including P2/P3" contradicted the rule that a closing verification-only review grants no writer phase, so a cosmetic finding raised there could be read as blocking approval forever | Fixed: the disposition duty is scoped to findings routed to a writer phase; a P2/P3 first raised by the closing review is recorded as residual work, while a P0/P1 raised there still blocks |
+| F002 | The metadata instructions told the coordinator to validate runtime fields from `phase_meta`, but Claude reports model, context, session and completion on **stdout** in the JSON result object, not on stderr | Fixed: the metadata table and the launch-form text name the stream per provider — `phase_meta` for Codex, `phase_output` for Claude, with Claude's stderr still captured for the effort warning |
+
+The round-1 writer phase (`claude -p`, `claude-opus-5[1m]`, `--effort xhigh`)
+ran and produced a complete, correct edit plan for both findings, but **every
+write to `.claude/skills/**` was denied** by the harness protection on skill
+files — via `Edit` and via `Bash(touch)` alike. It correctly refused to disable
+hooks or broaden the sandbox, reported the exact denied action, and returned both
+findings as `blocked` rather than claiming a fix. The coordinator then applied
+the writer's specified edits verbatim under its own approval, which is the
+"host's normal approval mechanism" the launch-form rules point to.
+
+That is a real operating limitation worth stating plainly: **a Claude writer
+phase cannot edit this skill's own files under the default harness permissions**,
+so self-application of `at-review-pr` to a PR touching `.claude/skills/**`
+requires coordinator escalation for the write step. A writer phase on any other
+part of the repository is unaffected. The round-1 writer's JSON also confirmed
+`modelUsage["claude-opus-5[1m]"].contextWindow == 1000000` and
+`canonicalModel == "claude-opus-5"` on stdout — the direct evidence behind F002.
+
 ## Limits
 
 This is an offline behavioral and syntax validation. It does not prove live model
