@@ -47,6 +47,10 @@ channels:
 
 # Per-level routing. `quiet_hours: bypass` is only for traffic a human is
 # actually blocked on; only `digest`/`info` count against the daily budget.
+# `dedupe_minutes` is a rolling window; `suppress_unchanged` is time-independent
+# — it holds a message back for as long as it says the same thing as the last
+# one sent at that level, which is what a once-daily digest needs (a 24 h repeat
+# always falls outside any 12 h window).
 levels:
   gate: # a decision is blocking work until a human answers
     channels: [github, telegram]
@@ -60,6 +64,7 @@ levels:
     channels: [telegram]
     quiet_hours: defer
     dedupe_minutes: 720
+    suppress_unchanged: true # #197 AC: a daily digest with no news is not sent
   info: # FYI, e.g. a Codex turn finished
     channels: [telegram]
     quiet_hours: defer

@@ -17,15 +17,23 @@ Phase 1a (this module) is the **send + parse** half:
 * :func:`parse_decision_reply` / :func:`resolve_reply` — the deterministic reply
   contract the phase-1b poller calls (an option id, never free-text inference).
 
+The Telegram card is deliberately **read-only** in phase 1a: nothing consumes
+`getUpdates` or callback queries yet, so a tappable option button would look
+like an answer and resolve nothing. The card spells out the `/decide` line for
+each option and links to the record, which is where the answer is given.
+
 Rules that bind every send (#185 §9 / §18):
 
 * no secret, token or private competition payload in a notification body —
-  everything transmitted goes through :func:`redact`;
+  everything transmitted goes through :func:`redact` and is length-bounded;
 * **no reply is never consent** — a lapsed decision resolves to ``EXPIRED``,
   never to "proceed";
 * routine traffic (``digest`` / ``info``) is deduped, capped per day and
   deferred out of quiet hours; ``gate`` and ``attention`` break quiet hours and
-  are never capped, because a human is blocked on them.
+  are never capped, because a human is blocked on them;
+* a send is ``sent`` only when *every* configured channel took it — one failed
+  leg is ``partial``, which exits non-zero, because a decision with no GitHub
+  record is not a decision that was filed.
 
 Bots: one bot per agent entry (discussion #187 §3) — a token has exactly one
 active *receiving* process, so Claude Code entry A and entry B cannot share
@@ -46,15 +54,22 @@ import json
 import os
 import re
 import subprocess
+import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 from zoneinfo import ZoneInfo
 
 import yaml
 
 from _types import EXIT_BLOCKED, EXIT_OK, EXIT_RUNTIME, SideEffect
 from stuck import redact_escalation_payload
+
+try:  # POSIX only; the ledger lock degrades to best-effort without it.
+    import fcntl
+except ImportError:  # pragma: no cover - not reachable on Linux/macOS
+    fcntl = None  # type: ignore[assignment]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = REPO_ROOT / ".kca" / "notify.yml"
@@ -69,26 +84,122 @@ CALLBACK_DATA_MAX_BYTES = 64  # Telegram Bot API hard limit on callback_data
 RECORD_MARKER = "<!-- kca-decision:v1 -->"
 REDACTED = "[REDACTED]"
 
-# A Telegram bot token is `<bot_id>:<35-char secret>`. stuck.py's shared filter
-# does not know that shape, so notify masks it first and then delegates.
-_TELEGRAM_TOKEN_RE = re.compile(r"\b\d{6,12}:[A-Za-z0-9_-]{30,}")
+# Bounded length is part of the no-leak contract: a harness event carries
+# whatever the session said, so a runaway body is clipped before it is rendered
+# into a push or a record.
+MAX_TITLE_CHARS = 200
+MAX_BODY_CHARS = 2000
+# Any configured secret shorter than this is not masked by value — masking a
+# 2-character value would blank out unrelated text for no security gain.
+MIN_MASKABLE_SECRET_CHARS = 6
 
-# Deterministic reply contract. The answer is an option id on a `/decide` line;
-# anything after it is recorded as context but never parsed as the decision.
-_REPLY_RE = re.compile(
-    r"^\s*/decide\s+(?P<decision_id>[A-Za-z0-9._:-]{1,64})\s+(?P<option_id>[A-Za-z0-9_-]{1,32})\s*(?P<note>.*)$"
-)
+# A `sent` outcome means every attempted channel accepted the message; a
+# `partial` means at least one did not, and the caller must treat it as a
+# failure (the record leg is not optional — see :func:`dispatch`).
+FAILED_STATUSES = ("failed", "partial")
+SUPPRESSED_STATUSES = ("deduped", "deferred", "rate_limited")
+
+# Ledger housekeeping. The lock makes the read → decide → append sequence atomic
+# across processes and worktrees; the size bound keeps a file that is appended
+# to for the life of the project from growing without limit.
+LOCK_WAIT_S = 10.0
+LOCK_POLL_S = 0.05
+LEDGER_MAX_BYTES = 512_000
+LEDGER_KEEP_ENTRIES = 1000
+# A suppressed send is recorded once per hour per message, not once per hook
+# invocation: a spent budget must not turn every later event into a new line.
+SUPPRESSION_LOG_MINUTES = 60
 
 
 # ---------------------------------------------------------------------------
 # Redaction
 # ---------------------------------------------------------------------------
 
+# A Telegram bot token is `<bot_id>:<35-char secret>`. stuck.py's shared filter
+# does not know that shape, so notify masks it first and then delegates.
+_TELEGRAM_TOKEN_RE = re.compile(r"\b\d{6,12}:[A-Za-z0-9_-]{30,}")
 
-def redact(text: Any) -> str:
-    """Mask secret-shaped substrings in anything we are about to transmit."""
-    scrubbed = _TELEGRAM_TOKEN_RE.sub(REDACTED, str(text))
+# Credential shapes stuck.py does not cover. Every one of them is anchored on a
+# vendor prefix or an explicit assignment, never on "this looks like a number":
+# silencing a gate or eating the operator's own sentence is a worse outcome than
+# the leak it would prevent.
+_SECRET_VALUE_RES = (
+    _TELEGRAM_TOKEN_RE,
+    # OpenAI-style keys, including the project form `sk-proj-…`. `sk-ant-…` is
+    # already handled by stuck.py; this generalises it.
+    re.compile(r"\bsk-(?:[A-Za-z0-9]{1,16}-)*[A-Za-z0-9_-]{8,}"),
+    # GitHub PATs / OAuth tokens.
+    re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9]{16,}|github_pat_[A-Za-z0-9_]{20,})"),
+    re.compile(r"\bAIza[A-Za-z0-9_-]{20,}"),  # Google API key
+    re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}"),  # Slack
+    re.compile(r"\bhf_[A-Za-z0-9]{16,}"),  # Hugging Face
+    re.compile(r"\bglpat-[A-Za-z0-9_-]{16,}"),  # GitLab
+    # A JWT / signed session cookie.
+    re.compile(r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}"),
+    re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/=-]{12,}"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----"),
+)
+
+# `NAME=value` / `NAME: value` where the NAME itself says "this is a secret".
+# The name is kept — it is the half of the message a human needs — and only the
+# value is masked, which is how `OPENAI_API_KEY=…` and `CHAT_ID=…` are caught
+# without redacting every digit in the body.
+_SECRET_ASSIGNMENT_RE = re.compile(
+    r"(?i)\b([A-Z0-9_]*(?:TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|ACCESS_KEY|CREDENTIAL"
+    r"|PRIVATE_KEY|SESSION_KEY|CHAT_ID|AUTHORIZATION)[A-Z0-9_]*)(\s*[:=]\s*)"
+    r"(\"[^\"\n]*\"|'[^'\n]*'|\S+)"
+)
+
+# Deterministic reply contract. The answer is an option id on a `/decide` line;
+# anything after it is recorded as context but never parsed as the decision.
+# The id grammars are shared with :class:`DecisionRequest` validation so a
+# decision can never be published in a form its own reply parser rejects.
+DECISION_ID_PATTERN = r"[A-Za-z0-9._:-]{1,64}"
+OPTION_ID_PATTERN = r"[A-Za-z0-9_-]{1,32}"
+_DECISION_ID_RE = re.compile(rf"^{DECISION_ID_PATTERN}$")
+_OPTION_ID_RE = re.compile(rf"^{OPTION_ID_PATTERN}$")
+_REPLY_RE = re.compile(
+    rf"^\s*/decide\s+(?P<decision_id>{DECISION_ID_PATTERN})\s+(?P<option_id>{OPTION_ID_PATTERN})\s*(?P<note>.*)$"
+)
+
+
+def _configured_secret_values(cfg: dict[str, Any] | None) -> tuple[str, ...]:
+    """Our own resolved bot tokens / chat ids, so a body cannot echo one back.
+
+    Shape rules cannot recognise a bare chat id, but we know ours: if the text
+    we are about to transmit contains a value this config resolves to, it is
+    masked. Values are used, never returned to a caller or printed.
+    """
+    if not cfg:
+        return ()
+    telegram = (cfg.get("channels") or {}).get("telegram") or {}
+    names = [str((spec or {}).get("token_env") or "") for spec in (telegram.get("bots") or {}).values()]
+    names += [str((spec or {}).get("chat_id_env") or "") for spec in (telegram.get("recipients") or {}).values()]
+    values = {resolve_secret(name, cfg) or "" for name in names if name}
+    return tuple(v for v in values if len(v) >= MIN_MASKABLE_SECRET_CHARS)
+
+
+def redact(text: Any, cfg: dict[str, Any] | None = None) -> str:
+    """Mask secret-shaped substrings in anything we are about to transmit.
+
+    Three layers, cheapest first: known credential shapes, `SECRET_NAME=value`
+    assignments, and — when ``cfg`` is given — the literal values this config
+    resolves to. Everything then goes through the shared
+    ``stuck.redact_escalation_payload`` filter (DSNs, AWS ids, flags).
+    """
+    scrubbed = str(text)
+    for pattern in _SECRET_VALUE_RES:
+        scrubbed = pattern.sub(REDACTED, scrubbed)
+    scrubbed = _SECRET_ASSIGNMENT_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}{REDACTED}", scrubbed)
+    for value in _configured_secret_values(cfg):
+        scrubbed = scrubbed.replace(value, REDACTED)
     return str(redact_escalation_payload(scrubbed))
+
+
+def clip(text: Any, limit: int) -> str:
+    """Bound a transmitted field; an elision is visible, not silent."""
+    out = str(text)
+    return out if len(out) <= limit else out[: limit - 1] + "…"
 
 
 # ---------------------------------------------------------------------------
@@ -127,6 +238,8 @@ def validate_config(cfg: dict[str, Any]) -> None:
             raise ValueError(f"notify config: levels.{level} references unknown channel(s) {unknown}")
         if spec.get("quiet_hours") not in QUIET_HOURS_POLICIES:
             raise ValueError(f"notify config: levels.{level}.quiet_hours must be one of {QUIET_HOURS_POLICIES}")
+        if "suppress_unchanged" in spec and not isinstance(spec["suppress_unchanged"], bool):
+            raise ValueError(f"notify config: levels.{level}.suppress_unchanged must be true or false")
 
     telegram = channels.get("telegram") or {}
     if telegram.get("enabled"):
@@ -299,10 +412,39 @@ def next_send_window(cfg: dict[str, Any], now: dt.datetime | None = None) -> dt.
 # ---------------------------------------------------------------------------
 
 
+def primary_checkout_root(start: Path) -> Path:
+    """The primary checkout of ``start``'s repository.
+
+    A linked worktree has a ``.git`` *file* pointing at
+    ``<primary>/.git/worktrees/<name>``. Without this, relative state resolves
+    under each checkout, so every worktree would keep its own send ledger and
+    hand itself a fresh daily budget — the cap is a property of the human's
+    phone, not of a directory.
+    """
+    marker = start / ".git"
+    try:
+        if not marker.is_file():
+            return start
+        line = marker.read_text(encoding="utf-8").strip()
+    except OSError:
+        return start
+    if not line.startswith("gitdir:"):
+        return start
+    gitdir = Path(line.partition(":")[2].strip())
+    if not gitdir.is_absolute():
+        gitdir = (start / gitdir).resolve()
+    commondir = gitdir / "commondir"
+    try:
+        common = (gitdir / commondir.read_text(encoding="utf-8").strip()).resolve()
+    except OSError:
+        return start
+    return common.parent if common.name == ".git" else start
+
+
 def state_dir(cfg: dict[str, Any]) -> Path:
     raw = str(cfg.get("state_dir") or ".agent/notify")
     path = Path(raw)
-    return path if path.is_absolute() else REPO_ROOT / path
+    return path if path.is_absolute() else primary_checkout_root(REPO_ROOT) / path
 
 
 def ledger_path(cfg: dict[str, Any]) -> Path:
@@ -314,19 +456,70 @@ def dedupe_key(level: str, title: str, body: str) -> str:
     return digest[:16]
 
 
+@contextmanager
+def ledger_lock(cfg: dict[str, Any], timeout_s: float | None = None) -> Iterator[bool]:
+    """Serialise read → decide → append → send across processes and worktrees.
+
+    Without it two agents can both read a spent-but-not-yet-recorded budget and
+    both send. The lock is held across the transport too, because the ledger
+    entry that spends the budget is only written once the transport returns.
+
+    **Best effort by design**: it yields ``False`` after ``timeout_s`` instead of
+    raising or dropping the message. Overshooting a routine budget by one is a
+    better failure than a `gate` that never reaches the human because another
+    process was wedged holding the lock.
+    """
+    if fcntl is None:  # pragma: no cover - not reachable on Linux/macOS
+        yield False
+        return
+    path = state_dir(cfg) / "ledger.lock"
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        handle = path.open("a+", encoding="utf-8")
+    except OSError:
+        yield False
+        return
+    acquired = False
+    wait_s = LOCK_WAIT_S if timeout_s is None else float(timeout_s)
+    deadline = time.monotonic() + max(wait_s, 0.0)
+    try:
+        while True:
+            try:
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    break
+                time.sleep(LOCK_POLL_S)
+        yield acquired
+    finally:
+        if acquired:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+        handle.close()
+
+
 def read_ledger(cfg: dict[str, Any]) -> list[dict[str, Any]]:
+    """Every well-formed entry. A damaged line is skipped, never fatal.
+
+    "Well-formed" means a JSON *object*: a stray `null` or `[]` line is valid
+    JSON but has no `.get`, and letting one through would take the whole channel
+    down — including the `doctor` command you would run to diagnose it.
+    """
     path = ledger_path(cfg)
     if not path.exists():
         return []
     entries: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         line = line.strip()
         if not line:
             continue
         try:
-            entries.append(json.loads(line))
+            parsed = json.loads(line)
         except json.JSONDecodeError:
             continue
+        if isinstance(parsed, dict):
+            entries.append(parsed)
     return entries
 
 
@@ -335,6 +528,34 @@ def append_ledger(cfg: dict[str, Any], entry: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    compact_ledger(cfg)
+
+
+def compact_ledger(cfg: dict[str, Any]) -> int:
+    """Trim the ledger to its newest entries once it crosses the size bound.
+
+    This file is appended to for the life of the project, and every dispatch
+    reads it whole, so an unbounded ledger makes notifications progressively
+    slower. Only the current day (the budget) and the longest dedupe window
+    matter for a decision, and both are far inside ``LEDGER_KEEP_ENTRIES`` at a
+    two-routine-pushes-per-day cap, so trimming cannot change an outcome.
+
+    Returns the number of lines dropped.
+    """
+    path = ledger_path(cfg)
+    try:
+        if path.stat().st_size <= LEDGER_MAX_BYTES:
+            return 0
+        lines = [ln for ln in path.read_text(encoding="utf-8", errors="replace").splitlines() if ln.strip()]
+        if len(lines) <= LEDGER_KEEP_ENTRIES:
+            return 0
+        kept = lines[-LEDGER_KEEP_ENTRIES:]
+        tmp = path.with_name(path.name + ".tmp")
+        tmp.write_text("\n".join(kept) + "\n", encoding="utf-8")
+        os.replace(tmp, path)
+    except OSError:
+        return 0
+    return len(lines) - len(kept)
 
 
 def _parse_ts(value: Any) -> dt.datetime | None:
@@ -346,16 +567,28 @@ def _parse_ts(value: Any) -> dt.datetime | None:
 
 
 def recent_duplicate(
-    entries: list[dict[str, Any]], key: str, window_minutes: int, now: dt.datetime
+    entries: list[dict[str, Any]],
+    key: str,
+    window_minutes: int,
+    now: dt.datetime,
+    status: str = "sent",
 ) -> dict[str, Any] | None:
     if window_minutes <= 0:
         return None
     cutoff = now - dt.timedelta(minutes=window_minutes)
     for entry in reversed(entries):
-        if entry.get("key") != key or entry.get("status") != "sent":
+        if entry.get("key") != key or entry.get("status") != status:
             continue
         ts = _parse_ts(entry.get("ts"))
         if ts and ts >= cutoff:
+            return entry
+    return None
+
+
+def last_sent(entries: list[dict[str, Any]], level: str) -> dict[str, Any] | None:
+    """The most recent message actually sent at ``level``, whenever that was."""
+    for entry in reversed(entries):
+        if entry.get("level") == level and entry.get("status") == "sent":
             return entry
     return None
 
@@ -394,11 +627,30 @@ class DecisionRequest:
     def __post_init__(self) -> None:
         if not self.decision_id:
             raise ValueError("decision_id is required")
+        # A published decision must be answerable. The reply parser is the only
+        # supported answer path, so an id it cannot parse would strand the gate
+        # until it expires — reject it here, before anything is transmitted.
+        if not _DECISION_ID_RE.match(self.decision_id):
+            raise ValueError(
+                f"decision_id {self.decision_id!r} is not answerable: "
+                f"`/decide` accepts {DECISION_ID_PATTERN} (see parse_decision_reply)"
+            )
         if len(self.options) < 2:
             raise ValueError("a decision request needs at least 2 options")
         ids = [opt_id for opt_id, _ in self.options]
+        for opt_id in ids:
+            if not _OPTION_ID_RE.match(opt_id):
+                raise ValueError(
+                    f"option id {opt_id!r} is not answerable: "
+                    f"`/decide` accepts {OPTION_ID_PATTERN} (see parse_decision_reply)"
+                )
         if len(set(ids)) != len(ids):
             raise ValueError(f"duplicate option ids: {ids}")
+        # Ids are rendered verbatim (they must round-trip through `/decide`), so
+        # they are the one field redaction cannot clean up after the fact.
+        for value in [self.decision_id, *ids]:
+            if redact(value) != value:
+                raise ValueError(f"decision/option id looks secret-shaped and must not be published: {value!r}")
         if not self.plan_hash:
             self.plan_hash = hashlib.sha256(self.summary.encode()).hexdigest()[:12]
         if _parse_ts(self.expires_at) is None:
@@ -414,10 +666,16 @@ class DecisionRequest:
 
 
 def callback_data(decision_id: str, option_id: str) -> str:
+    """The phase-1b callback contract.
+
+    No button carries it yet (nothing consumes `getUpdates`), but every id is
+    still validated against the 64-byte limit at construction so a decision
+    opened today stays answerable by a tap once the poller exists.
+    """
     return f"kca:{decision_id}:{option_id}"
 
 
-def render_github_comment(req: DecisionRequest) -> str:
+def render_github_comment(req: DecisionRequest, cfg: dict[str, Any] | None = None) -> str:
     """The durable record. Everything a reader needs to attribute the answer."""
     rows = [
         ("competition", req.competition or "—"),
@@ -426,15 +684,18 @@ def render_github_comment(req: DecisionRequest) -> str:
         ("account", req.account or "—"),
         ("expires_at", req.expires_at),
     ]
-    table = "\n".join(f"| {name} | {redact(value)} |" for name, value in rows)
-    options = "\n".join(f"- `{opt_id}` — {redact(label)}" for opt_id, label in req.options)
-    links = "\n".join(f"- {redact(link)}" for link in req.links)
+    table = "\n".join(f"| {name} | {redact(value, cfg)} |" for name, value in rows)
+    options = "\n".join(f"- `{opt_id}` — {redact(label, cfg)}" for opt_id, label in req.options)
+    links = "\n".join(f"- {redact(link, cfg)}" for link in req.links)
+    # Ids are grammar-checked and secret-shape-checked at construction; every
+    # other field is free text, so it is scrubbed here too — the machine block
+    # is transmitted exactly like the prose above it.
     machine = yaml.safe_dump(
         {
             "decision_id": req.decision_id,
-            "competition": req.competition,
-            "plan_hash": req.plan_hash,
-            "expires_at": req.expires_at,
+            "competition": redact(req.competition, cfg),
+            "plan_hash": redact(req.plan_hash, cfg),
+            "expires_at": redact(req.expires_at, cfg),
             "options": [opt_id for opt_id, _ in req.options],
         },
         sort_keys=False,
@@ -451,7 +712,7 @@ def render_github_comment(req: DecisionRequest) -> str:
         "",
         "**Plan summary**",
         "",
-        redact(req.summary),
+        redact(req.summary, cfg),
         "",
         "**Options**",
         "",
@@ -464,11 +725,12 @@ def render_github_comment(req: DecisionRequest) -> str:
         "```",
         "",
         "Put that on its own line in a comment on this issue; anything after the option id is "
-        "recorded as context but is never parsed as the answer. Tapping a button in the Telegram "
-        "card posts the same line back here.",
+        "recorded as context but is never parsed as the answer. **This comment is the only way "
+        "to answer**: the Telegram card is a read-only mirror of this record, and phase 1a has "
+        "nothing consuming button taps.",
         "",
-        f"⏳ **No reply is not consent.** After `{req.expires_at}` this request lapses to "
-        "`WAIT_HUMAN` — it never auto-approves.",
+        f"⏳ **No reply is not consent.** After `{redact(req.expires_at, cfg)}` this request lapses to "
+        "`EXPIRED` — it never auto-approves, and a late answer does not revive it.",
     ]
     if links:
         body += ["", "**Links**", "", links]
@@ -481,18 +743,27 @@ def _tg_escape(text: Any) -> str:
 
 
 def render_telegram_text(req: DecisionRequest, cfg: dict[str, Any]) -> str:
-    """The compact push card. Detail lives in the GitHub record it links to."""
-    summary = redact(req.summary)
-    if len(summary) > 500:
-        summary = summary[:497] + "…"
+    """The compact push card. Detail lives in the GitHub record it links to.
+
+    It spells out the `/decide` line for every option because that comment is
+    the answer path in phase 1a — the card itself is read-only.
+    """
+    summary = clip(redact(req.summary, cfg), 500)
+    answers = [
+        f"<code>/decide {_tg_escape(req.decision_id)} {_tg_escape(opt_id)}</code> — {_tg_escape(redact(label, cfg))}"
+        for opt_id, label in req.options
+    ]
     lines = [
         f"🔔 <b>Decision</b> — <code>{_tg_escape(req.decision_id)}</code>",
-        f"🏁 {_tg_escape(redact(req.competition) or '—')}",
-        f"#️⃣ plan <code>{_tg_escape(req.plan_hash)}</code>",
+        f"🏁 {_tg_escape(redact(req.competition, cfg) or '—')}",
+        f"#️⃣ plan <code>{_tg_escape(redact(req.plan_hash, cfg))}</code>",
         "",
         _tg_escape(summary),
         "",
-        "".join(["⏳ expires ", _tg_escape(req.expires_at), " — no reply ≠ approval"]),
+        "✍️ <b>Answer by commenting on the record</b> (this card has no buttons to tap):",
+        *answers,
+        "",
+        "".join(["⏳ expires ", _tg_escape(redact(req.expires_at, cfg)), " — no reply ≠ approval"]),
     ]
     url = req.issue_url(cfg)
     if url:
@@ -501,13 +772,15 @@ def render_telegram_text(req: DecisionRequest, cfg: dict[str, Any]) -> str:
 
 
 def build_keyboard(req: DecisionRequest, cfg: dict[str, Any]) -> dict[str, Any]:
-    buttons = [
-        [{"text": label, "callback_data": callback_data(req.decision_id, opt_id)}] for opt_id, label in req.options
-    ]
+    """A link to the record — and deliberately nothing tappable per option.
+
+    Phase 1a has no process consuming `getUpdates` / callback queries, so an
+    option button would look like an answer, silently resolve nothing, and leave
+    the human believing an unanswered gate was handled. The card carries the
+    `/decide` lines instead; :func:`callback_data` stays reserved for phase 1b.
+    """
     url = req.issue_url(cfg)
-    if url:
-        buttons.append([{"text": "Open issue", "url": url}])
-    return {"inline_keyboard": buttons}
+    return {"inline_keyboard": [[{"text": "📋 Answer on GitHub", "url": url}]]} if url else {}
 
 
 # ---------------------------------------------------------------------------
@@ -721,84 +994,130 @@ def dispatch(
     """Route one message. Returns ``{"ok", "status", "channels", ...}``.
 
     ``status`` is ``sent`` | ``deduped`` | ``deferred`` | ``rate_limited`` |
-    ``failed``. Suppression is a *successful* outcome — it is the #185 §18
-    intervention budget working, not an error.
+    ``partial`` | ``failed``. Suppression is a *successful* outcome — it is the
+    #185 §18 intervention budget working, not an error — while ``partial`` is
+    not: it means at least one configured channel did not take the message, so
+    a `gate` whose GitHub record failed reports failure even though the Telegram
+    push landed. The whole read → decide → send → append sequence runs under
+    :func:`ledger_lock` so two agents cannot both spend the last of the budget.
     """
     if level not in LEVELS:
         raise ValueError(f"unknown level {level!r}; expected one of {LEVELS}")
     spec = (cfg.get("levels") or {})[level]
     moment = _now(cfg, now)
-    title, body = redact(title), redact(body)
+    title = clip(redact(title, cfg), MAX_TITLE_CHARS)
+    body = clip(redact(body, cfg), MAX_BODY_CHARS)
     key = dedupe_key(level, title, body)
-    entries = read_ledger(cfg)
 
-    def _record(status: str, detail: dict[str, Any]) -> dict[str, Any]:
-        entry = {
-            "ts": moment.isoformat(),
-            "level": level,
-            "key": key,
-            "title": title[:120],
-            "status": status,
-            "issue": issue,
-            "dry_run": dry_run,
-        }
-        if not dry_run:
-            append_ledger(cfg, entry)
-        return {"ok": status != "failed", "status": status, "level": level, "key": key, **detail}
+    with ledger_lock(cfg) as locked:
+        entries = read_ledger(cfg)
 
-    if not force:
-        duplicate = recent_duplicate(entries, key, int(spec.get("dedupe_minutes") or 0), moment)
-        if duplicate:
-            return _record("deduped", {"reason": f"identical {level} sent at {duplicate.get('ts')}", "channels": []})
+        def _record(status: str, detail: dict[str, Any]) -> dict[str, Any]:
+            entry = {
+                "ts": moment.isoformat(),
+                "level": level,
+                "key": key,
+                "title": title[:120],
+                "status": status,
+                "issue": issue,
+                "dry_run": dry_run,
+            }
+            # A suppressed outcome is logged once per hour per message: with the
+            # budget spent, every later hook invocation hits the same branch and
+            # would otherwise add a line for as long as the agent runs.
+            repeat = status in SUPPRESSED_STATUSES and recent_duplicate(
+                entries, key, SUPPRESSION_LOG_MINUTES, moment, status=status
+            )
+            if not dry_run and not repeat:
+                append_ledger(cfg, entry)
+            return {
+                "ok": status not in FAILED_STATUSES,
+                "status": status,
+                "level": level,
+                "key": key,
+                "serialized": bool(locked),
+                **detail,
+            }
 
-        if level in ROUTINE_LEVELS:
-            cap = int((cfg.get("limits") or {}).get("routine_pushes_per_day") or 0)
-            used = routine_sends_today(cfg, entries, moment)
-            if cap and used >= cap:
+        if not force:
+            # "Nothing changed since the last one" is time-independent on
+            # purpose: a once-daily digest repeats outside any rolling window,
+            # and #197 asks for it to be suppressed while it says the same thing.
+            if spec.get("suppress_unchanged"):
+                previous = last_sent(entries, level)
+                if previous and previous.get("key") == key:
+                    return _record(
+                        "deduped",
+                        {"reason": f"unchanged since the {level} sent at {previous.get('ts')}", "channels": []},
+                    )
+
+            duplicate = recent_duplicate(entries, key, int(spec.get("dedupe_minutes") or 0), moment)
+            if duplicate:
                 return _record(
-                    "rate_limited",
-                    {"reason": f"routine push budget spent ({used}/{cap} today)", "channels": []},
+                    "deduped", {"reason": f"identical {level} sent at {duplicate.get('ts')}", "channels": []}
                 )
 
-        if spec.get("quiet_hours") == "defer" and in_quiet_hours(cfg, moment):
-            return _record(
-                "deferred",
-                {
-                    "reason": "quiet hours",
-                    "retry_after": next_send_window(cfg, moment).isoformat(),
-                    "channels": [],
-                },
-            )
+            if level in ROUTINE_LEVELS:
+                cap = int((cfg.get("limits") or {}).get("routine_pushes_per_day") or 0)
+                used = routine_sends_today(cfg, entries, moment)
+                if cap and used >= cap:
+                    return _record(
+                        "rate_limited",
+                        {"reason": f"routine push budget spent ({used}/{cap} today)", "channels": []},
+                    )
 
-    results: list[dict[str, Any]] = []
-    for channel in spec.get("channels") or []:
-        channel_cfg = (cfg.get("channels") or {}).get(channel) or {}
-        if not channel_cfg.get("enabled"):
-            results.append({"ok": True, "channel": channel, "skipped": "disabled"})
-            continue
-        if channel == "github":
-            if not issue:
-                results.append({"ok": False, "channel": "github", "error": "no --issue given; record not written"})
+            if spec.get("quiet_hours") == "defer" and in_quiet_hours(cfg, moment):
+                return _record(
+                    "deferred",
+                    {
+                        "reason": "quiet hours",
+                        "retry_after": next_send_window(cfg, moment).isoformat(),
+                        "channels": [],
+                    },
+                )
+
+        results: list[dict[str, Any]] = []
+        for channel in spec.get("channels") or []:
+            channel_cfg = (cfg.get("channels") or {}).get(channel) or {}
+            if not channel_cfg.get("enabled"):
+                results.append({"ok": True, "channel": channel, "skipped": "disabled"})
                 continue
-            record = github_body or f"**{title}**\n\n{body}"
-            results.append(post_github_comment(cfg, issue=issue, body=record, dry_run=dry_run))
-        elif channel == "telegram":
-            text = telegram_text or f"<b>{_tg_escape(title)}</b>\n\n{_tg_escape(body)}"
-            results.append(
-                send_telegram(
-                    cfg,
-                    text=text,
-                    keyboard=telegram_keyboard,
-                    recipient=recipient,
-                    bot=bot,
-                    dry_run=dry_run,
+            if channel == "github":
+                if not issue:
+                    results.append({"ok": False, "channel": "github", "error": "no --issue given; record not written"})
+                    continue
+                record = github_body or f"**{title}**\n\n{body}"
+                results.append(post_github_comment(cfg, issue=issue, body=record, dry_run=dry_run))
+            elif channel == "telegram":
+                text = telegram_text or f"<b>{_tg_escape(title)}</b>\n\n{_tg_escape(body)}"
+                results.append(
+                    send_telegram(
+                        cfg,
+                        text=text,
+                        keyboard=telegram_keyboard,
+                        recipient=recipient,
+                        bot=bot,
+                        dry_run=dry_run,
+                    )
                 )
-            )
-        else:
-            results.append({"ok": False, "channel": channel, "error": "no transport implemented"})
+            else:
+                results.append({"ok": False, "channel": channel, "error": "no transport implemented"})
 
-    status = "sent" if any(r.get("ok") for r in results) else "failed"
-    return _record(status, {"channels": results})
+        # Every configured channel has to take it. Reporting `sent` because one
+        # leg worked is how a decision ends up with no record on GitHub while
+        # the caller believes it was filed.
+        delivered = [bool(r.get("ok")) for r in results]
+        if not delivered or not any(delivered):
+            status = "failed"
+        elif all(delivered):
+            status = "sent"
+        else:
+            status = "partial"
+        detail: dict[str, Any] = {"channels": results}
+        if status == "partial":
+            failed = [str(r.get("channel")) for r in results if not r.get("ok")]
+            detail["reason"] = f"channel(s) did not take the message: {', '.join(failed)}"
+        return _record(status, detail)
 
 
 # ---------------------------------------------------------------------------
@@ -807,16 +1126,17 @@ def dispatch(
 
 
 def exit_code_for(result: dict[str, Any]) -> int:
-    """`sent` -> 0, suppressed (deduped / deferred / rate_limited) -> 2, failed -> 1.
+    """`sent` -> 0, suppressed (deduped / deferred / rate_limited) -> 2, else 1.
 
     Suppression is a policy decision, not a fault: a caller retrying on exit 2
     would be fighting the intervention budget, whereas exit 1 means the message
-    genuinely did not get out and is worth retrying.
+    genuinely did not get out and is worth retrying. A `partial` counts as exit
+    1 — one missing leg is a message that did not fully get out.
     """
-    status = result.get("status")
+    status = str(result.get("status"))
     if status == "sent":
         return EXIT_OK
-    return EXIT_RUNTIME if status == "failed" else EXIT_BLOCKED
+    return EXIT_BLOCKED if status in SUPPRESSED_STATUSES else EXIT_RUNTIME
 
 
 def _emit(
@@ -959,7 +1279,7 @@ def cmd_decision(args: argparse.Namespace) -> int:
             issue=args.issue,
             recipient=args.recipient,
             bot=args.bot,
-            github_body=render_github_comment(req),
+            github_body=render_github_comment(req, cfg),
             telegram_text=render_telegram_text(req, cfg),
             telegram_keyboard=build_keyboard(req, cfg),
             dry_run=args.dry_run,
