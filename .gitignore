@@ -106,3 +106,9 @@ notebooks/generated/*
 
 # per-job git worktree workspaces (transient; see .claude/worktrees)
 .claude/worktrees/
+
+# rendered page snapshots (PDFs/screenshots of external pages; transient)
+.snapshots/
+
+# Playwright MCP session dumps (console logs / page snapshots; transient)
+.playwright-mcp/
