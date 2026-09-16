@@ -210,6 +210,19 @@ def skill_front_matter(name: str) -> dict[str, str]:
     included. That makes the supported subset a contract, so anything outside it
     is reported rather than guessed at — a folded scalar read as the literal `>`
     would put that character in `.agents/README.md` and `--check` would agree.
+
+    The subset is defined by what the *loaders* accept, not by what PyYAML does,
+    and the two differ in one measured place: a plain scalar containing `: `
+    (`description: Review: check files`) is a YAML `ScannerError`, yet Codex
+    reads it and advertises exactly the value this reader extracts. Probed
+    directly on codex-cli 0.154.0 with a fixture skill, and two shipped skills
+    depend on it — `ctf-sandbox` and `kaggle-experiment-loop` both carry a colon
+    in their description and both appear in the committed loader dump. Rejecting
+    that shape would stop generation for skills both harnesses load today, so it
+    is accepted on purpose; `tests/test_instruction_parity.py` pins the evidence.
+    The shapes Codex really does drop — a sequence or a nested mapping under a
+    key that already has a scalar — are rejected below, and were probed the same
+    way: neither fixture skill appeared in the dump at all.
     """
     relative = f".claude/skills/{name}/SKILL.md"
     lines = (CLAUDE_SKILLS / name / "SKILL.md").read_text(encoding="utf-8").splitlines()
@@ -361,26 +374,19 @@ def render_agents_readme() -> str:
 
 # `.agents/` — the Codex-side mirror of `.claude/`
 
-Phase 1 launches the same competition workflow from Claude Code and from Codex against the
-same repo state (discussion #185, issue #189). Claude Code reads `CLAUDE.md` + `.claude/`;
-Codex reads `AGENTS.md` + this directory.
+Phase 1 launches the same competition workflow from Claude Code and from Codex against the same repo state (discussion #185, issue #189). Claude Code reads `CLAUDE.md` + `.claude/`; Codex reads `AGENTS.md` + this directory.
 
-Nothing here is hand-maintained. `python scripts/gen_agents.py` writes it, and
-`python scripts/gen_agents.py --check` — asserted by `tests/test_instruction_parity.py` in
-CI — fails if it drifts from `.claude/`.
+Nothing here is hand-maintained. `python scripts/gen_agents.py` writes it, and `python scripts/gen_agents.py --check` — asserted by `tests/test_instruction_parity.py` in CI — fails if it drifts from `.claude/`.
 
 ## Mirrored — symlinks, never copies
 
-`.agents/skills/<name>` is a relative symlink to `.claude/skills/<name>`, so a skill has
-exactly one body on disk and both harnesses load the same bytes. Codex follows the symlink
-and lists the skill under its front-matter `name`.
+`.agents/skills/<name>` is a relative symlink to `.claude/skills/<name>`, so a skill has exactly one body on disk and both harnesses load the same bytes. Codex follows the symlink and lists the skill under its front-matter `name`.
 
 | Skill | Symlink target | What it is for |
 |---|---|---|
 {rows}
 
-Claude-Code-only front-matter keys (`allowed-tools`, `argument-hint`) are tolerated by
-Codex — a skill carrying them is still listed.
+Claude-Code-only front-matter keys (`allowed-tools`, `argument-hint`) are tolerated by Codex — a skill carrying them is still listed.
 
 ### Not mirrored
 
@@ -403,8 +409,7 @@ python scripts/gen_agents.py          # rewrite AGENTS.md + .agents/
 python scripts/gen_agents.py --check  # verify (what CI runs)
 ```
 
-The Codex-side evidence and the two-harness smoke check are in
-`docs/tooling/codex-parity.md`.
+The Codex-side evidence and the two-harness smoke check are in `docs/tooling/codex-parity.md`.
 """
 
 

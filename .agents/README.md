@@ -6,19 +6,13 @@
 
 # `.agents/` — the Codex-side mirror of `.claude/`
 
-Phase 1 launches the same competition workflow from Claude Code and from Codex against the
-same repo state (discussion #185, issue #189). Claude Code reads `CLAUDE.md` + `.claude/`;
-Codex reads `AGENTS.md` + this directory.
+Phase 1 launches the same competition workflow from Claude Code and from Codex against the same repo state (discussion #185, issue #189). Claude Code reads `CLAUDE.md` + `.claude/`; Codex reads `AGENTS.md` + this directory.
 
-Nothing here is hand-maintained. `python scripts/gen_agents.py` writes it, and
-`python scripts/gen_agents.py --check` — asserted by `tests/test_instruction_parity.py` in
-CI — fails if it drifts from `.claude/`.
+Nothing here is hand-maintained. `python scripts/gen_agents.py` writes it, and `python scripts/gen_agents.py --check` — asserted by `tests/test_instruction_parity.py` in CI — fails if it drifts from `.claude/`.
 
 ## Mirrored — symlinks, never copies
 
-`.agents/skills/<name>` is a relative symlink to `.claude/skills/<name>`, so a skill has
-exactly one body on disk and both harnesses load the same bytes. Codex follows the symlink
-and lists the skill under its front-matter `name`.
+`.agents/skills/<name>` is a relative symlink to `.claude/skills/<name>`, so a skill has exactly one body on disk and both harnesses load the same bytes. Codex follows the symlink and lists the skill under its front-matter `name`.
 
 | Skill | Symlink target | What it is for |
 |---|---|---|
@@ -41,8 +35,7 @@ and lists the skill under its front-matter `name`.
 | `research-brief` | `../../.claude/skills/research-brief` | Use when researching webpages, docs, papers, forums, competition pages, writeups, or browser-rendered content |
 | `worktree-milestone-pr` | `../../.claude/skills/worktree-milestone-pr` | Execute the milestone-end git+gh sequence per docs/milestone-loop-protocol.md §5 — one commit per Loop Prompt, push the worktree branch, open a PR against main |
 
-Claude-Code-only front-matter keys (`allowed-tools`, `argument-hint`) are tolerated by
-Codex — a skill carrying them is still listed.
+Claude-Code-only front-matter keys (`allowed-tools`, `argument-hint`) are tolerated by Codex — a skill carrying them is still listed.
 
 ### Not mirrored
 
@@ -65,5 +58,4 @@ python scripts/gen_agents.py          # rewrite AGENTS.md + .agents/
 python scripts/gen_agents.py --check  # verify (what CI runs)
 ```
 
-The Codex-side evidence and the two-harness smoke check are in
-`docs/tooling/codex-parity.md`.
+The Codex-side evidence and the two-harness smoke check are in `docs/tooling/codex-parity.md`.
