@@ -180,6 +180,8 @@ kca local probe                       # check local GPU endpoint status
 
 ### Claude Code project skills
 
+- `/at-refine-issue <issue-url|number> [refinement instructions]` — refine one existing GitHub issue into an executable work order: a rewritten issue body with stable numbered, observable acceptance criteria, one standalone task comment carrying the complete task, and copyable `/goal` and plain-language launch prompts built on that comment's real permalink. Accepts a full issue URL or a number resolved against the current repository; a missing or ambiguous target is resolved before any state-changing remote call. An agent inside an already authorized goal may also invoke it from prose (`disable-model-invocation: false`), with no widening of authority. Refining is not dispatching — it never starts the work it describes. See the [skill](.claude/skills/at-refine-issue/SKILL.md), its [issue-body](.claude/skills/at-refine-issue/references/issue-body.md) and [task-comment](.claude/skills/at-refine-issue/references/task-comment.md) references, and its [validation](docs/testing/at-refine-issue.md). In Codex, explicitly ask it to read `.claude/skills/at-refine-issue/SKILL.md` and pass the same arguments; this Claude project directory does not imply automatic Codex skill discovery.
+
 - `/save-log <name|id>` — export a stopped or completed Claude Code background
   session transcript to `logs/<name>.md` via `claude-code-log`. See
   `.claude/skills/save-log/SKILL.md`.
