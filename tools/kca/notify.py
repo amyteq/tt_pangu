@@ -10,8 +10,9 @@ decision was recorded.
 
 Phase 1a (this module) is the **send + parse** half:
 
-* ``kca notify doctor``   — preflight the channel without printing any secret;
-* ``kca notify send``     — push a levelled message (gate / digest / info);
+* ``kca notify doctor``   — preflight every bot without printing any secret;
+* ``kca notify send``     — push a levelled message
+  (gate / attention / digest / info);
 * ``kca notify decision`` — open a decision request on both channels;
 * :func:`parse_decision_reply` / :func:`resolve_reply` — the deterministic reply
   contract the phase-1b poller calls (an option id, never free-text inference).
@@ -22,10 +23,16 @@ Rules that bind every send (#185 §9 / §18):
   everything transmitted goes through :func:`redact`;
 * **no reply is never consent** — a lapsed decision resolves to ``EXPIRED``,
   never to "proceed";
-* routine (non-gate) traffic is deduped, capped per day and deferred out of
-  quiet hours; a ``gate`` may break quiet hours because work is blocked on it.
+* routine traffic (``digest`` / ``info``) is deduped, capped per day and
+  deferred out of quiet hours; ``gate`` and ``attention`` break quiet hours and
+  are never capped, because a human is blocked on them.
 
-Secrets: the bot token and chat ids are read from the process environment, and
+Bots: one bot per agent entry (discussion #187 §3) — a token has exactly one
+active *receiving* process, so Claude Code entry A and entry B cannot share
+one. Sending is unaffected, so ``kca notify`` may push through a bot whose
+update stream a Claude Code Telegram channel is holding.
+
+Secrets: bot tokens and chat ids are read from the process environment, and
 otherwise from the ``secrets_file`` named in ``.kca/notify.yml`` — of which only
 ``TELEGRAM_*`` keys are ever loaded, and no command ever prints a value.
 """
@@ -52,7 +59,9 @@ from stuck import redact_escalation_payload
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = REPO_ROOT / ".kca" / "notify.yml"
 
-LEVELS = ("gate", "digest", "info")
+LEVELS = ("gate", "attention", "digest", "info")
+# Only these count against the daily intervention budget (#185 §18). A `gate`
+# or an `attention` ping is a block, not routine traffic.
 ROUTINE_LEVELS = ("digest", "info")
 QUIET_HOURS_POLICIES = ("bypass", "defer")
 ENV_PREFIX_ALLOWLIST = ("TELEGRAM_",)
@@ -120,10 +129,30 @@ def validate_config(cfg: dict[str, Any]) -> None:
             raise ValueError(f"notify config: levels.{level}.quiet_hours must be one of {QUIET_HOURS_POLICIES}")
 
     telegram = channels.get("telegram") or {}
-    if telegram.get("enabled") and not telegram.get("token_env"):
-        raise ValueError("notify config: channels.telegram.token_env is required when telegram is enabled")
-    if telegram.get("enabled") and not (telegram.get("recipients") or {}):
-        raise ValueError("notify config: channels.telegram.recipients is empty")
+    if telegram.get("enabled"):
+        if telegram.get("token_env"):
+            raise ValueError(
+                "notify config: channels.telegram.token_env is no longer supported — declare each bot under "
+                "channels.telegram.bots.<name>.token_env and pick one with default_bot (discussion #187 §3)"
+            )
+        bots = telegram.get("bots") or {}
+        if not bots:
+            raise ValueError("notify config: channels.telegram.bots is empty")
+        for bot_name, bot_spec in bots.items():
+            if not (bot_spec or {}).get("token_env"):
+                raise ValueError(f"notify config: channels.telegram.bots.{bot_name}.token_env is required")
+        default_bot = telegram.get("default_bot")
+        if default_bot and default_bot not in bots:
+            raise ValueError(f"notify config: channels.telegram.default_bot {default_bot!r} is not in bots")
+        if not default_bot and len(bots) > 1:
+            raise ValueError("notify config: channels.telegram.default_bot is required when several bots exist")
+        recipients = telegram.get("recipients") or {}
+        if not recipients:
+            raise ValueError("notify config: channels.telegram.recipients is empty")
+        for rcpt_name, rcpt in recipients.items():
+            bot_ref = (rcpt or {}).get("bot")
+            if bot_ref and bot_ref not in bots:
+                raise ValueError(f"notify config: recipient {rcpt_name} references unknown bot {bot_ref!r}")
 
     github = channels.get("github") or {}
     if github.get("enabled") and not github.get("repo"):
@@ -201,6 +230,27 @@ def resolve_recipient(cfg: dict[str, Any], name: str | None = None) -> tuple[str
     if len(recipients) == 1:
         return next(iter(recipients.items()))
     raise KeyError("no default telegram recipient configured; pass --recipient")
+
+
+def resolve_bot(
+    cfg: dict[str, Any], name: str | None = None, recipient: dict[str, Any] | None = None
+) -> tuple[str, dict[str, Any]]:
+    """Pick a bot: explicit name, else the recipient's, else `default_bot`.
+
+    Each agent entry gets its own bot (#187 §3) because a token has exactly one
+    active *receiving* process. Sending is unaffected, so kca may push through a
+    bot whose update stream a Claude Code Telegram channel is holding.
+    """
+    telegram = (cfg.get("channels") or {}).get("telegram") or {}
+    bots: dict[str, Any] = telegram.get("bots") or {}
+    wanted = name or (recipient or {}).get("bot") or telegram.get("default_bot")
+    if wanted:
+        if wanted not in bots:
+            raise KeyError(f"unknown telegram bot {wanted!r}; known: {sorted(bots)}")
+        return str(wanted), bots[wanted]
+    if len(bots) == 1:
+        return next(iter(bots.items()))
+    raise KeyError("no default telegram bot configured; pass --bot")
 
 
 # ---------------------------------------------------------------------------
@@ -549,20 +599,24 @@ def resolve_reply(
 # ---------------------------------------------------------------------------
 
 
-def _telegram_api(cfg: dict[str, Any], method: str) -> tuple[str, str]:
+def _telegram_api(cfg: dict[str, Any], method: str, bot: str | None = None) -> tuple[str, str]:
     telegram = (cfg.get("channels") or {}).get("telegram") or {}
-    token = resolve_secret(str(telegram.get("token_env") or ""), cfg)
+    bot_name, bot_spec = resolve_bot(cfg, bot)
+    token_env = str(bot_spec.get("token_env") or "")
+    token = resolve_secret(token_env, cfg)
     if not token:
-        raise RuntimeError(f"{telegram.get('token_env')} is not set (see docs/tooling/notification-channel.md)")
+        raise RuntimeError(f"{token_env} (bot {bot_name}) is not set (see docs/tooling/notification-channel.md)")
     base = str(telegram.get("api_base") or "https://api.telegram.org").rstrip("/")
     return f"{base}/bot{token}/{method}", token
 
 
-def telegram_call(cfg: dict[str, Any], method: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+def telegram_call(
+    cfg: dict[str, Any], method: str, payload: dict[str, Any] | None = None, bot: str | None = None
+) -> dict[str, Any]:
     """POST to the Bot API. The token never appears in the returned payload."""
     import requests
 
-    url, token = _telegram_api(cfg, method)
+    url, token = _telegram_api(cfg, method, bot)
     timeout = int(((cfg.get("channels") or {}).get("telegram") or {}).get("timeout_s") or 15)
     try:
         response = requests.post(url, json=payload or {}, timeout=timeout)
@@ -580,9 +634,11 @@ def send_telegram(
     text: str,
     keyboard: dict[str, Any] | None = None,
     recipient: str | None = None,
+    bot: str | None = None,
     dry_run: bool = False,
 ) -> dict[str, Any]:
     name, spec = resolve_recipient(cfg, recipient)
+    bot_name, _bot_spec = resolve_bot(cfg, bot, spec)
     chat_env = str(spec.get("chat_id_env") or "")
     chat_id = resolve_secret(chat_env, cfg)
     payload: dict[str, Any] = {
@@ -602,19 +658,27 @@ def send_telegram(
             "ok": True,
             "channel": "telegram",
             "recipient": name,
+            "bot": bot_name,
             "dry_run": True,
             "chat_id_configured": bool(chat_id),
             "payload": preview,
         }
     if not chat_id:
-        return {"ok": False, "channel": "telegram", "recipient": name, "error": f"{chat_env} is not set"}
-    result = telegram_call(cfg, "sendMessage", payload)
+        return {
+            "ok": False,
+            "channel": "telegram",
+            "recipient": name,
+            "bot": bot_name,
+            "error": f"{chat_env} is not set",
+        }
+    result = telegram_call(cfg, "sendMessage", payload, bot=bot_name)
     if not result.get("ok"):
-        return {"ok": False, "channel": "telegram", "recipient": name, "error": result.get("error")}
+        return {"ok": False, "channel": "telegram", "recipient": name, "bot": bot_name, "error": result.get("error")}
     return {
         "ok": True,
         "channel": "telegram",
         "recipient": name,
+        "bot": bot_name,
         "message_id": (result.get("result") or {}).get("message_id"),
     }
 
@@ -646,6 +710,7 @@ def dispatch(
     body: str,
     issue: int | None = None,
     recipient: str | None = None,
+    bot: str | None = None,
     github_body: str | None = None,
     telegram_text: str | None = None,
     telegram_keyboard: dict[str, Any] | None = None,
@@ -720,7 +785,14 @@ def dispatch(
         elif channel == "telegram":
             text = telegram_text or f"<b>{_tg_escape(title)}</b>\n\n{_tg_escape(body)}"
             results.append(
-                send_telegram(cfg, text=text, keyboard=telegram_keyboard, recipient=recipient, dry_run=dry_run)
+                send_telegram(
+                    cfg,
+                    text=text,
+                    keyboard=telegram_keyboard,
+                    recipient=recipient,
+                    bot=bot,
+                    dry_run=dry_run,
+                )
             )
         else:
             results.append({"ok": False, "channel": channel, "error": "no transport implemented"})
@@ -772,9 +844,33 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     checks.append({"name": "config", "ok": True, "detail": cfg["_path"]})
 
     telegram = (cfg.get("channels") or {}).get("telegram") or {}
-    token_env = str(telegram.get("token_env") or "")
-    token = resolve_secret(token_env, cfg)
-    checks.append({"name": f"{token_env} present", "ok": bool(token), "detail": "set" if token else "MISSING"})
+    bots: dict[str, Any] = telegram.get("bots") or {}
+    identities: dict[str, str] = {}
+    for bot_name, bot_spec in bots.items():
+        token_env = str((bot_spec or {}).get("token_env") or "")
+        token = resolve_secret(token_env, cfg)
+        checks.append(
+            {
+                "name": f"bot {bot_name}: {token_env}",
+                "ok": bool(token),
+                "detail": "set" if token else "MISSING",
+            }
+        )
+        if not token or args.offline:
+            continue
+        # getMe is how a token is checked without ever printing it — the reply
+        # names the bot, which is also how you confirm which env var is which.
+        me = telegram_call(cfg, "getMe", bot=bot_name)
+        username = (me.get("result") or {}).get("username") if me.get("ok") else None
+        if username:
+            identities[bot_name] = f"@{username}"
+        checks.append(
+            {
+                "name": f"bot {bot_name}: getMe",
+                "ok": bool(me.get("ok")),
+                "detail": f"@{username}" if username else str(me.get("error")),
+            }
+        )
 
     for name, spec in (telegram.get("recipients") or {}).items():
         chat_env = str(spec.get("chat_id_env") or "")
@@ -784,17 +880,6 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 "name": f"recipient {name}: {chat_env}",
                 "ok": bool(chat_id),
                 "detail": "set" if chat_id else "MISSING",
-            }
-        )
-
-    if token and not args.offline:
-        me = telegram_call(cfg, "getMe")
-        username = (me.get("result") or {}).get("username") if me.get("ok") else None
-        checks.append(
-            {
-                "name": "telegram getMe",
-                "ok": bool(me.get("ok")),
-                "detail": f"@{username}" if username else str(me.get("error")),
             }
         )
 
@@ -819,6 +904,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         {
             "ok": ok,
             "checks": checks,
+            "bots": identities,
             "quiet_hours_now": in_quiet_hours(cfg, moment),
             "local_time": moment.isoformat(),
             "routine_budget": f"{routine_sends_today(cfg, entries, moment)}/{cap} used today",
@@ -838,6 +924,7 @@ def cmd_send(args: argparse.Namespace) -> int:
             body=args.body,
             issue=args.issue,
             recipient=args.recipient,
+            bot=args.bot,
             dry_run=args.dry_run,
             force=args.force,
         )
@@ -871,6 +958,7 @@ def cmd_decision(args: argparse.Namespace) -> int:
             body=req.summary,
             issue=args.issue,
             recipient=args.recipient,
+            bot=args.bot,
             github_body=render_github_comment(req),
             telegram_text=render_telegram_text(req, cfg),
             telegram_keyboard=build_keyboard(req, cfg),
@@ -902,6 +990,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_send.add_argument("--body", required=True)
     p_send.add_argument("--issue", type=int, default=None, help="GitHub issue for the record leg")
     p_send.add_argument("--recipient", default=None)
+    p_send.add_argument("--bot", default=None, help="telegram bot key from .kca/notify.yml (default: default_bot)")
     p_send.add_argument("--dry-run", action="store_true", dest="dry_run")
     p_send.add_argument("--force", action="store_true", help="ignore dedupe / daily cap / quiet hours")
     p_send.set_defaults(func=cmd_send)
@@ -918,6 +1007,7 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_dec.add_argument("--account", default=None, help="which agent/Kaggle account this decision is for")
     p_dec.add_argument("--link", action="append", default=[])
     p_dec.add_argument("--recipient", default=None)
+    p_dec.add_argument("--bot", default=None, help="telegram bot key from .kca/notify.yml (default: default_bot)")
     p_dec.add_argument("--dry-run", action="store_true", dest="dry_run")
     p_dec.add_argument("--force", action="store_true")
     p_dec.set_defaults(func=cmd_decision)
