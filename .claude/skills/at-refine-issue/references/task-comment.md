@@ -16,12 +16,14 @@ The first line is always the marker. It is how a repeat run finds this comment i
 
 `revision` starts at 1 and increments only when a *replacement* comment is published. Editing a comment in place to add detail keeps its revision; superseding it with a new comment raises it.
 
-Find existing markers before writing anything:
+Find existing markers before writing anything, qualifying the prefix with this repository and issue:
 
 ```bash
 gh api repos/<owner>/<repo>/issues/<n>/comments --paginate \
-  --jq '.[] | select(.body | startswith("<!-- at-refine-issue:task")) | {id, html_url, updated_at, user: .user.login}'
+  --jq '.[] | select(.body | startswith("<!-- at-refine-issue:task repo=<owner>/<repo> issue=<n> ")) | {id, html_url, updated_at, user: .user.login}'
 ```
+
+A hit is a candidate, not a match. Before editing or adopting one, require its first line to be exactly the marker for this repository and issue, and its `user.login` to be the account the run writes as (`gh api user --jq .login`). A marker comment written by anyone else is left untouched and reported: it is evidence, not this run's work, and it never becomes the comment a launch prompt points at.
 
 ## Template
 
@@ -31,7 +33,7 @@ gh api repos/<owner>/<repo>/issues/<n>/comments --paginate \
 
 **Repository:** `<owner>/<repo>` · **Tracking issue:** [#<n>](<issue url>) · **Owner/reviewer:** @<handle> · **Revision:** <r> (<date>)
 
-One sentence on what this comment is and whether it has been dispatched. A prepared-but-undispatched task says so explicitly: publishing this comment does not start the work.
+One sentence on what this comment is and whether it has been dispatched. A prepared-but-undispatched task says so explicitly: publishing this comment does not start the work. That sentence, plus the `--- dispatched <YYYY-MM-DD> ---` record a later run appends once dispatch happens, is what tells a repeat run which branch it is on; with neither present the run must assume dispatched.
 
 ### Goal
 
@@ -116,6 +118,13 @@ Snapshot before every edit — `url`, `comment_id`, `author`, `updated_at`, `sha
 
 Once a human has sent a launch prompt, the comment is a contract a session may already be acting on. [#196](https://github.com/amyteq/tt_pangu/issues/196#issuecomment-5672917107) settles how to change it: append and the dispatch continues, rewrite and it stops.
 
+Whether that has happened is decided fail-closed by the skill's *Has this task been dispatched?* rule: a run treats the comment as dispatched unless the human says otherwise and nothing on the issue reads as a run in flight. The first write after a run learns of a dispatch is the record itself, so the next run reads it instead of inferring it:
+
+```text
+--- dispatched <YYYY-MM-DD> ---
+
+Dispatched by @<handle> from this issue's Execution section.
+
 An append leaves every earlier byte untouched and adds a block at the end:
 
 ```text
@@ -143,7 +152,7 @@ Anything that fails that test — reordered sections, a corrected earlier senten
 | Situation | Action |
 |---|---|
 | Comment published, issue body update failed | The permalink is already valid. Re-fetch it by marker, reuse it, repair only the issue body. Never post a second comment |
-| Publication timed out, outcome unknown | Query by marker before retrying. If a matching comment exists, adopt it; if none does, publish once |
+| Publication timed out, outcome unknown | Query by marker before retrying. Adopt a candidate only if it passes the marker-and-author checks above; if one exists and fails them, stop and report; if none exists, publish once |
 | A human edited the comment since the snapshot | Reconcile their text into the new body, or stop and report the conflict. Stale text never overwrites a human edit |
-| An undispatched draft comment already exists | Reuse it in place. A draft is not a contract, so a full rewrite is fine — it just stays the same comment and the same permalink |
+| An undispatched draft comment already exists | Reuse it in place, keeping its revision — an in-place edit never raises `revision`. A draft is not a contract, so a full rewrite is fine; it just stays the same comment and the same permalink. "Undispatched" must be established by the fail-closed rule, never assumed |
 | Two task comments exist by accident | Keep the one the issue links, mark the other superseded, and say so in the report. Do not delete it |
