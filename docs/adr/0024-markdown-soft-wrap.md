@@ -1,0 +1,53 @@
+# ADR-0024: Markdown is soft-wrapped, in files and in agent-written GitHub text
+
+- Status: Accepted
+- Date: 2026-09-16
+- Deciders: @harrysun2006 (repo owner)
+- Related: [PR #208 review](https://github.com/amyteq/tt_pangu/pull/208#issuecomment-5696699389), [issue #207](https://github.com/amyteq/tt_pangu/issues/207)
+
+## Context
+
+Markdown in this repository is written by agents as often as by humans, and the two produce different line discipline. `CLAUDE.md`, `README.md` and the ADRs are soft-wrapped: one paragraph is one physical line, and the renderer wraps it. Several agent-written files and GitHub comments instead arrived hard-wrapped at roughly 80 columns, with a newline inside every paragraph.
+
+Hard wrapping looks tidy in a fixed-width editor and bad everywhere else. GitHub wraps to the reader's viewport, so a paragraph that was wrapped at 80 renders ragged at any other width, on a phone, in a side-by-side diff, and in the PR conversation column. It also makes diffs noisy: changing one word reflows the rest of the paragraph and rewrites lines that did not change, which buries the real edit in a review.
+
+Two smaller hazards travel with the same problem. A `---` placed directly under a non-blank line is not a horizontal rule at all — CommonMark parses it as a setext H2, so the paragraph above it silently renders as a heading. And a hard-wrapped line inside a table cell or a list item breaks the construct rather than continuing it.
+
+The repo owner raised all of this against PR #208 and asked for it to be enforced repo-wide rather than fixed one file at a time.
+
+## Decision
+
+**Markdown is soft-wrapped.** One paragraph, list item, table row or heading is one physical line, with no hard line break inside it. Let the renderer wrap.
+
+This binds:
+
+- every `.md` file in the repository, including `*_zh.md` sidecars;
+- every GitHub body an agent writes: PR descriptions, PR and issue comments, review and disposition reports, discussion posts, and release notes.
+
+Two consequential rules follow:
+
+- **Leave a blank line before every `---`.** Without it the preceding paragraph becomes a setext H2. This matters most for the signature separators in [`at-review-pr` report templates](../../.claude/skills/at-review-pr/references/reports.md), where the line above the rule is prose.
+- **Never hard-wrap inside a table row, a list item, or a link.** A wrapped table row stops being a table.
+
+Exempt, because line breaks are semantic there: fenced code blocks and their contents, YAML frontmatter, and any block where a diff, log excerpt or file listing is reproduced verbatim.
+
+## Enforcement
+
+Enforcement is asymmetric, and honest about it:
+
+- **Repository `.md` files** can be checked mechanically. A check can detect a paragraph containing an internal newline, and a `---` without a preceding blank line, and is the natural place to add a gate later.
+- **GitHub comment bodies cannot be linted** — nothing runs between an agent and the GitHub API. There the rule holds because it is written down here, in `CLAUDE.md`, and in the report templates that agents load before publishing.
+
+This ADR deliberately ships the rule and its application to the files it touches, not a repo-wide reflow. Converting the existing hard-wrapped Markdown is mechanical but large, would swamp any PR it lands in, and belongs in its own change.
+
+## Consequences
+
+Paragraph-level diffs get bigger — a one-word edit now shows the whole paragraph as changed. That is the accepted cost: `git diff --word-diff` reads well on soft-wrapped text, and the alternative is the reflow noise described above, which is worse because it hides which words actually changed.
+
+Editors need soft wrap turned on to read these files comfortably. That is a per-developer setting, not a repository concern.
+
+## Alternatives considered
+
+**Hard wrap at 80 or 100 columns, enforced by a formatter.** Mechanically enforceable in files, and conventional in some projects. Rejected because it cannot apply to GitHub comments at all, which is where the owner first hit the problem, and because it produces exactly the reflow noise described above.
+
+**Leave it to individual judgement.** This is the status quo that produced the inconsistency. Rejected: the mix is the problem, not either style on its own.

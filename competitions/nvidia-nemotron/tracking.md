@@ -3,6 +3,12 @@
 > English consolidation of GitHub issue **#86** ("Nemotron Model Reasoning Challenge — strategy & tracking hub").
 > Original Chinese tables preserved verbatim in [`tracking_zh.md`](./tracking_zh.md). Future status updates
 > live here, not in issue #86. `unknown` = not in available evidence.
+>
+> **Authority (ADR-0022 §3).** This file is rank 3: narrative, reasoning, experiment history
+> and LB writeups. It is **not** where `state` / `status` / `best` live — those are rank 1,
+> `competition.yaml`, and if this file disagrees with it, this file is stale. "Status updates
+> live here, not in issue #86" means the *narrative* moved out of the issue; the state fields
+> were always the YAML's.
 
 ## Current snapshot (updated 2026-06-15)
 - Best **own real-training: 0.86 (`nemo-merge-soup` = SVD rank32 of v14(0.4)+c1(0.3)+b1(0.3))** — three comparable+complementary 0.85 adapters merged; broke the v14 0.85 ceiling (+0.01, compliant own-work, D3). Top **~0.90** (refreshed 2026-06-15), base ~0.47. Deadline **2026-06-15 23:59 UTC**. Quota 5/team/day.
