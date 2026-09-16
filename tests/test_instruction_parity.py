@@ -28,7 +28,8 @@ AGENTS_SKILLS = REPO_ROOT / ".agents" / "skills"
 # that is current.
 SHARED_RULES = [
     "Two agents: Claude Code harness vs KCA product",
-    "autonomy.screen",
+    "autonomy_config",
+    "A1-A7",
     "Read-for-use, not read-to-share",
     ".agent/kca/audit.jsonl",
     ".agent/audit/tool-events.jsonl",

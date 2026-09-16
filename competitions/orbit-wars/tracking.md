@@ -2,6 +2,9 @@
 
 > English consolidation of GitHub issue **#87** ("[Orbit Wars] 长期跟踪与策略讨论"). Original Chinese tables
 > preserved verbatim in [`tracking_zh.md`](./tracking_zh.md). Future status updates live here, not in issue #87.
+> **Authority (ADR-0022 §3):** this file is rank 3 — narrative, reasoning, experiment history.
+> `state` / `status` / `best` live in `competition.yaml` (rank 1); if this file disagrees with
+> it, this file is stale. "Status updates live here" means the *narrative* left the issue.
 > `unknown` = not in available evidence.
 
 ## Current snapshot
@@ -172,11 +175,11 @@
 | 279.0 / 385.3 | Value-targeting | first agents |
 | 538.3 | Interceptor v2 | orbital lead + threat reserve |
 | 555.8 | v2.1 | intercept economist + phase-scaled cap + frontier garrison |
-| 686.1 | **v3 Forecast** | **bit-exact forward sim + terminal differential net-ship value (own peak)** |
+| 686.1 | **v3 Forecast** | bit-exact forward sim + terminal differential net-ship value (was the own peak until v4 settled at 703.9) |
 | ≈v3 | v3.1 | + sim-driven defense (self-play only) |
 | 660.0 | **v3.2** | t14-tuned (H26/FF5/FD20/CE3.2/CL1.3); +7pt vs evogen; 6/6 gates (current own entry) |
 | 648.8 | v3_2_coarr | v3.2 + co-arrival ON (may account; on-ladder +~12 vs v3.2) |
-| parity | v4 Scheduler | hub-and-hammer integrated rewrite (≈v3.2, iterating) |
+| **703.9** | **v4 Scheduler** | hub-and-hammer integrated rewrite; *local-arena* parity with v3.2 but the **best own-agent ladder μ we measured** (sub `53730511`, settled at the 2026-06-16 refresh) — the local gate could not see the gap (INS: arena is blind inside our cluster). Historical, later evicted; rank 1's final eligible `best.public_lb` is unknown |
 | 1151.0 / 1085.4 | adapted-kuni05 | attributed public agent; competitive entry (peak / current) |
 
 ## Live loop (KCT-OW-LIVE-002, 2026-06-15)
