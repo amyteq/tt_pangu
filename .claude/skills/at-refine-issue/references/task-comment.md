@@ -124,6 +124,7 @@ Whether that has happened is decided fail-closed by the skill's *Has this task b
 --- dispatched <YYYY-MM-DD> ---
 
 Dispatched by @<handle> from this issue's Execution section.
+```
 
 An append leaves every earlier byte untouched and adds a block at the end:
 
