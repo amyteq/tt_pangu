@@ -1,6 +1,6 @@
 # at-review-pr skill validation
 
-Issue: [#207](https://github.com/amyteq/tt_pangu/issues/207). Validated 2026-09-15 against base `8f950823257aa2476fa356294d13448ab196ac60`, then re-checked on 2026-09-16 across the live runs of the loop on [PR #208](https://github.com/amyteq/tt_pangu/pull/208) (the skill was named `pr-review-loop` in the earlier revision).
+Issue: [#207](https://github.com/amyteq/tt_pangu/issues/207). Validated 2026-09-15 against base `8f950823257aa2476fa356294d13448ab196ac60`, then re-checked on 2026-09-16 across the live runs of the loop on [PR #208](https://github.com/amyteq/tt_pangu/pull/208) (the skill was named `pr-review-loop` in the earlier revision). Extended on 2026-09-17 by [#212](https://github.com/amyteq/tt_pangu/issues/212), which adds the `pr=<n>` first optional argument — see [that section](#prn-first-optional-argument-2026-09-17-issue-212).
 
 The deliverable is a Markdown development skill and two supporting references. It adds no execution service, helper scripts, runtime configuration, or test code. The [skill](../../.claude/skills/at-review-pr/SKILL.md) is canonical; the [README](../../README.md#claude-code-project-skills) supplies discovery and invocation.
 
@@ -127,10 +127,46 @@ A second run started on head `69b8184`, the coordinator commit above. Its round-
 
 This revision is that run's round-1 writer phase, fixing both. Its verification has not run, so this run's outcome is not yet recorded here — only that its round-1 review completed and what it found.
 
+## `pr=<n>` first optional argument (2026-09-17, issue #212)
+
+[#212](https://github.com/amyteq/tt_pangu/issues/212) adds `pr=<n>` as an optional first argument, so the loop can be pointed at a PR explicitly instead of only inferring one from conversation context or the current branch. The change is Markdown-only and touches `SKILL.md` (frontmatter `argument-hint`, usage line, input table, both validation paragraphs, and preflight steps 1 and 4), the README entry, and this record. No reference file, report format, signature field, round-sequencing rule, or approval rule changed, and the three positional arguments keep their order, meaning, and defaults.
+
+| Check | Result | Acceptance criteria |
+|---|---|---|
+| `SKILL.md` frontmatter parsed as YAML: `argument-hint` is the string `[pr=<n>] [rounds=10] [reviewer=codex] [writer=claude]`, `disable-model-invocation` the boolean `false` | PASS | AC1 |
+| Skill Creator `quick_validate.py` on a temporary copy with those two Claude-only keys removed | PASS: "Skill is valid!" | AC1 |
+| Skill Creator `quick_validate.py` on the skill as committed | Rejected exactly as before: the portable validator allows only `allowed-tools`, `compatibility`, `description`, `license`, `metadata`, `name`. This is the same validator limitation recorded above, not a defect introduced here | AC1 |
+| Relative Markdown links and anchors across the skill, both references, the README entry, and this file | PASS: 17 targets resolve, including the new intra-document anchor added in the header above; placeholders inside the report templates are excluded as before | AC1, AC6 |
+| `bash -n` on the four launch examples in `agents.md`, unchanged by this revision | PASS | AC6 |
+| `ruff check --no-cache .` (Ruff 0.15.14) | PASS | AC6 |
+| `ruff format --check --no-cache .` | Unchanged baseline failure: 20 files would be reformatted, 372 already formatted — all in competition/analysis files this change does not touch | AC6 |
+| `git diff --check` | PASS | AC6 |
+
+No Python, test, schema, or configuration file changed, so the pytest and UI tiers do not apply; the 2026-09-15 suite results above stand as the historical baseline for this Markdown-only diff.
+
+### Parsing scenarios walked against the revised text
+
+Argument parsing here is specification text a coordinator executes, not code, so these cases were walked against the revised "Inputs and preflight" section rather than run. Each row states the answer the revised text gives.
+
+| Invocation | Resolved behavior | Acceptance criteria |
+|---|---|---|
+| `/at-review-pr` | Unchanged: rounds 10, reviewer `codex`, writer `claude`; PR from context, else the branch's unique open PR | AC4 |
+| `/at-review-pr 5 codex claude` | Unchanged: the three positional values parse exactly as before | AC4 |
+| `/at-review-pr pr=208` | PR 208, rounds 10, `codex` / `claude` — positions 1-3 are all absent once `pr=` is consumed | AC1, AC4 |
+| `/at-review-pr pr=208 5 claude codex` | PR 208, 5 rounds, Claude reviewer, Codex writer — positions counted after `pr=` | AC1, AC4 |
+| `/at-review-pr 5 pr=208` | Rejected before writes or agent launches: `pr=` is recognized only as the first token | AC3 |
+| `/at-review-pr pr=208 pr=209` | Rejected: repeated `pr=` token | AC3 |
+| `/at-review-pr pr=`, `pr=0`, `pr=-3`, `pr=2.5`, `pr=abc` | Rejected: empty, zero, negative, fractional, and non-numeric values all fail the positive-integer rule | AC3 |
+| `/at-review-pr pr=#208`, a `pr=<PR URL>` form, `pr=amyteq/tt_pangu#208` | Rejected with the accepted spelling named, never repaired by guessing; no cross-repository targeting | AC3 |
+| `pr=<n>` names a PR that does not exist, or one that is closed, merged, or in another repository | Stops, the same way preflight step 1 already stopped for a context-resolved PR | AC2 |
+| `pr=<n>` disagrees with the PR the branch or context would have chosen | The argument wins, and the override is stated in the pre-launch confirmation rather than applied silently | AC2 |
+| `pr=<n>` targets a PR whose head is not the current branch | The dedicated worktree is checked out at that PR's head; preflight step 4 now says so explicitly | AC5 |
+| Prose "review PR 208 for me" with no arguments | Resolves at the explicit-user-context step, one level below a `pr=<n>` argument | AC4 |
+
 ## Limits
 
 **Proven live, on this host.** The installed providers' runtime-metadata schema — which signature fields exist, and on which stream — for Codex CLI 0.154.0 and Claude Code 2.1.273. Live model access for both providers. Run `pr208-20260916b` ran to completion: 5 real reviewer phases (`codex exec`, `gpt-5.6-sol`, `xhigh`, read-only) — 4 numbered reviews plus the terminal verification — and 4 real writer phases (`claude -p`, `claude-opus-5[1m]`, `--effort xhigh` requested, 1M context window confirmed in `modelUsage`). Four full review → fix → re-review cycles on PR #208: the first three verifications did not close clean (round 2 raised F003, round 4 reopened it, round 5 raised F004), and the terminal verification of `012362a` did close clean with all four findings resolved and no new ones. Run `pr208-20260916c` has so far added one more reviewer phase of the same profile, its round-1 review of `69b8184`.
 
-**Still not proven.** GitHub review permissions for a formal `APPROVE`: the signed-in user authored PR #208, so self-approval is impossible and that path is untested end to end. The 2026-09-15 behavioral scenarios were simulated against that revision, were not re-run afterwards, and their rejection cases cover an explicit zero/fractional `rounds` rather than the now-defaulting absent value. Findings coverage rests on six reviewer phases across two runs against the same one small Markdown PR — still a single narrow corpus, not a broad or adversarial one. Results are pinned to those two CLI versions. And the writer-phase block is specific to `.claude/skills/**`: the round-3 and round-4 writers edited this file and committed unaided, so the writer-edits-then-commits path is proven outside that path, but no writer phase has yet edited the skill's own files without coordinator escalation.
+**Still not proven.** GitHub review permissions for a formal `APPROVE`: the signed-in user authored PR #208, so self-approval is impossible and that path is untested end to end. The 2026-09-15 behavioral scenarios were simulated against that revision, were not re-run afterwards, and their rejection cases cover an explicit zero/fractional `rounds` rather than the now-defaulting absent value. Findings coverage rests on six reviewer phases across two runs against the same one small Markdown PR — still a single narrow corpus, not a broad or adversarial one. Results are pinned to those two CLI versions. The `pr=<n>` argument added by #212 is specification text: its parsing, precedence, and worktree-targeting rules were walked case by case, not executed, and no live loop has yet been launched with an explicit `pr=<n>`. And the writer-phase block is specific to `.claude/skills/**`: the round-3 and round-4 writers edited this file and committed unaided, so the writer-edits-then-commits path is proven outside that path, but no writer phase has yet edited the skill's own files without coordinator escalation.
 
 At invocation time the skill checks actual profile metadata, final base/head, and permissions before accepting phase output or approving. Actual model access failures must remain visible blockers.
