@@ -78,6 +78,10 @@ LEVELS = ("gate", "attention", "digest", "info")
 # Only these count against the daily intervention budget (#185 §18). A `gate`
 # or an `attention` ping is a block, not routine traffic.
 ROUTINE_LEVELS = ("digest", "info")
+# Levels whose contract includes the system-of-record comment: a `gate` is the
+# decision record, so its record channel is required rather than optional
+# (#206 F002). The others are push-only by design.
+RECORD_REQUIRED_LEVELS = ("gate",)
 QUIET_HOURS_POLICIES = ("bypass", "defer")
 ENV_PREFIX_ALLOWLIST = ("TELEGRAM_",)
 CALLBACK_DATA_MAX_BYTES = 64  # Telegram Bot API hard limit on callback_data
@@ -110,8 +114,15 @@ SUPPRESSED_STATUSES = ("deduped", "deferred", "rate_limited")
 # Ledger housekeeping. The lock makes the read → decide → append sequence atomic
 # across processes and worktrees; the size bound keeps a file that is appended
 # to for the life of the project from growing without limit.
-LOCK_WAIT_S = 10.0
 LOCK_POLL_S = 0.05
+# The lock is held across the transports it serialises, so a ceiling shorter
+# than the worst case hold makes the unlocked fallback the *normal* path and the
+# daily cap stops being enforced (#206 F003). The default is therefore derived
+# from the configured transport timeouts rather than being a flat 10 s;
+# `limits.lock_wait_s` overrides it for an operator who knows better.
+LOCK_WAIT_MARGIN_S = 10.0
+DEFAULT_TELEGRAM_TIMEOUT_S = 15
+GITHUB_TIMEOUT_S = 90
 LEDGER_MAX_BYTES = 512_000
 LEDGER_KEEP_ENTRIES = 1000
 # A suppressed send is recorded once per hour per message, not once per hook
@@ -179,10 +190,14 @@ _AUTH_HEADER_RE = re.compile(r"(?im)^(.*?\b(?:proxy-)?authorization)(\s*[:=]\s*)
 # anything after it is recorded as context but never parsed as the decision.
 # The id grammars are shared with :class:`DecisionRequest` validation so a
 # decision can never be published in a form its own reply parser rejects.
+# The validators anchor with `\A…\Z`, not `^…$`: Python's `$` also matches the
+# position before a final newline, so `^…$` accepted `"approval-v2\n"` at
+# creation while the line-oriented reply parser split the newline away and could
+# never answer it (#206 F005). `\Z` makes creation and parsing one grammar.
 DECISION_ID_PATTERN = r"[A-Za-z0-9._:-]{1,64}"
 OPTION_ID_PATTERN = r"[A-Za-z0-9_-]{1,32}"
-_DECISION_ID_RE = re.compile(rf"^{DECISION_ID_PATTERN}$")
-_OPTION_ID_RE = re.compile(rf"^{OPTION_ID_PATTERN}$")
+_DECISION_ID_RE = re.compile(rf"\A{DECISION_ID_PATTERN}\Z")
+_OPTION_ID_RE = re.compile(rf"\A{OPTION_ID_PATTERN}\Z")
 _REPLY_RE = re.compile(
     rf"^\s*/decide\s+(?P<decision_id>{DECISION_ID_PATTERN})\s+(?P<option_id>{OPTION_ID_PATTERN})\s*(?P<note>.*)$"
 )
@@ -256,6 +271,21 @@ def _parse_hhmm(text: str) -> dt.time:
     return dt.time(hour=int(hh), minute=int(mm or 0))
 
 
+def is_required_channel(level: str, channel: str, cfg: dict[str, Any]) -> bool:
+    """Is ``channel`` load-bearing for ``level``, rather than one of its outlets?
+
+    A `gate` is *defined* by its GitHub record — the attributable, timestamped
+    comment is the system of record (#197), so the record channel is required
+    and turning it off is a configuration error, not a way to send gates over
+    Telegram alone. `attention` / `digest` / `info` are push-only by design and
+    keep working with any single outlet disabled.
+    """
+    if level not in RECORD_REQUIRED_LEVELS:
+        return False
+    channel_cfg = (cfg.get("channels") or {}).get(channel) or {}
+    return str(channel_cfg.get("role") or ("record" if channel == "github" else "")) == "record"
+
+
 def validate_config(cfg: dict[str, Any]) -> None:
     """Raise ValueError on a config that would fail at send time."""
     if int(cfg.get("version") or 0) != 1:
@@ -276,6 +306,14 @@ def validate_config(cfg: dict[str, Any]) -> None:
         unknown = [n for n in names if n not in channels]
         if unknown:
             raise ValueError(f"notify config: levels.{level} references unknown channel(s) {unknown}")
+        # Catch the F002 shape at load time as well as at send time: a level
+        # that needs a record cannot route it through a disabled channel.
+        off = [n for n in names if is_required_channel(level, n, cfg) and not (channels.get(n) or {}).get("enabled")]
+        if off:
+            raise ValueError(
+                f"notify config: levels.{level} needs its record channel(s) {off}, but they are disabled — "
+                f"a {level} without a record is not a decision that was filed"
+            )
         if spec.get("quiet_hours") not in QUIET_HOURS_POLICIES:
             raise ValueError(f"notify config: levels.{level}.quiet_hours must be one of {QUIET_HOURS_POLICIES}")
         if "suppress_unchanged" in spec and not isinstance(spec["suppress_unchanged"], bool):
@@ -496,6 +534,21 @@ def dedupe_key(level: str, title: str, body: str) -> str:
     return digest[:16]
 
 
+def lock_wait_s(cfg: dict[str, Any]) -> float:
+    """How long to wait for the ledger lock, in seconds.
+
+    Long enough to outlast a lock holder that is mid-transport: the holder keeps
+    the lock until its Telegram POST *and* its `gh` subprocess return, so a
+    ceiling below ``telegram.timeout_s + GITHUB_TIMEOUT_S`` would time out on an
+    ordinary slow send rather than on a wedged process (#206 F003).
+    """
+    override = (cfg.get("limits") or {}).get("lock_wait_s")
+    if override is not None:
+        return max(float(override), 0.0)
+    telegram = (cfg.get("channels") or {}).get("telegram") or {}
+    return float(telegram.get("timeout_s") or DEFAULT_TELEGRAM_TIMEOUT_S) + GITHUB_TIMEOUT_S + LOCK_WAIT_MARGIN_S
+
+
 @contextmanager
 def ledger_lock(cfg: dict[str, Any], timeout_s: float | None = None, *, create: bool = True) -> Iterator[bool]:
     """Serialise read → decide → append → send across processes and worktrees.
@@ -505,9 +558,11 @@ def ledger_lock(cfg: dict[str, Any], timeout_s: float | None = None, *, create: 
     entry that spends the budget is only written once the transport returns.
 
     **Best effort by design**: it yields ``False`` after ``timeout_s`` instead of
-    raising or dropping the message. Overshooting a routine budget by one is a
-    better failure than a `gate` that never reaches the human because another
-    process was wedged holding the lock.
+    raising, because a `gate` must never be dropped just because another process
+    was wedged holding the lock. What the caller does with an unserialised
+    dispatch differs by level — :func:`dispatch` sends a `gate`/`attention`
+    anyway and defers a routine `digest`/`info` (#206 F003) — and the wait
+    itself comes from :func:`lock_wait_s`, which outlasts the transports.
 
     ``create=False`` skips locking entirely and creates nothing. A dry run
     appends no ledger entry, so it has nothing to serialise, and it is the
@@ -525,7 +580,7 @@ def ledger_lock(cfg: dict[str, Any], timeout_s: float | None = None, *, create: 
         yield False
         return
     acquired = False
-    wait_s = LOCK_WAIT_S if timeout_s is None else float(timeout_s)
+    wait_s = lock_wait_s(cfg) if timeout_s is None else float(timeout_s)
     deadline = time.monotonic() + max(wait_s, 0.0)
     try:
         while True:
@@ -581,9 +636,12 @@ def compact_ledger(cfg: dict[str, Any]) -> int:
 
     This file is appended to for the life of the project, and every dispatch
     reads it whole, so an unbounded ledger makes notifications progressively
-    slower. Only the current day (the budget) and the longest dedupe window
-    matter for a decision, and both are far inside ``LEDGER_KEEP_ENTRIES`` at a
-    two-routine-pushes-per-day cap, so trimming cannot change an outcome.
+    slower. The current day (the budget) and the longest dedupe window are both
+    far inside ``LEDGER_KEEP_ENTRIES`` at a two-routine-pushes-per-day cap. The
+    last `sent` entry per level is *not*: ``suppress_unchanged`` compares against
+    it however old it is, so a newest-N window on its own silently re-enables
+    the digest it was meant to hold back (#206 F004). Those few entries are
+    therefore pinned, in place and in order, whatever their age.
 
     Returns the number of lines dropped.
     """
@@ -594,8 +652,20 @@ def compact_ledger(cfg: dict[str, Any]) -> int:
         lines = [ln for ln in path.read_text(encoding="utf-8", errors="replace").splitlines() if ln.strip()]
         if len(lines) <= LEDGER_KEEP_ENTRIES:
             return 0
-        kept = lines[-LEDGER_KEEP_ENTRIES:]
-        tmp = path.with_name(path.name + ".tmp")
+        keep = set(range(len(lines) - LEDGER_KEEP_ENTRIES, len(lines)))
+        pinned: dict[str, int] = {}
+        for index, line in enumerate(lines):
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict) and parsed.get("status") == "sent" and parsed.get("level"):
+                pinned[str(parsed["level"])] = index
+        keep.update(pinned.values())
+        kept = [lines[i] for i in sorted(keep)]
+        # A unique temp name: a process that is writing without the lock (a
+        # `gate` that could not take it) must not clobber another rewrite.
+        tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
         tmp.write_text("\n".join(kept) + "\n", encoding="utf-8")
         os.replace(tmp, path)
     except OSError:
@@ -1038,7 +1108,7 @@ def post_github_comment(cfg: dict[str, Any], *, issue: int, body: str, dry_run: 
         return {"ok": True, "channel": "github", "dry_run": True, "issue": issue, "repo": repo, "body": body}
     cmd = ["gh", "issue", "comment", str(issue), "--repo", repo, "--body-file", "-"]
     try:
-        proc = subprocess.run(cmd, input=body, capture_output=True, text=True, timeout=90, check=False)
+        proc = subprocess.run(cmd, input=body, capture_output=True, text=True, timeout=GITHUB_TIMEOUT_S, check=False)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return {"ok": False, "channel": "github", "error": redact(str(exc))}
     if proc.returncode != 0:
@@ -1116,6 +1186,22 @@ def dispatch(
             }
 
         if not force:
+            # A routine push fails closed when the read → decide → append
+            # sequence could not be serialised: sending anyway would spend the
+            # daily budget against a stale count, which is exactly how two
+            # processes both take the last slot (#206 F003). A `gate` or an
+            # `attention` still goes out unserialised — never dropped for a lock
+            # — and a dry run takes no lock because it appends nothing.
+            if level in ROUTINE_LEVELS and not locked and not dry_run and fcntl is not None:
+                return _record(
+                    "deferred",
+                    {
+                        "reason": "ledger lock busy; a routine push is not spent against a stale budget",
+                        "retry_after": (moment + dt.timedelta(seconds=lock_wait_s(cfg))).isoformat(),
+                        "channels": [],
+                    },
+                )
+
             # "Nothing changed since the last one" is time-independent on
             # purpose: a once-daily digest repeats outside any rolling window,
             # and #197 asks for it to be suppressed while it says the same thing.
@@ -1156,7 +1242,20 @@ def dispatch(
         for channel in spec.get("channels") or []:
             channel_cfg = (cfg.get("channels") or {}).get(channel) or {}
             if not channel_cfg.get("enabled"):
-                results.append({"ok": True, "channel": channel, "skipped": "disabled"})
+                # "Off by configuration" is a successful skip for a push channel
+                # — but a `gate` *is* its GitHub record, so a disabled record
+                # channel is a missing system-of-record entry, not a skip, and
+                # must not let the dispatch report `sent` (#206 F002).
+                if is_required_channel(level, channel, cfg):
+                    results.append(
+                        {
+                            "ok": False,
+                            "channel": channel,
+                            "error": f"channel disabled in config; a {level} cannot be filed without its record",
+                        }
+                    )
+                else:
+                    results.append({"ok": True, "channel": channel, "skipped": "disabled"})
                 continue
             if channel == "github":
                 if not issue:

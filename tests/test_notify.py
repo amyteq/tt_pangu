@@ -303,6 +303,12 @@ def test_plan_hash_is_derived_and_stable_when_not_supplied() -> None:
         {"options": [("ship.now", "Ship now"), ("hold", "Hold")]},  # `.` is not an option char
         {"options": [("ship now", "Ship now"), ("hold", "Hold")]},
         {"options": [("s" * 33, "Ship"), ("hold", "Hold")]},
+        # #206 F005: Python's `$` matches before a final newline, so `^…$`
+        # accepted these while the line-oriented parser split the newline away
+        # — `approval-v2\n` parsed as no reply at all, `ship\n` as INVALID_OPTION.
+        {"decision_id": "approval-v2\n"},
+        {"options": [("ship\n", "Ship"), ("hold", "Hold")]},
+        {"decision_id": "d-2026\r"},
     ],
 )
 def test_a_decision_its_own_parser_could_not_answer_is_refused(overrides: dict) -> None:
@@ -649,7 +655,7 @@ def test_the_ledger_lock_is_exclusive_but_never_swallows_a_gate(cfg: dict, monke
     lock holder must not stop a blocking notification either."""
     import fcntl
 
-    monkeypatch.setattr(notify, "LOCK_WAIT_S", 0.05)
+    cfg["limits"]["lock_wait_s"] = 0.05
     noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
     lock_file = notify.state_dir(cfg) / "ledger.lock"
     lock_file.parent.mkdir(parents=True, exist_ok=True)
@@ -669,6 +675,88 @@ def test_the_ledger_lock_is_exclusive_but_never_swallows_a_gate(cfg: dict, monke
     # appends nothing, so it takes no lock and creates no state (#206 F012).
     free = notify.dispatch(cfg, level="gate", title="t2", body="b", issue=197, now=noon, dry_run=True)
     assert free["serialized"] is False
+
+
+def test_the_lock_wait_outlasts_the_transports_it_serialises(cfg: dict) -> None:
+    """#206 F003: a ceiling below the worst-case hold makes the unlocked
+    fallback the normal path, so the daily cap stops being enforced."""
+    telegram_timeout = float(cfg["channels"]["telegram"]["timeout_s"])
+    assert notify.lock_wait_s(cfg) > telegram_timeout + notify.GITHUB_TIMEOUT_S
+    cfg["limits"]["lock_wait_s"] = 0.25  # an operator may still override it
+    assert notify.lock_wait_s(cfg) == 0.25
+
+
+def test_a_routine_push_fails_closed_when_it_cannot_be_serialised(cfg: dict, monkeypatch) -> None:
+    """#206 F003: sending unserialised spends the budget against a stale count,
+    which is how two processes both take the last slot. A gate still goes out."""
+    import fcntl
+
+    cfg["limits"]["lock_wait_s"] = 0.05
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    sent: list[str] = []
+    monkeypatch.setattr(
+        notify, "send_telegram", lambda cfg, **kw: sent.append(kw["text"]) or {"ok": True, "channel": "telegram"}
+    )
+    monkeypatch.setattr(notify, "post_github_comment", lambda cfg, **kw: {"ok": True, "channel": "github"})
+    lock_file = notify.state_dir(cfg) / "ledger.lock"
+    lock_file.parent.mkdir(parents=True, exist_ok=True)
+
+    with lock_file.open("a+", encoding="utf-8") as holder:
+        fcntl.flock(holder.fileno(), fcntl.LOCK_EX)
+        routine = notify.dispatch(cfg, level="digest", title="d", body="b", now=noon)
+        assert routine["status"] == "deferred"
+        assert routine["serialized"] is False
+        assert "stale budget" in routine["reason"]
+        assert notify.exit_code_for(routine) == notify.EXIT_BLOCKED
+        assert sent == []  # nothing was transmitted against an unread budget
+        gate = notify.dispatch(cfg, level="gate", title="g", body="b", issue=197, now=noon)
+        assert (gate["status"], gate["serialized"]) == ("sent", False)
+        fcntl.flock(holder.fileno(), fcntl.LOCK_UN)
+
+    # With the lock free the same digest goes out normally.
+    assert notify.dispatch(cfg, level="digest", title="d", body="b", now=noon)["status"] == "sent"
+
+
+def test_compaction_keeps_the_state_unchanged_suppression_depends_on(cfg: dict, monkeypatch) -> None:
+    """#206 F004: `suppress_unchanged` compares against the last digest sent
+    however old it is, so compaction must pin it rather than drop it."""
+    monkeypatch.setattr(notify, "send_telegram", lambda cfg, **kw: {"ok": True, "channel": "telegram"})
+    monkeypatch.setattr(notify, "LEDGER_MAX_BYTES", 400)
+    monkeypatch.setattr(notify, "LEDGER_KEEP_ENTRIES", 5)
+    day1 = dt.datetime(2026, 9, 15, 9, 0, tzinfo=MELBOURNE)
+    unchanged = dict(level="digest", title="daily digest", body="LB 0.951 · nothing changed")
+    assert notify.dispatch(cfg, **unchanged, now=day1)["status"] == "sent"
+
+    # …then enough later traffic to push that entry out of the newest-N window.
+    for idx in range(40):
+        notify.append_ledger(cfg, {"ts": day1.isoformat(), "level": "gate", "key": f"k{idx}", "status": "partial"})
+    entries = notify.read_ledger(cfg)
+    assert len(entries) < 41  # the ledger really was compacted
+    assert notify.last_sent(entries, "digest") is not None
+
+    repeat = notify.dispatch(cfg, **unchanged, now=day1 + dt.timedelta(days=1))
+    assert repeat["status"] == "deduped"
+    assert "unchanged" in repeat["reason"]
+
+
+def test_a_disabled_record_channel_is_a_failed_gate_not_a_skip(cfg: dict, monkeypatch) -> None:
+    """#206 F002: a gate is its GitHub record. "Off by configuration" must not
+    read as "this leg succeeded", or a gate reports `sent` with no record."""
+    monkeypatch.setattr(notify, "send_telegram", lambda cfg, **kw: {"ok": True, "channel": "telegram"})
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    cfg["channels"]["github"]["enabled"] = False
+
+    out = notify.dispatch(cfg, level="gate", title="t", body="b", issue=197, now=noon)
+    github = next(c for c in out["channels"] if c["channel"] == "github")
+    assert github["ok"] is False
+    assert "disabled" in github["error"]
+    assert (out["status"], out["ok"]) == ("partial", False)
+    assert notify.exit_code_for(out) == notify.EXIT_RUNTIME
+    # …while a push-only level is unaffected by a disabled record channel.
+    assert notify.dispatch(cfg, level="attention", title="t", body="b", now=noon)["status"] == "sent"
+    # The same shape is rejected at load time rather than at 3am.
+    with pytest.raises(ValueError, match="record channel"):
+        notify.validate_config(cfg)
 
 
 def test_a_corrupt_ledger_line_never_blocks_a_send(cfg: dict) -> None:

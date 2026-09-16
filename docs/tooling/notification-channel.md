@@ -180,7 +180,7 @@ The decision card carries one button, and it is a link to the GitHub record. The
 * Quiet hours: 22:00–08:00 `Australia/Melbourne` (`.kca/notify.yml`).
 * Routine budget: **2 pushes/day** — the #185 §18 intervention-cost criterion. It applies to `digest`/`info` only. A suppressed send is a *success* (`status: deduped | deferred | rate_limited`), not an error; `--force` overrides all three.
 * `suppress_unchanged` (set on `digest`) is time-independent, unlike `dedupe_minutes`: a digest saying exactly what the last digest said is held back however long ago that was, which is what "daily digest suppressed when nothing changed" needs — a 24 h repeat always falls outside a 12 h window.
-* Statuses: `sent` means **every** configured channel took the message. One failed leg is `partial`, which is a failure: a `gate` whose GitHub record failed is not a decision that was filed.
+* Statuses: `sent` means **every** configured channel took the message. One failed leg is `partial`, which is a failure: a `gate` whose GitHub record failed is not a decision that was filed. A channel that is disabled in `.kca/notify.yml` is a successful skip for a push-only level, but **not** for a level whose contract includes the record: `gate` fails its GitHub leg rather than reporting `sent` with nothing filed, and `kca notify doctor` / config loading reject that configuration up front.
 * Exit codes: `0` sent, `2` suppressed by policy, `1` the send failed or only partly landed.
 
 ### The send ledger
@@ -188,9 +188,10 @@ The decision card carries one button, and it is a link to the GitHub record. The
 Dedupe and the daily cap are backed by a JSONL ledger under `state_dir` (`.agent/notify/sent.jsonl`, gitignored).
 
 * It is **one ledger per repository, not per worktree**: a relative `state_dir` resolves against the primary checkout, because the budget protects a human's phone rather than a directory.
-* The read → decide → send → append sequence runs under a `flock` on `.agent/notify/ledger.lock`, so two agents cannot both spend the last of the budget. The lock is best effort by design — after 10 s it sends unserialised (`serialized: false` in the result) rather than dropping a `gate` because another process was wedged.
+* The read → decide → send → append sequence runs under a `flock` on `.agent/notify/ledger.lock`, so two agents cannot both spend the last of the budget. The lock is held across the transports, so the wait for it is derived from their timeouts (`telegram.timeout_s` + the 90 s `gh` timeout + a margin, overridable with `limits.lock_wait_s`) — a shorter ceiling would time out on an ordinary slow send rather than on a wedged holder.
+* If the lock cannot be taken in that time the level decides what happens: a `gate` or an `attention` is sent unserialised (`serialized: false` in the result) rather than dropped, while a routine `digest`/`info` **fails closed** with `deferred` and a `retry_after` — spending the daily budget against a count it could not read is how two processes both take the last slot.
 * `--dry-run` takes no lock and creates nothing — not the ledger, not `ledger.lock`, not the state directory: it appends nothing, so it has nothing to serialise, and it reports `serialized: false`.
-* A suppressed outcome is recorded once per hour per message, not once per hook invocation, and the file is compacted to its newest entries once it crosses ~500 KB. A line that is not a JSON object is skipped, so a corrupted ledger cannot take the channel — or `doctor` — down.
+* A suppressed outcome is recorded once per hour per message, not once per hook invocation, and the file is compacted to its newest entries once it crosses ~500 KB — plus the last `sent` entry per level, pinned in place however old it is, because that is the state `suppress_unchanged` compares against. A line that is not a JSON object is skipped, so a corrupted ledger cannot take the channel — or `doctor` — down.
 
 ### What can never reach a notification
 
