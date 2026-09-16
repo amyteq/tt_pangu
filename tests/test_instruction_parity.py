@@ -572,27 +572,77 @@ APPROVAL_WORDS = ("approval", "approve", "approved", "approvable")
 # Searching for a denial word is not enough, in either direction. "force-push is
 # **not denied** and instead requires approval" contains one; and so does
 # "force-push requires explicit approval; direct pushes to main are forbidden",
-# where the denial belongs to a different clause entirely. So the denial has to
-# *bind* to the force-push mention: adjacent, with no approval language and no
-# sentence break between them.
+# where the denial belongs to a different clause entirely.
 #
-# That still read "Harness: direct pushes to main are forbidden, while force-push
-# requires explicit human approval." as clean: the denial is close, sits before the
-# mention, and the gap to it holds no approval word — but it was spent on *another
-# subject*, and the words that do govern force-push are "requires explicit human
-# approval". Two things follow. A denial does not reach across a contrastive
-# connective, and a mention whose own predicate is an approval claim is not denied
-# however many denials surround it.
-DENIAL_WORDS = (
-    r"\bdenied\b",
-    r"\bdeny\b",
-    r"\bforbidden\b",
-    r"\brefuses\b",
+# Three review rounds each answered that by weighing the words *around* a mention —
+# a denial had to sit adjacent to it; then it could not reach across a contrastive
+# connective; then a mention whose own predicate was an approval claim counted as
+# ungoverned however many denials surrounded it. Each round produced one more
+# sentence the weighing got wrong, in both directions: "force-push is forbidden
+# **unless** explicitly approved" passed, and the correct "Approval cannot authorize
+# force-push." was rejected. Weighing an arbitrary English sentence for whether it
+# leaves a path to yes is not a thing a phrase list decides, and each fix was one
+# more phrase list.
+#
+# So this guard stopped adjudicating English and enforces a writing rule instead:
+#
+#     every clause that names force-push must deny it in that same clause,
+#     and must not hand the denial back.
+#
+# The first half is decidable by co-occurrence inside a span punctuation defines,
+# and it is what all fourteen force-push clauses on the scanned surfaces (eighteen
+# mentions) already do, because denying it is the only reason this repo mentions
+# it. It also fails *closed*: a clause that says nothing about denial is flagged
+# whatever the surrounding paragraph says, so the primary decision no longer depends
+# on recognising approval vocabulary at all. "Force-push requires sign-off" is
+# caught by the missing denial, not by the word "sign-off".
+#
+# What stays enumerated is chosen so that an omission is a false positive, never a
+# false negative: an unlisted denial verb ("off-limits") makes a *correct* sentence
+# fail, which the shipped-surface tests below catch on the next run. The two lists
+# that do decide against a denial — negations and the connectives — are closed
+# classes of English grammar rather than open vocabulary.
+NEGATIONS = (
+    r"\bnot\b",  # "do not force-push" — the repo's own phrasing
+    r"n't\b",
     r"\bnever\b",
     r"\bno\b",
-    r"\bnot\b",  # "do not force-push" — the repo's own phrasing
+    r"\bnone\b",
+    r"\bnobody\b",
+    r"\bno one\b",
+    r"\bneither\b",
+    r"\bnor\b",
+    r"\bcannot\b",
 )
-NEGATED_DENIALS = ("not denied", "n't denied", "no longer denied", "not be denied", "not forbidden")
+# `nothing` is deliberately absent: a negative quantifier over *agents* denies the
+# operation ("nobody may force-push"), one over *obstacles* permits it ("nothing
+# stops a force-push once the owner agrees").
+# A negation spent on the approval *requirement* is not a denial of the operation —
+# it is the opposite. "No approval is needed for force-push" and "force-push does
+# not need approval" both contain a negation and both say the operation is free.
+# `approvable` is not `approval`, so "is not approvable" keeps counting as a denial.
+NEGATED_APPROVAL = re.compile(r"(?:no|not|never|n't|cannot)\b\s+(?:\w+\s+){0,3}?approvals?\b")
+# Open, but only in the safe direction: a missing verb rejects a correct sentence.
+DENIAL_VERB_STEMS = r"den(?:y|ies|ied)|forbid(?:s|den)?|refus(?:e|es|ed)|prohibit(?:s|ed)?|barred|banned|disallowed"
+DENIAL_WORDS = NEGATIONS + (rf"\b(?:{DENIAL_VERB_STEMS})\b",)
+# A negation applied to the denial itself cancels it: "force-push is **not denied**
+# and instead requires approval". Generated from the two closed lists rather than
+# spelled out, so "is not prohibited" cannot slip past a check written for "not
+# denied".
+NEGATED_DENIAL = re.compile(rf"\b(?:not|never|no longer|n't)\s+(?:be\s+|been\s+)?(?:{DENIAL_VERB_STEMS})\b")
+# An exception subordinator re-opens whatever was just denied: "forbidden **unless**
+# approved" is a path to yes wearing a denial's clothes. Subordinators are a closed
+# class, which is why enumerating these is not the losing game that enumerating
+# "ways to claim approval" was.
+EXCEPTION_CONNECTIVES = (
+    " unless ",
+    " except ",
+    " save for ",
+    " barring ",
+    " short of ",
+    " other than ",
+    " apart from ",
+)
 # A contrastive connective hands the sentence to a new subject: whatever was denied
 # before "…, while force-push …" was not force-push. A list separator does not —
 # "Still forbidden: merging on red, direct pushes to `main`, and force-push" denies
@@ -601,8 +651,11 @@ CONTRAST_BREAKS = (" while ", " whereas ", " but ", " although ", " though ", " 
 # Ends the predicate of a mention. After one of these, an approval claim is a
 # statement about something else: "force-push is denied; deletions need approval".
 CLAUSE_BREAKS = (".", ";", ":", "\n", "—", "–")
+# Where the clause holding a mention starts and ends. A sentence-ending period only:
+# `guard_tool.py`, `.agent/audit/tool-events.jsonl` and `CLAUDE.md` are full of the
+# other kind. Commas, colons and em-dashes are absent for the same reason as above.
+CLAUSE_BOUNDARY = re.compile(r"[;\n]|[.?!](?=\s|$)|\s(?:while|whereas|but|although|though|however|yet|instead)\s")
 WINDOW = 120
-BIND_GAP = 140
 ATTACH_GAP = 120
 
 
@@ -616,22 +669,23 @@ def _normalise(text: str) -> str:
     return folded.replace("*", "").replace("`", "")
 
 
-def _binds(norm: str, tok_start: int, tok_end: int) -> bool:
-    """Is there a denial that belongs to *this* mention rather than a neighbour?"""
+def _clause(norm: str, start: int, end: int) -> str:
+    """The clause holding `norm[start:end]` — the span the writing rule is about."""
+    low, high = 0, len(norm)
+    for match in CLAUSE_BOUNDARY.finditer(norm):
+        if match.end() <= start:
+            low = match.end()
+        elif match.start() >= end:
+            high = match.start()
+            break
+    return norm[low:high]
+
+
+def _denies(clause: str) -> bool:
     for pattern in DENIAL_WORDS:
-        for match in re.finditer(pattern, norm):
-            if match.end() <= tok_start:
-                gap = norm[match.end() : tok_start]
-            elif match.start() >= tok_end:
-                gap = norm[tok_end : match.start()]
-            else:
-                continue
-            if len(gap) > BIND_GAP or "." in gap or ";" in gap or "\n" in gap:
-                continue
-            if any(mark in gap for mark in CONTRAST_BREAKS):
-                continue  # the denial was spent on the other side of the contrast
-            if any(word in gap for word in APPROVAL_WORDS):
-                continue  # the denial is about something else in the same sentence
+        for match in re.finditer(pattern, clause):
+            if NEGATED_APPROVAL.match(clause, match.start()):
+                continue  # negates the gate, not the operation
             return True
     return False
 
@@ -663,13 +717,16 @@ def _force_push_problems(text: str) -> list[str]:
     problems = []
     for token in FORCE_PUSH_TOKENS:
         for match in re.finditer(re.escape(token), norm):
-            window = norm[max(0, match.start() - WINDOW) : match.end() + WINDOW]
-            if any(phrase in window for phrase in NEGATED_DENIALS):
-                problems.append(f"negates the denial: {window.strip()[:200]!r}")
+            window = norm[max(0, match.start() - WINDOW) : match.end() + WINDOW].strip()[:200]
+            clause = _clause(norm, match.start(), match.end())
+            if NEGATED_DENIAL.search(clause):
+                problems.append(f"negates the denial: {window!r}")
+            elif not _denies(clause):
+                problems.append(f"names force-push in a clause that does not deny it: {window!r}")
+            elif any(mark in clause for mark in EXCEPTION_CONNECTIVES):
+                problems.append(f"reopens the denial with an exception: {window!r}")
             elif _approval_attaches(norm, match.end()):
-                problems.append(f"gates the mention itself on approval: {window.strip()[:200]!r}")
-            elif any(word in window for word in APPROVAL_WORDS) and not _binds(norm, match.start(), match.end()):
-                problems.append(f"approval language with no bound denial: {window.strip()[:200]!r}")
+                problems.append(f"gates the mention itself on approval: {window!r}")
     return problems
 
 
@@ -722,6 +779,24 @@ def test_force_push_is_never_described_as_approvable_in_a_mirrored_skill():
         ("Direct pushes to main are forbidden, and force-push requires explicit human approval.", False),
         ("Force-push is **denied outright — not approvable**.", True),
         ("Force-push is not approvable; permanent deletions are.", True),
+        # Round 3. The first is a denial with a door in it; the second is the
+        # plainest possible way to say approval is no route, and the weighing
+        # version rejected it because an approval word sat beside the mention.
+        ("Force-push is forbidden unless explicitly approved.", False),
+        ("Approval cannot authorize force-push.", True),
+        ("Force-push is denied outright. It is not approvable under any process.", True),
+        # The writing rule is stricter than the weighing it replaced, and these two
+        # record what that costs. Both sentences are correct and both are rejected:
+        # a denial one clause away no longer reaches the mention, and "off-limits"
+        # is not a denial verb this repo uses. Rejecting correct prose is the
+        # direction an omission is allowed to fail in.
+        ("Direct pushes to main are forbidden. Force-push is the same.", False),
+        ("Force-push is off-limits.", False),
+        # A negation is only a denial of the operation when it is spent on the
+        # operation. These two say force-push is free and each contains one.
+        ("No approval is needed for force-push.", False),
+        ("Force-push does not need approval.", False),
+        ("Nobody may force-push.", True),
     ],
 )
 def test_the_force_push_rule_separates_these_cases(text: str, allowed: bool):
@@ -732,7 +807,9 @@ def test_the_force_push_rule_separates_these_cases(text: str, allowed: bool):
     Cases 10 and 11 defeated the version that fixed those two — a denial of
     *something else*, close enough to bind and with no approval word in between.
     Case 8 is why no comma or colon counts as a break: there the denial really
-    does reach every item in the list.
+    does reach every item in the list. Cases 14 and 15 are why the weighing was
+    replaced by a writing rule, 17 and 18 record what that rule gives up, and
+    19-21 are why a negation only denies when it is spent on the operation.
     """
     assert (not _force_push_problems(text)) is allowed
 
@@ -980,11 +1057,28 @@ SELF_SCOPING_PHRASES = ("this skill", "read-and-report", "read-only")
 # anywhere in the paragraph, so "the harness hook log is
 # `.agent/audit/tool-events.jsonl`" scoped an approval claim three sentences later.
 AGENT = r"(?:the\s+)?(?:claude\s+code\s+)?(?:harness|kca(?:\s+product\s+agent)?|product\s+agent)"
+# An agent name in *label* position — opening the unit and closed by punctuation —
+# heads everything under it: "**KCA product agent.** Its submissions need human
+# approval …". That is the one construction whose scope outruns its own sentence.
+AGENT_LABEL = re.compile(rf"^[\s\->#\d.)]*{AGENT}\b\s*[(:.,—-]")
+# An agent named anywhere else scopes only the sentence it is in, and only when the
+# sentence makes it the *subject* of the approval claim rather than a modifier
+# inside some other noun phrase. "The harness requires human approval" attributes;
+# "The harness hook log is …; a merge needs human approval" does not, and the
+# difference is whether the agent runs straight into the claim's own verb. The
+# words allowed in between are modals and auxiliaries — a closed class.
+AGENT_SUBJECT = re.compile(rf"\b{AGENT}(?:\s+(?:always|also|still|only|itself|must|may|will|shall|should|is|are))*\s*$")
 AGENT_ATTRIBUTION = (
-    re.compile(rf"^[\s\->#\d.)]*{AGENT}\b\s*[(:.,—-]"),  # "**Harness (you, here).** Do not …"
+    AGENT_LABEL,
     re.compile(rf"\b(?:for|by|binds?|applies\s+to|governs?|governed\s+by|scoped\s+to)\s+{AGENT}\b"),
 )
 LIST_MARKER = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
+# A rule is stated by a sentence, so scope is read off the sentence that states it.
+# Reading it off the whole unit let a self-scoping first sentence cover an unscoped
+# second one: "This skill records metrics. A merge needs human approval." A `;` is
+# not a break here — "Never submit automatically; ask for human approval first" is
+# one rule — and neither is the period in `.agent/audit/tool-events.jsonl`.
+SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
 
 
 def _paragraphs(text: str) -> list[str]:
@@ -1014,23 +1108,34 @@ def _claim_units(text: str) -> list[str]:
 def _unscoped_approval_rule(unit: str) -> bool:
     """Does this unit state an approval rule without saying whom it binds?"""
     low = _normalise(unit)
-    if not APPROVAL_CLAIM.search(low):
-        return False
-    if not any(op in low for op in GATED_OPERATIONS):
-        return False
-    # An operation CLAUDE.md denies outright cannot be scoped into approvability:
-    # naming the agent creates no path to yes where the shared rules have none.
-    # "Harness: direct pushes to main are forbidden, while force-push requires
-    # explicit human approval" is attributed and still wrong. Asking the force-push
-    # rule rather than restating it keeps the two from disagreeing — and it is what
-    # keeps `pr-closeout-review` passing, where the force-push sentence denies.
-    if _force_push_problems(unit):
+    headed = bool(AGENT_LABEL.search(low))
+    for sentence in SENTENCE_SPLIT.split(low):
+        claim = APPROVAL_CLAIM.search(sentence)
+        if not claim:
+            continue
+        if not any(op in sentence for op in GATED_OPERATIONS):
+            continue
+        # An operation CLAUDE.md denies outright cannot be scoped into
+        # approvability: naming the agent creates no path to yes where the shared
+        # rules have none. "Harness: direct pushes to main are forbidden, while
+        # force-push requires explicit human approval" is attributed and still
+        # wrong. Asking the force-push rule rather than restating it keeps the two
+        # from disagreeing — and it is what keeps `pr-closeout-review` passing,
+        # where the force-push sentence denies.
+        if _force_push_problems(sentence):
+            return True
+        if any(token in sentence for token in PERMANENTLY_GATED):
+            continue
+        if headed:
+            continue
+        if any(phrase in sentence for phrase in SELF_SCOPING_PHRASES):
+            continue
+        if AGENT_SUBJECT.search(sentence[: claim.start()]):
+            continue
+        if any(pattern.search(sentence) for pattern in AGENT_ATTRIBUTION):
+            continue
         return True
-    if any(token in low for token in PERMANENTLY_GATED):
-        return False
-    if any(phrase in low for phrase in SELF_SCOPING_PHRASES):
-        return False
-    return not any(pattern.search(low) for pattern in AGENT_ATTRIBUTION)
+    return False
 
 
 def test_mirrored_skills_scope_every_approval_rule_they_state():
@@ -1068,6 +1173,13 @@ def test_mirrored_skills_scope_every_approval_rule_they_state():
         ("- Harness: direct pushes to main are forbidden, while force-push requires explicit human approval.", False),
         ("- The harness hook log is `.agent/audit/tool-events.jsonl`; a merge needs human approval.", False),
         ("- **KCA product agent.** Its submissions need human approval until A1-A7 are met.", True),
+        # Round 3. Scope belongs to the sentence that states the rule: a
+        # self-scoping first sentence does not cover an unscoped second one, and an
+        # agent that is the subject of the claim attributes it without needing to
+        # be punctuated into a label.
+        ("- This skill records metrics. A merge needs human approval.", False),
+        ("- The harness requires human approval before it merges.", True),
+        ("- The harness must ask for human approval before it submits.", True),
     ],
 )
 def test_the_skill_approval_rule_separates_these_cases(block: str, scoped: bool):
@@ -1137,36 +1249,64 @@ def test_provenance_refuses_changes_hidden_by_skip_worktree(provenance, scratch_
 # approval-free. A later document outranks the project doc in practice, so the
 # mention has to carry its own status.
 SCREEN_TOKENS = ("autonomy.screen", "screened autonomy", "screened, default-on", "screened grant")
-# Phrases that say the grant is not in force. Deliberately loose about wording —
-# the point was never the vocabulary, it is that no paragraph describes the screen
-# as live with nothing beside it.
+# The same correction the force-push guard needed, for the same reason. Asking
+# "does this paragraph claim the grant is live?" means enumerating the ways English
+# can claim it, and that list is open: `default-on`, `on by default` and `is live`
+# were caught, `permits approval-free submission today` was not. An omission there
+# passes a document that grants permission the tree does not have.
+#
+# So the question is inverted, and asked per clause rather than per paragraph:
+#
+#     every clause that names the screen must say, in that same clause, that the
+#     grant is off or name what gates it.
+#
+# Now the enumerated list is the *permitted* side. Omit a way of saying "off" and a
+# correct sentence is rejected, which the surfaces below catch on the next run;
+# there is no wording that asserts the grant and passes by not being listed, because
+# passing takes a marker rather than the absence of one. `CURRENCY_CLAIMS` stays as
+# a second, narrower catch for a clause that cites the gate *and* asserts the grant
+# anyway — it can no longer be the thing the guard rests on.
 SCREEN_STATUS_MARKERS = (
+    # what gates the grant, by name
     "a1-a7",
     "activation condition",
+    "adr-0022 §5",
+    "adr-0022 section 5",
+    # the grant, said to be absent
     "unimplemented",
     "not yet",
     "no code",
     "design intent",
     "not current behaviour",
+    "none does",
     "none has",
     "never implemented",
+    "on paper",
+    # ordinary ways of saying a switch is off
+    "disabled",
+    "switched off",
+    "turned off",
+    "off until",
+    "opt-in",
+    "inactive",
+    "not enabled",
+    "not in force",
+    "not live",
+    "not on",
 )
-# Requiring one of those *somewhere in the paragraph* asked which words appear, not
-# what the paragraph says. "ADR-0021 screened autonomy is default-on, although no
-# code verifies budget caps" passed: both halves are there, and the disclaiming
-# half is about budget caps. So the marker has to land in a clause that is about
-# the grant …
-GRANT_REFERENTS = ("screen", "grant", "autonomy", "permission", "approval-free", "a1-a7", "fallback")
-# … and a clause that names the screen may not also assert the grant is live.
-# ADR-0022 §5 says it is off until a competition meets A1-A7; a disclaimer
-# elsewhere in the paragraph does not cancel that assertion, it contradicts it,
-# and the agent acts on the half that grants permission.
+# A clause that names the screen may not also assert the grant is live. ADR-0022 §5
+# says it is off until a competition meets A1-A7; a disclaimer elsewhere in the
+# paragraph does not cancel that assertion, it contradicts it, and the agent acts on
+# the half that grants permission.
 CURRENCY_CLAIMS = (
     r"default[-\s]on\b",
     r"\bon by default\b",
     r"\benabled by default\b",
     r"\bis (?:currently |already |now )?(?:live|active|enabled|on|in force|in effect|current)\b",
     r"\bapplies (?:today|now|already)\b",
+    r"\bpermits\b",
+    r"\ballows\b",
+    r"\bgrants\b",
 )
 CURRENCY_NEGATORS = ("not", "never", "no longer", "n't", "nor", "rather than", "stop")
 # Sentence enders plus the connectives that hand a sentence to a new subject. A
@@ -1186,12 +1326,13 @@ def _claims_currency(clause: str) -> bool:
 
 
 def _screened_autonomy_problems(text: str) -> list[str]:
-    """Paragraphs that assert the autonomy grant is in force.
+    """Clauses that name the autonomy grant without saying it is off.
 
-    Two distinct failures. A clause naming the screen that also claims the grant is
-    live fails outright — that is a statement of current permission, and no amount
-    of context elsewhere unsays it. Otherwise the paragraph needs a disclaimer that
-    is *about the grant*: a status marker in a clause that refers to it.
+    A clause naming the screen that also claims the grant is live fails outright —
+    that is a statement of current permission, and no amount of context elsewhere
+    unsays it. Every other clause naming the screen has to carry its own status:
+    a marker in the clause that makes the mention, not one somewhere in the
+    paragraph around it.
     """
     problems = []
     for block in _paragraphs(text):
@@ -1199,19 +1340,13 @@ def _screened_autonomy_problems(text: str) -> list[str]:
         if not any(token in low for token in SCREEN_TOKENS):
             continue
         clauses = [clause for clause in CLAUSE_SPLIT.split(low) if clause and clause.strip()]
-        live = [
-            clause for clause in clauses if any(token in clause for token in SCREEN_TOKENS) and _claims_currency(clause)
-        ]
-        if live:
-            problems.append("claims the grant is in force: " + " ".join(live[0].split())[:200])
-            continue
-        disclaimed = any(
-            any(marker in clause for marker in SCREEN_STATUS_MARKERS)
-            and any(referent in clause for referent in SCREEN_TOKENS + GRANT_REFERENTS)
-            for clause in clauses
-        )
-        if not disclaimed:
-            problems.append(" ".join(block.split())[:200])
+        for clause in clauses:
+            if not any(token in clause for token in SCREEN_TOKENS):
+                continue
+            if _claims_currency(clause):
+                problems.append("claims the grant is in force: " + " ".join(clause.split())[:200])
+            elif not any(marker in clause for marker in SCREEN_STATUS_MARKERS):
+                problems.append("names the grant without its status: " + " ".join(clause.split())[:200])
     return problems
 
 
@@ -1269,6 +1404,18 @@ def test_mirrored_skills_do_not_state_screened_autonomy_as_live():
         ("Screened autonomy is default-on; that was the design intent of the budget work.", False),
         ("Screened autonomy is default-on, although no code reads the `autonomy:` block.", False),
         ("`autonomy.screen` is not enabled by default, and no code evaluates it anyway.", True),
+        # Round 3. A currency claim the list did not hold, and the plainest way of
+        # saying the grant is off — which the paragraph-scoped disclaimer check
+        # rejected for using a word that was not in it.
+        (
+            "Screened autonomy permits approval-free submission today, although no code reads the `autonomy:` block.",
+            False,
+        ),
+        ("Screened autonomy is disabled by default.", True),
+        # What the inversion costs: a disclaimer in the next clause no longer
+        # reaches the mention, so a true sentence has to be rewritten to carry its
+        # own status. Rejecting correct prose is the safe direction here too.
+        ("Screened autonomy is the ADR-0021 §2 model. No code reads the `autonomy:` block.", False),
     ],
 )
 def test_the_screened_autonomy_rule_separates_these_cases(block: str, allowed: bool):
@@ -1278,7 +1425,8 @@ def test_the_screened_autonomy_rule_separates_these_cases(block: str, allowed: b
     skill, the architecture note, the Codex appendix); case 4 is PROJECT_STATE.md's,
     which is why that file passes without an edit. Cases 8-11 defeated the version
     that shipped those fixes: a presence check at paragraph scope reads any marker,
-    about anything, as a disclaimer.
+    about anything, as a disclaimer. Cases 13-14 defeated the version that fixed
+    *those*, and case 15 records what replacing it cost.
     """
     assert (not _screened_autonomy_problems(block)) is allowed
 
