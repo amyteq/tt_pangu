@@ -12,7 +12,9 @@ import importlib.util
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
+from typing import NamedTuple
 
 import pytest
 
@@ -33,7 +35,7 @@ SHARED_RULES = [
     # The operative half of principle 6. `autonomy_config` and `A1-A7` are tokens
     # that can sit anywhere in either file; this is the instruction a harness has
     # to act on, so it is required verbatim rather than inferred from their
-    # presence. See `_screened_autonomy_problems` for the other half of the rule.
+    # presence. See `PINNED_MENTIONS` for the other half of the rule.
     "ask before every Kaggle submission or kernel push",
     "Read-for-use, not read-to-share",
     ".agent/kca/audit.jsonl",
@@ -563,255 +565,388 @@ def test_generator_accepts_valid_yaml_the_reader_does_not_parse(gen, tmp_path, m
     assert gen.skill_front_matter("kg-run")["name"] == "kg-run"
 
 
-# `git push -f` is denied outright, not approvable. A doc that files it under
-# "requires approval" tells a harness the operation has a path to yes.
-FORCE_PUSH_TOKENS = ("force-push", "force push", "push -f", "push --force")
-APPROVAL_WORDS = ("approval", "approve", "approved", "approvable")
-
-
-# Searching for a denial word is not enough, in either direction. "force-push is
-# **not denied** and instead requires approval" contains one; and so does
-# "force-push requires explicit approval; direct pushes to main are forbidden",
-# where the denial belongs to a different clause entirely.
+# --- Sensitive mentions, pinned ----------------------------------------------
 #
-# Three review rounds each answered that by weighing the words *around* a mention —
-# a denial had to sit adjacent to it; then it could not reach across a contrastive
-# connective; then a mention whose own predicate was an approval claim counted as
-# ungoverned however many denials surrounded it. Each round produced one more
-# sentence the weighing got wrong, in both directions: "force-push is forbidden
-# **unless** explicitly approved" passed, and the correct "Approval cannot authorize
-# force-push." was rejected. Weighing an arbitrary English sentence for whether it
-# leaves a path to yes is not a thing a phrase list decides, and each fix was one
-# more phrase list.
+# Three rules on these surfaces are worth guarding by hand. Force-push is denied
+# outright rather than gated, so a document that files it under "requires approval"
+# tells a harness the operation has a path to yes. The ADR-0021 §2 / ADR-0022 §5
+# autonomy grant is off until a competition meets A1-A7 and none does, so a document
+# that states the screen as current permission grants what the tree withholds. And an
+# approval rule in a mirrored skill has to say whom it binds, because a skill is read
+# by both harnesses *after* the project doc and the answer differs by agent.
 #
-# So this guard stopped adjudicating English and enforces a writing rule instead:
+# Three earlier designs guarded them by deciding, per sentence, whether the English
+# left a path to yes: first by weighing what sat next to a mention, then by adding
+# contrast breaks and predicate attachment, then by inverting the enumerations so that
+# passing required a listed token. Each looked sufficient when it shipped, and each
+# lost the following round:
 #
-#     every clause that names force-push must deny it in that same clause,
-#     and must not hand the denial back.
+#     "Force-push is forbidden without explicit approval."     passed
+#     "Force-push is not explicitly prohibited."               passed
+#     "Force-push has no restrictions."                        passed
+#     "Force-push is prohibited only when CI is red."          passed
+#     "Force-push is barred provided the owner agrees."        passed
+#     "Screened autonomy is not disabled."                     passed
+#     "Screened autonomy is no longer inactive."               passed
 #
-# The first half is decidable by co-occurrence inside a span punctuation defines,
-# and it is what all fourteen force-push clauses on the scanned surfaces (eighteen
-# mentions) already do, because denying it is the only reason this repo mentions
-# it. It also fails *closed*: a clause that says nothing about denial is flagged
-# whatever the surrounding paragraph says, so the primary decision no longer depends
-# on recognising approval vocabulary at all. "Force-push requires sign-off" is
-# caught by the missing denial, not by the word "sign-off".
+# The third design inverted on itself, and that is the part worth keeping. Its denial
+# check asked whether *any* denial token occurred in the clause, not whether the denial
+# governed force-push — so the `no` in "no restrictions" discharged the requirement, and
+# every negation word added to the list made the guard weaker rather than stronger. A
+# fourth phrase list does not fix that. "Does this English sentence grant approvability?"
+# is not a question a phrase list answers, and the evidence is now four rounds long.
 #
-# What stays enumerated is chosen so that an omission is a false positive, never a
-# false negative: an unlisted denial verb ("off-limits") makes a *correct* sentence
-# fail, which the shipped-surface tests below catch on the next run. The two lists
-# that do decide against a denial — negations and the connectives — are closed
-# classes of English grammar rather than open vocabulary.
-NEGATIONS = (
-    r"\bnot\b",  # "do not force-push" — the repo's own phrasing
-    r"n't\b",
-    r"\bnever\b",
-    r"\bno\b",
-    r"\bnone\b",
-    r"\bnobody\b",
-    r"\bno one\b",
-    r"\bneither\b",
-    r"\bnor\b",
-    r"\bcannot\b",
+# So this stops asking it, and asks a decidable neighbour instead:
+#
+#     has any sentence mentioning force-push, the autonomy screen, or an approval rule
+#     in a mirrored skill changed since a reviewer last read it?
+#
+# Every such sentence on every scanned surface is pinned in `PINNED_MENTIONS`. The test
+# fails when one is added, removed, altered or reordered, and prints the replacement
+# table. It makes no claim about English at all — it claims only that these are the
+# sentences that were reviewed, which is true by construction and stays true — and it
+# routes every rewording of one of these rules back to review, which is what the three
+# earlier designs were reaching for.
+#
+# What that gives up, plainly:
+#
+#   * It does not judge a mention the first time it is pinned. Nothing here says a newly
+#     pinned sentence is correct; that rests on whoever reads the diff. This catches
+#     drift away from reviewed text, not an original mistake in it.
+#   * It fires on innocent rewording, including a pure reflow of a hard-wrapped
+#     paragraph into one physical line. That is the cost, not a defect. To update: run
+#     this test, paste the literal it prints over the matching rows of
+#     `PINNED_MENTIONS`, and quote the before/after in the PR body — a reworded rule is
+#     a policy change and is reviewed as one.
+#   * `MENTION_TOPICS`' triggers are the one enumeration left, and an omission there
+#     leaves a sentence *unpinned* rather than wrongly admitted. That is a stated scope
+#     limit rather than a defeated adjudication: a mention spelled in none of these ways
+#     ("rewriting published history needs sign-off") is out of scope, not examined and
+#     passed. They are written broad for exactly that reason — matching too much only
+#     pins more sentences, which costs review time and nothing else.
+#
+# The pinned text is the sentence with markdown emphasis and code ticks removed and its
+# whitespace collapsed: those are rendering, so a bold/plain or hard-wrap/soft-wrap
+# change is not drift. Stripping `*` does mangle a glob (`.kca/permissions/*.yaml` pins
+# as `.kca/permissions/.yaml`); the pin only ever compares itself to itself, so that
+# costs readability and not correctness.
+MENTION_BREAK = re.compile(
+    r"""(?<=[.!?])[*`"')\]]*\s+"""  # a sentence ends — trailing emphasis or bracket and all
+    r"|\n\s*\n"  # a block ends
+    r"|\n(?=[ \t]*(?:[-*+>#|]|\d+[.)]|```))"  # the next markdown block begins
 )
-# `nothing` is deliberately absent: a negative quantifier over *agents* denies the
-# operation ("nobody may force-push"), one over *obstacles* permits it ("nothing
-# stops a force-push once the owner agrees").
-# A negation spent on the approval *requirement* is not a denial of the operation —
-# it is the opposite. "No approval is needed for force-push" and "force-push does
-# not need approval" both contain a negation and both say the operation is free.
-# `approvable` is not `approval`, so "is not approvable" keeps counting as a denial.
-NEGATED_APPROVAL = re.compile(r"(?:no|not|never|n't|cannot)\b\s+(?:\w+\s+){0,3}?approvals?\b")
-# Open, but only in the safe direction: a missing verb rejects a correct sentence.
-DENIAL_VERB_STEMS = r"den(?:y|ies|ied)|forbid(?:s|den)?|refus(?:e|es|ed)|prohibit(?:s|ed)?|barred|banned|disallowed"
-DENIAL_WORDS = NEGATIONS + (rf"\b(?:{DENIAL_VERB_STEMS})\b",)
-# A negation applied to the denial itself cancels it: "force-push is **not denied**
-# and instead requires approval". Generated from the two closed lists rather than
-# spelled out, so "is not prohibited" cannot slip past a check written for "not
-# denied".
-NEGATED_DENIAL = re.compile(rf"\b(?:not|never|no longer|n't)\s+(?:be\s+|been\s+)?(?:{DENIAL_VERB_STEMS})\b")
-# An exception subordinator re-opens whatever was just denied: "forbidden **unless**
-# approved" is a path to yes wearing a denial's clothes. Subordinators are a closed
-# class, which is why enumerating these is not the losing game that enumerating
-# "ways to claim approval" was.
-EXCEPTION_CONNECTIVES = (
-    " unless ",
-    " except ",
-    " save for ",
-    " barring ",
-    " short of ",
-    " other than ",
-    " apart from ",
+FORCE_PUSH_MENTION = re.compile(r"force[\s-]?push|push\s+-f\b|push\s+--force|force-with-lease", re.I)
+SCREEN_MENTION = re.compile(r"autonomy\.screen|screened autonomy|screened,?\s*default-on|screened grant", re.I)
+APPROVAL_CLAIM = re.compile(
+    r"(requires? (human |explicit )*approval|needs? (human |explicit )*approval"
+    r"|ask for (human )*approval|human-only|human approval)",
+    re.IGNORECASE,
 )
-# A contrastive connective hands the sentence to a new subject: whatever was denied
-# before "…, while force-push …" was not force-push. A list separator does not —
-# "Still forbidden: merging on red, direct pushes to `main`, and force-push" denies
-# every item — so commas and colons are deliberately absent here.
-CONTRAST_BREAKS = (" while ", " whereas ", " but ", " although ", " though ", " however ", " yet ", " instead ")
-# Ends the predicate of a mention. After one of these, an approval claim is a
-# statement about something else: "force-push is denied; deletions need approval".
-CLAUSE_BREAKS = (".", ";", ":", "\n", "—", "–")
-# Where the clause holding a mention starts and ends. A sentence-ending period only:
-# `guard_tool.py`, `.agent/audit/tool-events.jsonl` and `CLAUDE.md` are full of the
-# other kind. Commas, colons and em-dashes are absent for the same reason as above.
-CLAUSE_BOUNDARY = re.compile(r"[;\n]|[.?!](?=\s|$)|\s(?:while|whereas|but|although|though|however|yet|instead)\s")
-WINDOW = 120
-ATTACH_GAP = 120
+GATED_OPERATIONS = ("submit", "merge", "push", "post a comment", "pr body", "remote write")
 
 
-def _normalise(text: str) -> str:
-    """Lower-case, strip markdown emphasis, and fold curly apostrophes.
+def _states_an_approval_rule(sentence: str) -> bool:
+    """An approval claim about an operation, which is the shape that needs a subject."""
+    return bool(APPROVAL_CLAIM.search(sentence)) and any(op in sentence.lower() for op in GATED_OPERATIONS)
 
-    `**denied**` must read as `denied`, and "doesn't" typed with U+2019 must not
-    slip past a check written for the ASCII apostrophe.
+
+class _MentionTopic(NamedTuple):
+    trigger: Callable[[str], bool]
+    docs: tuple[str, ...]
+    skills: bool
+    review_note: str
+
+
+MENTION_TOPICS = {
+    "force-push": _MentionTopic(
+        trigger=lambda sentence: bool(FORCE_PUSH_MENTION.search(sentence)),
+        docs=tuple(dict.fromkeys(("CLAUDE.md", "AGENTS.md", "PROJECT_STATE.md", *REQUIRED_READING))),
+        skills=True,
+        review_note=(
+            "Check the new wording still denies force-push outright and offers no route to yes. "
+            "CLAUDE.md denies it; a gate, an exception or a condition implies a path to yes."
+        ),
+    ),
+    "autonomy-screen": _MentionTopic(
+        trigger=lambda sentence: bool(SCREEN_MENTION.search(sentence)),
+        docs=tuple(
+            dict.fromkeys(
+                (
+                    "CLAUDE.md",
+                    "AGENTS.md",
+                    "docs/instructions/agents-delta.md",
+                    "docs/architecture/platform-vs-runtime-agents.md",
+                    *REQUIRED_READING,
+                )
+            )
+        ),
+        skills=True,
+        review_note=(
+            "Check the new wording still says the grant is off. ADR-0022 §5 gates it on activation "
+            "conditions A1-A7, no competition meets them, and no code reads the `autonomy:` block."
+        ),
+    ),
+    "approval-rule": _MentionTopic(
+        trigger=_states_an_approval_rule,
+        docs=(),
+        skills=True,
+        review_note=(
+            "Check the new wording still says which agent it binds. The harness asks before spending "
+            "the human's credentials; KCA's push/submit is governed by its competition config and by "
+            "ADR-0022 §5's A1-A7, not by a skill. An unscoped rule is read as binding both."
+        ),
+    ),
+}
+
+
+def _pin_text(sentence: str) -> str:
+    """The pinned form: emphasis and code ticks gone, whitespace collapsed."""
+    return " ".join(sentence.replace("*", "").replace("`", "").split())
+
+
+def _mentions(text: str, trigger: Callable[[str], bool]) -> tuple[str, ...]:
+    """Every pinnable sentence of `text` that the trigger matches, in document order.
+
+    `MENTION_BREAK` is a deterministic split, not a linguistically correct one, and it
+    does not need to be: the pin makes no claim about what a sentence means, only that
+    the same document splits the same way twice.
     """
-    folded = text.lower().replace("\u2019", "'").replace("\u2018", "'")
-    return folded.replace("*", "").replace("`", "")
+    return tuple(_pin_text(part) for part in MENTION_BREAK.split(text) if part and part.strip() and trigger(part))
 
 
-def _clause(norm: str, start: int, end: int) -> str:
-    """The clause holding `norm[start:end]` — the span the writing rule is about."""
-    low, high = 0, len(norm)
-    for match in CLAUSE_BOUNDARY.finditer(norm):
-        if match.end() <= start:
-            low = match.end()
-        elif match.start() >= end:
-            high = match.start()
-            break
-    return norm[low:high]
+def _skill_surfaces() -> list[str]:
+    return [f".agents/skills/{entry.name}/SKILL.md" for entry in sorted(AGENTS_SKILLS.iterdir())]
 
 
-def _denies(clause: str) -> bool:
-    for pattern in DENIAL_WORDS:
-        for match in re.finditer(pattern, clause):
-            if NEGATED_APPROVAL.match(clause, match.start()):
-                continue  # negates the gate, not the operation
-            return True
-    return False
+def _collect_mentions(name: str) -> dict[str, tuple[str, ...]]:
+    topic = MENTION_TOPICS[name]
+    found: dict[str, tuple[str, ...]] = {}
+    for rel in [*topic.docs, *(_skill_surfaces() if topic.skills else [])]:
+        hits = _mentions((REPO_ROOT / rel).read_text(encoding="utf-8"), topic.trigger)
+        if hits:
+            found[rel] = hits
+    return found
 
 
-def _approval_attaches(norm: str, tok_end: int) -> bool:
-    """Is an approval claim the predicate of *this* mention?
-
-    "force-push requires explicit human approval" says force-push has a path to
-    yes, and no denial elsewhere in the sentence takes that back — it contradicts
-    it. Only what follows the mention inside its own clause counts: a denial in
-    between ("is denied; approval is for deletions") means the denial governs.
-    """
-    tail = norm[tok_end : tok_end + ATTACH_GAP]
-    for word in APPROVAL_WORDS:
-        index = tail.find(word)
-        if index < 0:
-            continue
-        span = tail[:index]
-        if any(mark in span for mark in CLAUSE_BREAKS + CONTRAST_BREAKS):
-            continue  # a different clause makes the claim
-        if any(re.search(pattern, span) for pattern in DENIAL_WORDS):
-            continue  # "…is not approvable" / "…is denied, so approval is moot"
-        return True
-    return False
-
-
-def _force_push_problems(text: str) -> list[str]:
-    norm = _normalise(text)
+def _pin_diff(pinned: dict[str, tuple[str, ...]], found: dict[str, tuple[str, ...]]) -> list[str]:
+    """Every way the scanned surfaces differ from what was reviewed."""
     problems = []
-    for token in FORCE_PUSH_TOKENS:
-        for match in re.finditer(re.escape(token), norm):
-            window = norm[max(0, match.start() - WINDOW) : match.end() + WINDOW].strip()[:200]
-            clause = _clause(norm, match.start(), match.end())
-            if NEGATED_DENIAL.search(clause):
-                problems.append(f"negates the denial: {window!r}")
-            elif not _denies(clause):
-                problems.append(f"names force-push in a clause that does not deny it: {window!r}")
-            elif any(mark in clause for mark in EXCEPTION_CONNECTIVES):
-                problems.append(f"reopens the denial with an exception: {window!r}")
-            elif _approval_attaches(norm, match.end()):
-                problems.append(f"gates the mention itself on approval: {window!r}")
+    for rel in sorted(set(pinned) | set(found)):
+        was, now = pinned.get(rel, ()), found.get(rel, ())
+        if was == now:
+            continue
+        if set(was) == set(now):
+            problems.append(f"{rel}: the same mentions in a different order")
+            continue
+        problems.extend(f"{rel}: not reviewed: {text}" for text in now if text not in was)
+        problems.extend(f"{rel}: reviewed text is gone or altered: {text}" for text in was if text not in now)
     return problems
 
 
-@pytest.mark.parametrize("doc", ["CLAUDE.md", "AGENTS.md", "PROJECT_STATE.md", *REQUIRED_READING])
-def test_force_push_is_never_described_as_approvable(doc: str):
-    """Force-push is denied, so no instruction file may offer it as a gated action."""
-    path = REPO_ROOT / doc
-    if not path.is_file():
-        pytest.skip(f"{doc} not present")
-    problems = _force_push_problems(path.read_text(encoding="utf-8"))
+def _pin_literal(name: str, found: dict[str, tuple[str, ...]]) -> str:
+    lines = []
+    for rel, sentences in found.items():
+        lines.append(f'    ("{name}", "{rel}"): (')
+        lines.extend(f"        {sentence!r}," for sentence in sentences)
+        lines.append("    ),")
+    return "\n".join(lines)
+
+
+# Every sentence on a scanned surface that mentions one of the three topics, as
+# reviewed. Regenerate a block by running the test below and pasting what it prints.
+PINNED_MENTIONS: dict[tuple[str, str], tuple[str, ...]] = {
+    ("force-push", "CLAUDE.md"): (
+        "Never force-push, never push directly to main, never merge on red or pending checks.",
+        "Still forbidden: merging on red or pending checks, direct pushes to main, and force-push.",
+        "Force-push (git push -f / --force-with-lease) is also denied.",
+    ),
+    ("force-push", "AGENTS.md"): (
+        "Never force-push, never push directly to main, never merge on red or pending checks.",
+        "Still forbidden: merging on red or pending checks, direct pushes to main, and force-push.",
+        "Force-push (git push -f / --force-with-lease) is also denied.",
+        "Claude Code sessions in this repo run behind .claude/hooks/guard_tool.py, a PreToolUse hook that refuses a pattern list of destructive commands — force-push, remote branch deletion, gh <resource> delete, scripts/sync_labels.py --apply, and some host-destructive shell — and .claude/hooks/audit_event.py, a PostToolUse hook registered for Bash, Edit and Write (plus config changes) that appends those events to .agent/audit/tool-events.jsonl.",
+        "- Do not force-push, and do not push to main.",
+        "Neither is approvable: the shared rules deny force-push outright rather than gating it.",
+    ),
+    ("force-push", "PROJECT_STATE.md"): (
+        "What does still need explicit human approval there is a permanent deletion; force-push is denied outright — not approvable.",
+    ),
+    ("force-push", "docs/engineering-practice.md"): (
+        "Unchanged: no direct pushes to main, no force-push, no merging on red or pending checks, someone else's PR stays theirs to approve, and permanent-deletion remote writes still require explicit human approval.",
+    ),
+    ("force-push", ".agents/skills/at-review-pr/SKILL.md"): (
+        "No force-push, direct push to the base branch, or merge.",
+    ),
+    ("force-push", ".agents/skills/pr-closeout-review/SKILL.md"): (
+        "Force-push is not on that list and never belongs in a gap report as an approvable write: CLAUDE.md denies it outright, so a branch that was force-pushed is needs-revision and no approval record changes that.",
+    ),
+    ("force-push", ".agents/skills/worktree-milestone-pr/SKILL.md"): ("- No git push --force, ever.",),
+    ("autonomy-screen", "CLAUDE.md"): (
+        "No competition meets A1-A7; ADR-0021 §2's screened grant is unimplemented (no code reads the autonomy: block); .kca/permissions/.yaml does resolve kaggle_submit / kaggle_push to ask in all four profiles — three declare it, hackathon-runner.yaml inherits it from default.yaml — but only tools/kca/skill.py:15 reads any of them — the installed kca CLI does not; kg.py's own gate defaults to allow (tools/kca/kg.py:21-22, _gate() at :53-59 has no call sites); and the harness allow-lists the direct forms (.claude/settings.json:91-92, and guard_tool.py matches no submit form).",
+    ),
+    ("autonomy-screen", "AGENTS.md"): (
+        "No competition meets A1-A7; ADR-0021 §2's screened grant is unimplemented (no code reads the autonomy: block); .kca/permissions/.yaml does resolve kaggle_submit / kaggle_push to ask in all four profiles — three declare it, hackathon-runner.yaml inherits it from default.yaml — but only tools/kca/skill.py:15 reads any of them — the installed kca CLI does not; kg.py's own gate defaults to allow (tools/kca/kg.py:21-22, _gate() at :53-59 has no call sites); and the harness allow-lists the direct forms (.claude/settings.json:91-92, and guard_tool.py matches no submit form).",
+    ),
+    ("autonomy-screen", "docs/architecture/platform-vs-runtime-agents.md"): (
+        "The approval-gate rows in the table below are superseded on paper by ADR-0021 §2's screened autonomy as widened by ADR-0022 §5 — but read that as design, not as current permission: the wide grant applies only to a competition meeting ADR-0022 §5's activation conditions A1-A7, none does, the ADR-0021 §2 fallback is unimplemented, and no code reads the autonomy: block.",
+    ),
+    ("autonomy-screen", "PROJECT_STATE.md"): (
+        "For phase 2 / KCA the list is wrong in the opposite direction: ADR-0021 §2 makes KCA's push and submit autonomous by default once autonomy.screen passes — design intent, not yet code, as the enforcement gaps below record.",
+        "The new submit step runs autonomously under the KCA autonomy model (docs/adr/0021-kca-autonomy-model.md): when autonomy.enabled is true in the file competition.yaml:autonomy_config names (ADR-0022 §5 A1) and autonomy.screen passes, KCA submits without per-action approval and persists a transactional intended-submission record in Supabase before dispatch — ADR-0022 §5's A6.",
+        "Design intent, not current behaviour: no code evaluates autonomy.screen, so this paragraph describes what M15 was aiming at, not what the tree does.",
+    ),
+    ("autonomy-screen", ".agents/skills/kaggle-experiment-loop/SKILL.md"): (
+        "ADR-0022 §5 opens the approval-free path only for a competition meeting activation conditions A1-A7; no competition meets them, ADR-0021 §2's earlier screened grant is unimplemented, and no code reads the block, so KCA's submissions are asked for too.",
+    ),
+    ("autonomy-screen", ".agents/skills/kaggle-tooling-integration/SKILL.md"): (
+        "ADR-0022 §5 opens the approval-free path only for a competition meeting activation conditions A1-A7; no competition meets them, ADR-0021 §2's earlier screened grant is unimplemented, and no code reads the block, so KCA's pushes and submissions are asked for too.",
+    ),
+    ("approval-rule", ".agents/skills/kaggle-experiment-loop/SKILL.md"): (
+        "Do not submit automatically: a submission spends the human's Kaggle credentials and daily quota, so present file path, experiment ID, local metric, expected leaderboard behavior and risk, and ask for human approval.",
+    ),
+    ("approval-rule", ".agents/skills/labels-sync/SKILL.md"): (
+        "# Apply (REMOTE WRITE — requires explicit human approval BEFORE running) python scripts/sync_labels.py --apply --i-mean-it",
+    ),
+}
+
+
+@pytest.mark.parametrize("name", sorted(MENTION_TOPICS))
+def test_every_sensitive_mention_is_the_one_that_was_reviewed(name: str):
+    """No sentence about these three rules changes without a reviewer seeing it."""
+    found = _collect_mentions(name)
+    pinned = {rel: text for (topic, rel), text in PINNED_MENTIONS.items() if topic == name}
+    problems = _pin_diff(pinned, found)
     assert not problems, (
-        f"{doc} describes force-push as approvable:\n  " + "\n  ".join(problems) + "\n"
-        "  CLAUDE.md denies force-push outright; a gate implies a path to yes."
-    )
-
-
-def test_force_push_is_never_described_as_approvable_in_a_mirrored_skill():
-    """The same rule, applied where it was actually broken.
-
-    Scanning five top-level docs left the skills out, and a mirrored skill is read
-    by both harnesses *after* the project doc. `pr-closeout-review` listed
-    force-push among the writes that "require explicit human approval recorded on
-    the closing issue" — a reviewer following it would treat an approval record as
-    a valid route to an operation CLAUDE.md denies outright.
-    """
-    offenders = []
-    for entry in sorted(AGENTS_SKILLS.iterdir()):
-        for problem in _force_push_problems((entry / "SKILL.md").read_text(encoding="utf-8")):
-            offenders.append(f"{entry.name}: {problem}")
-    assert not offenders, (
-        "mirrored skills describe force-push as approvable:\n  " + "\n  ".join(offenders) + "\n"
-        "  CLAUDE.md denies force-push outright; a gate implies a path to yes. Fix the skill "
-        "under .claude/skills/ — the mirror is a symlink to it."
+        f"the {name} mentions on the scanned surfaces are not the ones that were reviewed:\n  "
+        + "\n  ".join(problems)
+        + f"\n\n  {MENTION_TOPICS[name].review_note}\n"
+        "  This guard makes no claim about the English — only that these sentences were reviewed.\n"
+        "  If the change is intended, check the rule still holds, then replace the\n"
+        f"  ({name!r}, ...) rows of PINNED_MENTIONS with:\n\n" + _pin_literal(name, found)
     )
 
 
 @pytest.mark.parametrize(
-    "text,allowed",
+    "label,text,expected",
     [
-        ("Permanent deletions need approval, and force-push is denied outright.", True),
-        ("Force-push is not denied and instead requires explicit human approval.", False),
-        ("Force-push is allowed here. It requires explicit human approval.", False),
-        ("Force-push requires explicit human approval from the owner.", False),
-        ("Force-push requires explicit approval; direct pushes to main are forbidden.", False),
-        ("Force-push is not denied\u2019 and requires approval.", False),
-        ("Never force-push; approval cannot make it safe.", True),
-        ("Still forbidden: merging on red, direct pushes to `main`, and force-push.", True),
-        ("Force-push (`git push -f`) is also denied; deletions need approval.", True),
-        ("Harness: direct pushes to main are forbidden, while force-push requires explicit human approval.", False),
-        ("Direct pushes to main are forbidden, and force-push requires explicit human approval.", False),
-        ("Force-push is **denied outright — not approvable**.", True),
-        ("Force-push is not approvable; permanent deletions are.", True),
-        # Round 3. The first is a denial with a door in it; the second is the
-        # plainest possible way to say approval is no route, and the weighing
-        # version rejected it because an approval word sat beside the mention.
-        ("Force-push is forbidden unless explicitly approved.", False),
-        ("Approval cannot authorize force-push.", True),
-        ("Force-push is denied outright. It is not approvable under any process.", True),
-        # The writing rule is stricter than the weighing it replaced, and these two
-        # record what that costs. Both sentences are correct and both are rejected:
-        # a denial one clause away no longer reaches the mention, and "off-limits"
-        # is not a denial verb this repo uses. Rejecting correct prose is the
-        # direction an omission is allowed to fail in.
-        ("Direct pushes to main are forbidden. Force-push is the same.", False),
-        ("Force-push is off-limits.", False),
-        # A negation is only a denial of the operation when it is spent on the
-        # operation. These two say force-push is free and each contains one.
-        ("No approval is needed for force-push.", False),
-        ("Force-push does not need approval.", False),
-        ("Nobody may force-push.", True),
+        ("plain denial", "Force-push is denied outright.", ("Force-push is denied outright.",)),
+        # The five round-4 sentences that defeated the weighing design. The pin has no
+        # opinion on any of them; it reports each as text nobody reviewed, which is the
+        # only claim about them that is true.
+        (
+            "conditional denial",
+            "Force-push is forbidden without explicit approval.",
+            ("Force-push is forbidden without explicit approval.",),
+        ),
+        ("negated denial", "Force-push is not explicitly prohibited.", ("Force-push is not explicitly prohibited.",)),
+        ("unrelated negation", "Force-push has no restrictions.", ("Force-push has no restrictions.",)),
+        # Rendering is normalised away, so neither of these is drift.
+        ("emphasis", "Force-push is **denied outright**.", ("Force-push is denied outright.",)),
+        ("hard wrap", "Force-push is denied\noutright.", ("Force-push is denied outright.",)),
+        # A sentence end hidden behind emphasis still ends the sentence, and a bullet
+        # starts a new one without needing a terminator before it.
+        (
+            "emphasised sentence end",
+            "**Never force-push.** Deletions need approval.",
+            ("Never force-push.",),
+        ),
+        (
+            "bullets",
+            "- Force-push is denied.\n- Deletions need approval.\n- Never `git push -f`.",
+            ("- Force-push is denied.", "- Never git push -f."),
+        ),
+        ("spelled with a flag", "Do not `git push --force-with-lease`.", ("Do not git push --force-with-lease.",)),
+        ("no mention", "Permanent deletions need explicit human approval.", ()),
     ],
 )
-def test_the_force_push_rule_separates_these_cases(text: str, allowed: bool):
-    """The guard is itself a claim, so its boundary cases are tested.
+def test_the_mention_scanner_extracts_these_sentences(label: str, text: str, expected: tuple[str, ...]):
+    """What gets pinned, and what counts as the same sentence twice."""
+    assert _mentions(text, MENTION_TOPICS["force-push"].trigger) == expected
 
-    Cases 2 and 5 each defeated an earlier version of this test: the first
-    contains the word "denied", the second a denial belonging to another clause.
-    Cases 10 and 11 defeated the version that fixed those two — a denial of
-    *something else*, close enough to bind and with no approval word in between.
-    Case 8 is why no comma or colon counts as a break: there the denial really
-    does reach every item in the list. Cases 14 and 15 are why the weighing was
-    replaced by a writing rule, 17 and 18 record what that rule gives up, and
-    19-21 are why a negation only denies when it is spent on the operation.
-    """
-    assert (not _force_push_problems(text)) is allowed
+
+@pytest.mark.parametrize(
+    "label,pinned,found,caught",
+    [
+        ("unchanged", {"a.md": ("x.",)}, {"a.md": ("x.",)}, False),
+        ("altered", {"a.md": ("x.",)}, {"a.md": ("x, unless approved.",)}, True),
+        ("added to a pinned file", {"a.md": ("x.",)}, {"a.md": ("x.", "y.")}, True),
+        ("added to a new file", {"a.md": ("x.",)}, {"a.md": ("x.",), "b.md": ("y.",)}, True),
+        ("removed", {"a.md": ("x.", "y.")}, {"a.md": ("x.",)}, True),
+        ("whole file gone", {"a.md": ("x.",), "b.md": ("y.",)}, {"a.md": ("x.",)}, True),
+        ("reordered", {"a.md": ("x.", "y.")}, {"a.md": ("y.", "x.")}, True),
+    ],
+)
+def test_the_pin_reports_every_kind_of_change(label: str, pinned: dict, found: dict, caught: bool):
+    """Add, remove, alter, reorder — the four things that can happen to the table."""
+    assert bool(_pin_diff(pinned, found)) is caught
+
+
+@pytest.mark.parametrize(
+    "name,surface,sentence",
+    [
+        # Round 4's nine counterexamples. Each defeated the predicate it was aimed at;
+        # each is caught here, because none of them is text a reviewer signed off.
+        ("force-push", "CLAUDE.md", "Force-push is forbidden without explicit approval."),
+        ("force-push", "CLAUDE.md", "Force-push is not explicitly prohibited."),
+        ("force-push", "CLAUDE.md", "Force-push has no restrictions."),
+        ("force-push", "CLAUDE.md", "Force-push is prohibited only when CI is red."),
+        ("force-push", "CLAUDE.md", "Force-push is barred provided the owner agrees."),
+        ("autonomy-screen", "CLAUDE.md", "Screened autonomy is not disabled."),
+        ("autonomy-screen", "CLAUDE.md", "Screened autonomy is no longer inactive."),
+        (
+            "autonomy-screen",
+            "CLAUDE.md",
+            "Screened autonomy under ADR-0022 §5 authorizes approval-free submissions today.",
+        ),
+        (
+            "approval-rule",
+            ".agents/skills/kaggle-experiment-loop/SKILL.md",
+            "- The harness, when it runs, records metrics. A merge needs human approval.",
+        ),
+    ],
+)
+def test_the_round_4_counterexamples_are_all_caught(name: str, surface: str, sentence: str):
+    """Sentences added to a real surface, checked against the real pin."""
+    topic = MENTION_TOPICS[name]
+    text = (REPO_ROOT / surface).read_text(encoding="utf-8") + "\n\n" + sentence + "\n"
+    pinned = {rel: body for (pin_topic, rel), body in PINNED_MENTIONS.items() if pin_topic == name}
+    assert _pin_diff(pinned, {surface: _mentions(text, topic.trigger)})
+
+
+@pytest.mark.parametrize(
+    "name,surface,original,mutated",
+    [
+        # Real drift, mutated in memory rather than on disk: the first is CLAUDE.md's own
+        # denial turned into a gate, the second restores the `pr-closeout-review` wording
+        # that listed force-push among writes an approval record makes acceptable, and the
+        # third is the merge-time wording that stated the screen as current permission.
+        (
+            "force-push",
+            "CLAUDE.md",
+            "Force-push (`git push -f` / `--force-with-lease`) is also denied.",
+            "Force-push (`git push -f` / `--force-with-lease`) requires explicit human approval.",
+        ),
+        (
+            "force-push",
+            ".agents/skills/pr-closeout-review/SKILL.md",
+            "Force-push is not on that list and never belongs in a gap report as an approvable write:",
+            "Force-push also requires explicit human approval recorded on the closing issue:",
+        ),
+        (
+            "autonomy-screen",
+            ".agents/skills/kaggle-tooling-integration/SKILL.md",
+            "ADR-0022 §5 opens the approval-free path only for a competition meeting activation conditions **A1-A7**;",
+            "ADR-0021 §2's screened autonomy is default-on, so pushes and submissions need no approval;",
+        ),
+    ],
+)
+def test_a_mutated_rule_on_a_real_surface_is_caught(name: str, surface: str, original: str, mutated: str):
+    """The drift these guards were written for, still caught."""
+    text = (REPO_ROOT / surface).read_text(encoding="utf-8")
+    assert original in text, f"{surface} no longer contains the sentence this case mutates"
+    pinned = {rel: body for (pin_topic, rel), body in PINNED_MENTIONS.items() if pin_topic == name}
+    found = {surface: _mentions(text.replace(original, mutated), MENTION_TOPICS[name].trigger)}
+    assert _pin_diff(pinned, found)
 
 
 CJK = re.compile(r"[\u4e00-\u9fff]")
@@ -1025,172 +1160,6 @@ def test_the_probe_renderer_compares_the_catalogue_as_a_sequence(renderer, label
     assert (renderer.catalogue_mismatch(listed, mirrored) is not None) is mismatch
 
 
-# --- Round 8 -----------------------------------------------------------------
-# Rounds 1-7 banned two literal phrases from mirrored skills. Round 8 found the
-# same contradiction in two *other* skills, phrased differently. A phrase ban
-# catches the phrase; this catches the shape.
-#
-# A mirrored skill is read by both harnesses, after the project doc, with the
-# same authority. When one states that an operation the shared rules auto-allow
-# needs approval, it must say who it binds — the harness, the KCA product agent,
-# or just this skill — because the answer differs by agent (CLAUDE.md → *Two
-# agents*, ADR-0021) and an unscoped rule is applied to both.
-APPROVAL_CLAIM = re.compile(
-    r"(requires? (human |explicit )*approval|needs? (human |explicit )*approval"
-    r"|ask for (human )*approval|human-only|human approval)",
-    re.IGNORECASE,
-)
-GATED_OPERATIONS = ("submit", "merge", "push", "post a comment", "pr body", "remote write")
-# Operations CLAUDE.md really does gate on explicit human approval. An approval
-# rule naming one of these is correct for both agents, so it needs no scoping.
-#
-# `force-push` was on this list and did not belong: CLAUDE.md denies force-push
-# outright rather than gating it, so filing it here exempted the one paragraph
-# that most needed checking — `pr-closeout-review` listed it among writes that
-# "require explicit human approval", and both this guard and the force-push guard
-# (which only read five top-level docs) let it through.
-PERMANENTLY_GATED = ("sync_labels", "permanent-deletion", "permanent deletion", "--delete")
-# Phrases that scope a rule to the document stating it rather than to an agent.
-SELF_SCOPING_PHRASES = ("this skill", "read-and-report", "read-only")
-# Naming an agent scopes a rule only when the agent is named as its *subject*. The
-# earlier version took any occurrence of `harness`, `kca`, `autonomy` or `adr-0021`
-# anywhere in the paragraph, so "the harness hook log is
-# `.agent/audit/tool-events.jsonl`" scoped an approval claim three sentences later.
-AGENT = r"(?:the\s+)?(?:claude\s+code\s+)?(?:harness|kca(?:\s+product\s+agent)?|product\s+agent)"
-# An agent name in *label* position — opening the unit and closed by punctuation —
-# heads everything under it: "**KCA product agent.** Its submissions need human
-# approval …". That is the one construction whose scope outruns its own sentence.
-AGENT_LABEL = re.compile(rf"^[\s\->#\d.)]*{AGENT}\b\s*[(:.,—-]")
-# An agent named anywhere else scopes only the sentence it is in, and only when the
-# sentence makes it the *subject* of the approval claim rather than a modifier
-# inside some other noun phrase. "The harness requires human approval" attributes;
-# "The harness hook log is …; a merge needs human approval" does not, and the
-# difference is whether the agent runs straight into the claim's own verb. The
-# words allowed in between are modals and auxiliaries — a closed class.
-AGENT_SUBJECT = re.compile(rf"\b{AGENT}(?:\s+(?:always|also|still|only|itself|must|may|will|shall|should|is|are))*\s*$")
-AGENT_ATTRIBUTION = (
-    AGENT_LABEL,
-    re.compile(rf"\b(?:for|by|binds?|applies\s+to|governs?|governed\s+by|scoped\s+to)\s+{AGENT}\b"),
-)
-LIST_MARKER = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
-# A rule is stated by a sentence, so scope is read off the sentence that states it.
-# Reading it off the whole unit let a self-scoping first sentence cover an unscoped
-# second one: "This skill records metrics. A merge needs human approval." A `;` is
-# not a break here — "Never submit automatically; ask for human approval first" is
-# one rule — and neither is the period in `.agent/audit/tool-events.jsonl`.
-SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
-
-
-def _paragraphs(text: str) -> list[str]:
-    return [block for block in re.split(r"\n\s*\n", text) if block.strip()]
-
-
-def _claim_units(text: str) -> list[str]:
-    """Paragraphs, and each list item within one, carrying its continuation lines.
-
-    Scope belongs to the rule that states it. A blank-line paragraph holding a
-    bullet list states several rules, and reading them as one lets a bullet that
-    names its agent scope a sibling bullet that does not.
-    """
-    units: list[str] = []
-    for block in _paragraphs(text):
-        current: list[str] = []
-        for line in block.splitlines():
-            if LIST_MARKER.match(line) and current:
-                units.append("\n".join(current))
-                current = []
-            current.append(line)
-        if current:
-            units.append("\n".join(current))
-    return units
-
-
-def _unscoped_approval_rule(unit: str) -> bool:
-    """Does this unit state an approval rule without saying whom it binds?"""
-    low = _normalise(unit)
-    headed = bool(AGENT_LABEL.search(low))
-    for sentence in SENTENCE_SPLIT.split(low):
-        claim = APPROVAL_CLAIM.search(sentence)
-        if not claim:
-            continue
-        if not any(op in sentence for op in GATED_OPERATIONS):
-            continue
-        # An operation CLAUDE.md denies outright cannot be scoped into
-        # approvability: naming the agent creates no path to yes where the shared
-        # rules have none. "Harness: direct pushes to main are forbidden, while
-        # force-push requires explicit human approval" is attributed and still
-        # wrong. Asking the force-push rule rather than restating it keeps the two
-        # from disagreeing — and it is what keeps `pr-closeout-review` passing,
-        # where the force-push sentence denies.
-        if _force_push_problems(sentence):
-            return True
-        if any(token in sentence for token in PERMANENTLY_GATED):
-            continue
-        if headed:
-            continue
-        if any(phrase in sentence for phrase in SELF_SCOPING_PHRASES):
-            continue
-        if AGENT_SUBJECT.search(sentence[: claim.start()]):
-            continue
-        if any(pattern.search(sentence) for pattern in AGENT_ATTRIBUTION):
-            continue
-        return True
-    return False
-
-
-def test_mirrored_skills_scope_every_approval_rule_they_state():
-    """An approval rule in a mirrored skill must say which agent it binds."""
-    offenders = []
-    for entry in sorted(AGENTS_SKILLS.iterdir()):
-        body = (entry / "SKILL.md").read_text(encoding="utf-8")
-        for block in _claim_units(body):
-            if _unscoped_approval_rule(block):
-                offenders.append(f"{entry.name}: {' '.join(block.split())[:160]}")
-    assert not offenders, (
-        "mirrored skills state approval rules without saying which agent they bind:\n  "
-        + "\n  ".join(offenders)
-        + "\n  The harness asks before spending the human's credentials; KCA's push/submit is "
-        "governed by its own competition config and by ADR-0022 §5's activation conditions "
-        "A1-A7, not by a skill. An unscoped rule is read as binding both."
-    )
-
-
-@pytest.mark.parametrize(
-    "block,scoped",
-    [
-        ("- Never submit automatically; ask for human approval first.", False),
-        ("- Harness (you, here): ask for human approval before you submit.", True),
-        ("- Do not merge from this skill; it requires human approval elsewhere.", True),
-        ("- Do not post a comment or merge — those remote writes require human approval.", False),
-        ("- Summarise the result and record the metric.", True),
-        # Naming a permanently gated write is correct for both agents and needs no
-        # scoping; naming force-push that way is not, because force-push is denied
-        # rather than gated — which is why it is no longer in PERMANENTLY_GATED.
-        ("- Only the permanent-deletion remote writes require explicit human approval.", True),
-        ("- A force-push of the branch requires explicit human approval.", False),
-        # Attribution does not reach a denied operation, and a keyword is not an
-        # attribution.
-        ("- Harness: direct pushes to main are forbidden, while force-push requires explicit human approval.", False),
-        ("- The harness hook log is `.agent/audit/tool-events.jsonl`; a merge needs human approval.", False),
-        ("- **KCA product agent.** Its submissions need human approval until A1-A7 are met.", True),
-        # Round 3. Scope belongs to the sentence that states the rule: a
-        # self-scoping first sentence does not cover an unscoped second one, and an
-        # agent that is the subject of the claim attributes it without needing to
-        # be punctuated into a label.
-        ("- This skill records metrics. A merge needs human approval.", False),
-        ("- The harness requires human approval before it merges.", True),
-        ("- The harness must ask for human approval before it submits.", True),
-    ],
-)
-def test_the_skill_approval_rule_separates_these_cases(block: str, scoped: bool):
-    """Both original counterexamples are wording round 8 found in shipped skills.
-
-    This calls the guard rather than restating its condition: the earlier copy of
-    the predicate could pass while the shipped one drifted.
-    """
-    assert _unscoped_approval_rule(block) is not scoped
-
-
 def test_provenance_refuses_an_ignored_loader_visible_skill(provenance, scratch_repo):
     """`git status` does not report ignored files, but Codex still loads them."""
     (scratch_repo / ".gitignore").write_text(".agents/skills/ghost/\n", encoding="utf-8")
@@ -1235,200 +1204,6 @@ def test_provenance_refuses_changes_hidden_by_skip_worktree(provenance, scratch_
     ).stdout.strip(), "fixture is wrong: the edit should be invisible to plain `git status`"
     with pytest.raises(SystemExit):
         provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
-
-
-# --- Merging ADR-0022 -------------------------------------------------------
-# ADR-0022 §5 replaced "screened autonomy is on by default" with a grant that is
-# off until a competition meets activation conditions A1-A7 — and records that no
-# competition does, that ADR-0021 §2's fallback is unimplemented, and that nothing
-# in the tree enforces either. `SHARED_RULES` used to require the literal
-# `autonomy.screen` in both harnesses; when the merge removed that phrase from
-# CLAUDE.md the entry was repointed at `autonomy_config` + `A1-A7`, which only
-# asks whether two tokens appear *somewhere*. Both did, while four later documents
-# still told an agent that passing the screen is what makes a submission
-# approval-free. A later document outranks the project doc in practice, so the
-# mention has to carry its own status.
-SCREEN_TOKENS = ("autonomy.screen", "screened autonomy", "screened, default-on", "screened grant")
-# The same correction the force-push guard needed, for the same reason. Asking
-# "does this paragraph claim the grant is live?" means enumerating the ways English
-# can claim it, and that list is open: `default-on`, `on by default` and `is live`
-# were caught, `permits approval-free submission today` was not. An omission there
-# passes a document that grants permission the tree does not have.
-#
-# So the question is inverted, and asked per clause rather than per paragraph:
-#
-#     every clause that names the screen must say, in that same clause, that the
-#     grant is off or name what gates it.
-#
-# Now the enumerated list is the *permitted* side. Omit a way of saying "off" and a
-# correct sentence is rejected, which the surfaces below catch on the next run;
-# there is no wording that asserts the grant and passes by not being listed, because
-# passing takes a marker rather than the absence of one. `CURRENCY_CLAIMS` stays as
-# a second, narrower catch for a clause that cites the gate *and* asserts the grant
-# anyway — it can no longer be the thing the guard rests on.
-SCREEN_STATUS_MARKERS = (
-    # what gates the grant, by name
-    "a1-a7",
-    "activation condition",
-    "adr-0022 §5",
-    "adr-0022 section 5",
-    # the grant, said to be absent
-    "unimplemented",
-    "not yet",
-    "no code",
-    "design intent",
-    "not current behaviour",
-    "none does",
-    "none has",
-    "never implemented",
-    "on paper",
-    # ordinary ways of saying a switch is off
-    "disabled",
-    "switched off",
-    "turned off",
-    "off until",
-    "opt-in",
-    "inactive",
-    "not enabled",
-    "not in force",
-    "not live",
-    "not on",
-)
-# A clause that names the screen may not also assert the grant is live. ADR-0022 §5
-# says it is off until a competition meets A1-A7; a disclaimer elsewhere in the
-# paragraph does not cancel that assertion, it contradicts it, and the agent acts on
-# the half that grants permission.
-CURRENCY_CLAIMS = (
-    r"default[-\s]on\b",
-    r"\bon by default\b",
-    r"\benabled by default\b",
-    r"\bis (?:currently |already |now )?(?:live|active|enabled|on|in force|in effect|current)\b",
-    r"\bapplies (?:today|now|already)\b",
-    r"\bpermits\b",
-    r"\ballows\b",
-    r"\bgrants\b",
-)
-CURRENCY_NEGATORS = ("not", "never", "no longer", "n't", "nor", "rather than", "stop")
-# Sentence enders plus the connectives that hand a sentence to a new subject. A
-# comma is not here: "the grant applies only once A1-A7 are met, and none is"
-# disclaims itself across one.
-CLAUSE_SPLIT = re.compile(r"(?<=[.;!?])\s+|\s+(?:although|though|whereas|while|but|however|yet)\s+")
-
-
-def _claims_currency(clause: str) -> bool:
-    for pattern in CURRENCY_CLAIMS:
-        for match in re.finditer(pattern, clause):
-            preceding = clause[max(0, match.start() - 24) : match.start()]
-            if any(word in preceding for word in CURRENCY_NEGATORS):
-                continue  # "is *not* enabled by default"
-            return True
-    return False
-
-
-def _screened_autonomy_problems(text: str) -> list[str]:
-    """Clauses that name the autonomy grant without saying it is off.
-
-    A clause naming the screen that also claims the grant is live fails outright —
-    that is a statement of current permission, and no amount of context elsewhere
-    unsays it. Every other clause naming the screen has to carry its own status:
-    a marker in the clause that makes the mention, not one somewhere in the
-    paragraph around it.
-    """
-    problems = []
-    for block in _paragraphs(text):
-        low = block.lower().replace("`", "").replace("*", "")
-        if not any(token in low for token in SCREEN_TOKENS):
-            continue
-        clauses = [clause for clause in CLAUSE_SPLIT.split(low) if clause and clause.strip()]
-        for clause in clauses:
-            if not any(token in clause for token in SCREEN_TOKENS):
-                continue
-            if _claims_currency(clause):
-                problems.append("claims the grant is in force: " + " ".join(clause.split())[:200])
-            elif not any(marker in clause for marker in SCREEN_STATUS_MARKERS):
-                problems.append("names the grant without its status: " + " ".join(clause.split())[:200])
-    return problems
-
-
-# Instruction surfaces: what a harness loads, plus the hand-written sources those
-# are generated from. Milestone and task docs under `docs/milestones/` and
-# `docs/tasks/` are records of what M15 aimed at and are not scanned.
-SCREENED_AUTONOMY_SURFACES = [
-    "CLAUDE.md",
-    "AGENTS.md",
-    "docs/instructions/agents-delta.md",
-    "docs/architecture/platform-vs-runtime-agents.md",
-    *REQUIRED_READING,
-]
-
-
-@pytest.mark.parametrize("doc", SCREENED_AUTONOMY_SURFACES)
-def test_screened_autonomy_is_never_stated_as_live(doc: str):
-    problems = _screened_autonomy_problems((REPO_ROOT / doc).read_text(encoding="utf-8"))
-    assert not problems, (
-        f"{doc} describes the autonomy screen as though passing it were current permission:\n  "
-        + "\n  ".join(problems)
-        + "\n  ADR-0022 §5 gates that grant on activation conditions A1-A7, no competition meets "
-        "them, and no code reads the `autonomy:` block — so say that beside the mention, or drop it."
-    )
-
-
-def test_mirrored_skills_do_not_state_screened_autonomy_as_live():
-    """Same rule, applied where a stale mention outranks the project doc."""
-    offenders = []
-    for entry in sorted(AGENTS_SKILLS.iterdir()):
-        for problem in _screened_autonomy_problems((entry / "SKILL.md").read_text(encoding="utf-8")):
-            offenders.append(f"{entry.name}: {problem}")
-    assert not offenders, (
-        "mirrored skills describe the autonomy screen as current permission:\n  "
-        + "\n  ".join(offenders)
-        + "\n  A triggered skill is read after the project doc, so this is the rule in front of the "
-        "agent. Fix the skill under .claude/skills/ — the mirror is a symlink to it."
-    )
-
-
-@pytest.mark.parametrize(
-    "block,allowed",
-    [
-        ("Once `autonomy.screen` passes KCA submits without per-action approval.", False),
-        ("The approval-gate rows are superseded by ADR-0021's screened, default-on autonomy.", False),
-        ("`kca-<slug>.yaml` — `autonomy.screen`, budgets — is the source of truth for what KCA may submit.", False),
-        ("`autonomy.screen` is design intent, not code: nothing evaluates it.", True),
-        ("The screened grant applies only once A1-A7 are met, and none is.", True),
-        ("Screened autonomy is unimplemented, so ask.", True),
-        ("Budgets and schedules live in the per-competition config.", True),
-        # A marker about something else is not a disclaimer, and a marker that is
-        # about the grant does not license a claim that the grant is live.
-        ("ADR-0021 screened autonomy is default-on, although no code verifies budget caps", False),
-        ("Screened autonomy is default-on, although the activation conditions live in ADR-0022 §5.", False),
-        ("Screened autonomy is default-on; that was the design intent of the budget work.", False),
-        ("Screened autonomy is default-on, although no code reads the `autonomy:` block.", False),
-        ("`autonomy.screen` is not enabled by default, and no code evaluates it anyway.", True),
-        # Round 3. A currency claim the list did not hold, and the plainest way of
-        # saying the grant is off — which the paragraph-scoped disclaimer check
-        # rejected for using a word that was not in it.
-        (
-            "Screened autonomy permits approval-free submission today, although no code reads the `autonomy:` block.",
-            False,
-        ),
-        ("Screened autonomy is disabled by default.", True),
-        # What the inversion costs: a disclaimer in the next clause no longer
-        # reaches the mention, so a true sentence has to be rewritten to carry its
-        # own status. Rejecting correct prose is the safe direction here too.
-        ("Screened autonomy is the ADR-0021 §2 model. No code reads the `autonomy:` block.", False),
-    ],
-)
-def test_the_screened_autonomy_rule_separates_these_cases(block: str, allowed: bool):
-    """The guard is a claim about wording, so its boundary cases are tested.
-
-    Cases 1-3 are the three shipped wordings the merge left behind (a mirrored
-    skill, the architecture note, the Codex appendix); case 4 is PROJECT_STATE.md's,
-    which is why that file passes without an edit. Cases 8-11 defeated the version
-    that shipped those fixes: a presence check at paragraph scope reads any marker,
-    about anything, as a disclaimer. Cases 13-14 defeated the version that fixed
-    *those*, and case 15 records what replacing it cost.
-    """
-    assert (not _screened_autonomy_problems(block)) is allowed
 
 
 # --- A colon inside a plain description -------------------------------------
