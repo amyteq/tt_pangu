@@ -1,18 +1,8 @@
 # Notification / HITL channel — Telegram push + GitHub record
 
-Decision: [#197](https://github.com/amyteq/tt_pangu/issues/197) (owner
-[comment](https://github.com/amyteq/tt_pangu/issues/197#issuecomment-5679417228)) —
-**the Telegram bot is the primary channel, GitHub is the secondary channel and
-the system of record.** Telegram carries the push and the buttons; the GitHub
-issue comment carries the attributable, timestamped decision record. If Telegram
-is down the record still exists; if the record cannot be written we do not
-pretend a decision was made.
+Decision: [#197](https://github.com/amyteq/tt_pangu/issues/197) (owner [comment](https://github.com/amyteq/tt_pangu/issues/197#issuecomment-5679417228)) — **the Telegram bot is the primary channel, GitHub is the secondary channel and the system of record.** Telegram carries the push; the GitHub issue comment carries the attributable, timestamped decision record, and is where the answer is given. If Telegram is down the record still exists; if the record cannot be written we do not pretend a decision was made.
 
-Bot-per-agent-entry follows
-[discussion #187](https://github.com/amyteq/tt_pangu/discussions/187) §3, which
-owns the *interactive* half of this story (the official Claude Code Telegram
-channel plugin). See [Two channels, one bot fleet](#two-channels-one-bot-fleet)
-for how the two fit together.
+Bot-per-agent-entry follows [discussion #187](https://github.com/amyteq/tt_pangu/discussions/187) §3, which owns the *interactive* half of this story (the official Claude Code Telegram channel plugin). See [Two channels, one bot fleet](#two-channels-one-bot-fleet) for how the two fit together.
 
 ## Pieces (all source-controlled)
 
@@ -24,38 +14,24 @@ for how the two fit together.
 | `tests/test_notify.py`, `tests/test_agent_notify.py` | format, reply determinism, expiry, suppression, redaction, both harness payload shapes |
 | `env.example` | the `TELEGRAM_*` variable names, documented and empty |
 
-Secret **values** live only in the env file named by `secrets_file` in
-`.kca/notify.yml` (default: the home-directory `.env`, outside the repo). The
-notify process loads `TELEGRAM_*` keys from it and nothing else; no `kca`
-command ever prints a token or a chat id.
+Secret **values** live only in the env file named by `secrets_file` in `.kca/notify.yml` (default: the home-directory `.env`, outside the repo). The notify process loads `TELEGRAM_*` keys from it and nothing else; no `kca` command ever prints a token or a chat id.
 
 ## The bots
 
-Two bots are configured, one per agent entry, because **a bot token has exactly
-one active receiving process** (#187 §3) — two Claude Code entries cannot share
-one. *Sending* is unaffected, so `kca notify` can push through a bot whose
-update stream a Channels plugin is holding.
+Two bots are configured, one per agent entry, because **a bot token has exactly one active receiving process** (#187 §3) — two Claude Code entries cannot share one. *Sending* is unaffected, so `kca notify` can push through a bot whose update stream a Channels plugin is holding.
 
 | key in `.kca/notify.yml` | env var | bot | intended entry |
 |---|---|---|---|
 | `bot1` (`default_bot`) | `TELEGRAM_BOT1_TOKEN` | `@ayla_claude1_bot` | Claude Code account 1; also every `kca notify` / KCA push |
 | `bot2` | `TELEGRAM_BOT2_TOKEN` | `@ayla_harry_bot` | Claude Code account 2 / Codex |
 
-Recipient `harry` → `TELEGRAM_CHAT_ID_ME`, deciding for accounts
-`harrysun2006` and `firefly2006`. Pick a non-default bot per call with
-`--bot bot2`, or pin one to a recipient with `bot:` in the config.
+Recipient `harry` → `TELEGRAM_CHAT_ID_ME`, deciding for accounts `harrysun2006` and `firefly2006`. Pick a non-default bot per call with `--bot bot2`, or pin one to a recipient with `bot:` in the config.
 
 ## Setup
 
-Steps 1–3 can only be done by a human in the Telegram app — a bot cannot create
-itself, and Telegram forbids a bot from opening a conversation with a user who
-has never messaged it. **They are already done for the two bots above**; repeat
-them only when adding an entry.
+Steps 1–3 can only be done by a human in the Telegram app — a bot cannot create itself, and Telegram forbids a bot from opening a conversation with a user who has never messaged it. **They are already done for the two bots above**; repeat them only when adding an entry.
 
-1. **Create the bot**: chat with **@BotFather** → `/newbot` → display name (e.g.
-   `Ayla 1 · Kaggle`) → username ending in `bot`. BotFather replies with a token
-   shaped `8123456789:AA…`. **That token is the bot — never paste it into an
-   issue, PR, log, or a chat with an agent.** Optional: `/setprivacy` → Enable.
+1. **Create the bot**: chat with **@BotFather** → `/newbot` → display name (e.g. `Ayla 1 · Kaggle`) → username ending in `bot`. BotFather replies with a token shaped `8123456789:AA…`. **That token is the bot — never paste it into an issue, PR, log, or a chat with an agent.** Optional: `/setprivacy` → Enable.
 2. **Press Start** in the new bot's chat. Nothing can be delivered before this.
 3. **Find the chat id**: message **@userinfobot**, or use `getUpdates` below.
 4. **Store the values** in the env file named by `secrets_file`:
@@ -64,21 +40,12 @@ them only when adding an entry.
    TELEGRAM_BOT2_TOKEN=8987654321:AA...
    TELEGRAM_CHAT_ID_ME=123456789
    ```
-   > The Claude Code guard hook (`.claude/hooks/guard_tool.py:56`) denies the
-   > agent reading that file directly, by design — it also holds unrelated
-   > credentials. `kca notify` reads it inside its own process and loads only
-   > `TELEGRAM_*` keys, so the agent can *use* the channel without ever seeing
-   > the file. Do not work around that by printing the file.
-5. **Verify**: `kca notify doctor` — every check must be `ok: true`. It prints
-   each bot's `@username` (from `getMe`) and whether each token/chat id is set,
-   never a value. Run it outside the agent's command sandbox; inside it, `gh`
-   cannot read its own credential file and reports "not logged in".
+   > The Claude Code guard hook (`.claude/hooks/guard_tool.py:56`) denies the agent reading that file directly, by design — it also holds unrelated credentials. `kca notify` reads it inside its own process and loads only `TELEGRAM_*` keys, so the agent can *use* the channel without ever seeing the file. Do not work around that by printing the file.
+5. **Verify**: `kca notify doctor` — every check must be `ok: true`. It prints each bot's `@username` (from `getMe`) and whether each token/chat id is set, never a value. Run it outside the agent's command sandbox; inside it, `gh` cannot read its own credential file and reports "not logged in".
 
 ## Verifying with `curl`
 
-Everything `doctor` does is plain Bot API, so you can check by hand. Keep the
-token out of your shell history — read it from the env file instead of typing
-it:
+Everything `doctor` does is plain Bot API, so you can check by hand. Keep the token out of your shell history — read it from the env file instead of typing it:
 
 ```bash
 set +o history                         # bash; zsh: setopt HIST_IGNORE_SPACE
@@ -100,21 +67,15 @@ curl -s "https://api.telegram.org/bot$TG/getWebhookInfo" | jq '{url, pending_upd
 unset TG; set -o history
 ```
 
-Failure modes worth recognising: `401 Unauthorized` = wrong/revoked token;
-`400 chat not found` = wrong chat id or Start never pressed; `409 Conflict` on
-`getUpdates` = **another process is already long-polling this token** (see
-#187 §3 — that is the one-receiver rule biting).
+Failure modes worth recognising: `401 Unauthorized` = wrong/revoked token; `400 chat not found` = wrong chat id or Start never pressed; `409 Conflict` on `getUpdates` = **another process is already long-polling this token** (see #187 §3 — that is the one-receiver rule biting).
 
 ## Turning it on inside Claude Code and Codex
 
-`scripts/agent_notify.py` adapts each harness's event to a `kca notify` push.
-It exits 0 no matter what, so a notification failure can never break the turn it
-is reporting on.
+`scripts/agent_notify.py` adapts each harness's event to a `kca notify` push. It exits 0 no matter what, so a notification failure can never break the turn it is reporting on — including on a payload that is valid JSON of an unexpected shape.
 
 ### Claude Code (verified against 2.1.273)
 
-The harness pipes a hook JSON object on stdin. Add to `.claude/settings.json`
-(or `~/.claude/settings.json` for every project):
+The harness pipes a hook JSON object on stdin. Add to `.claude/settings.json` (or `~/.claude/settings.json` for every project):
 
 ```json
 {
@@ -145,22 +106,15 @@ The harness pipes a hook JSON object on stdin. Add to `.claude/settings.json`
 }
 ```
 
-`Notification` (the session is waiting on you — a permission prompt or an idle
-prompt) and `StopFailure` (the turn ended in an API error) map to level
-`attention`: they bypass quiet hours and are never rate-limited, because you are
-the thing that is blocking.
+`Notification` (the session is waiting on you — a permission prompt or an idle prompt) and `StopFailure` (the turn ended in an API error) map to level `attention`: they bypass quiet hours and are never rate-limited, because you are the thing that is blocking.
 
-`Stop` is deliberately **not** wired above. It fires at the end of *every* turn,
-and #187 §4 warns against reporting each `Stop` as "task complete". Add it only
-with a level you are happy to have deduped and capped:
-`… --source claude --level info`.
+`Stop` is deliberately **not** wired above. It fires at the end of *every* turn, and #187 §4 warns against reporting each `Stop` as "task complete". Add it only with a level you are happy to have deduped and capped: `… --source claude --level info`.
 
 Use the second account's entry by pointing its settings at `--bot bot2`.
 
 ### Codex (verified against codex-cli 0.154.0)
 
-Codex execs a program with one argv holding the event JSON. In
-`~/.codex/config.toml`:
+Codex execs a program with one argv holding the event JSON. In `~/.codex/config.toml`:
 
 ```toml
 notify = [
@@ -171,11 +125,9 @@ notify = [
 ]
 ```
 
-Codex fires `agent-turn-complete` (payload: `type`, `thread-id`, `turn-id`,
-`cwd`, `input-messages`, `last-assistant-message`), which maps to level `info` —
-routine traffic, so it is deduped for 3 h, deferred out of quiet hours, and
-counted against the daily budget. Override with `--level attention` if you want
-every Codex turn to break through, but expect the volume.
+Codex fires `agent-turn-complete` (payload: `type`, `thread-id`, `turn-id`, `cwd`, `input-messages`, `last-assistant-message`), which maps to level `info` — routine traffic, so it is deduped for 3 h, deferred out of quiet hours, and counted against the daily budget. Override with `--level attention` if you want every Codex turn to break through, but expect the volume.
+
+Both adapters forward harness text — your prompt and the assistant's reply — so everything they build is redacted and length-bounded before it leaves the process. See [What can never reach a notification](#what-can-never-reach-a-notification).
 
 Check either wiring without touching Telegram:
 
@@ -193,35 +145,28 @@ scripts/agent_notify.py --source codex --dry-run \
 | Direction | outbound push only | two-way chat into a live session |
 | Needs a session running | no — cron, KCA, CI, a hook | yes, and it must stay online |
 | Writes the GitHub decision record | **yes** | no |
-| Buttons | one per decision option | tool-approval relay only |
+| Buttons | one link to the record — nothing tappable to answer with (phase 1a) | tool-approval relay only |
 | Uses a bot's update stream | no (send-only) | **yes — exclusively** |
 
-They coexist because only the plugin consumes updates. Both can send through the
-same bot. The consequence for **phase 1b** (the reply poller) is concrete: a
-poller calling `getUpdates` on a token a Channels plugin already holds will get
-`409 Conflict`, so it must either use a third, dedicated bot or read replies
-from the GitHub record instead.
+They coexist because only the plugin consumes updates. Both can send through the same bot. The consequence for **phase 1b** (the reply poller) is concrete: a poller calling `getUpdates` on a token a Channels plugin already holds will get `409 Conflict`, so it must either use a third, dedicated bot or read replies from the GitHub record instead.
 
 ## How a decision flows
 
 1. The agent calls `kca notify decision …`.
-2. The **GitHub comment** is written first — `decision_id`, competition, plan
-   summary, `plan_hash`, options, expiry, plus a machine-readable YAML block.
-3. The **Telegram card** goes out with one button per option
-   (`callback_data = kca:<decision_id>:<option_id>`) and a link to the record.
-4. The human taps a button, **or** comments on the issue:
+2. The **GitHub comment** is written first — `decision_id`, competition, plan summary, `plan_hash`, options, expiry, plus a machine-readable YAML block. Both legs have to succeed: if the record cannot be written the command reports `partial` and exits non-zero, even when the Telegram push landed.
+3. The **Telegram card** goes out: a compact mirror with the `/decide` line for every option and a link button to the record. It is deliberately **read-only** — see [No buttons in phase 1a](#no-buttons-in-phase-1a).
+4. The human comments on the issue:
 
    ```
    /decide <decision_id> <option_id>
    ```
 
-   Anything after the option id is recorded as context but is never parsed as
-   the answer. Prose alone — "yes", "go ahead", "A" — deliberately does **not**
-   parse: the answer is an option id or it is not an answer.
-5. `resolve_reply()` returns `ANSWERED` / `INVALID_OPTION` /
-   `MISMATCHED_DECISION` / `EXPIRED` / `WAIT_HUMAN`. **Only `ANSWERED` sets
-   `approved: true`.** Past `expires_at` a request lapses to `EXPIRED` — silence
-   is never consent, and a late tap does not revive it.
+   Anything after the option id is recorded as context but is never parsed as the answer. Prose alone — "yes", "go ahead", "A" — deliberately does **not** parse: the answer is an option id or it is not an answer. A `decision_id` or option id the parser could not read is rejected when the decision is *created*, so a published gate is always answerable.
+5. `resolve_reply()` returns `ANSWERED` / `INVALID_OPTION` / `MISMATCHED_DECISION` / `EXPIRED` / `WAIT_HUMAN`. **Only `ANSWERED` sets `approved: true`.** Past `expires_at` a request lapses to `EXPIRED` — silence is never consent, and a late answer does not revive it.
+
+### No buttons in phase 1a
+
+The decision card carries one button, and it is a link to the GitHub record. There is deliberately no tappable button per option: nothing consumes `getUpdates` or callback queries yet, so a tap would resolve nothing while looking exactly like an answer — the human would believe the gate was handled and the decision would block until it expired. `callback_data` (`kca:<decision_id>:<option_id>`) is still fixed, and every id is validated against its 64-byte limit at creation, so a decision opened today stays answerable by a tap once the phase-1b poller exists.
 
 ## Traffic rules (enforced in code, not by convention)
 
@@ -229,36 +174,44 @@ from the GitHub record instead.
 |---|---|---|---|
 | `gate` | GitHub + Telegram | **bypass** — a decision blocks work | never deduped, never capped |
 | `attention` | Telegram | **bypass** — a session is stuck on you | deduped 5 min, never capped |
-| `digest` | Telegram | deferred to the next window | deduped 12 h; counts against the daily budget |
+| `digest` | Telegram | deferred to the next window | deduped 12 h, **and held while unchanged**; counts against the daily budget |
 | `info` | Telegram | deferred | deduped 3 h; counts against the daily budget |
 
 * Quiet hours: 22:00–08:00 `Australia/Melbourne` (`.kca/notify.yml`).
-* Routine budget: **2 pushes/day** — the #185 §18 intervention-cost criterion.
-  It applies to `digest`/`info` only. A suppressed send is a *success*
-  (`status: deduped | deferred | rate_limited`), not an error; `--force`
-  overrides all three.
-* Exit codes: `0` sent, `2` suppressed by policy, `1` the send actually failed.
-* Every transmitted title/body/summary passes through `redact()` (the shared
-  `stuck.redact_escalation_payload` filter plus a bot-token pattern), so a DSN,
-  API key, flag or bot token cannot reach a notification body (#185 §9).
+* Routine budget: **2 pushes/day** — the #185 §18 intervention-cost criterion. It applies to `digest`/`info` only. A suppressed send is a *success* (`status: deduped | deferred | rate_limited`), not an error; `--force` overrides all three.
+* `suppress_unchanged` (set on `digest`) is time-independent, unlike `dedupe_minutes`: a digest saying exactly what the last digest said is held back however long ago that was, which is what "daily digest suppressed when nothing changed" needs — a 24 h repeat always falls outside a 12 h window.
+* Statuses: `sent` means **every** configured channel took the message. One failed leg is `partial`, which is a failure: a `gate` whose GitHub record failed is not a decision that was filed.
+* Exit codes: `0` sent, `2` suppressed by policy, `1` the send failed or only partly landed.
+
+### The send ledger
+
+Dedupe and the daily cap are backed by a JSONL ledger under `state_dir` (`.agent/notify/sent.jsonl`, gitignored).
+
+* It is **one ledger per repository, not per worktree**: a relative `state_dir` resolves against the primary checkout, because the budget protects a human's phone rather than a directory.
+* The read → decide → send → append sequence runs under a `flock` on `.agent/notify/ledger.lock`, so two agents cannot both spend the last of the budget. The lock is best effort by design — after 10 s it sends unserialised (`serialized: false` in the result) rather than dropping a `gate` because another process was wedged.
+* A suppressed outcome is recorded once per hour per message, not once per hook invocation, and the file is compacted to its newest entries once it crosses ~500 KB. A line that is not a JSON object is skipped, so a corrupted ledger cannot take the channel — or `doctor` — down.
+
+### What can never reach a notification
+
+Every transmitted title, body, summary, option label and link goes through `redact()` and is clipped (200 chars for a title, 2000 for a body). `redact()` masks, in order:
+
+* credential shapes — Telegram bot tokens, `sk-…` / `sk-proj-…` / `sk-ant-…` keys, GitHub PATs, Google, Slack, Hugging Face and GitLab tokens, JWTs, `Authorization: Bearer …`, PEM private-key blocks;
+* `NAME=value` / `NAME: value` where the name itself says secret (`*TOKEN*`, `*SECRET*`, `*API_KEY*`, `*PASSWORD*`, `*CHAT_ID*`, …) — the name is kept, only the value is masked;
+* the literal values *this* config resolves to, so a body quoting our own chat id or bot token cannot echo it back;
+* everything the shared `stuck.redact_escalation_payload` filter knows: DSNs, `user:pass@host`, AWS key ids, CTF flags.
+
+It deliberately does **not** mask "anything that looks like a number": a redaction that silences a gate or eats the operator's own sentence is a worse outcome than the leak it prevents. `decision_id` and option ids are the one field rendered verbatim (they must round-trip through `/decide`), so a secret-shaped id is rejected at creation instead.
 
 ## Running it
 
-`kca` is not installed as a console script on HARRY-ARCH, so invoke the module
-from a checkout:
+`kca` is not installed as a console script on HARRY-ARCH, so invoke the module from a checkout:
 
 ```bash
 python -m tools.kca.kca notify doctor
 ```
 
-`pip install -e .` would put `kca` on `PATH` (`pyproject.toml` already declares
-the entry point) — that is independent of this feature.
+`pip install -e .` would put `kca` on `PATH` (`pyproject.toml` already declares the entry point) — that is independent of this feature.
 
 ## Not built yet (phase 1b)
 
-`kca notify` only **sends**. Nothing consumes `getUpdates` / button taps, so
-today an answer arrives by commenting `/decide …` on the issue. The poller —
-which must respect the one-receiver-per-token rule above, ignore chat ids
-outside `.kca/notify.yml`, and write the answer back into the issue as the
-record — is the follow-up. The reply contract is already fixed and tested, so
-that work is transport only.
+`kca notify` only **sends**. Nothing consumes `getUpdates` or button taps, which is why the decision card has no option buttons and an answer arrives by commenting `/decide …` on the issue. The poller — which must respect the one-receiver-per-token rule above, ignore chat ids outside `.kca/notify.yml`, and write the answer back into the issue as the record — is the follow-up. The reply contract is already fixed and tested, and decisions are validated against it at creation, so that work is transport only.

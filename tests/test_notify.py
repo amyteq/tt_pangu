@@ -155,6 +155,83 @@ def test_rendered_bodies_carry_no_secret() -> None:
         assert SECRET_DSN not in body
 
 
+@pytest.mark.parametrize(
+    "payload, leaked",
+    [
+        ("export OPENAI_API_KEY=sk-proj-SENTINEL0123 && go", "sk-proj-SENTINEL0123"),
+        ("CHAT_ID=123456789 is where it goes", "123456789"),
+        ('TELEGRAM_BOT1_TOKEN="8123456789:AAF_NotARealTokenAtAllJustASentinel"', "AAF_NotARealToken"),
+        ("clone with ghp_0123456789abcdefghijABCDEFGHIJ0123 first", "ghp_0123456789"),
+        ("maps key AIzaSyFAKESENTINEL0123456789abcdefghij", "AIzaSyFAKESENTINEL"),
+        ("Authorization: Bearer abcdef0123456789abcdef", "abcdef0123456789abcdef"),
+        ("slack hook xoxb-1111111111-2222222222-FAKESENTINEL", "xoxb-1111111111"),
+        ("session eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.FAKEsignature0", "eyJhbGciOiJIUzI1NiJ9"),
+        ("db_password: hunter2-sentinel-value", "hunter2-sentinel-value"),
+    ],
+)
+def test_redact_masks_credential_shapes(payload: str, leaked: str) -> None:
+    """A harness event carries whatever the session said, including a pasted key."""
+    out = notify.redact(payload)
+    assert leaked not in out
+    assert notify.REDACTED in out
+
+
+def test_redaction_leaves_ordinary_operator_text_alone() -> None:
+    """Over-redaction is its own failure: a silenced gate is worse than a noisy one."""
+    text = "LB 0.951 after 12345 rows; run 2026-09-17 finished in 42 min on snorlax"
+    assert notify.redact(text) == text
+
+
+def test_a_configured_chat_id_is_masked_even_though_it_is_only_digits(cfg: dict, monkeypatch) -> None:
+    """Shape rules cannot know a chat id — but this config resolves ours."""
+    monkeypatch.setenv("TELEGRAM_CHAT_ID_ME", "987654321")
+    assert "987654321" not in notify.redact("reply to 987654321 to approve", cfg)
+    # A same-shaped number that is not ours stays readable.
+    assert notify.redact("run 123123123 finished", cfg) == "run 123123123 finished"
+
+
+def test_a_leaky_body_is_scrubbed_before_it_reaches_a_payload(cfg: dict) -> None:
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    out = notify.dispatch(
+        cfg,
+        level="info",
+        title="turn done",
+        body="rerun with OPENAI_API_KEY=sk-proj-SENTINEL0123 CHAT_ID=123456789",
+        now=noon,
+        dry_run=True,
+    )
+    text = next(c for c in out["channels"] if c["channel"] == "telegram")["payload"]["text"]
+    assert "sk-proj-SENTINEL0123" not in text
+    assert "123456789" not in text
+    assert notify.REDACTED in text
+
+
+def test_a_runaway_body_is_bounded_before_transmission(cfg: dict) -> None:
+    """Telegram caps a message at 4096 chars, and an unbounded body is a leak
+    surface of its own."""
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    out = notify.dispatch(cfg, level="info", title="t" * 500, body="x" * 9000, now=noon, dry_run=True)
+    text = next(c for c in out["channels"] if c["channel"] == "telegram")["payload"]["text"]
+    assert len(text) <= notify.MAX_TITLE_CHARS + notify.MAX_BODY_CHARS + 32
+    assert text.endswith("…")
+
+
+def test_every_decision_field_is_scrubbed_including_the_machine_block() -> None:
+    """The YAML block is transmitted exactly like the prose above it."""
+    req = _request(
+        competition=f"nemo {SECRET_DSN}",
+        options=[("promote", f"Promote with {SECRET_TOKEN}"), ("hold", "Hold")],
+        links=[f"https://example.invalid/?dsn={SECRET_DSN}"],
+    )
+    cfg = notify.load_config(REPO_ROOT / ".kca" / "notify.yml")
+    record = notify.render_github_comment(req)
+    machine = notify.yaml.safe_load(record.split("```yaml")[1].split("```")[0])
+    assert SECRET_DSN not in record
+    assert SECRET_TOKEN not in record
+    assert SECRET_DSN not in machine["competition"]
+    assert SECRET_TOKEN not in notify.render_telegram_text(req, cfg)
+
+
 # ---------------------------------------------------------------------------
 # Decision-request format (#197 acceptance criterion 1)
 # ---------------------------------------------------------------------------
@@ -180,6 +257,44 @@ def test_plan_hash_is_derived_and_stable_when_not_supplied() -> None:
     assert _request(summary="a different plan").plan_hash != first.plan_hash
 
 
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"decision_id": "approval/v2"},  # `/` is not in the reply grammar
+        {"decision_id": "d 2026"},  # a space ends the id the parser reads
+        {"decision_id": "d" * 65},  # longer than the parser accepts
+        {"options": [("ship.now", "Ship now"), ("hold", "Hold")]},  # `.` is not an option char
+        {"options": [("ship now", "Ship now"), ("hold", "Hold")]},
+        {"options": [("s" * 33, "Ship"), ("hold", "Hold")]},
+    ],
+)
+def test_a_decision_its_own_parser_could_not_answer_is_refused(overrides: dict) -> None:
+    """Publishing `approval/v2` would strand the gate: `/decide approval/v2 …`
+    does not parse, and the GitHub comment is the only answer path there is."""
+    with pytest.raises(ValueError, match="not answerable"):
+        _request(**overrides)
+
+
+def test_a_secret_shaped_id_is_never_published() -> None:
+    """Ids are rendered verbatim so they round-trip through `/decide`, which
+    makes them the one field redaction cannot clean up after the fact."""
+    with pytest.raises(ValueError, match="secret-shaped"):
+        _request(decision_id=SECRET_TOKEN)
+
+
+def test_every_publishable_decision_round_trips_through_the_reply_parser() -> None:
+    req = _request(decision_id="kca:nemo:2026-09-17.1", options=[("promote-v18", "Promote"), ("hold", "Hold")])
+    before = dt.datetime(2026, 9, 15, 12, 0, tzinfo=dt.timezone.utc)
+    for opt_id, _label in req.options:
+        assert notify.parse_decision_reply(f"/decide {req.decision_id} {opt_id}") == {
+            "decision_id": req.decision_id,
+            "option_id": opt_id,
+            "note": "",
+        }
+    answered = notify.resolve_reply(req, f"/decide {req.decision_id} promote-v18", now=before)
+    assert (answered["status"], answered["option_id"]) == ("ANSWERED", "promote-v18")
+
+
 def test_decision_request_rejects_unusable_input() -> None:
     with pytest.raises(ValueError, match="at least 2 options"):
         _request(options=[("only", "one")])
@@ -191,17 +306,35 @@ def test_decision_request_rejects_unusable_input() -> None:
         _request(decision_id="d" * 60, options=[("promote", "P"), ("hold", "H")])
 
 
-def test_telegram_card_has_one_button_per_option_plus_the_record_link() -> None:
+def test_telegram_card_offers_no_button_that_nothing_would_answer() -> None:
+    """Phase 1a consumes no callbacks, so a tapped option must not exist.
+
+    A tappable button that resolves nothing is worse than no button: the human
+    taps it, believes the gate is answered, and the decision blocks until expiry.
+    """
     cfg = notify.load_config(REPO_ROOT / ".kca" / "notify.yml")
     req = _request()
     keyboard = notify.build_keyboard(req, cfg)
     rows = keyboard["inline_keyboard"]
-    assert [row[0]["callback_data"] for row in rows[:2]] == [
-        f"kca:{req.decision_id}:promote",
-        f"kca:{req.decision_id}:hold",
-    ]
-    assert rows[-1][0]["url"].endswith("/issues/197")
-    assert all(len(row[0].get("callback_data", "").encode()) <= notify.CALLBACK_DATA_MAX_BYTES for row in rows[:2])
+    assert len(rows) == 1
+    assert rows[0][0]["url"].endswith("/issues/197")
+    assert "callback_data" not in json.dumps(keyboard)
+
+    # The card carries the answer path it *does* support, one line per option.
+    text = notify.render_telegram_text(req, cfg)
+    for opt_id, _label in req.options:
+        assert f"/decide {req.decision_id} {opt_id}" in text
+
+    record = notify.render_github_comment(req)
+    assert "Tapping a button" not in record
+    assert "only way to answer" in record
+
+
+def test_callback_data_stays_within_the_phase_1b_contract() -> None:
+    """The ids must still fit a future callback button, even with none rendered."""
+    req = _request()
+    for opt_id, _label in req.options:
+        assert len(notify.callback_data(req.decision_id, opt_id).encode()) <= notify.CALLBACK_DATA_MAX_BYTES
 
 
 def test_telegram_card_escapes_html() -> None:
@@ -342,6 +475,33 @@ def test_routine_daily_cap_blocks_the_third_push(cfg: dict) -> None:
     assert gate["status"] == "sent"
 
 
+def test_an_unchanged_daily_digest_is_suppressed_the_next_day(cfg: dict, monkeypatch) -> None:
+    """#197 AC: "daily digest suppressed when nothing changed".
+
+    A rolling dedupe window cannot express that — a once-daily digest always
+    repeats outside it — so `suppress_unchanged` compares against the last
+    digest actually sent, whenever that was.
+    """
+    sent: list[str] = []
+    monkeypatch.setattr(
+        notify,
+        "send_telegram",
+        lambda cfg, **kw: sent.append(kw["text"]) or {"ok": True, "channel": "telegram", "message_id": len(sent)},
+    )
+    day1 = dt.datetime(2026, 9, 15, 9, 0, tzinfo=MELBOURNE)
+    day2 = day1 + dt.timedelta(days=1)
+    unchanged = dict(level="digest", title="daily digest", body="LB 0.951 · 2 runs · nothing changed")
+
+    assert notify.dispatch(cfg, **unchanged, now=day1)["status"] == "sent"
+    repeat = notify.dispatch(cfg, **unchanged, now=day2)
+    assert repeat["status"] == "deduped"
+    assert "unchanged" in repeat["reason"]
+    # A digest that says something new is a real update and still goes out.
+    changed = notify.dispatch(cfg, level="digest", title="daily digest", body="LB 0.962 after v18", now=day2)
+    assert changed["status"] == "sent"
+    assert len(sent) == 2
+
+
 def test_force_overrides_suppression(cfg: dict) -> None:
     night = dt.datetime(2026, 9, 15, 23, 30, tzinfo=MELBOURNE)
     out = notify.dispatch(cfg, level="digest", title="nightly", body="body", now=night, dry_run=True, force=True)
@@ -364,6 +524,135 @@ def test_gate_without_an_issue_reports_a_failed_record_leg(cfg: dict) -> None:
     github = next(c for c in out["channels"] if c["channel"] == "github")
     assert github["ok"] is False
     assert "record not written" in github["error"]
+    # …and the overall result must not claim the gate was sent.
+    assert out["status"] == "partial"
+    assert out["ok"] is False
+    assert notify.exit_code_for(out) == notify.EXIT_RUNTIME
+
+
+def test_one_failed_channel_is_partial_not_sent(cfg: dict, monkeypatch) -> None:
+    """A `sent` gate whose GitHub record failed would be a decision nobody filed."""
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    monkeypatch.setattr(
+        notify, "post_github_comment", lambda cfg, **kw: {"ok": False, "channel": "github", "error": "gh: 503"}
+    )
+    monkeypatch.setattr(notify, "send_telegram", lambda cfg, **kw: {"ok": True, "channel": "telegram", "message_id": 7})
+    out = notify.dispatch(cfg, level="gate", title="record down", body="b", issue=197, now=noon)
+    assert (out["status"], out["ok"]) == ("partial", False)
+    assert "github" in out["reason"]
+    assert notify.exit_code_for(out) == notify.EXIT_RUNTIME
+    assert [e["status"] for e in notify.read_ledger(cfg)] == ["partial"]
+
+    # The mirror image: the record is written but the primary push never lands.
+    monkeypatch.setattr(notify, "post_github_comment", lambda cfg, **kw: {"ok": True, "channel": "github"})
+    monkeypatch.setattr(
+        notify, "send_telegram", lambda cfg, **kw: {"ok": False, "channel": "telegram", "error": "timeout"}
+    )
+    out = notify.dispatch(cfg, level="gate", title="push down", body="b", issue=197, now=noon)
+    assert (out["status"], out["ok"]) == ("partial", False)
+    assert "telegram" in out["reason"]
+
+    # Both legs healthy is the only way to earn `sent`.
+    monkeypatch.setattr(notify, "send_telegram", lambda cfg, **kw: {"ok": True, "channel": "telegram"})
+    out = notify.dispatch(cfg, level="gate", title="both up", body="b", issue=197, now=noon)
+    assert (out["status"], out["ok"]) == ("sent", True)
+
+
+# ---------------------------------------------------------------------------
+# The send ledger: shared, serialised, corruption-tolerant, bounded
+# ---------------------------------------------------------------------------
+
+
+def test_every_worktree_shares_the_primary_checkout_ledger(tmp_path: Path, monkeypatch) -> None:
+    """The daily cap protects a phone, not a directory — a worktree must not
+    hand itself a fresh budget."""
+    primary = tmp_path / "primary"
+    linked_gitdir = primary / ".git" / "worktrees" / "wt"
+    linked_gitdir.mkdir(parents=True)
+    (linked_gitdir / "commondir").write_text("../..\n", encoding="utf-8")
+    worktree = tmp_path / "wt"
+    worktree.mkdir()
+    (worktree / ".git").write_text(f"gitdir: {linked_gitdir}\n", encoding="utf-8")
+
+    assert notify.primary_checkout_root(worktree) == primary.resolve()
+    assert notify.primary_checkout_root(primary) == primary
+    monkeypatch.setattr(notify, "REPO_ROOT", worktree)
+    assert notify.state_dir({"state_dir": ".agent/notify"}) == primary.resolve() / ".agent" / "notify"
+    # An absolute state_dir is still honoured verbatim.
+    assert notify.state_dir({"state_dir": str(tmp_path / "abs")}) == tmp_path / "abs"
+
+
+def test_the_ledger_lock_is_exclusive_but_never_swallows_a_gate(cfg: dict, monkeypatch) -> None:
+    """Two agents must not both spend the last of the budget — and a wedged
+    lock holder must not stop a blocking notification either."""
+    import fcntl
+
+    monkeypatch.setattr(notify, "LOCK_WAIT_S", 0.05)
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    lock_file = notify.state_dir(cfg) / "ledger.lock"
+    lock_file.parent.mkdir(parents=True, exist_ok=True)
+
+    with lock_file.open("a+", encoding="utf-8") as holder:
+        fcntl.flock(holder.fileno(), fcntl.LOCK_EX)
+        with notify.ledger_lock(cfg, timeout_s=0.05) as locked:
+            assert locked is False
+        blocked = notify.dispatch(cfg, level="gate", title="t", body="b", issue=197, now=noon, dry_run=True)
+        assert blocked["status"] == "sent"  # the gate still gets out
+        assert blocked["serialized"] is False  # …and says it was not serialised
+        fcntl.flock(holder.fileno(), fcntl.LOCK_UN)
+
+    with notify.ledger_lock(cfg) as locked:
+        assert locked is True
+    free = notify.dispatch(cfg, level="gate", title="t2", body="b", issue=197, now=noon, dry_run=True)
+    assert free["serialized"] is True
+
+
+def test_a_corrupt_ledger_line_never_blocks_a_send(cfg: dict) -> None:
+    """Valid JSON of the wrong type is as likely as invalid JSON, and either one
+    must not take down the channel — including the doctor you would diagnose with."""
+    path = notify.ledger_path(cfg)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    path.write_text(
+        "\n".join(
+            [
+                "null",
+                "[]",
+                '"a bare string"',
+                "42",
+                "{not json at all",
+                json.dumps({"ts": noon.isoformat(), "level": "info", "key": "k-ok", "status": "sent"}),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    entries = notify.read_ledger(cfg)
+    assert [e["key"] for e in entries] == ["k-ok"]
+    assert notify.routine_sends_today(cfg, entries, noon) == 1
+    assert notify.dispatch(cfg, level="info", title="t", body="b", now=noon, dry_run=True)["status"] == "sent"
+
+
+def test_a_spent_budget_does_not_add_a_ledger_line_per_event(cfg: dict) -> None:
+    """Once the cap is spent every later hook invocation hits the same branch;
+    recording each one would grow the file for as long as the agent runs."""
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    for idx in range(2):
+        notify.append_ledger(cfg, {"ts": noon.isoformat(), "level": "info", "key": f"k{idx}", "status": "sent"})
+    for _ in range(3):
+        assert notify.dispatch(cfg, level="info", title="stuck", body="same", now=noon)["status"] == "rate_limited"
+    assert [e["status"] for e in notify.read_ledger(cfg)].count("rate_limited") == 1
+
+
+def test_the_ledger_is_compacted_once_it_crosses_its_size_bound(cfg: dict, monkeypatch) -> None:
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    monkeypatch.setattr(notify, "LEDGER_MAX_BYTES", 400)
+    monkeypatch.setattr(notify, "LEDGER_KEEP_ENTRIES", 5)
+    for idx in range(40):
+        notify.append_ledger(cfg, {"ts": noon.isoformat(), "level": "info", "key": f"k{idx}", "status": "sent"})
+    entries = notify.read_ledger(cfg)
+    assert len(entries) == 5
+    assert entries[-1]["key"] == "k39"  # the newest entries are the ones kept
 
 
 # ---------------------------------------------------------------------------
@@ -427,6 +716,7 @@ def test_decision_cli_dry_run_emits_json(cfg: dict, tmp_path: Path, capsys, monk
         ("deferred", notify.EXIT_BLOCKED),
         ("rate_limited", notify.EXIT_BLOCKED),
         ("failed", notify.EXIT_RUNTIME),
+        ("partial", notify.EXIT_RUNTIME),
     ],
 )
 def test_exit_code_separates_suppression_from_failure(status: str, expected: int) -> None:

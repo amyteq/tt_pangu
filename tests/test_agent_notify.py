@@ -140,10 +140,55 @@ def test_malformed_payload_never_fails_the_turn(
     assert agent_notify.main(["--source", source, "--config", str(config_path), "--dry-run", *argv]) == 0
 
 
+@pytest.mark.parametrize("stdin_text", ["[]", "null", '"just a string"', "42", '[{"hook_event_name": "Stop"}]'])
+def test_valid_json_of_the_wrong_shape_never_fails_the_turn(
+    config_path: Path, capsys, monkeypatch, stdin_text: str
+) -> None:
+    """`[]` is a perfectly valid JSON document; a notifier that dies on one
+    takes down the turn it exists to report on."""
+    monkeypatch.setattr(sys, "stdin", __import__("io").StringIO(stdin_text))
+    assert agent_notify.main(["--source", "claude", "--config", str(config_path), "--dry-run"]) == 0
+    assert "no level for this event" in capsys.readouterr().err
+
+
 def test_secrets_in_an_event_body_are_redacted(config_path: Path, capsys, monkeypatch) -> None:
     leaky = dict(CLAUDE_NOTIFICATION, message="rerun with 8123456789:AAF_ThisLooksExactlyLikeARealBotToken12345")
     monkeypatch.setattr(sys, "stdin", __import__("io").StringIO(json.dumps(leaky)))
     result = _run(["--source", "claude", "--config", str(config_path), "--dry-run"], capsys=capsys)
     text = next(c for c in result["channels"] if c["channel"] == "telegram")["payload"]["text"]
     assert "8123456789:AAF" not in text
+    assert notify.REDACTED in text
+
+
+def test_a_codex_turn_quoting_an_api_key_does_not_forward_it(config_path: Path, capsys) -> None:
+    """The prompt and the assistant reply are forwarded verbatim, so whatever
+    the session pasted is exactly what this channel would otherwise transmit."""
+    leaky = dict(
+        CODEX_TURN_COMPLETE,
+        **{
+            "input-messages": ["use OPENAI_API_KEY=sk-proj-SENTINEL0123 for the run"],
+            "last-assistant-message": "done; CHAT_ID=123456789 was already set",
+        },
+    )
+    result = _run(
+        ["--source", "codex", "--config", str(config_path), "--dry-run", json.dumps(leaky)],
+        capsys=capsys,
+    )
+    text = next(c for c in result["channels"] if c["channel"] == "telegram")["payload"]["text"]
+    assert "sk-proj-SENTINEL0123" not in text
+    assert "123456789" not in text
+    assert notify.REDACTED in text
+
+
+def test_a_long_assistant_message_is_clipped_after_redaction(config_path: Path, capsys) -> None:
+    """Clip first and a token split in half leaks its prefix; redact first and
+    it cannot."""
+    tail = "x" * agent_notify.MAX_BODY_CHARS
+    leaky = dict(CODEX_TURN_COMPLETE, **{"last-assistant-message": f"ghp_0123456789abcdefghijABCDEFGHIJ0123 {tail}"})
+    result = _run(
+        ["--source", "codex", "--config", str(config_path), "--dry-run", json.dumps(leaky)],
+        capsys=capsys,
+    )
+    text = next(c for c in result["channels"] if c["channel"] == "telegram")["payload"]["text"]
+    assert "ghp_0123456789" not in text
     assert notify.REDACTED in text

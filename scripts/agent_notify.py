@@ -55,19 +55,28 @@ MAX_BODY_CHARS = 600
 
 
 def read_payload(source: str, argv_rest: list[str]) -> dict:
-    """Codex passes JSON as an argument; Claude Code pipes it on stdin."""
+    """Codex passes JSON as an argument; Claude Code pipes it on stdin.
+
+    Always returns a dict: `[]`, `null` and `"text"` are all valid JSON that a
+    harness could hand us, and a notifier that dies on one would take down the
+    turn it exists to report on.
+    """
+    decoded: object = {}
     if source == "codex":
         for arg in argv_rest:
             candidate = arg.strip()
             if candidate.startswith("{"):
-                return json.loads(candidate)
-        return {}
-    raw = sys.stdin.read() if not sys.stdin.isatty() else ""
-    return json.loads(raw) if raw.strip() else {}
+                decoded = json.loads(candidate)
+                break
+    else:
+        raw = sys.stdin.read() if not sys.stdin.isatty() else ""
+        decoded = json.loads(raw) if raw.strip() else {}
+    return decoded if isinstance(decoded, dict) else {}
 
 
 def _clip(text: str, limit: int = MAX_BODY_CHARS) -> str:
-    text = " ".join(str(text or "").split())
+    """Redact first, then bound: clipping a token in half would leak its prefix."""
+    text = " ".join(str(notify.redact(text or "")).split())
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
@@ -113,7 +122,12 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[agent_notify] unreadable {args.source} payload: {exc}", file=sys.stderr)
         return 0
 
-    title, body, event_level = build_message(args.source, payload, args.label)
+    try:
+        title, body, event_level = build_message(args.source, payload, args.label)
+    except Exception as exc:  # a shape we have never seen is still not fatal
+        print(f"[agent_notify] unusable {args.source} payload: {notify.redact(exc)}", file=sys.stderr)
+        return 0
+
     level = args.level or event_level
     if level is None:
         # An event we do not have a rule for is not worth waking a phone over.
