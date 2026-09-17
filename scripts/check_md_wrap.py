@@ -159,6 +159,66 @@ def html_block_terminator(content: str) -> str | None:
     return None
 
 
+# GFM makes the leading and trailing pipe of a table row optional, so a table
+# can be a run of ordinary-looking text lines. What marks one is the delimiter
+# row under its header — and the two must agree on cell count, or GFM renders a
+# paragraph instead.
+DELIM_CELL_RE = re.compile(r"^:?-+:?$")
+
+
+def split_table_cells(content: str) -> list[str]:
+    """Split a table row on unescaped `|`, dropping the optional outer pipes."""
+    s = content.strip()
+    cells: list[str] = []
+    buf: list[str] = []
+    escaped = False
+    ended_on_pipe = False
+    for ch in s:
+        if escaped:
+            buf.append(ch)
+            escaped = ended_on_pipe = False
+        elif ch == "\\":
+            buf.append(ch)
+            escaped = True
+            ended_on_pipe = False
+        elif ch == "|":
+            cells.append("".join(buf))
+            buf = []
+            ended_on_pipe = True
+        else:
+            buf.append(ch)
+            ended_on_pipe = False
+    cells.append("".join(buf))
+    if ended_on_pipe and len(cells) > 1 and not cells[-1].strip():
+        cells.pop()
+    if s.startswith("|") and len(cells) > 1 and not cells[0].strip():
+        cells.pop(0)
+    return cells
+
+
+def is_delimiter_row(content: str) -> bool:
+    """True for a GFM delimiter row such as `--- | ---` or `|:--|--:|`.
+
+    A pipe is required, so a bare `---` stays a thematic break / setext rule.
+    """
+    if "|" not in content:
+        return False
+    cells = split_table_cells(content)
+    return bool(cells) and all(DELIM_CELL_RE.match(c.strip()) for c in cells)
+
+
+def table_opens_here(header: str, delimiter: str) -> int | None:
+    """Column count if `header` + `delimiter` open a GFM table, else None."""
+    if not is_delimiter_row(delimiter):
+        return None
+    if ATX_RE.match(header) or FENCE_RE.match(header) or HR_DASH_RE.match(header) or HR_OTHER_RE.match(header):
+        return None
+    cols = len(split_table_cells(header))
+    if cols != len(split_table_cells(delimiter)):
+        return None
+    return cols
+
+
 def split_quote(line: str) -> tuple[int, str]:
     """Strip blockquote markers, returning (depth, remaining content)."""
     depth, rest = 0, line
@@ -185,6 +245,17 @@ def is_block_start(content: str) -> bool:
         or TABLE_RE.match(content)
         or HTML_RE.match(content)
         or LINKDEF_RE.match(content)
+    )
+
+
+def ends_table(content: str) -> bool:
+    """True if this line interrupts an open table rather than being another row."""
+    return bool(
+        ATX_RE.match(content)
+        or HR_DASH_RE.match(content)
+        or HR_OTHER_RE.match(content)
+        or LIST_RE.match(content)
+        or HTML_RE.match(content)
     )
 
 
@@ -231,6 +302,10 @@ def analyse(text: str) -> tuple[list[Violation], str]:
     in_frontmatter = False
     prev_open = False
     prev_depth = 0
+    # Open GFM table, if any: its column count, and whether its rows carry a
+    # leading pipe. Without one, every line until the table ends is a row.
+    table_cols: int | None = None
+    bare_table = False
 
     i = 0
     while i < len(lines):
@@ -267,6 +342,7 @@ def analyse(text: str) -> tuple[list[Violation], str]:
             i += 1
             prev_open = False
             prev_depth = depth
+            table_cols, bare_table = None, False
             continue
 
         if not content.strip():
@@ -274,7 +350,21 @@ def analyse(text: str) -> tuple[list[Violation], str]:
             i += 1
             prev_open = False
             prev_depth = depth
+            table_cols, bare_table = None, False
             continue
+
+        # Inside a table whose rows have no leading pipe, an ordinary text line
+        # is a row, not a continuation of the row above — joining the two would
+        # merge two rendered rows into one. Copy rows out untouched until some
+        # other block interrupts the table.
+        if bare_table:
+            if depth == prev_depth and not ends_table(content):
+                out.append(raw)
+                i += 1
+                prev_open = False
+                prev_depth = depth
+                continue
+            table_cols, bare_table = None, False
 
         # An indented code block cannot interrupt a paragraph, so it only starts
         # where nothing is open. Copy it out until a blank line.
@@ -301,6 +391,21 @@ def analyse(text: str) -> tuple[list[Violation], str]:
             prev_depth = depth
             continue
 
+        # A table opens where a delimiter row follows a header of equal width.
+        # Tables may interrupt a paragraph, so this is checked before the join.
+        if i + 1 < len(lines):
+            next_depth, next_content = split_quote(lines[i + 1])
+            if next_depth == depth:
+                cols = table_opens_here(content, next_content)
+                if cols is not None:
+                    table_cols = cols
+                    bare_table = not TABLE_RE.match(content)
+                    out.append(raw)
+                    i += 1
+                    prev_open = not bare_table
+                    prev_depth = depth
+                    continue
+
         # Class B — a thematic break that CommonMark will read as a setext H2.
         if HR_DASH_RE.match(content) and prev_open:
             violations.append(Violation(i + 1, "setext-rule", SETEXT_MSG))
@@ -313,6 +418,14 @@ def analyse(text: str) -> tuple[list[Violation], str]:
 
         # Class A — a block continued on the next physical line.
         if prev_open and depth == prev_depth and not is_block_start(content):
+            if table_cols is not None and len(split_table_cells(split_quote(out[-1])[1])) >= table_cols:
+                # Inside a table whose previous row is already complete, a line
+                # without a leading pipe is the next row — GFM makes that pipe
+                # optional — and not the tail of the row above.
+                out.append(raw)
+                i += 1
+                prev_open = True
+                continue
             if HARD_BREAK_RE.search(out[-1]):
                 # An explicit hard break is authored intent; joining would change
                 # rendering. Leave it, and leave the line it introduces.
@@ -329,6 +442,8 @@ def analyse(text: str) -> tuple[list[Violation], str]:
         out.append(raw)
         prev_open = leaves_block_open(content)
         prev_depth = depth
+        if not TABLE_RE.match(content):
+            table_cols, bare_table = None, False
         i += 1
 
     fixed = "\n".join(out)
