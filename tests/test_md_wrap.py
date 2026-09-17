@@ -530,6 +530,122 @@ def test_trailing_newline_state_is_preserved():
     assert fixed("a\nb\n") == "a b\n"
 
 
+def test_repair_selects_which_classes_are_written_out():
+    """Both classes are always reported; `repair` only picks what is rewritten."""
+    src = "A paragraph hard\nwrapped.\n\nClosing prose.\n---\n\nEnd.\n"
+    assert kinds(src) == ["split-block", "setext-rule"]
+    joined = mdwrap.analyse(src, repair=(mdwrap.SPLIT_BLOCK,))[1]
+    assert joined == "A paragraph hard wrapped.\n\nClosing prose.\n---\n\nEnd.\n"
+    ruled = mdwrap.analyse(src, repair=(mdwrap.SETEXT_RULE,))[1]
+    assert ruled == "A paragraph hard\nwrapped.\n\nClosing prose.\n\n---\n\nEnd.\n"
+
+
+# --------------------------------------------------------------------------
+# The --fix safety net
+#
+# `--check` must keep working with no third-party package installed; `--fix`
+# must never write a rewrite that changes what the file renders to.
+# --------------------------------------------------------------------------
+
+
+def test_the_checker_imports_only_the_standard_library():
+    """CI runs `--check` on a bare setup-python that installs nothing.
+
+    markdown-it-py is imported inside `load_renderer()`, on the `--fix` path
+    only, and this pins that: a new module-level import of a third-party package
+    would turn every CI run red instead of failing here.
+    """
+    import ast
+
+    source = (REPO_ROOT / "scripts" / "check_md_wrap.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    imported: set[str] = set()
+    for node in tree.body:  # module level only — nested imports are the escape hatch
+        if isinstance(node, ast.Import):
+            imported.update(alias.name.split(".")[0] for alias in node.names)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            imported.add(node.module.split(".")[0])
+    assert imported <= set(sys.stdlib_module_names), sorted(imported - set(sys.stdlib_module_names))
+
+
+def test_canonical_html_collapses_whitespace_only_outside_verbatim_elements():
+    assert mdwrap.canonical_html("<p>a\nb</p>") == mdwrap.canonical_html("<p>a b</p>")
+    assert mdwrap.canonical_html("<pre>a\nb</pre>") != mdwrap.canonical_html("<pre>a b</pre>")
+
+
+def _renderer():
+    pytest.importorskip("markdown_it", reason="--fix's safety net needs markdown-it-py")
+    return mdwrap.load_renderer()
+
+
+def test_an_ordinary_reflow_passes_the_safety_net():
+    renderer = _renderer()
+    src = "A paragraph hard\nwrapped.\n\n- item that\n  wrapped\n"
+    assert mdwrap.unsafe_fix_reason(src, fixed(src), renderer) is None
+
+
+def test_the_class_b_repair_passes_the_safety_net():
+    """It changes the rendering on purpose, so it is checked structurally instead."""
+    renderer = _renderer()
+    src = "Some closing prose.\n---\n\nNext section.\n"
+    assert mdwrap.unsafe_fix_reason(src, fixed(src), renderer) is None
+
+
+def test_a_rewrite_that_would_change_rendering_is_refused():
+    """Indented backticks under a paragraph are one code span; joining rewrites it.
+
+    The engine reports these lines — correctly, they are a hard-wrapped
+    paragraph — but the whitespace-only rejoin does not survive rendering, so
+    the file must not be written.
+    """
+    renderer = _renderer()
+    src = "para\n    ```\n    code\n    ```\nafter\n"
+    assert kinds(src)
+    assert mdwrap.unsafe_fix_reason(src, fixed(src), renderer) == (
+        "rejoining its split blocks would change the rendered output"
+    )
+
+
+def test_fix_writes_a_safe_rewrite_and_refuses_an_unsafe_one(tmp_path, monkeypatch, capsys):
+    _renderer()
+    safe = tmp_path / "safe.md"
+    safe.write_text("A paragraph hard\nwrapped.\n", encoding="utf-8")
+    unsafe = tmp_path / "unsafe.md"
+    unsafe.write_text("para\n    ```\n    code\n    ```\nafter\n", encoding="utf-8")
+    monkeypatch.setattr(mdwrap, "repo_root", lambda: tmp_path)
+
+    code = mdwrap.main(["--fix", "--files", "safe.md", "unsafe.md"])
+
+    assert code == 1, "a refusal is a failure, not a silent skip"
+    assert safe.read_text(encoding="utf-8") == "A paragraph hard wrapped.\n"
+    assert unsafe.read_text(encoding="utf-8") == "para\n    ```\n    code\n    ```\nafter\n"
+    out = capsys.readouterr()
+    assert "unsafe.md: REFUSED" in out.out
+    assert "1 file(s) refused" in out.err
+
+
+def test_fix_refuses_to_run_at_all_without_the_renderer(tmp_path, monkeypatch, capsys):
+    """Fail closed: no verifier, no rewrite. A warning in a log is not a safety net."""
+    target = tmp_path / "a.md"
+    target.write_text("A paragraph hard\nwrapped.\n", encoding="utf-8")
+    monkeypatch.setattr(mdwrap, "repo_root", lambda: tmp_path)
+    monkeypatch.setattr(mdwrap, "load_renderer", lambda: None)
+
+    assert mdwrap.main(["--fix", "--files", "a.md"]) == 2
+    assert target.read_text(encoding="utf-8") == "A paragraph hard\nwrapped.\n"
+    assert "markdown-it-py" in capsys.readouterr().err
+
+
+def test_check_still_runs_without_the_renderer(tmp_path, monkeypatch, capsys):
+    target = tmp_path / "a.md"
+    target.write_text("A paragraph hard\nwrapped.\n", encoding="utf-8")
+    monkeypatch.setattr(mdwrap, "repo_root", lambda: tmp_path)
+    monkeypatch.setattr(mdwrap, "load_renderer", lambda: None)
+
+    assert mdwrap.main(["--files", "a.md"]) == 1
+    assert "split-block" in capsys.readouterr().out
+
+
 # --------------------------------------------------------------------------
 # Path scoping
 # --------------------------------------------------------------------------
