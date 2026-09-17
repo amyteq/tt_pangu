@@ -2,8 +2,9 @@
 
 - Status: Accepted
 - Date: 2026-09-16
+- Amended: 2026-09-17 — Enforcement, which now names the mechanism and declines the repo-wide backfill ([issue #210](https://github.com/amyteq/tt_pangu/issues/210))
 - Deciders: @harrysun2006 (repo owner)
-- Related: [PR #208 review](https://github.com/amyteq/tt_pangu/pull/208#issuecomment-5696699389), [issue #207](https://github.com/amyteq/tt_pangu/issues/207)
+- Related: [PR #208 review](https://github.com/amyteq/tt_pangu/pull/208#issuecomment-5696699389), [issue #207](https://github.com/amyteq/tt_pangu/issues/207), [issue #210](https://github.com/amyteq/tt_pangu/issues/210)
 
 ## Context
 
@@ -35,10 +36,20 @@ Exempt, because line breaks are semantic there: fenced code blocks and their con
 
 Enforcement is asymmetric, and honest about it:
 
-- **Repository `.md` files** can be checked mechanically. A check can detect a paragraph containing an internal newline, and a `---` without a preceding blank line, and is the natural place to add a gate later.
+- **Repository `.md` files** are checked mechanically by `scripts/check_md_wrap.py`, which detects exactly the two violation classes above — a paragraph, list item or table row split across physical lines, and a `---` without a preceding blank line — and nothing else. `--fix` rejoins them; it is whitespace only, and on a compliant file its output is byte-identical to its input.
 - **GitHub comment bodies cannot be linted** — nothing runs between an agent and the GitHub API. There the rule holds because it is written down here, in `CLAUDE.md`, and in the report templates that agents load before publishing.
 
-This ADR deliberately ships the rule and its application to the files it touches, not a repo-wide reflow. Converting the existing hard-wrapped Markdown is mechanical but large, would swamp any PR it lands in, and belongs in its own change.
+**The gate is scoped, not repo-wide.** The `markdown soft wrap (ADR-0024)` job in `.github/workflows/test.yml` checks two sets: every `.md` file a pull request changes, and an always-checked allowlist of the ~80 instruction files agents load into context — `CLAUDE.md`, `CLAUDE_zh.md`, `AGENTS.md`, `README.md`, `PROJECT_STATE.md`, `.claude/skills/**`, `.claude/agents/`, `.kca/skills/**`, `.agents/**`, the root of `docs/`, `docs/adr/` and `docs/instructions/`. A wrap defect in that set costs every agent session, which is why it is checked whether or not a change touches it. Run the same check locally with `python scripts/check_md_wrap.py --changed origin/main`.
+
+**The historical backfill is declined.** Converting the rest of the repository's hard-wrapped Markdown — roughly 405 tracked files outside the allowlist — was considered in [#210](https://github.com/amyteq/tt_pangu/issues/210) and rejected by the owner: "do not explode the radius due to back fill on existing md files". Those files are valid history, they are not loaded into agent context, and reflowing them would produce a very large diff for no reading benefit. They become compliant if and when a change touches them, through the changed-files half of the gate. The allowlist reflow itself landed in #210 — 51 files, 2,380 rejoined blocks, proven whitespace-only by `check_md_wrap.py --equivalence`.
+
+Three paths are exempt from the gate in every mode, declared once in `scripts/check_md_wrap.py` and repeated here:
+
+- `worklogs/**` — machine-generated session dumps (`scripts/worklogs_dump.sh` under a systemd user timer). A gate here would fail on commits no human wrote.
+- `logs/**` — the same dump pipeline; append-only run archives, not authored prose.
+- `**/external/**` — verbatim third-party text, where reflowing would edit a quotation.
+
+**"Required check" is not available on this repository.** Branch protection and rulesets both return HTTP 403 — "Upgrade to GitHub Pro or make this repository public" — and the owner confirmed on 2026-09-17 that this repository will do neither. The job therefore surfaces as an ordinary check-run, and blocking rests on the existing merge convention: merge only when the head commit's check-runs are completed and none failed.
 
 ## Consequences
 
