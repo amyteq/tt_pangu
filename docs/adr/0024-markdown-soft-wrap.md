@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-16
-- Amended: 2026-09-17 — Enforcement, which now names the mechanism and declines the repo-wide backfill ([issue #210](https://github.com/amyteq/tt_pangu/issues/210))
+- Amended: 2026-09-17 — Enforcement, which now names the mechanism and declines the repo-wide backfill ([issue #210](https://github.com/amyteq/tt_pangu/issues/210)); and Decision's exemption list, which now states what is machine-recognisable and matches the checker ([PR #226](https://github.com/amyteq/tt_pangu/pull/226) review, finding F008)
 - Deciders: @harrysun2006 (repo owner)
 - Related: [PR #208 review](https://github.com/amyteq/tt_pangu/pull/208#issuecomment-5696699389), [issue #207](https://github.com/amyteq/tt_pangu/issues/207), [issue #210](https://github.com/amyteq/tt_pangu/issues/210)
 
@@ -30,7 +30,9 @@ Two consequential rules follow:
 - **Leave a blank line before every `---`.** Without it the preceding paragraph becomes a setext H2. This matters most for the signature separators in [`at-review-pr` report templates](../../.claude/skills/at-review-pr/references/reports.md), where the line above the rule is prose.
 - **Never hard-wrap inside a table row, a list item, or a link.** A wrapped table row stops being a table.
 
-Exempt, because line breaks are semantic there: fenced code blocks and their contents, YAML frontmatter, and any block where a diff, log excerpt or file listing is reproduced verbatim.
+Exempt, because line breaks are semantic there: fenced code blocks and their contents, YAML frontmatter, indented code blocks, and HTML blocks. A diff, log excerpt or file listing reproduced verbatim is exempt too — but it has to be fenced or indented four spaces to qualify. That is what makes it a block at all, to a reader and to `scripts/check_md_wrap.py` alike; verbatim text pasted as bare paragraph lines is indistinguishable from hard-wrapped prose, and gets reflowed like it.
+
+One line break inside a paragraph is authored rather than incidental: a line ending in two or more spaces, or in a backslash, is an explicit CommonMark hard break. That is honoured, and the line it introduces is left alone.
 
 ## Enforcement
 
