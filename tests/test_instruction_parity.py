@@ -974,7 +974,9 @@ def _container_indent(line: str, current: int) -> int:
     right and under-tags — the direction this whole module errs in.
     """
     item = LIST_ITEM_START.match(line)
-    if item:
+    if item and not THEMATIC_BREAK.match(line):
+        # `- - -` matches a bullet and its content, and CommonMark resolves it the other
+        # way: a thematic break wins over a list item, and opens no container at all.
         return len(item["indent"]) + len(item["marker"]) + len(item["space"])
     if not line.strip():
         return current
