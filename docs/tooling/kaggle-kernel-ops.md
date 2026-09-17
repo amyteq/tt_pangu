@@ -73,3 +73,24 @@ Refs: [concurrent GPU session limits](https://www.kaggle.com/general/105509),
   in minutes, not hours.
 - **Isolate non-essential steps** (e.g. held-out eval) in their own `try/except` so a
   failure there can't mislabel a successful train or waste the saved adapter.
+
+The `kg-submit` skill runs this section as its pre-push checklist — it is the home of the `kernel-prepush-validate` candidate registered in `competitions/_shared/skill-candidates.md`, whose evidence is that each of three nemotron run-time errors (F821, a `.shape` on the wrong object, a ptxas path) cost about two hours of GPU before it surfaced.
+
+## 6. In-kernel data mount paths — resolve, never hardcode
+
+Moved here from the retired `kaggle-tooling-integration` skill (issue #192). Since roughly February 2026 Kaggle adds a slug chunk to the input path, so the same competition data appears under either form depending on which sources the kernel has attached:
+
+- Competition data: `/kaggle/input/competitions/<competition-slug>/` (newer) or `/kaggle/input/<competition-slug>/` (older).
+- Datasets and models: `/kaggle/input/<owner>/<dataset-slug>/`. Utility-script and model mounts land under `/kaggle/usr/lib/...` with the slug **slugified to underscores** — `nvidia-utility-script` becomes `nvidia_utility_script`.
+
+A literal path is therefore a run-time failure waiting for the next mount change. Glob instead, and print the candidates so a miss shows the real layout rather than an opaque "not found":
+
+```python
+import glob
+cands = (glob.glob("/kaggle/input/competitions/*/train.csv")
+         + glob.glob("/kaggle/input/*/train.csv")
+         + glob.glob("/kaggle/input/**/train.csv", recursive=True))
+train_csv = cands[0]  # raise if empty; print cands for diagnostics
+```
+
+A battle-tested resolver lives in `experiments/tpu-getting-started/baseline-tl/baseline.py` (`_resolve_kaggle_input_path`): try `/kaggle/input/<slug>`, then `/kaggle/input/competitions/<slug>`, and on a miss list `/kaggle/input` so the failure names what is actually mounted.
