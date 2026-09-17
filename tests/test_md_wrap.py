@@ -878,9 +878,9 @@ def test_writing_about_white_space_pre_does_not_make_a_file_unfixable():
 
 
 def test_an_unbalanced_verbatim_element_refuses_the_rewrite():
-    """An unclosed `<pre>` preformats everything below it, and the regex cannot see it.
+    """An unclosed `<pre>` preformats everything below it, and a text scan cannot see it.
 
-    `VERBATIM_HTML_RE` needs a closing tag to find the region, so whitespace a
+    A verbatim region needs a closing tag to be found at all, so whitespace a
     browser preserves would be collapsed and compared equal. Part of round-3
     finding F007 on PR #226.
     """
@@ -889,6 +889,77 @@ def test_an_unbalanced_verbatim_element_refuses_the_rewrite():
     assert kinds(src) == ["split-block"]
     reason = mdwrap.unsafe_fix_reason(src, fixed(src), renderer)
     assert reason is not None and "unbalanced <pre>" in reason
+
+
+def test_a_self_closing_pre_is_still_unbalanced():
+    """A browser ignores the `/` on a non-void element, so `<pre/>` opens a `<pre>`.
+
+    Reading it as a complete empty element balances it and hides the hazard.
+    """
+    assert mdwrap.unverifiable_reason("<pre/>\n<p>a b</p>\n") is not None
+
+
+@pytest.mark.parametrize(
+    "tag",
+    [
+        "<span style=white-space:pre>",  # unquoted, the reopened F007 reproduction
+        "<span style='white-space: pre'>",
+        '<span style = "white-space: pre" >',
+        "<span class=x style=white-space:pre-wrap data-y=1>",
+    ],
+)
+def test_a_style_attribute_refuses_the_rewrite_however_it_is_quoted(tag):
+    """A valid unquoted attribute value reached the same browser-visible corruption.
+
+    The guard read quoted values only, so `style=white-space:pre` bypassed it and
+    `--fix` joined across a newline the reader can see. Widening the pattern is
+    not the fix — parsing HTML with a regular expression is why it was wrong —
+    so the attribute now comes from `HtmlScan`. Regression for round-4 finding
+    F007 on PR #226.
+    """
+    renderer = _renderer()
+    src = f"before {tag}a\nb</span> after\n"
+    assert kinds(src) == ["split-block"]
+    reason = mdwrap.unsafe_fix_reason(src, fixed(src), renderer)
+    assert reason is not None and "white-space" in reason
+
+
+@pytest.mark.parametrize(
+    "html",
+    [
+        "<!-- mention <pre> -->\n<p>a b</p>\n",  # a comment is not markup
+        "<!-- <span style='white-space: pre'> -->\n<p>a b</p>\n",
+        '<script>var x = "<pre>";</script>\n<p>a b</p>\n',  # raw-text content is text
+        "<textarea><pre></textarea>\n<p>a b</p>\n",
+    ],
+)
+def test_a_verbatim_tag_that_is_not_a_tag_leaves_the_document_verifiable(html):
+    """Tag-looking text in a comment or a raw-text element creates no element.
+
+    Counting pattern matches across serialized HTML called these unbalanced and
+    refused a repair that both renderers agree is safe — the unfixable-red-build
+    failure mode again. Regression for round-4 finding F018 on PR #226.
+    """
+    assert mdwrap.unverifiable_reason(html) is None
+
+
+def test_a_comment_mentioning_pre_still_allows_the_repair():
+    """The end-to-end shape behind F018: one real finding, and it is repairable."""
+    renderer = _renderer()
+    src = "<!-- mention <pre> -->\n\nafter one\nafter two\n"
+    assert kinds(src) == ["split-block"]
+    assert mdwrap.unsafe_fix_reason(src, fixed(src), renderer) is None
+
+
+def test_a_commented_pre_opens_no_verbatim_region():
+    """`canonical_html` had the same flaw: its region pattern matched into a comment.
+
+    A `<pre>` named in a comment and a real `</pre>` later would bracket the
+    prose between them, freezing its whitespace and refusing any repair there.
+    """
+    html = "<!-- <pre> -->\n<p>a\nb</p>\n<pre>x\ny</pre>\n"
+    assert mdwrap.canonical_html(html) == mdwrap.canonical_html(html.replace("<p>a\nb</p>", "<p>a b</p>"))
+    assert mdwrap.canonical_html(html) != mdwrap.canonical_html(html.replace("<pre>x\ny</pre>", "<pre>x y</pre>"))
 
 
 def test_fix_writes_a_safe_rewrite_and_refuses_an_unsafe_one(tmp_path, monkeypatch, capsys):

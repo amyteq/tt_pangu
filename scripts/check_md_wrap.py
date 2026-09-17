@@ -62,6 +62,7 @@ import os
 import re
 import subprocess
 import sys
+from html.parser import HTMLParser
 from pathlib import Path
 
 # --------------------------------------------------------------------------
@@ -1104,8 +1105,10 @@ def compare_structure(before: str, after: str) -> list[str]:
 
 # Elements whose whitespace a browser preserves. Everywhere else a newline and a
 # space render the same, which is the whole premise of soft wrapping.
-VERBATIM_HTML_RE = re.compile(r"<(pre|textarea|script|style)\b.*?</\1>", re.DOTALL | re.IGNORECASE)
-VERBATIM_TAG_RE = re.compile(r"<(/?)(pre|textarea|script|style)\b", re.IGNORECASE)
+VERBATIM_TAGS = ("pre", "textarea", "script", "style")
+# Elements whose content is text, not markup: a `<pre>` written inside one of
+# them opens nothing.
+RAW_TEXT_TAGS = ("script", "style", "textarea")
 
 # Two things in the rendered HTML break `canonical_html`'s premise, and a text
 # comparison of the two renderings cannot see either:
@@ -1114,19 +1117,84 @@ VERBATIM_TAG_RE = re.compile(r"<(/?)(pre|textarea|script|style)\b", re.IGNORECAS
 #     span makes a source newline visible, so joining across it changes what the
 #     reader sees while the canonicalised HTML compares equal.
 #   - an unbalanced verbatim element. An unclosed `<pre>` makes everything after
-#     it preformatted in a browser, but `VERBATIM_HTML_RE` needs a closing tag to
-#     find the region, so the canonicaliser collapses it.
+#     it preformatted in a browser, but a verbatim region needs a closing tag to
+#     be found at all, so the canonicaliser collapses it.
 #
 # Neither can be judged, so such a file is refused rather than verified. No
 # tracked file hits either today.
-#
-# The declaration is looked for only where CSS actually lives — a `style`
-# attribute or a `<style>` element. A document that merely writes about
-# `white-space: pre`, as ADR-0024 does, renders it inside a `<code>` span with
-# the quotes escaped, and must stay fixable.
-STYLE_ATTR_RE = re.compile(r"""\sstyle\s*=\s*("[^"]*"|'[^']*')""", re.IGNORECASE)
-STYLE_ELEMENT_RE = re.compile(r"<style\b[^>]*>(.*?)</style>", re.DOTALL | re.IGNORECASE)
 WHITESPACE_CSS_RE = re.compile(r"white-space\s*:\s*(?:pre|break-spaces)", re.IGNORECASE)
+
+
+class HtmlScan(HTMLParser):
+    """The real tags, CSS and verbatim regions of a rendered document.
+
+    A regular expression is the wrong tool for every question this answers, and
+    each wrong answer was a defect: `<!-- mention <pre> -->` contains no `<pre>`
+    element but matches a tag pattern, `<span style=white-space:pre>` is a valid
+    unquoted attribute that a quoted-value pattern misses, and a `<pre>` written
+    inside `<script>` is text. So this asks a parser instead — `html.parser` is
+    standard library, which the whole module has to stay inside.
+
+    Three products, all from one pass:
+
+      `css`        every declaration block a browser would apply — the `style`
+                   attribute of each real tag, and the text of each `<style>`
+      `spans`      the offsets of each balanced verbatim region, outermost only
+      `unbalanced` verbatim tags that are opened and never closed
+    """
+
+    def __init__(self, html: str) -> None:
+        super().__init__(convert_charrefs=True)
+        self._html = html
+        self._line_start = [0]
+        for line in html.split("\n"):
+            self._line_start.append(self._line_start[-1] + len(line) + 1)
+        self.css: list[str] = []
+        self.spans: list[tuple[int, int]] = []
+        self._open: list[tuple[str, int]] = []
+        self._raw_text: str | None = None
+        self.feed(html)
+        self.close()
+        self.unbalanced = sorted({tag for tag, _ in self._open})
+
+    def _offset(self) -> int:
+        line, column = self.getpos()
+        return self._line_start[line - 1] + column
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if self._raw_text is not None:
+            return  # markup inside a raw-text element is that element's text
+        self.css.extend(value for name, value in attrs if name.lower() == "style" and value)
+        if tag in RAW_TEXT_TAGS:
+            self._raw_text = tag
+        if tag in VERBATIM_TAGS:
+            self._open.append((tag, self._offset()))
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        # A browser ignores the `/` on a non-void element, so `<pre/>` opens a
+        # `<pre>` that nothing closes. Reading it as a complete empty element
+        # would balance it and hide the very hazard this looks for.
+        self.handle_starttag(tag, attrs)
+
+    def handle_endtag(self, tag: str) -> None:
+        if self._raw_text is not None:
+            if tag != self._raw_text:
+                return
+            self._raw_text = None
+        for k in range(len(self._open) - 1, -1, -1):
+            if self._open[k][0] != tag:
+                continue
+            start = self._open[k][1]
+            del self._open[k:]
+            if not self._open:
+                close = self._html.find(">", self._offset())
+                self.spans.append((start, len(self._html) if close < 0 else close + 1))
+            return
+
+    def handle_data(self, data: str) -> None:
+        if self._raw_text == "style":
+            self.css.append(data)
+
 
 RENDERER_MISSING = (
     "--fix needs markdown-it-py to verify its own rewrite before writing it: "
@@ -1155,40 +1223,35 @@ def load_renderer():
     return MarkdownIt("gfm-like").disable("linkify")
 
 
-def canonical_html(html: str) -> str:
+def canonical_html(html: str, scan: HtmlScan | None = None) -> str:
     """Rendered HTML reduced to what a browser actually shows.
 
     Outside `<pre>` and friends every run of whitespace is one space, so a source
     newline and a source space are indistinguishable; inside them whitespace is
     significant and is kept exactly.
     """
+    scan = scan if scan is not None else HtmlScan(html)
     parts: list[str] = []
     pos = 0
-    for m in VERBATIM_HTML_RE.finditer(html):
-        parts.append(" ".join(html[pos : m.start()].split()))
-        parts.append(m.group(0))
-        pos = m.end()
+    for start, end in scan.spans:
+        parts.append(" ".join(html[pos:start].split()))
+        parts.append(html[start:end])
+        pos = end
     parts.append(" ".join(html[pos:].split()))
     return " ".join(p for p in parts if p)
 
 
-def unverifiable_reason(html: str) -> str | None:
+def unverifiable_reason(html: str, scan: HtmlScan | None = None) -> str | None:
     """Why this rendered HTML is outside what `canonical_html` can judge, or None."""
-    css = [m.group(1) for m in STYLE_ATTR_RE.finditer(html)]
-    css += [m.group(1) for m in STYLE_ELEMENT_RE.finditer(html)]
-    if any(WHITESPACE_CSS_RE.search(rule) for rule in css):
+    scan = scan if scan is not None else HtmlScan(html)
+    if any(WHITESPACE_CSS_RE.search(rule) for rule in scan.css):
         return (
             "a `white-space` CSS declaration can make a source line break visible here, "
             "and comparing rendered HTML cannot see that"
         )
-    open_tags: dict[str, int] = {}
-    for closing, tag in VERBATIM_TAG_RE.findall(html):
-        tag = tag.lower()
-        open_tags[tag] = open_tags.get(tag, 0) + (-1 if closing else 1)
-    unbalanced = sorted(tag for tag, n in open_tags.items() if n)
-    if unbalanced:
+    if scan.unbalanced:
         return (
-            f"an unbalanced <{unbalanced[0]}> in the rendered output — a browser preserves the "
+            f"an unbalanced <{scan.unbalanced[0]}> in the rendered output — a browser preserves the "
             "whitespace after it, so this comparison would collapse a break the reader can see"
         )
     return None
@@ -1214,10 +1277,12 @@ def unsafe_fix_reason(before: str, after: str, renderer) -> str | None:
     — is refused before either check runs.
     """
     joined = analyse(before, repair=(SPLIT_BLOCK,))[1]
-    unverifiable = unverifiable_reason(renderer.render(before)) or unverifiable_reason(renderer.render(joined))
+    before_html, joined_html = renderer.render(before), renderer.render(joined)
+    before_scan, joined_scan = HtmlScan(before_html), HtmlScan(joined_html)
+    unverifiable = unverifiable_reason(before_html, before_scan) or unverifiable_reason(joined_html, joined_scan)
     if unverifiable is not None:
         return unverifiable
-    if not renders_the_same(before, joined, renderer):
+    if canonical_html(before_html, before_scan) != canonical_html(joined_html, joined_scan):
         return "rejoining its split blocks would change the rendered output"
     diffs = compare_structure(before, after)
     if diffs:
