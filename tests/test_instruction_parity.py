@@ -2051,6 +2051,76 @@ def test_both_writers_use_the_shared_provenance_check():
         assert "verify_tree_matches_commit" in source, f"{script} does not verify the tree"
 
 
+# --- an input the header names has to be there (#218) -------------------------
+# `verify_tree_matches_commit` closes on "nothing differs", which a commit that
+# never contained the prompt satisfies. These four pin the third guarantee.
+
+SMOKE_PROMPT = "docs/evidence/issue-189-codex-parity/smoke-prompt.txt"
+
+
+def _drop_the_prompt(repo):
+    """Commit away `smoke-prompt.txt`, leaving a clean tree that never held it."""
+    subprocess.run(["git", "rm", "-q", SMOKE_PROMPT], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-qm", "drop the prompt"], cwd=repo, check=True, capture_output=True)
+
+
+def test_provenance_refuses_a_prompt_absent_from_the_commit(provenance, scratch_repo):
+    """The gap F019 found: the tree check passes, so only this one can refuse.
+
+    The first assertion is the defect itself, kept here so the reason this
+    function exists cannot be deleted without the test saying so.
+    """
+    _drop_the_prompt(scratch_repo)
+    provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
+    with pytest.raises(SystemExit):
+        provenance.verify_paths_exist("test", "HEAD", [SMOKE_PROMPT], root=scratch_repo)
+
+
+def test_provenance_resolves_the_path_at_the_commit_not_on_disk(provenance, scratch_repo):
+    """An untracked prompt in the worktree must not satisfy a claim about the commit."""
+    _drop_the_prompt(scratch_repo)
+    (scratch_repo / SMOKE_PROMPT).write_text("the prompt\n", encoding="utf-8")
+    assert (scratch_repo / SMOKE_PROMPT).is_file(), "fixture is wrong: the file should be on disk"
+    with pytest.raises(SystemExit):
+        provenance.verify_paths_exist("test", "HEAD", [SMOKE_PROMPT], root=scratch_repo)
+
+
+def test_provenance_accepts_a_prompt_committed_at_the_commit(provenance, scratch_repo):
+    """The fixture commits the prompt, which is the ordinary case — no refusal."""
+    provenance.verify_paths_exist("test", "HEAD", [SMOKE_PROMPT], root=scratch_repo)
+
+
+def test_provenance_refuses_a_directory_as_a_present_input(provenance, scratch_repo):
+    """`git cat-file -e <commit>:docs` succeeds — a tree satisfies mere existence.
+
+    Checking the object type is what keeps "this input is a file at the commit"
+    from degrading into "something is there under that name".
+    """
+    with pytest.raises(SystemExit):
+        provenance.verify_paths_exist("test", "HEAD", ["docs"], root=scratch_repo)
+
+
+def test_no_smoke_header_claim_without_the_check_that_backs_it():
+    """AC4: the writer may not claim an input was verified unless it verified it.
+
+    Paired deliberately — if the header's wording is ever retired, the first
+    assertion fails and says to retarget this test rather than quietly passing.
+    """
+    source = (REPO_ROOT / "scripts" / "write_codex_smoke_evidence.py").read_text(encoding="utf-8")
+    assert "verified unmodified against that commit" in source, (
+        "the smoke header no longer claims the prompt was verified against the commit. "
+        "Point this test at the claim that replaced it, or drop it."
+    )
+    assert "verify_paths_exist(TOOL, commit, [SMOKE_PROMPT])" in source, (
+        "the smoke header claims the prompt was verified against the commit, but the writer "
+        "no longer calls verify_paths_exist(TOOL, commit, [SMOKE_PROMPT]), so nothing "
+        "establishes the prompt is there (#218)."
+    )
+    assert 'SMOKE_PROMPT = EVIDENCE_PREFIX + "smoke-prompt.txt"' in source, (
+        "the checked path is no longer the prompt the header names"
+    )
+
+
 def test_provenance_refuses_a_rename_onto_an_exempt_output(provenance, scratch_repo):
     """A rename touches two paths; exempting only the destination hid the source.
 
