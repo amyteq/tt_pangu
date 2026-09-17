@@ -30,6 +30,13 @@ a file whose rendering would change is reported and left alone. `--fix`
 therefore needs markdown-it-py installed; `--check` is standard-library only and
 always will be, because CI runs it on a bare Python with nothing installed.
 
+The renderer this gate exists for is GitHub's, which is cmark-gfm. The renderer
+it verifies with is markdown-it-py, which is pure Python and can be a hard
+dependency of `--fix` on any machine. They agree almost everywhere; where they
+do not, the rule is to leave the construct alone rather than pick a side, so a
+disagreement costs a missed finding and never a bad rewrite. ADR-0024 records
+that choice and why cmark-gfm was not made the verifier.
+
 Usage:
   python scripts/check_md_wrap.py --allowlist              # the agent-context set
   python scripts/check_md_wrap.py --changed origin/main    # only what this branch touches
@@ -284,11 +291,16 @@ def table_opens_here(header: str, delimiter: str) -> int | None:
     there is paragraph continuation text, and reading it as a table suppressed
     the wrap findings for the whole run of lines below it.
 
-    An ATX-looking header does open one. `# a | b` over `--- | ---` is a heading
-    plus a paragraph to cmark-gfm but a two-column table to markdown-it, which
-    GitHub's own preview follows; treating the ambiguous case as a table only
-    means leaving those lines alone, which is right under either reading.
-    A fence or a thematic break wins over a table in both parsers.
+    An ATX-looking header does open one, and this is the one shape where the two
+    parsers disagree: `# a | b` over `--- | ---` is a two-column table to
+    markdown-it and a heading plus a paragraph to cmark-gfm, which is what
+    GitHub renders with. The gate's rule under disagreement is to do nothing,
+    because only one of the two readings is checkable by the verifier it has —
+    calling it a table means leaving those lines alone, which costs at most a
+    missed finding, while calling it a paragraph means rewriting lines that the
+    verifier would then have to approve on markdown-it's reading of them. See
+    ADR-0024 for why the target renderer and the verifier are different
+    programs. A fence or a thematic break wins over a table in both parsers.
     """
     if not is_delimiter_row(delimiter):
         return None
