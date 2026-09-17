@@ -14,7 +14,10 @@ no others — no heading-style, list-marker or line-length opinions:
 Line breaks are semantic in some places, so those are never inspected: fenced
 code blocks and their contents, YAML frontmatter, indented code blocks, and HTML
 blocks. An explicit hard break — a line ending in two or more spaces, or in a
-backslash — is authored intent, so the line after it is left alone too.
+backslash — is authored intent, so the line after it is left alone too. That is
+the whole exemption set: ADR-0024 also exempts a verbatim diff, log excerpt or
+file listing, which qualifies by being fenced or indented, because nothing
+distinguishes bare verbatim lines from hard-wrapped prose.
 
 `--fix` is whitespace only. It rejoins a split block onto the line above with a
 single space, and inserts the missing blank line above a `---`. It never alters
