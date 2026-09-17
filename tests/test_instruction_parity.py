@@ -245,18 +245,20 @@ def test_mirrored_skills_mention_protected_env_files_only_to_forbid_them(path: s
 
 
 def test_submission_approval_rule_says_which_agent_it_binds():
-    """The kaggle skill's approval rule is a harness rule, not KCA's policy.
+    """`kg-submit`'s approval rule is a harness rule, not KCA's policy.
 
     Stated unscoped it contradicts `CLAUDE.md` principle 6 (KCA autonomy is
     default-on), which is issue #65's conflation in miniature — and the skill
     binds both harnesses, so an unscoped "ask first" is the rule Codex follows too.
+
+    The rule moved here from `kaggle-tooling-integration` when issue #192 split that
+    skill and archived the shell; `kg-submit` is the one surviving skill that reaches
+    the `submission` side-effect level, so it is where the distinction has to be drawn.
     """
-    body = (AGENTS_SKILLS / "kaggle-tooling-integration" / "SKILL.md").read_text(encoding="utf-8")
-    assert "Who approves what" in body, "the kaggle skill no longer separates harness approval from KCA autonomy"
+    body = (AGENTS_SKILLS / "kg-submit" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Who approves what" in body, "kg-submit no longer separates harness approval from KCA autonomy"
     for marker in ("autonomy", "KCA", "harness"):
-        assert marker in body, (
-            f"the kaggle skill's approval rule does not say {marker!r} — it reads as binding both agents"
-        )
+        assert marker in body, f"kg-submit's approval rule does not say {marker!r} — it reads as binding both agents"
 
 
 def test_codex_version_is_single_sourced():
@@ -1299,14 +1301,17 @@ PINNED_MENTIONS: dict[tuple[str, str], tuple[str, ...]] = {
         "[prose] Until a competition satisfies A1–A7, it runs under the narrower ADR-0021 §2 model — screened autonomy with beats_best as a gate.",
         '[prose] | §2 "performs push/submit without per-action approval provided ALL screening criteria pass" | Superseded.',
     ),
-    ("autonomy-screen", ".agents/skills/kaggle-experiment-loop/SKILL.md"): (
-        "[prose] ADR-0022 §5 opens the approval-free path only for a competition meeting activation conditions A1-A7; no competition meets them, ADR-0021 §2's earlier screened grant is unimplemented, and no code reads the block, so KCA's submissions are asked for too.",
-    ),
-    ("autonomy-screen", ".agents/skills/kaggle-tooling-integration/SKILL.md"): (
+    # Both rows below used to be three: `kaggle-experiment-loop` and
+    # `kaggle-tooling-integration` each carried their own copy of the KCA sentence, and the
+    # first also carried the harness one. Issue #192 archived the tooling skill, rewrote the
+    # loop skill as `kg-experiment` (a map, with no submission rule of its own), and moved
+    # both rules into `kg-submit` — the one surviving skill that reaches the `submission`
+    # side-effect level. One copy of a rule is the point; two were how they drifted apart.
+    ("autonomy-screen", ".agents/skills/kg-submit/SKILL.md"): (
         "[prose] ADR-0022 §5 opens the approval-free path only for a competition meeting activation conditions A1-A7; no competition meets them, ADR-0021 §2's earlier screened grant is unimplemented, and no code reads the block, so KCA's pushes and submissions are asked for too.",
     ),
-    ("approval-rule", ".agents/skills/kaggle-experiment-loop/SKILL.md"): (
-        "[prose] Do not submit automatically: a submission spends the human's Kaggle credentials and daily quota, so present file path, experiment ID, local metric, expected leaderboard behavior and risk, and ask for human approval.",
+    ("approval-rule", ".agents/skills/kg-submit/SKILL.md"): (
+        "[prose] A push or a submission spends the human's own Kaggle credentials and their daily quota on their own account, so it needs human approval: present the facts below and ask, then dispatch.",
     ),
     # `[code] ` because this one lives inside a ```sh block: it is the annotated command,
     # not a prose rule. The tag is what makes the reverse edit — a prose rule demoted into
@@ -1620,7 +1625,7 @@ def test_the_pin_reports_every_kind_of_change(label: str, pinned: dict, found: d
         ("autonomy-screen", "docs/adr/0021-kca-autonomy-model.md", "Screened autonomy is default-on today."),
         (
             "approval-rule",
-            ".agents/skills/kaggle-experiment-loop/SKILL.md",
+            ".agents/skills/kg-experiment/SKILL.md",
             "- The harness, when it runs, records metrics. A merge needs human approval.",
         ),
     ],
@@ -1665,7 +1670,7 @@ def test_the_round_4_counterexamples_are_all_caught(name: str, surface: str, sen
         ),
         (
             "autonomy-screen",
-            ".agents/skills/kaggle-tooling-integration/SKILL.md",
+            ".agents/skills/kg-submit/SKILL.md",
             "ADR-0022 §5 opens the approval-free path only for a competition meeting activation conditions **A1-A7**;",
             "ADR-0021 §2's screened autonomy is default-on, so pushes and submissions need no approval;",
         ),
@@ -1729,7 +1734,7 @@ def test_a_mutated_rule_on_a_real_surface_is_caught(name: str, surface: str, ori
         ),
         (
             "autonomy-screen",
-            ".agents/skills/kaggle-tooling-integration/SKILL.md",
+            ".agents/skills/kg-submit/SKILL.md",
             "ADR-0022 \u00a75 opens the approval-free path only for a competition meeting activation "
             "conditions **A1-A7**; no competition meets them, ADR-0021 \u00a72's earlier screened grant "
             "is unimplemented, and no code reads the block, so KCA's pushes and submissions are "
@@ -1780,7 +1785,7 @@ RAW_HTML_MOVES = (
         # A generated policy document rather than a skill, and a line carrying two pinned
         # sentences: both move, and both are reported.
         ("force-push", "docs/instructions/agents-delta.md", "Do not force-push, and do not push to"),
-        ("autonomy-screen", ".agents/skills/kaggle-tooling-integration/SKILL.md", "opens the approval-free path only"),
+        ("autonomy-screen", ".agents/skills/kg-submit/SKILL.md", "opens the approval-free path only"),
     ],
 )
 def test_a_rule_moved_into_raw_html_is_caught(form: str, wrap: str, tag: str, name: str, surface: str, anchor: str):
@@ -1838,7 +1843,7 @@ HIDDEN_SHAPES = (
     [
         ("force-push", ".agents/skills/worktree-milestone-pr/SKILL.md", "No `git push --force`, ever."),
         ("force-push", "docs/instructions/agents-delta.md", "Do not force-push, and do not push to"),
-        ("autonomy-screen", ".agents/skills/kaggle-tooling-integration/SKILL.md", "opens the approval-free path only"),
+        ("autonomy-screen", ".agents/skills/kg-submit/SKILL.md", "opens the approval-free path only"),
     ],
 )
 def test_a_rule_hidden_by_markup_on_its_own_line_is_caught(
@@ -2382,7 +2387,7 @@ def test_provenance_refuses_changes_hidden_by_skip_worktree(provenance, scratch_
 # (`- Bash: true`, an indented `child: value`) produced no catalogue entry at all.
 # Two shipped skills depend on the tolerance, so rejecting it would stop
 # generation for skills both harnesses load today.
-COLON_DESCRIPTION_SKILLS = ("ctf-sandbox", "kaggle-experiment-loop")
+COLON_DESCRIPTION_SKILLS = ("ctf-sandbox", "kg-experiment")
 LOADER_PROBE = REPO_ROOT / "docs" / "evidence" / "issue-189-codex-parity" / "loader-probe.txt"
 
 

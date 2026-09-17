@@ -1,0 +1,35 @@
+# Contract: contracts/run.yaml
+# Backfilled from competitions/nvidia-nemotron/bugs.md row B3 + tracking.md Table 2 row T10.
+# This is the FAILED first attempt of EXP-0001. It is kept, not overwritten: RUN-0002 retries it.
+id: RUN-0001
+competition: nvidia-nemotron
+experiment_id: EXP-0001
+attempt: 1
+supersedes: null
+executor: kaggle_kernel
+external_ref: "harrysun2006/nemo-replay-v14 (v1)"
+run_dir: null
+command: null
+config_hash: null
+seed: null
+status: failed
+started_at: 2026-06-12
+finished_at: 2026-06-12
+gpu_hours: null
+metrics: {}
+artifacts: []
+log_paths: []
+error_class: kernel_runtime
+error_summary: >-
+  Fail-fast preflight caught 0 training samples: apply_chat_template(tokenize=True)
+  returned a BatchEncoding, so len() counted dict keys instead of examples. bugs.md B3,
+  which adds that the public 0.87 notebook this recipe was replayed from may never have
+  run for the same reason. Fixed by unpacking input_ids and printing a first-row diagnostic.
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  A Kaggle kernel run has no local run directory, which is why `run_dir` is null and
+  `external_ref` carries the identity instead. `gpu_hours` is null rather than 0: the
+  fail-fast preflight is designed to stop before the expensive part, but the campaign did
+  not record what this attempt consumed. The comparable measured case is bugs.md B9, where
+  two similar defects each cost about 2 GPU-hours before the push-time lint gate existed.

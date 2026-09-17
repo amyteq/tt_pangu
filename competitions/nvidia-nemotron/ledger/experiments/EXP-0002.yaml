@@ -1,0 +1,66 @@
+# Contract: contracts/experiment.yaml
+# Backfilled from tracking.md (Current snapshot 2026-06-15), submissions.md (soup row + T12 table),
+# insights.md INS-004, kernels/nemo-merge-soup.py.
+id: EXP-0002
+competition: nvidia-nemotron
+idea_id: IDEA-0001
+strategy_id: STRATEGY-001
+decision_id: DEC-0001
+parent_experiment: EXP-0001
+hypothesis: >-
+  An SVD soup of three comparable (all 0.85) and complementary (different data) same-base
+  adapters - v14 replay, c1 verified solver-CoT, b1 cryptarithm synth - beats every member,
+  breaking the 0.85 v14 ceiling. IDEA-0001.
+changes:
+  merge: "SVD soup of v14 + c1 + b1, weights 0.4/0.3/0.3, per-module rank-32 truncation"
+code_commit: 5872e0b653ea34c227d39efb0d56cb3ef4292d92
+data_version: "no new training data - this experiment only combines the three trained adapters"
+config_hash: null
+split_id: HARDVAL-72-MINLOGPROB
+seeds: []
+metric:
+  name: accuracy
+  direction: maximize
+results:
+  cv_mean: 0.764
+  cv_std: null
+  public_lb: 0.86
+  private_lb: 0.85
+resource:
+  gpu_hours: null
+  accelerator: null
+  wall_clock_seconds: null
+runs:
+  - RUN-0003
+artifacts:
+  - ART-0001
+  - ART-0002
+log_paths: []
+status: evaluated
+conclusion: >-
+  Validated. 0.86 public / 0.85 private - the campaign's best ELIGIBLE score and the only
+  result that exceeded v14. The T12 hard-val ranking put the soup level with v14 (0.764
+  each) and far above every augmented single adapter (c1 and the base model both 0.389),
+  so the gain is robustness rather than dilution. It was selected for private scoring and
+  aged 0.86 -> 0.85.
+lessons:
+  - "Members must be comparable AND complementary: the same merge machinery over strong+weak members (T7) regressed to 0.82."
+  - "A soup is cheap: no new training data, no new GPU training run, one packaging run."
+  - "Single add-on adapters only tied or trailed (b1 0.85, c1 0.85, b2 0.84, c2 0.83); combining them is what exceeded the backbone."
+findings:
+  - FIND-0001
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  `changes` holds exactly one entry, which is what makes the attribution clean: the
+  members were already-scored adapters and the only new variable is the merge itself.
+
+  `code_commit` is the commit that carries the dispatched kernel source
+  (kernels/nemo-merge-soup.py) and the results write-up. The campaign did not record a
+  commit at dispatch time, so this is the tightest verifiable value rather than a
+  recorded one - see ART-0001, whose git blob sha IS exact. Drift D5.
+
+  A near-duplicate follow-up (spectral surgery on this soup, x1.15 LoRA) also scored 0.86
+  public but aged to 0.84 private and was deliberately NOT selected, because a duplicate
+  of the soup carries no hedge value. It is not given its own record here; submissions.md
+  holds it.

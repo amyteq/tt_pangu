@@ -1,0 +1,38 @@
+# Contract: contracts/run.yaml
+# Backfilled from kernels/nemo-merge-soup.py + submissions.md (soup row) + tracking.md Kernel push status.
+id: RUN-0003
+competition: nvidia-nemotron
+experiment_id: EXP-0002
+attempt: 1
+supersedes: null
+executor: kaggle_kernel
+external_ref: "harrysun2006/nemo-merge-soup"
+run_dir: null
+command: "kernels/nemo-merge-soup.py (pushed and run as a Kaggle kernel, internet off)"
+config_hash: null
+seed: null
+status: succeeded
+started_at: 2026-06-15
+finished_at: 2026-06-15
+gpu_hours: null
+metrics:
+  lora_rank: 32
+  lora_alpha: 32
+artifacts:
+  - ART-0002
+log_paths: []
+error_class: none
+error_summary: null
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  This run only packages: the SVD merge itself was produced by lib/svd_merge.py and
+  attached to the kernel as a private dataset, and the kernel zips adapter_config.json
+  plus adapter_model.safetensors into /kaggle/working/submission.zip. It asserts r=32 and
+  alpha=32 on the merged config, and asserts the zip contains exactly those two members
+  with the weights file over 1 GB - a submission-shape check inside the run, which is the
+  behaviour ADR-0022 §5's PRE_SUBMIT_GATE generalises.
+
+  The merge computation is therefore not itself a recorded Run. In a live ledger it would
+  be one (executor `local` or `remote_ssh`), with the merged adapter as its Artifact and
+  this packaging run consuming it. Drift D9.

@@ -1,0 +1,123 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://github.com/amyteq/tt_pangu/blob/main/contracts/decision.yaml"
+title: Decision
+description: >-
+  One answered question that authorizes or redirects work. Discussion #185 §9:
+  a decision must bind an identity — decision_id, competition, plan summary,
+  approving identity and an expiry — because "a bare 'A' message that cannot be
+  attributed" is not an approval.
+
+  `gate` is the reason a human was asked at all, drawn from ADR-0021's floor of
+  seven always-human-gated actions plus `direction`. `agent_screened` records the
+  other case: the loop decided this itself under ADR-0022 §5 and the record exists
+  for the audit trail, not because approval was needed.
+
+  A plan change invalidates an approval, and no answer is not consent: an expired
+  or unanswered request leaves the competition in WAIT_HUMAN, never in SUBMIT.
+
+type: object
+additionalProperties: false
+required:
+  - id
+  - competition
+  - gate
+  - question
+  - options
+  - selected
+  - rationale
+  - plan_hash
+  - status
+  - requested_at
+  - decided_at
+  - expires_at
+  - decided_by
+  - channel
+  - evidence
+  - supersedes
+  - provenance
+  - recorded_at
+  - notes
+properties:
+  id:
+    type: string
+    pattern: "^DEC-[0-9]{4,}$"
+  competition:
+    type: string
+    pattern: "^[a-z0-9][a-z0-9-]*$"
+  gate:
+    description: >-
+      Why this needed a decision. The seven ADR-0021 / CLAUDE.md human-gated
+      actions, plus `direction` (ADR-0022 §5 routes that through WAIT_HUMAN
+      rather than gating an action) and `agent_screened`.
+    enum:
+      - direction
+      - irreversible_deletion
+      - over_budget_real_money
+      - ambiguous_competition_rules
+      - terms_or_team_change
+      - final_promotion_near_deadline
+      - final_submission_selection
+      - external_data_or_training_expansion
+      - agent_screened
+  question:
+    type: string
+    minLength: 1
+  options:
+    description: The options offered, in the order they were offered.
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required: [key, summary]
+      properties:
+        key:
+          type: string
+          minLength: 1
+        summary:
+          type: string
+          minLength: 1
+  selected:
+    description: The chosen option key, or null while the request is still open.
+    type: [string, "null"]
+  rationale:
+    type: [string, "null"]
+  plan_hash:
+    description: >-
+      Hash of the plan the approval is bound to. If the plan changes the approval
+      is void and the request must be re-made (discussion #185 §9).
+    type: [string, "null"]
+    pattern: "^[0-9a-f]{7,64}$"
+  status:
+    description: Supabase `decision_status` enum verbatim (0001_init.sql:11), plus `superseded`.
+    enum: [pending, approved, rejected, expired, superseded]
+  requested_at:
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  decided_at:
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  expires_at:
+    description: After this date the decision is void even if it was approved. Null means no expiry was set.
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  decided_by:
+    description: Who answered — a role or handle. `agent` only when `gate` is `agent_screened`.
+    type: [string, "null"]
+  channel:
+    description: Where the answer arrived. `tracking_issue` is the phase-1 record of authority (#197).
+    enum: [tracking_issue, discussion, telegram, decision_api, in_session, unrecorded]
+  evidence:
+    description: Paths, issue URLs, file:line or ledger ids supporting the decision.
+    type: array
+    items:
+      type: string
+  supersedes:
+    type: [string, "null"]
+    pattern: "^DEC-[0-9]{4,}$"
+  provenance:
+    enum: [live, backfilled]
+  recorded_at:
+    type: string
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  notes:
+    type: [string, "null"]

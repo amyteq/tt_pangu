@@ -1,0 +1,56 @@
+# Contract: contracts/submission.yaml
+# Path and field names: ADR-0022 §5. BACKFILLED from submissions.md "Iteration (2026-06-29)"
+# and "Final results (competition closed 2026-09-01)".
+ref: INT-BACKFILL-jed-xl-v1
+competition: sec-attack
+account: harrysun2006
+team: harrysun2006
+experiment_id: EXP-0002
+run_id: RUN-0002
+artifact: "submission.csv emitted by the scored rerun of harrysun2006/sec-attack-jed-xl v1"
+artifact_sha256: null
+code_commit: 91e3f9b5e14f005caa0040fa84443d8a262656f8
+expected_score: 7.2
+expected_metric: normalized_attack_score
+reason: >-
+  3x the cap and fanout of the 2.400 winner, same all-1-message families, to test whether
+  breadth aggregates linearly.
+scenario: null
+decision_id: null
+screen:
+  require_repro: fail
+  rules_check: pass
+  beats_best: pass
+budget_reservations: {}
+driver: claude-code
+status: scored
+submitted_at: 2026-06-29
+external_id: 54183733
+reconciliation:
+  required: false
+  queried_at: 2026-09-13
+  source: "kaggle competitions submissions ai-agent-security-multi-step-tool-attacks"
+  outcome: present
+  note: >-
+    Present and COMPLETE on both readings (2026-06-29 and 2026-09-13). The submission
+    exists; what is unresolved is whether it was ever SELECTED - see selected_for_final.
+score_id: SCORE-0001
+selected_for_final: null
+supersedes: null
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  This record exists mainly to carry `selected_for_final: null` honestly. The competition
+  closed 2026-09-01 with 4,186 teams, and the full public-leaderboard snapshot downloaded
+  2026-09-13 contains NO row for harrysun2006 or firefly2006 - despite this COMPLETE,
+  non-zero submission whose 7.200 would have placed around rank 3115/4186 against a top of
+  46.425. The cause is unknown: possibly nothing was ever selected for the final standing,
+  possibly the two ERROR submissions affected eligibility.
+
+  So `status: scored` and `selected_for_final: null` are both true at once, and the pair is
+  the finding: the platform has the submission and the scores, and the standing does not
+  have us. A two-valued selection flag would have had to lie in one direction or the other.
+
+  `external_id: 54183733` is a real numeric platform id - the contrast with nemo, whose
+  competition exposes none, is why `external_id` is typed as string-or-integer-or-null and
+  is never the ledger's identity.

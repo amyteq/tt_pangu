@@ -1,0 +1,65 @@
+# Contract: contracts/experiment.yaml
+# Backfilled from tracking.md Table 2 row T10, submissions.md (v14 row), bugs.md B3.
+id: EXP-0001
+competition: nvidia-nemotron
+idea_id: null
+strategy_id: STRATEGY-001
+decision_id: null
+parent_experiment: null
+hypothesis: >-
+  Faithfully replaying the public 0.86/0.87 recipe - CCE loss + MoE 128-expert weight
+  tying + LoRA on lm_head/in_proj/out_proj + seq8192 + the huikang recording-order corpus
+  + replay-math answer tokens - is the dominant lever, worth more than any of our own
+  data augmentations.
+changes:
+  recipe: "public 0.86/0.87 replay (CCE + MoE 128-expert tying + LoRA on lm_head/in_proj/out_proj)"
+  sequence_length: 8192
+  corpus: "huikang recording-order corpus (7830 examples) + replay-math answer tokens"
+code_commit: null
+data_version: "huikang corpus 7830 examples + replay-math ~2.0M answer tokens, via public Kaggle datasets (D8-approved); no version hash recorded"
+config_hash: null
+split_id: HARDVAL-72-MINLOGPROB
+seeds: []
+metric:
+  name: accuracy
+  direction: maximize
+results:
+  cv_mean: 0.764
+  cv_std: null
+  public_lb: 0.85
+  private_lb: 0.84
+resource:
+  gpu_hours: null
+  accelerator: null
+  wall_clock_seconds: null
+runs:
+  - RUN-0001
+  - RUN-0002
+artifacts:
+  - ART-0003
+log_paths: []
+status: evaluated
+conclusion: >-
+  Validated, and the campaign's largest single jump: 0.67 -> 0.85 public. It became the
+  backbone every later adapter was trained from, and the reference every later result was
+  measured against. Private 0.84.
+lessons:
+  - "Faithful replay of a verified public recipe outranks our own augmentation ideas (insights.md, INS-001 group)."
+  - "CoT supervision must land at the sequence tail and survive truncation; seq8192 is what makes that true here (bugs.md B1)."
+findings: []
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  Two Runs, and they are the point of this record: RUN-0001 (attempt 1) FAILED and
+  RUN-0002 (attempt 2) succeeded. The failure is not overwritten, and `results` are
+  RUN-0002's. bugs.md B3 is the failure's evidence.
+
+  `cv_mean: 0.764` is the T12 min-logprob hardest-72 hard-val score, built 2026-06-15 -
+  AFTER this adapter was trained. It is a post-hoc common ranking protocol, which is
+  precisely why it can be compared with EXP-0002 under the same `split_id`; it is not
+  the held-out set this run trained against. submissions.md carries the caveat that
+  hard-val over-samples the hardest problems and is a hard-tail hint, not an LB proxy.
+
+  `code_commit`, `config_hash` and `seeds` are null/empty: the campaign never recorded
+  them per run. Under `provenance: live` all three are required, and ADR-0022 §5's
+  `require_repro` hard gate would block a submission built on this record. Drift D5.

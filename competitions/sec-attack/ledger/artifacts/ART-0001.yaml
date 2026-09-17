@@ -1,0 +1,23 @@
+# Contract: contracts/artifact.yaml
+id: ART-0001
+competition: sec-attack
+kind: agent_source
+path: competitions/sec-attack/kernels/attack_kaggle.py
+storage: in_git
+content_hash: 959d2e6aaf903373dde24ddd1d5e3af8bb77e8fa
+hash_algo: git-blob-sha1
+byte_size: null
+produced_by_run: null
+produced_at: 2026-06-30
+retention: permanent
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  The parameterized attack the three recorded experiments all ran, at commit
+  91e3f9b5e14f005caa0040fa84443d8a262656f8. One artifact serves all three because the
+  variants differ only in the parameters the Run records carry (families, max_findings,
+  fanout) - which is what makes those three results comparable.
+
+  `produced_at: 2026-06-30` is the commit date, two days after the first dispatch, so it
+  is when the source was COMMITTED rather than when it ran. The bytes at this blob are
+  still the bytes that ran: the file at HEAD differs (reformatted by #221).

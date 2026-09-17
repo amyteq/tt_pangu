@@ -1,0 +1,31 @@
+# Contract: contracts/run.yaml
+id: RUN-0003
+competition: sec-attack
+experiment_id: EXP-0003
+attempt: 1
+supersedes: null
+executor: kaggle_kernel
+external_ref: "harrysun2006/sec-attack-jed (v4)"
+run_dir: null
+command: "kernels/attack_kaggle.py with max_findings=30, fanout=12, families=deputy,direct,filewash"
+config_hash: null
+seed: null
+status: succeeded
+started_at: 2026-06-28
+finished_at: 2026-06-28
+gpu_hours: null
+metrics:
+  max_findings: 30
+  fanout: 12
+artifacts:
+  - ART-0001
+log_paths: []
+error_class: none
+error_summary: null
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  The Run succeeded and produced scores; it is the SUBMISSION built from it whose platform
+  state later became contradictory (COMPLETE on 2026-06-29, ERROR on re-poll). Keeping the
+  two separate is the point: a run's outcome is local and settled, an external action's
+  outcome is the platform's to report and can change under you.
