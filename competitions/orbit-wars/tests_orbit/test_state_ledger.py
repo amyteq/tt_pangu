@@ -103,9 +103,7 @@ def test_rule_engine_blocks_sun_and_allows_clean():
 
 
 if __name__ == "__main__":
-    fns = [
-        v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)
-    ]
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0
     for fn in fns:
         fn()

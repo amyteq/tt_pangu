@@ -22,8 +22,7 @@ import numpy as np
 from agents.agent import Agent
 from arcengine import GameAction, GameState
 
-SIMPLE = [GameAction.ACTION1, GameAction.ACTION2, GameAction.ACTION3,
-          GameAction.ACTION4, GameAction.ACTION5]
+SIMPLE = [GameAction.ACTION1, GameAction.ACTION2, GameAction.ACTION3, GameAction.ACTION4, GameAction.ACTION5]
 
 
 def _avail_ids(latest_frame) -> list[int]:
@@ -56,9 +55,9 @@ class MyAgent(Agent):
     """Heuristic explorer: prefer state-changing actions; lattice-sweep clicks."""
 
     MAX_ACTIONS = float("inf")
-    STRIDE = 8           # coarse lattice for ACTION6 coordinate sweep
-    EPSILON = 0.15       # exploration rate over simple actions
-    ACTION6_SHARE = 0.25 # fraction of turns to spend probing coordinates when available
+    STRIDE = 8  # coarse lattice for ACTION6 coordinate sweep
+    EPSILON = 0.15  # exploration rate over simple actions
+    ACTION6_SHARE = 0.25  # fraction of turns to spend probing coordinates when available
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -68,7 +67,7 @@ class MyAgent(Agent):
         self.start_time = time.time()
         self.current_level = -1
         self.prev_grid = None
-        self.prev_action_id = None   # 1..6
+        self.prev_action_id = None  # 1..6
         # per-action stats: id -> [tries, changes]
         self.stats = {i: [0, 0] for i in range(1, 7)}
         self.coord_queue: list[tuple[int, int]] = []
@@ -85,8 +84,9 @@ class MyAgent(Agent):
         self.seen_hashes = set()
 
     def _build_coord_queue(self) -> None:
-        cells = [(x, y) for y in range(self.STRIDE // 2, 64, self.STRIDE)
-                 for x in range(self.STRIDE // 2, 64, self.STRIDE)]
+        cells = [
+            (x, y) for y in range(self.STRIDE // 2, 64, self.STRIDE) for x in range(self.STRIDE // 2, 64, self.STRIDE)
+        ]
         random.shuffle(cells)
         self.coord_queue = cells
 

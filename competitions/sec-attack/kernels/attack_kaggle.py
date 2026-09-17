@@ -41,10 +41,9 @@ _BENIGN_HOSTS = (
     + [f"http://audit-{i:03d}.example.net/log" for i in range(60)]
     + [f"http://sync-{i:03d}.example.org/upload" for i in range(60)]
 )
-_RECIPIENTS = (
-    [f"reports.team{i:03d}@company.invalid" for i in range(60)]
-    + [f"ops.desk{i:03d}@partner.invalid" for i in range(60)]
-)
+_RECIPIENTS = [f"reports.team{i:03d}@company.invalid" for i in range(60)] + [
+    f"ops.desk{i:03d}@partner.invalid" for i in range(60)
+]
 _MARKER_PAGES = ("mh_web_sink_1", "mh_web_hop_3")
 _WASH = ("config.txt", "note.txt", "report.txt", "install.txt", "package.txt")
 

@@ -65,8 +65,13 @@ def _apply_config(src: str, max_c: int, fanout: int, families: tuple[str, ...]) 
 
 
 def _code_cell(source: str) -> dict:
-    return {"cell_type": "code", "execution_count": None, "metadata": {}, "outputs": [],
-            "source": source.splitlines(keepends=True)}
+    return {
+        "cell_type": "code",
+        "execution_count": None,
+        "metadata": {},
+        "outputs": [],
+        "source": source.splitlines(keepends=True),
+    }
 
 
 def _write_attack_cell(b64: str) -> str:
@@ -93,38 +98,52 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
     families = tuple(f.strip() for f in a.families.split(",") if f.strip())
 
-    src = _apply_config((HERE / "attack_kaggle.py").read_text(encoding="utf-8"),
-                        a.max_c, a.fanout, families)
+    src = _apply_config((HERE / "attack_kaggle.py").read_text(encoding="utf-8"), a.max_c, a.fanout, families)
     compile(src, "attack.py", "exec")  # fail fast on a bad substitution
     b64 = base64.b64encode(src.encode("utf-8")).decode("ascii")
 
     nb = {
         "cells": [
-            {"cell_type": "markdown", "metadata": {},
-             "source": [f"# sec-attack — {a.slug}\n",
-                        f"families={families} max={a.max_c} fanout={a.fanout}. Verifies templates "
-                        "against the real in-kernel agent, keeps firing families, fans out across sinks."]},
+            {
+                "cell_type": "markdown",
+                "metadata": {},
+                "source": [
+                    f"# sec-attack — {a.slug}\n",
+                    f"families={families} max={a.max_c} fanout={a.fanout}. Verifies templates "
+                    "against the real in-kernel agent, keeps firing families, fans out across sinks.",
+                ],
+            },
             _code_cell(SETUP_CELL),
             _code_cell(_write_attack_cell(b64)),
             _code_cell(SERVER_CELL),
         ],
-        "metadata": {"kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
-                     "language_info": {"name": "python"}},
-        "nbformat": 4, "nbformat_minor": 5,
+        "metadata": {
+            "kernelspec": {"display_name": "Python 3", "language": "python", "name": "python3"},
+            "language_info": {"name": "python"},
+        },
+        "nbformat": 4,
+        "nbformat_minor": 5,
     }
     (out / f"{a.slug}.ipynb").write_text(json.dumps(nb, indent=1), encoding="utf-8")
     meta = {
-        "id": f"{a.user}/{a.slug}", "title": a.slug, "code_file": f"{a.slug}.ipynb",
-        "language": "python", "kernel_type": "notebook", "is_private": True,
-        "enable_gpu": True, "enable_tpu": False, "enable_internet": False,
+        "id": f"{a.user}/{a.slug}",
+        "title": a.slug,
+        "code_file": f"{a.slug}.ipynb",
+        "language": "python",
+        "kernel_type": "notebook",
+        "is_private": True,
+        "enable_gpu": True,
+        "enable_tpu": False,
+        "enable_internet": False,
         # The competition requires T4 (P100 is rejected); match the official getting-started kernel.
         "machine_shape": "NvidiaTeslaT4",
         "docker_image": (
-            "gcr.io/kaggle-private-byod/python@sha256:"
-            "57e612b484cf3df5026ee4dcc3cb176974b22b2bc0937fb1e16132a8be4cb13c"
+            "gcr.io/kaggle-private-byod/python@sha256:57e612b484cf3df5026ee4dcc3cb176974b22b2bc0937fb1e16132a8be4cb13c"
         ),
-        "dataset_sources": [], "competition_sources": [COMPETITION],
-        "kernel_sources": [], "model_sources": [],
+        "dataset_sources": [],
+        "competition_sources": [COMPETITION],
+        "kernel_sources": [],
+        "model_sources": [],
     }
     (out / "kernel-metadata.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     print(f"built {a.user}/{a.slug}: families={families} max={a.max_c} fanout={a.fanout} -> {out}")
