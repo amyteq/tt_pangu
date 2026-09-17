@@ -79,7 +79,6 @@ Every `cmd_*` in `tools/kca/kg.py` gets a row here, and `tests/test_commands_doc
 
 Two things this table is here to stop you assuming. First, a `stub` row's exit `0` is evidence of nothing: `fetch` and `list` never reach Kaggle, so any workflow that treats their success as "the run is there" is reading a constant. Second, the `real` remote-write rows genuinely reach Kaggle, and for `submit` and `push` **no gate in this process stops them** — `KCA_ALLOW_REMOTE` is load-bearing for `upload` alone. What holds on submit and push is the standing `CLAUDE.md` principle 6 rule to ask a human first, which is a written rule, not an enforced one.
 
-
 ### `kca ctf` reviewer-gate map
 
 | CLI invocation                          | Reviewer-gate op  | Default policy (per ADR-0017) |
