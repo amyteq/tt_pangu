@@ -13,6 +13,22 @@ Use this skill when the user wants to:
 `.py` is the editable truth source; `.ipynb` is an execution/submission artifact.
 Never edit a `.ipynb` directly when a `.py` exists.
 
+A mechanical wrapper, not a loop stage: `kg-run-experiment` and `kg-submit` call it when a kernel authored as `.py` has to be pushed as `.ipynb` (`competitions/nvidia-nemotron/kernels/*.py`, `kca-nemo.yaml:code_file`).
+
+## Contract
+
+| Declaration | This skill |
+|---|---|
+| **Inputs** | One source file — a `.ipynb` to flatten, or a percent-format `.py` to rebuild — and an optional output path. |
+| **Output schema** | The converted file at `dst`, plus one JSON object on stdout: `ok`, `side_effect`, `src`, `dst`, `written_cells` / `code_cells` / `markdown_cells`, `changed`, and `error` / `stderr` on failure. |
+| **State transition** | None of its own. Called from within `IMPLEMENT` or `PRE_SUBMIT_GATE`. |
+| **Allowed tools** | Bash, for the two `kca nb` subcommands. `local-write`. No network, no remote services. |
+| **Budget** | None. |
+| **Prerequisite approvals** | None. It writes a local file; pushing or submitting the result is `kg-submit`'s, under the rules that skill states. |
+| **Idempotency** | Safe to re-run: the same source produces the same destination, and `changed` reports whether anything moved. Round-tripping `.py` → `.ipynb` → `.py` is not guaranteed to be byte-identical, so keep the `.py` as the source of truth rather than regenerating it from a pushed notebook. |
+| **Failure classes** | `ok: false` is a stop, not a retry — read `error` and `stderr`. `ModuleNotFoundError: percent_nb` means `tools/legacy/percent_nb.py` is missing; report it, do not patch it. A `# %%` marker mismatch is a source-format error: quote the line range and ask. |
+| **Acceptance tests** | `ok: true`, `dst` exists, and the cell counts match the source's structure. The `.py` remains the edited artifact and the `.ipynb` is regenerated from it. |
+
 ## Commands
 
 Convert `.ipynb` → `.py`:
