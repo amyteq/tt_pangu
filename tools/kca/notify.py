@@ -82,6 +82,11 @@ ROUTINE_LEVELS = ("digest", "info")
 # decision record, so its record channel is required rather than optional
 # (#206 F002). The others are push-only by design.
 RECORD_REQUIRED_LEVELS = ("gate",)
+# Levels that are a *two-leg* contract — the record and the push, both of them
+# (`docs/tooling/notification-channel.md`, "How a decision flows"). Every channel
+# such a level routes to is load-bearing, so turning one off is a gate the
+# operator was never told about rather than a closed outlet (#206 F016).
+ALL_LEGS_REQUIRED_LEVELS = ("gate",)
 QUIET_HOURS_POLICIES = ("bypass", "defer")
 ENV_PREFIX_ALLOWLIST = ("TELEGRAM_",)
 CALLBACK_DATA_MAX_BYTES = 64  # Telegram Bot API hard limit on callback_data
@@ -336,6 +341,33 @@ def missing_record_channel(level: str, names: Iterable[str], cfg: dict[str, Any]
     return not any(is_required_channel(level, name, cfg) for name in names)
 
 
+def is_load_bearing_channel(level: str, channel: str, cfg: dict[str, Any]) -> bool:
+    """Is delivery over ``channel`` part of ``level``'s contract?
+
+    A `gate` is a two-leg contract — the GitHub record *and* the Telegram push —
+    so *every* channel it routes to is load-bearing and a disabled one is a
+    failed leg, not a successful skip: an operator who gets exit 0 for a
+    blocking decision that was never pushed has been told the opposite of the
+    truth (#206 F016). For the push-only levels nothing but a record channel is
+    load-bearing, and they route to none.
+    """
+    if level in ALL_LEGS_REQUIRED_LEVELS:
+        return True
+    return is_required_channel(level, channel, cfg)
+
+
+def missing_push_channel(level: str, names: Iterable[str], cfg: dict[str, Any]) -> bool:
+    """Does a two-leg ``level`` route to nothing that actually pushes?
+
+    The mirror of :func:`missing_record_channel`: a `gate` routed to `[github]`
+    alone is filed and never pushed, which is the same silent non-delivery as a
+    disabled Telegram channel, one config edit away (#206 F016).
+    """
+    if level not in ALL_LEGS_REQUIRED_LEVELS:
+        return False
+    return all(is_required_channel(level, name, cfg) for name in names)
+
+
 def validate_config(cfg: dict[str, Any]) -> None:
     """Raise ValueError on a config that would fail at send time."""
     if int(cfg.get("version") or 0) != 1:
@@ -369,6 +401,26 @@ def validate_config(cfg: dict[str, Any]) -> None:
             raise ValueError(
                 f"notify config: levels.{level} needs its record channel(s) {off}, but they are disabled — "
                 f"a {level} without a record is not a decision that was filed"
+            )
+        # The other leg of the same contract: a `gate` that is filed but never
+        # pushed is a block nobody was told about, whether the push channel is
+        # missing from the routing or listed and disabled (#206 F016).
+        if missing_push_channel(level, names, cfg):
+            raise ValueError(
+                f"notify config: levels.{level}.channels {names} routes to no push channel — "
+                f"a {level} that is only filed is a block nobody was told about"
+            )
+        off_push = [
+            n
+            for n in names
+            if is_load_bearing_channel(level, n, cfg)
+            and not is_required_channel(level, n, cfg)
+            and not (channels.get(n) or {}).get("enabled")
+        ]
+        if off_push:
+            raise ValueError(
+                f"notify config: levels.{level} needs its push channel(s) {off_push}, but they are disabled — "
+                f"a {level} that is only filed is a block nobody was told about"
             )
         if spec.get("quiet_hours") not in QUIET_HOURS_POLICIES:
             raise ValueError(f"notify config: levels.{level}.quiet_hours must be one of {QUIET_HOURS_POLICIES}")
@@ -605,6 +657,20 @@ def lock_wait_s(cfg: dict[str, Any]) -> float:
     return float(telegram.get("timeout_s") or DEFAULT_TELEGRAM_TIMEOUT_S) + GITHUB_TIMEOUT_S + LOCK_WAIT_MARGIN_S
 
 
+def lock_hold_ceiling_s(cfg: dict[str, Any]) -> float:
+    """How long a *legitimate* lock hold can last, plus a margin.
+
+    Deliberately independent of :func:`lock_wait_s`: how long this process is
+    willing to wait says nothing about how long the holder's Telegram POST and
+    90-second `gh` call take, so deriving staleness from a short
+    ``limits.lock_wait_s`` override declared a healthy holder abandoned — with
+    ``lock_wait_s: 0`` after 60 seconds, well inside one GitHub call — and let a
+    second process reclaim a lock that was doing its job (#206 F003).
+    """
+    telegram = (cfg.get("channels") or {}).get("telegram") or {}
+    return float(telegram.get("timeout_s") or DEFAULT_TELEGRAM_TIMEOUT_S) + GITHUB_TIMEOUT_S + LOCK_STALE_MARGIN_S
+
+
 @contextmanager
 def ledger_lock(cfg: dict[str, Any], timeout_s: float | None = None, *, create: bool = True) -> Iterator[bool]:
     """Serialise read → decide → append → send across processes and worktrees.
@@ -640,7 +706,7 @@ def ledger_lock(cfg: dict[str, Any], timeout_s: float | None = None, *, create: 
         return
     wait_s = lock_wait_s(cfg) if timeout_s is None else float(timeout_s)
     if fcntl is None:  # pragma: no cover - exercised by monkeypatching fcntl to None
-        with _exclusive_create_lock(path, wait_s) as acquired:
+        with _exclusive_create_lock(path, wait_s, lock_hold_ceiling_s(cfg)) as acquired:
             yield acquired
         return
     try:
@@ -668,29 +734,38 @@ def ledger_lock(cfg: dict[str, Any], timeout_s: float | None = None, *, create: 
 
 
 @contextmanager
-def _exclusive_create_lock(path: Path, wait_s: float) -> Iterator[bool]:
+def _exclusive_create_lock(path: Path, wait_s: float, stale_after_s: float) -> Iterator[bool]:
     """`O_CREAT|O_EXCL` stand-in for `flock` where `fcntl` does not exist.
 
     Without it, a platform with no ``fcntl`` had *no* serialisation at all, and
     the routine fail-closed rule was skipped there as well — the one case that
     needs it most (#206 F003). An exclusive create is atomic on every platform
     CPython supports, so the budget stays serialised; the cost is that a process
-    killed while holding it leaves the file behind, which is why an untouched
-    lock older than the wait ceiling is reclaimed once.
+    killed while holding it leaves the file behind, which is why a lock left
+    untouched for longer than a legitimate hold can take — ``stale_after_s``,
+    from :func:`lock_hold_ceiling_s`, *not* from this call's wait — is reclaimed
+    once.
+
+    Each holder writes an identity token into the file it created and releases
+    only the lock still carrying that token. Unlinking blind let a holder whose
+    lock had already been reclaimed delete its successor's lock on the way out,
+    putting two processes in the critical section at once (#206 F003).
     """
     fd: int | None = None
+    token = f"{os.getpid()}:{os.urandom(8).hex()}".encode()
     reclaimed = False
     deadline = time.monotonic() + max(wait_s, 0.0)
     while True:
         try:
             fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o644)
+            os.write(fd, token)
             break
         except FileExistsError:
             try:
                 age = time.time() - path.stat().st_mtime
             except OSError:
                 age = 0.0
-            if not reclaimed and age > max(wait_s, 0.0) + LOCK_STALE_MARGIN_S:
+            if not reclaimed and age > max(stale_after_s, 0.0):
                 reclaimed = True
                 try:
                     path.unlink()
@@ -708,7 +783,8 @@ def _exclusive_create_lock(path: Path, wait_s: float) -> Iterator[bool]:
         if fd is not None:
             os.close(fd)
             try:
-                path.unlink()
+                if path.read_bytes() == token:
+                    path.unlink()
             except OSError:
                 pass
 
@@ -814,11 +890,24 @@ def compact_ledger(cfg: dict[str, Any]) -> int:
         # may have appended since, and rewriting from a stale snapshot would
         # discard its line. Compaction is an optimisation, so skipping this
         # round is free — the next serialised send trims the file (#206 F015).
-        if path.stat().st_size != size:
-            return 0
-        tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
-        tmp.write_text("\n".join(kept) + "\n", encoding="utf-8")
-        os.replace(tmp, path)
+        # The check cannot cover the interval between itself and `os.replace`,
+        # so the pre-replace file is held open and anything that landed past
+        # `size` is carried over afterwards: those bytes are by definition newer
+        # than the verified snapshot, so re-appending them cannot duplicate a
+        # kept line. An append to that now-unlinked inode after the carry-over
+        # read is still lost — closing that last instant needs the appender to
+        # serialise against the rewrite, which a `gate` must not wait for.
+        with path.open("rb") as live:
+            if os.fstat(live.fileno()).st_size != size:
+                return 0
+            tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+            tmp.write_text("\n".join(kept) + "\n", encoding="utf-8")
+            os.replace(tmp, path)
+            live.seek(size)
+            straggler = live.read()
+        if straggler:
+            with path.open("ab") as fh:
+                fh.write(straggler)
     except OSError:
         return 0
     return len(lines) - len(kept)
@@ -1440,19 +1529,35 @@ def dispatch(
                     f"a {level} cannot be filed",
                 }
             )
+        # …and the push leg of the same contract (#206 F016).
+        if missing_push_channel(level, routed, cfg):
+            results.append(
+                {
+                    "ok": False,
+                    "channel": "push",
+                    "error": f"levels.{level}.channels {routed} routes to no push channel; "
+                    f"a {level} would be filed but never pushed",
+                }
+            )
         for channel in routed:
             channel_cfg = (cfg.get("channels") or {}).get(channel) or {}
             if not channel_cfg.get("enabled"):
-                # "Off by configuration" is a successful skip for a push channel
-                # — but a `gate` *is* its GitHub record, so a disabled record
-                # channel is a missing system-of-record entry, not a skip, and
-                # must not let the dispatch report `sent` (#206 F002).
-                if is_required_channel(level, channel, cfg):
+                # "Off by configuration" is a successful skip for a push-only
+                # level — but a `gate` *is* its GitHub record (#206 F002) *and*
+                # the push that tells the operator it is blocked (#206 F016), so
+                # either leg being off is a failed leg, not a skip, and must not
+                # let the dispatch report `sent`.
+                if is_load_bearing_channel(level, channel, cfg):
+                    reason = (
+                        "cannot be filed without its record"
+                        if is_required_channel(level, channel, cfg)
+                        else "is a block nobody was told about if its push channel is off"
+                    )
                     results.append(
                         {
                             "ok": False,
                             "channel": channel,
-                            "error": f"channel disabled in config; a {level} cannot be filed without its record",
+                            "error": f"channel disabled in config; a {level} {reason}",
                         }
                     )
                 else:
