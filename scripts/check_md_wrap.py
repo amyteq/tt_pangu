@@ -142,15 +142,42 @@ HARD_BREAK_RE = re.compile(r"(?:  +|\\)$")
 # terminator and may contain blank lines — an `<!-- ... -->` comment spanning a
 # blank line is the common case here, and ending it early would let the engine
 # reflow text it promised never to inspect. Types 6 and 7 end at a blank line.
+#
+# Which type a line opens also decides whether it may interrupt a paragraph:
+# types 1-6 may, type 7 may not. And a line starting with `<` is often no block
+# at all — `<https://example.com>` is an autolink, ordinary paragraph text —
+# so the opener is matched exactly rather than by its first character.
 HTML_CDATA_RE = re.compile(r"^ {0,3}<!\[CDATA\[")
 HTML_COMMENT_RE = re.compile(r"^ {0,3}<!--")
 HTML_PI_RE = re.compile(r"^ {0,3}<\?")
 HTML_DECL_RE = re.compile(r"^ {0,3}<![A-Za-z]")
-HTML_RAW_RE = re.compile(r"^ {0,3}<(script|pre|style|textarea)\b", re.IGNORECASE)
+HTML_RAW_RE = re.compile(r"^ {0,3}<(script|pre|style|textarea)(?:[ \t>]|/?>|$)", re.IGNORECASE)
+
+# CommonMark's type-6 tag list, verbatim.
+HTML_BLOCK_TAGS = (
+    "address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl"
+    "|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend"
+    "|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td"
+    "|tfoot|th|thead|title|tr|track|ul"
+)
+HTML_TYPE6_RE = re.compile(rf"^ {{0,3}}</?(?:{HTML_BLOCK_TAGS})(?:[ \t]|/?>|$)", re.IGNORECASE)
+
+_TAG_NAME = r"[A-Za-z][A-Za-z0-9-]*"
+_ATTR = r"""(?:[ \t]+[A-Za-z_:][A-Za-z0-9_.:-]*(?:[ \t]*=[ \t]*(?:[^ \t"'=<>`]+|'[^']*'|"[^"]*"))?)"""
+HTML_TYPE7_RE = re.compile(rf"^ {{0,3}}(?:<{_TAG_NAME}{_ATTR}*[ \t]*/?>|</{_TAG_NAME}[ \t]*>)[ \t]*$")
+
+# Returned by html_block_start for a block that ends at the next blank line.
+ENDS_AT_BLANK_LINE = ""
 
 
-def html_block_terminator(content: str) -> str | None:
-    """The string that closes this HTML block, or None if a blank line closes it."""
+def html_block_start(content: str, interrupting: bool) -> str | None:
+    """The string that closes the HTML block starting here.
+
+    Returns `ENDS_AT_BLANK_LINE` when a blank line closes it, and None when this
+    line opens no HTML block at all. `interrupting` says a paragraph is open, in
+    which case type 7 — any bare complete tag on its own line — is paragraph
+    text rather than a block, per CommonMark.
+    """
     if HTML_CDATA_RE.match(content):
         return "]]>"
     if HTML_COMMENT_RE.match(content):
@@ -162,6 +189,10 @@ def html_block_terminator(content: str) -> str | None:
     m = HTML_RAW_RE.match(content)
     if m:
         return f"</{m.group(1).lower()}>"
+    if HTML_TYPE6_RE.match(content):
+        return ENDS_AT_BLANK_LINE
+    if not interrupting and HTML_TYPE7_RE.match(content):
+        return ENDS_AT_BLANK_LINE
     return None
 
 
@@ -259,7 +290,11 @@ def indent_of(content: str) -> int:
 
 
 def is_block_start(content: str) -> bool:
-    """True if this line begins a new block rather than continuing the one above."""
+    """True if this line begins a new block rather than continuing the one above.
+
+    HTML is absent deliberately: an HTML block that may interrupt a paragraph is
+    consumed before this is consulted, so a `<` left here opens no block.
+    """
     return bool(
         ATX_RE.match(content)
         or FENCE_RE.match(content)
@@ -267,7 +302,6 @@ def is_block_start(content: str) -> bool:
         or HR_OTHER_RE.match(content)
         or LIST_RE.match(content)
         or TABLE_RE.match(content)
-        or HTML_RE.match(content)
         or LINKDEF_RE.match(content)
     )
 
@@ -279,7 +313,7 @@ def ends_table(content: str) -> bool:
         or HR_DASH_RE.match(content)
         or HR_OTHER_RE.match(content)
         or LIST_RE.match(content)
-        or HTML_RE.match(content)
+        or html_block_start(content, interrupting=True) is not None
     )
 
 
@@ -291,7 +325,7 @@ def leaves_block_open(content: str) -> bool:
     """
     if ATX_RE.match(content) or HR_DASH_RE.match(content) or HR_OTHER_RE.match(content):
         return False
-    if LINKDEF_RE.match(content) or HTML_RE.match(content):
+    if LINKDEF_RE.match(content):
         return False
     return True
 
@@ -398,21 +432,23 @@ def analyse(text: str) -> tuple[list[Violation], str]:
             prev_depth = depth
             continue
 
-        # An HTML block is copied verbatim to its end condition.
-        if not prev_open and HTML_RE.match(content):
-            terminator = html_block_terminator(content)
+        # An HTML block is copied verbatim to its end condition. Types 1-6 may
+        # interrupt an open paragraph; type 7 may not, and is left as prose.
+        terminator = html_block_start(content, interrupting=prev_open)
+        if terminator is not None:
             while i < len(lines):
                 out.append(lines[i])
                 body = split_quote(lines[i])[1]
-                if terminator is None:
+                if terminator == ENDS_AT_BLANK_LINE:
                     if not body.strip():
                         break
-                elif terminator in body:
+                elif terminator in body.lower():
                     break
                 i += 1
             i += 1
             prev_open = False
             prev_depth = depth
+            table_cols, bare_table = None, False
             continue
 
         # A table opens where a delimiter row follows a header of equal width.

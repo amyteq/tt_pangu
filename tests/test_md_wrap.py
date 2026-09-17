@@ -225,6 +225,42 @@ def test_ordinary_html_block_still_ends_at_a_blank_line():
     assert fixed(src) == "<details>\n<summary>x</summary>\n\nA paragraph hard wrapped after the block.\n"
 
 
+def test_html_block_interrupting_a_paragraph_is_not_inspected():
+    """CommonMark HTML block types 1-6 may interrupt a paragraph.
+
+    Requiring a preceding blank line let the engine reflow the inside of a
+    `<pre>` that followed prose. Regression for round-1 finding F003 on PR #226.
+    """
+    src = "before\n<pre>\none\ntwo\n</pre>\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_uppercase_raw_html_terminator_closes_the_block():
+    src = "<PRE>\none\ntwo\n</PRE>\n\nProse.\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_autolink_at_line_start_is_prose_not_an_html_block():
+    src = "<https://example.com> hard\nwrapped paragraph\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "<https://example.com> hard wrapped paragraph\n"
+
+
+def test_angle_bracket_placeholder_inside_a_list_item_is_prose():
+    """`<path>` is a type-7 tag, which cannot interrupt a paragraph — so this wraps."""
+    src = "- `--flag-file\n  <path> [--dry-run]` — submits a flag\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "- `--flag-file <path> [--dry-run]` — submits a flag\n"
+
+
+def test_type_seven_html_block_at_a_block_start_is_not_inspected():
+    src = "<custom-tag>\ntext under it\n\nProse.\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
 def test_wrapped_blockquote_is_flagged_and_joined():
     src = "> a quoted paragraph that was\n> hard wrapped\n"
     assert kinds(src) == ["split-block"]
