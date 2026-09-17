@@ -569,27 +569,40 @@ INLINE_LINK_RE = re.compile(r"\[(?P<text>[^\]]*)\]\((?P<target>[^)\s]+)")
 CODE_SPAN_RE = re.compile(r"`[^`]*`")
 
 
+SETEXT_RE = re.compile(r"^ {0,3}(?P<rule>=+|-+)[ \t]*$")
+
+
 def structure(text: str) -> dict:
     """Extract wrap-invariant structure, for before/after comparison.
 
     The text stream drops `|` before comparing. Rejoining a split table row moves
     its tail from a prose line into a table cell, which is a repair rather than a
     content change, and only pipe-blindness makes the two states comparable.
+
+    Nesting is recorded, not just counted: a list that lost its indentation, a
+    table that lost a row and a paragraph that became a setext heading all read
+    as the same text, and only their shape gives them away.
     """
     lines = text.split("\n")
     fence: str | None = None
     frontmatter_last = frontmatter_end(lines)
     stream: list[str] = []
-    headings: list[tuple[int, str]] = []
+    headings: list[tuple[int, str, str]] = []
     code: list[str] = []
     links: list[str] = []
-    list_items = 0
-    tables: list[tuple[int, int]] = []
+    list_shape: list[tuple[int, str]] = []
+    list_indents: list[int] = []
+    tables: list[tuple[int, ...]] = []
     table_rows: list[int] = []
+    bare_table = False
+    # The last line of an open top-level paragraph, if one is open: only such a
+    # paragraph can be turned into a setext heading by a `---` below it.
+    open_paragraph: str | None = None
+    open_other_block = False
 
     def close_table() -> None:
         if table_rows:
-            tables.append((len(table_rows), max(table_rows)))
+            tables.append(tuple(table_rows))
             table_rows.clear()
 
     for i, raw in enumerate(lines):
@@ -606,21 +619,67 @@ def structure(text: str) -> dict:
         if m:
             fence = m.group("fence")
             close_table()
+            bare_table = False
+            open_paragraph, open_other_block = None, False
             continue
-        if TABLE_RE.match(content):
-            table_rows.append(len(content.strip().strip("|").split("|")))
+
+        # Table rows, including a table whose rows carry no leading pipe.
+        row = TABLE_RE.match(content) is not None
+        if bare_table:
+            if not content.strip() or ends_table(content):
+                bare_table = False
+            else:
+                row = True
+        if not row and content.strip() and i + 1 < len(lines):
+            next_content = split_quote(lines[i + 1])[1]
+            if table_opens_here(content, next_content) is not None:
+                row = True
+                bare_table = TABLE_RE.match(content) is None
+        if row:
+            table_rows.append(len(split_table_cells(content)))
         else:
             close_table()
+
         if not content.strip():
+            open_paragraph, open_other_block = None, False
             continue
+
+        # A setext underline turns the paragraph above it into a heading — the
+        # class-B hazard. Record it, so a comparison can see one appear.
+        sx = SETEXT_RE.match(content)
+        if sx and open_paragraph is not None and not row:
+            headings.append((1 if sx.group("rule")[0] == "=" else 2, open_paragraph, "setext"))
+            open_paragraph = None
+            stream.append(content)
+            continue
+
         stream.append(content)
         links.extend(m.group("target") for m in INLINE_LINK_RE.finditer(content))
         h = re.match(r"^ {0,3}(#{1,6})(?: +)(.*?)\s*#*\s*$", content)
         if h:
-            headings.append((len(h.group(1)), " ".join(h.group(2).split())))
+            headings.append((len(h.group(1)), " ".join(h.group(2).split()), "atx"))
+            open_paragraph, open_other_block = None, False
             continue
         if LIST_RE.match(content):
-            list_items += 1
+            indent = indent_of(content)
+            while list_indents and indent < list_indents[-1]:
+                list_indents.pop()
+            if not list_indents or indent > list_indents[-1]:
+                list_indents.append(indent)
+            marker = content.lstrip(" \t")[0]
+            list_shape.append((len(list_indents), "ol" if marker.isdigit() else "ul"))
+        elif indent_of(content) == 0 and not row and not open_other_block:
+            list_indents.clear()
+
+        if HR_DASH_RE.match(content) or HR_OTHER_RE.match(content):
+            open_paragraph, open_other_block = None, False
+        elif row or LIST_RE.match(content) or LINKDEF_RE.match(content) or indent_of(content) >= 4:
+            open_paragraph, open_other_block = None, True
+        elif open_other_block:
+            open_paragraph = None  # a continuation line of a list item or table
+        else:
+            open_paragraph = " ".join(content.split())
+
     close_table()
 
     return {
@@ -628,9 +687,15 @@ def structure(text: str) -> dict:
         "headings": headings,
         "code": "\n".join(code),
         "links": sorted(links),
-        "list_items": list_items,
+        "list_items": len(list_shape),
+        "list_shape": list_shape,
         "tables": tables,
     }
+
+
+def _malformed(tables: list[tuple[int, ...]]) -> bool:
+    """True if any table's rows disagree on column count."""
+    return any(len(widths) > 1 and len(set(widths)) > 1 for widths in tables)
 
 
 def compare_structure(before: str, after: str) -> list[str]:
@@ -639,49 +704,33 @@ def compare_structure(before: str, after: str) -> list[str]:
     diffs: list[str] = []
     if a["prose"] != b["prose"]:
         diffs.append("prose text changed (not a whitespace-only edit)")
-    if a["headings"] != b["headings"]:
-        diffs.append(f"heading sequence changed: {len(a['headings'])} -> {len(b['headings'])}")
+
+    # ATX headings are invariant. Setext headings may only disappear: removing
+    # one is the class-B repair, while creating one silently promotes a
+    # paragraph to a heading.
+    atx = [h for h in a["headings"] if h[2] == "atx"], [h for h in b["headings"] if h[2] == "atx"]
+    if atx[0] != atx[1]:
+        diffs.append(f"heading sequence changed: {len(atx[0])} -> {len(atx[1])}")
+    setext_before = [h for h in a["headings"] if h[2] == "setext"]
+    new_setext = [h for h in b["headings"] if h[2] == "setext" and h not in setext_before]
+    if new_setext:
+        diffs.append(f"a paragraph became a setext heading: {new_setext[0][1]!r}")
+
     if a["code"] != b["code"]:
         diffs.append("fenced code content changed")
     if a["links"] != b["links"]:
         diffs.append("link targets changed")
     if a["list_items"] != b["list_items"]:
         diffs.append(f"list-item count changed: {a['list_items']} -> {b['list_items']}")
+    elif a["list_shape"] != b["list_shape"]:
+        diffs.append("list nesting changed")
     if a["tables"] != b["tables"]:
         # Rejoining a split row legitimately repairs a table that was broken
         # before, so a dimension change is only a defect when the result is
         # still malformed. A well-formed table has one column count throughout.
-        malformed_before = any(rows > 1 and cols_inconsistent for rows, cols_inconsistent in _table_health(before))
-        malformed_after = any(rows > 1 and cols_inconsistent for rows, cols_inconsistent in _table_health(after))
-        if malformed_after or not malformed_before:
+        if _malformed(b["tables"]) or not _malformed(a["tables"]):
             diffs.append(f"table dimensions changed: {a['tables']} -> {b['tables']}")
     return diffs
-
-
-def _table_health(text: str) -> list[tuple[int, bool]]:
-    """Per table: (row count, whether its rows disagree on column count)."""
-    out: list[tuple[int, bool]] = []
-    fence: str | None = None
-    widths: list[int] = []
-    for raw in text.split("\n"):
-        _, content = split_quote(raw)
-        if fence is not None:
-            if closes_fence(content, fence):
-                fence = None
-            continue
-        m = FENCE_RE.match(content)
-        if m:
-            fence = m.group("fence")
-            continue
-        if TABLE_RE.match(content):
-            widths.append(len(content.strip().strip("|").split("|")))
-            continue
-        if widths:
-            out.append((len(widths), len(set(widths)) > 1))
-            widths = []
-    if widths:
-        out.append((len(widths), len(set(widths)) > 1))
-    return out
 
 
 # --------------------------------------------------------------------------
