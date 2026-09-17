@@ -131,6 +131,9 @@ LOCK_WAIT_MARGIN_S = 10.0
 # How long past the wait ceiling a lock file must sit untouched before the
 # fcntl-less fallback treats it as abandoned by a process that died holding it.
 LOCK_STALE_MARGIN_S = 60.0
+# A lock token is `<pid>:<16 hex>`; the bound keeps an identity check from
+# reading a file some other writer left at the path into memory unbounded.
+LOCK_TOKEN_MAX_BYTES = 256
 DEFAULT_TELEGRAM_TIMEOUT_S = 15
 GITHUB_TIMEOUT_S = 90
 LEDGER_MAX_BYTES = 512_000
@@ -750,6 +753,10 @@ def _exclusive_create_lock(path: Path, wait_s: float, stale_after_s: float) -> I
     only the lock still carrying that token. Unlinking blind let a holder whose
     lock had already been reclaimed delete its successor's lock on the way out,
     putting two processes in the critical section at once (#206 F003).
+
+    Reclaiming is never acquiring: :func:`_reclaim_stale_lock` only removes the
+    abandoned file, and the loop below re-establishes the lock the one way it
+    ever does — by winning an `O_CREAT|O_EXCL` create of its own token.
     """
     fd: int | None = None
     token = f"{os.getpid()}:{os.urandom(8).hex()}".encode()
@@ -761,16 +768,10 @@ def _exclusive_create_lock(path: Path, wait_s: float, stale_after_s: float) -> I
             os.write(fd, token)
             break
         except FileExistsError:
-            try:
-                age = time.time() - path.stat().st_mtime
-            except OSError:
-                age = 0.0
-            if not reclaimed and age > max(stale_after_s, 0.0):
+            observed = _stale_lock_token(path, stale_after_s)
+            if observed is not None and not reclaimed:
                 reclaimed = True
-                try:
-                    path.unlink()
-                except OSError:
-                    pass
+                _reclaim_stale_lock(path, observed)
                 continue
             if time.monotonic() >= deadline:
                 break
@@ -787,6 +788,63 @@ def _exclusive_create_lock(path: Path, wait_s: float, stale_after_s: float) -> I
                     path.unlink()
             except OSError:
                 pass
+
+
+def _stale_lock_token(path: Path, stale_after_s: float) -> bytes | None:
+    """The token of an abandoned lock file, or ``None`` while it is live.
+
+    Age and token come from a *single* open descriptor: a `stat` followed by a
+    separate read can pair a dead holder's mtime with a successor's token, which
+    would authorise reclaiming a lock that was never stale (#206 F003).
+    """
+    try:
+        fd = os.open(str(path), os.O_RDONLY)
+    except OSError:
+        return None
+    try:
+        age = time.time() - os.fstat(fd).st_mtime
+        token = os.read(fd, LOCK_TOKEN_MAX_BYTES)
+    except OSError:
+        return None
+    finally:
+        os.close(fd)
+    return token if age > max(stale_after_s, 0.0) else None
+
+
+def _reclaim_stale_lock(path: Path, observed: bytes) -> None:
+    """Delete an abandoned lock — but only the exact file that was observed.
+
+    Reclaiming is a claim, not a pathname unlink: the file is renamed out of the
+    way atomically, so exactly one contender can carry off a given abandoned
+    lock, and it is deleted only if it still holds the token observed stale. A
+    blind ``path.unlink()`` let a second contender delete the *fresh* lock a
+    first contender had just created, after which both yielded acquired and
+    spent the same routine budget (#206 F003).
+
+    A claim that turns out to hold a successor's live token is put back with
+    ``os.link``, which refuses to clobber whatever owns the pathname by then;
+    where hard links are unavailable that restore is the one thing this cannot
+    guarantee, and the caller still has to win an `O_CREAT|O_EXCL` create before
+    it may consider itself the holder.
+    """
+    claim = path.with_name(f"{path.name}.stale.{os.getpid()}.{os.urandom(6).hex()}")
+    try:
+        os.rename(str(path), str(claim))
+    except OSError:
+        return  # another contender claimed it first — keep polling
+    try:
+        won = claim.read_bytes() == observed
+    except OSError:
+        won = False
+    if not won:
+        try:
+            os.link(str(claim), str(path))
+        except OSError:
+            pass
+    try:
+        claim.unlink()
+    except OSError:
+        pass
 
 
 def read_ledger(cfg: dict[str, Any]) -> list[dict[str, Any]]:

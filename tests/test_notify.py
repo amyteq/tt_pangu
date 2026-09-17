@@ -897,6 +897,53 @@ def test_the_fallback_lock_releases_only_its_own_lock(cfg: dict, monkeypatch) ->
     assert lock.read_bytes() == b"999:successor"  # released, did not steal
 
 
+def test_two_fallback_contenders_racing_one_abandoned_lock_have_a_single_winner(cfg: dict, monkeypatch) -> None:
+    """#206 F003: reclaiming was a stat-then-unlink of a *pathname*. Two
+    contenders that observed the same abandoned lock both acted on it — the
+    first unlinked it and created its own token, the second then unlinked that
+    fresh successor and created its own — so both yielded acquired and both
+    spent the same daily budget."""
+    monkeypatch.setattr(notify, "fcntl", None)
+    cfg["limits"]["lock_wait_s"] = 0
+    lock = notify.state_dir(cfg) / "ledger.lock"
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    lock.write_bytes(b"4242:0badc0de")
+    os.utime(lock, (0, 0))  # abandoned long ago: staleness, with no wall clock to wait on
+
+    other: dict = {"cm": None, "acquired": None}
+    real_rename, real_unlink = os.rename, Path.unlink
+
+    def let_the_other_contender_run() -> None:
+        """Run the second contender to completion in the window between this
+        one's observation of the stale lock and its removal of it, and leave it
+        holding what it acquired. That window is the whole of the finding."""
+        if other["cm"] is not None:
+            return
+        other["cm"] = notify.ledger_lock(cfg)
+        other["acquired"] = other["cm"].__enter__()
+
+    def racing_rename(src, dst):  # the identity-checked claim
+        let_the_other_contender_run()
+        return real_rename(src, dst)
+
+    def racing_unlink(self, *args, **kwargs):  # the blind removal it replaced
+        let_the_other_contender_run()
+        return real_unlink(self, *args, **kwargs)
+
+    monkeypatch.setattr(notify.os, "rename", racing_rename)
+    monkeypatch.setattr(Path, "unlink", racing_unlink)
+    try:
+        with notify.ledger_lock(cfg) as first:
+            assert other["acquired"] is True  # the second contender really did race
+            assert (first, other["acquired"]) != (True, True)  # …and only one of them holds
+            assert first is False  # this one lost: it removed a file, which is not acquiring
+    finally:
+        if other["cm"] is not None:
+            other["cm"].__exit__(None, None, None)
+    assert not lock.exists()  # the winner released its own lock, and nothing leaked
+    assert sorted(p.name for p in lock.parent.iterdir()) == []
+
+
 def test_the_budget_is_serialised_even_without_fcntl(cfg: dict, monkeypatch) -> None:
     """#206 F003: on a platform with no `fcntl` the lock used to degrade to no
     serialisation *and* skip the routine fail-closed rule — the one case that
