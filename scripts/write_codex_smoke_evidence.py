@@ -9,7 +9,8 @@ The header says which commit both harnesses read and that they read the prompt
 unedited. Both claims are verified in `scripts/evidence_provenance.py` rather
 than believed: the named commit must be HEAD, nothing may differ from it except
 the three evidence files the writers themselves produce, and `smoke-prompt.txt`
-must exist as a file at that commit. `smoke-prompt.txt` is an input, so it is not
+must exist as a regular file at that commit — not a directory, and not a symlink
+whose target the commit does not contain. `smoke-prompt.txt` is an input, so it is not
 exempt — an earlier version of this script exempted the whole evidence directory
 and would have stamped "Prompt … unedited" over an edited prompt. The existence
 check is separate because "nothing differs" is also true of a commit that never
