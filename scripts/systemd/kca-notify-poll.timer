@@ -1,0 +1,18 @@
+[Unit]
+Description=Check the kca notify tracking issue for decision answers every 5 minutes (#219)
+Documentation=https://github.com/amyteq/tt_pangu/blob/main/docs/tooling/notification-channel.md
+
+[Timer]
+# Every five minutes, on the wall clock. A decision is something a human is
+# blocked on, so the latency that matters is "how long after you answer does
+# the agent know" — five minutes is well inside the cost of a round trip, and
+# cheap: each run is two `gh` reads when there is nothing to do.
+OnCalendar=*:0/5
+# Catch up after a suspend/reboot rather than silently skipping an answer.
+Persistent=true
+# Avoid firing on the exact minute boundary alongside every other timer.
+RandomizedDelaySec=30
+Unit=kca-notify-poll.service
+
+[Install]
+WantedBy=timers.target

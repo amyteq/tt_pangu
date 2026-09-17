@@ -8,19 +8,24 @@ expiry — and the Telegram card is a compact mirror linking back to it. If
 Telegram is down the record still exists; if GitHub is down we do not pretend a
 decision was recorded.
 
-Phase 1a (this module) is the **send + parse** half:
+This module carries the whole loop:
 
 * ``kca notify doctor``   — preflight every bot without printing any secret;
 * ``kca notify send``     — push a levelled message
   (gate / attention / digest / info);
 * ``kca notify decision`` — open a decision request on both channels;
+* ``kca notify poll``     — read `/decide` answers off the tracking issue and
+  write each resolution back into the record (#219);
 * :func:`parse_decision_reply` / :func:`resolve_reply` — the deterministic reply
-  contract the phase-1b poller calls (an option id, never free-text inference).
+  contract the poller calls (an option id, never free-text inference).
 
-The Telegram card is deliberately **read-only** in phase 1a: nothing consumes
-`getUpdates` or callback queries yet, so a tappable option button would look
-like an answer and resolve nothing. The card spells out the `/decide` line for
-each option and links to the record, which is where the answer is given.
+The Telegram card is deliberately **read-only**: nothing consumes `getUpdates`
+or callback queries, so a tappable option button would look like an answer and
+resolve nothing. The card spells out the `/decide` line for each option and
+links to the record, which is where the answer is given. The poller reads that
+record rather than a bot's update stream, because a token has exactly one
+active receiver (#187 §3) and both bots are already agent entries; one-tap
+answering needs a third, receive-only bot and is deliberately deferred (#219).
 
 Rules that bind every send (#185 §9 / §18):
 
@@ -91,6 +96,12 @@ QUIET_HOURS_POLICIES = ("bypass", "defer")
 ENV_PREFIX_ALLOWLIST = ("TELEGRAM_",)
 CALLBACK_DATA_MAX_BYTES = 64  # Telegram Bot API hard limit on callback_data
 RECORD_MARKER = "<!-- kca-decision:v1 -->"
+# The poller writes its own marker so a resolution is never mistaken for a
+# record, and so a repeat poll finds what it already did (phase 1b).
+RESOLUTION_MARKER = "<!-- kca-decision-resolved:v1 -->"
+# Only an effective repository permission authorises an answer (#196).
+AUTHORIZED_PERMISSIONS = ("admin", "write")
+UNAUTHORIZED_AUTHOR = "UNAUTHORIZED_AUTHOR"
 REDACTED = "[REDACTED]"
 
 # Bounded length is part of the no-leak contract: a harness event carries
@@ -134,10 +145,18 @@ LOCK_STALE_MARGIN_S = 60.0
 # A lock token is `<pid>:<16 hex>`; the bound keeps an identity check from
 # reading a file some other writer left at the path into memory unbounded.
 LOCK_TOKEN_MAX_BYTES = 256
+# How long a reclaim mutex may sit untouched before a later contender assumes
+# its holder died. Reclamation is a few syscalls, so this only has to outlast a
+# scheduling hiccup, not a slow send.
+RECLAIM_MUTEX_STALE_S = 30.0
 DEFAULT_TELEGRAM_TIMEOUT_S = 15
 GITHUB_TIMEOUT_S = 90
 LEDGER_MAX_BYTES = 512_000
 LEDGER_KEEP_ENTRIES = 1000
+# How many times an unserialised append retries when compaction swaps the file
+# out from under it. Two is enough for one swap; a third would mean compaction
+# ran twice inside a single append, which the lock already prevents.
+LEDGER_APPEND_ATTEMPTS = 3
 # A suppressed send is recorded once per hour per message, not once per hook
 # invocation: a spent budget must not turn every later event into a new line.
 SUPPRESSION_LOG_MINUTES = 60
@@ -238,6 +257,8 @@ DECISION_ID_PATTERN = r"[A-Za-z0-9._:-]{1,64}"
 OPTION_ID_PATTERN = r"[A-Za-z0-9_-]{1,32}"
 _DECISION_ID_RE = re.compile(rf"\A{DECISION_ID_PATTERN}\Z")
 _OPTION_ID_RE = re.compile(rf"\A{OPTION_ID_PATTERN}\Z")
+# GitHub logins: alphanumeric or single hyphens, 1-39 chars, no leading hyphen.
+_GITHUB_LOGIN_RE = re.compile(r"\A[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}\Z")
 _REPLY_RE = re.compile(
     rf"^\s*/decide\s+(?P<decision_id>{DECISION_ID_PATTERN})\s+(?P<option_id>{OPTION_ID_PATTERN})\s*(?P<note>.*)$"
 )
@@ -811,40 +832,68 @@ def _stale_lock_token(path: Path, stale_after_s: float) -> bytes | None:
     return token if age > max(stale_after_s, 0.0) else None
 
 
-def _reclaim_stale_lock(path: Path, observed: bytes) -> None:
-    """Delete an abandoned lock — but only the exact file that was observed.
+@contextmanager
+def _reclaim_mutex(path: Path) -> Iterator[bool]:
+    """Serialise reclamation itself, so only one contender may act at a time.
 
-    Reclaiming is a claim, not a pathname unlink: the file is renamed out of the
-    way atomically, so exactly one contender can carry off a given abandoned
-    lock, and it is deleted only if it still holds the token observed stale. A
-    blind ``path.unlink()`` let a second contender delete the *fresh* lock a
-    first contender had just created, after which both yielded acquired and
-    spent the same routine budget (#206 F003).
-
-    A claim that turns out to hold a successor's live token is put back with
-    ``os.link``, which refuses to clobber whatever owns the pathname by then;
-    where hard links are unavailable that restore is the one thing this cannot
-    guarantee, and the caller still has to win an `O_CREAT|O_EXCL` create before
-    it may consider itself the holder.
+    Reclaiming used to move the lock aside first and ask questions afterwards,
+    which meant a second contender could carry off the *fresh* lock a first one
+    had just created and then fail to put it back (#206 F003/F017). Holding this
+    mutex instead lets the decision be made in place: nothing is renamed, so
+    nothing ever has to be restored, and the hard-link dependency disappears.
     """
-    claim = path.with_name(f"{path.name}.stale.{os.getpid()}.{os.urandom(6).hex()}")
+    held = path.with_name(f"{path.name}.reclaim")
     try:
-        os.rename(str(path), str(claim))
+        age = time.time() - held.stat().st_mtime
     except OSError:
-        return  # another contender claimed it first — keep polling
-    try:
-        won = claim.read_bytes() == observed
-    except OSError:
-        won = False
-    if not won:
+        age = None
+    if age is not None and age > RECLAIM_MUTEX_STALE_S:
+        # A reclaimer that died holding this must not wedge every later one.
         try:
-            os.link(str(claim), str(path))
+            held.unlink()
         except OSError:
             pass
     try:
-        claim.unlink()
+        fd = os.open(str(held), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     except OSError:
-        pass
+        yield False  # someone else is mid-reclaim; keep polling instead
+        return
+    try:
+        os.write(fd, f"{os.getpid()}\n".encode())
+        os.close(fd)
+        yield True
+    finally:
+        try:
+            held.unlink()
+        except OSError:
+            pass
+
+
+def _reclaim_stale_lock(path: Path, observed: bytes) -> None:
+    """Delete an abandoned lock — but only the exact file that was observed.
+
+    The check and the removal happen in place, under :func:`_reclaim_mutex`, and
+    that is what makes them safe together. While the mutex is held no other
+    contender can be reclaiming, and a *fresh* holder cannot have taken this
+    pathname either: creating the lock requires it to be absent, and it is only
+    absent after the unlink below. So a token still matching the one observed
+    stale cannot belong to a successor, and unlinking it cannot destroy a lock
+    somebody legitimately holds.
+
+    Nothing is renamed and nothing is restored, so unlike the previous
+    claim-and-put-back this works identically on a filesystem without hard links
+    (#206 F017). The caller must still win an `O_CREAT|O_EXCL` create before it
+    may consider itself the holder.
+    """
+    with _reclaim_mutex(path) as acquired:
+        if not acquired:
+            return
+        if _stale_lock_token(path, 0.0) != observed:
+            return  # a successor owns it now, or it is already gone
+        try:
+            os.unlink(str(path))
+        except OSError:
+            pass
 
 
 def read_ledger(cfg: dict[str, Any]) -> list[dict[str, Any]]:
@@ -858,6 +907,7 @@ def read_ledger(cfg: dict[str, Any]) -> list[dict[str, Any]]:
     if not path.exists():
         return []
     entries: list[dict[str, Any]] = []
+    seen: set[str] = set()
     for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
         line = line.strip()
         if not line:
@@ -866,8 +916,20 @@ def read_ledger(cfg: dict[str, Any]) -> list[dict[str, Any]]:
             parsed = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if isinstance(parsed, dict):
-            entries.append(parsed)
+        if not isinstance(parsed, dict):
+            continue
+        # An entry may legitimately appear twice: compaction can carry a
+        # straggler over *and* its appender can re-add it after seeing the
+        # inode swap (#206 F015). The id collapses that pair back to one event
+        # while keeping the first occurrence's position, so the budget counts
+        # what actually happened. Entries written before ids existed have none
+        # and are always kept.
+        entry_id = parsed.get("id")
+        if isinstance(entry_id, str) and entry_id:
+            if entry_id in seen:
+                continue
+            seen.add(entry_id)
+        entries.append(parsed)
     return entries
 
 
@@ -880,11 +942,33 @@ def append_ledger(cfg: dict[str, Any], entry: dict[str, Any], *, compact: bool =
     doing it can drop a line another process appended after its snapshot (#206
     F015). Deferring compaction to the next serialised send costs nothing — the
     ledger is trimmed by size, not on a schedule.
+
+    Compaction carries over whatever landed before its final read, but an append
+    to the *unlinked* inode after that read used to be lost outright, and the
+    only way to close that instant from the writer's side would be to make a
+    `gate` wait for the lock — which is exactly what it must not do. So the
+    writer checks instead: if the file it just wrote to is no longer the file at
+    `path`, compaction swapped it mid-append and the line is written again to
+    the live inode. Both copies carry the same `id`, so :func:`read_ledger`
+    collapses them and the entry is recorded exactly once either way.
     """
     path = ledger_path(cfg)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(entry, ensure_ascii=False) + "\n")
+    entry = {**entry, "id": str(entry.get("id") or os.urandom(8).hex())}
+    line = json.dumps(entry, ensure_ascii=False) + "\n"
+    for _ in range(LEDGER_APPEND_ATTEMPTS):
+        with path.open("a", encoding="utf-8") as fh:
+            fh.write(line)
+            fh.flush()
+            try:
+                written_to = os.fstat(fh.fileno()).st_ino
+            except OSError:
+                break
+        try:
+            if path.stat().st_ino == written_to:
+                break
+        except OSError:
+            break  # the ledger is gone entirely; the next send recreates it
     if compact:
         compact_ledger(cfg)
 
@@ -1081,9 +1165,11 @@ class DecisionRequest:
 def callback_data(decision_id: str, option_id: str) -> str:
     """The phase-1b callback contract.
 
-    No button carries it yet (nothing consumes `getUpdates`), but every id is
-    still validated against the 64-byte limit at construction so a decision
-    opened today stays answerable by a tap once the poller exists.
+    No button carries it yet: `kca notify poll` reads answers off the GitHub
+    record, not a bot's update stream, so nothing consumes `getUpdates`. Every
+    id is still validated against the 64-byte limit at construction, so a
+    decision opened today stays answerable by a tap once the receive-only bot
+    of option B exists (#219).
     """
     return f"kca:{decision_id}:{option_id}"
 
@@ -1263,7 +1349,7 @@ def build_keyboard(req: DecisionRequest, cfg: dict[str, Any]) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Reply contract (used by the phase-1b poller and by `kca notify resolve`)
+# Reply contract (the grammar :func:`poll` resolves an answer against)
 # ---------------------------------------------------------------------------
 
 
@@ -1343,6 +1429,294 @@ def resolve_reply(
         "option_id": parsed["option_id"],
         "decision_id": decision_id,
         "note": parsed["note"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Reply poller (phase 1b option A — GitHub carries the record *and* the reply)
+# ---------------------------------------------------------------------------
+
+
+def github_repo(cfg: dict[str, Any]) -> str:
+    repo = ((cfg.get("channels") or {}).get("github") or {}).get("repo") or ""
+    if not repo:
+        raise RuntimeError("channels.github.repo is not configured (see .kca/notify.yml)")
+    return str(repo)
+
+
+def _gh_lines(args: list[str], timeout_s: int = GITHUB_TIMEOUT_S) -> list[str]:
+    """Run `gh` and return its non-empty stdout lines, or raise ``RuntimeError``."""
+    try:
+        proc = subprocess.run(["gh", *args], capture_output=True, text=True, timeout=timeout_s, check=False)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(redact(str(exc))) from exc
+    if proc.returncode != 0:
+        raise RuntimeError(redact((proc.stderr or proc.stdout).strip()))
+    return [line for line in (proc.stdout or "").splitlines() if line.strip()]
+
+
+def fetch_issue_comments(cfg: dict[str, Any], *, issue: int) -> list[dict[str, Any]]:
+    """Every comment on ``issue``, oldest first.
+
+    ``--jq '.[]'`` is what makes ``--paginate`` usable here: without it the pages
+    arrive as several concatenated JSON arrays, which is not a parsable document.
+    """
+    repo = github_repo(cfg)
+    lines = _gh_lines(
+        [
+            "api",
+            f"repos/{repo}/issues/{issue}/comments",
+            "--paginate",
+            "--jq",
+            ".[] | {id, body, created_at, html_url, login: .user.login}",
+        ]
+    )
+    out: list[dict[str, Any]] = []
+    for line in lines:
+        try:
+            parsed = json.loads(line)
+        except json.JSONDecodeError:
+            continue  # a malformed page line must not take the whole poll down
+        if isinstance(parsed, dict):
+            out.append(parsed)
+    out.sort(key=lambda c: (str(c.get("created_at") or ""), int(c.get("id") or 0)))
+    return out
+
+
+def _last_yaml_block(body: str) -> dict[str, Any] | None:
+    blocks = re.findall(r"^```yaml\n(.*?)\n```", body or "", re.S | re.M)
+    if not blocks:
+        return None
+    try:
+        parsed = yaml.safe_load(blocks[-1])
+    except yaml.YAMLError:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def parse_decision_record(body: str) -> dict[str, Any] | None:
+    """The machine block of a `kca notify decision` record, or ``None``.
+
+    That block is already exactly the mapping :func:`resolve_reply` accepts, so
+    the poller keeps no second copy of the decision schema — it reads back what
+    the sender wrote. A record whose id or options did not survive the round
+    trip is ignored rather than guessed at: an unanswerable record is a sending
+    bug, and inventing options here would resolve a decision nobody published.
+    """
+    if not (body or "").startswith(RECORD_MARKER):
+        return None
+    meta = _last_yaml_block(body)
+    if not meta:
+        return None
+    decision_id = str(meta.get("decision_id") or "")
+    options = [str(opt) for opt in (meta.get("options") or [])]
+    if not _DECISION_ID_RE.match(decision_id) or not options:
+        return None
+    return {
+        "decision_id": decision_id,
+        "competition": str(meta.get("competition") or ""),
+        "plan_hash": str(meta.get("plan_hash") or ""),
+        "expires_at": str(meta.get("expires_at") or ""),
+        "options": options,
+    }
+
+
+def parse_resolution(body: str) -> dict[str, Any] | None:
+    """A resolution this poller wrote earlier, or ``None``.
+
+    This is the idempotency key, and it deliberately lives in the issue rather
+    than in `state_dir`: the record is the thing every checkout, every machine
+    and every later reader can see, and a gitignored local file would let a
+    second clone resolve the same decision twice.
+    """
+    if not (body or "").startswith(RESOLUTION_MARKER):
+        return None
+    meta = _last_yaml_block(body)
+    if not meta:
+        return None
+    decision_id = str(meta.get("decision_id") or "")
+    if not decision_id:
+        return None
+    return {
+        "decision_id": decision_id,
+        "option_id": meta.get("option_id"),
+        "status": meta.get("status"),
+    }
+
+
+def author_permission(cfg: dict[str, Any], login: str) -> str:
+    """The commenter's **effective** repository permission, or ``""``.
+
+    `authorAssociation` is deliberately not used. It reports how GitHub labels
+    the commenter's relationship to the repository, not whether they can write
+    to it — on a user-owned repository a collaborator with full write access
+    still reports `NONE` (#196 comment 5672917107). A failed lookup returns
+    ``""`` and therefore does not authorise: an authorisation check that opens
+    up when the network is down is not a check.
+    """
+    repo = github_repo(cfg)
+    if not _GITHUB_LOGIN_RE.match(login or ""):
+        return ""
+    try:
+        lines = _gh_lines(["api", f"repos/{repo}/collaborators/{login}/permission", "--jq", ".permission"])
+    except RuntimeError:
+        return ""
+    return lines[0].strip() if lines else ""
+
+
+def render_resolution_comment(
+    record: dict[str, Any],
+    outcome: dict[str, Any],
+    *,
+    author: str,
+    answer_url: str,
+    resolved_at: str,
+    cfg: dict[str, Any] | None = None,
+) -> str:
+    """The durable resolution record: what was decided, by whom, when, and where."""
+    rows = [
+        ("decision_id", f"`{record.get('decision_id')}`"),
+        ("option_id", f"`{outcome.get('option_id')}`"),
+        ("status", f"`{outcome.get('status')}`"),
+        ("answered_by", f"@{redact(author, cfg)}"),
+        ("answered_in", redact(answer_url, cfg)),
+        ("resolved_at", redact(resolved_at, cfg)),
+    ]
+    table = "\n".join(f"| {name} | {value} |" for name, value in rows)
+    machine = yaml.safe_dump(
+        {
+            "decision_id": record.get("decision_id"),
+            "option_id": outcome.get("option_id"),
+            "status": outcome.get("status"),
+            "answered_by": redact(author, cfg),
+            "resolved_at": redact(resolved_at, cfg),
+        },
+        sort_keys=False,
+        allow_unicode=True,
+    ).strip()
+
+    body = [
+        RESOLUTION_MARKER,
+        f"## ✅ Decision resolved — `{record.get('decision_id')}`",
+        "",
+        "| field | value |",
+        "| --- | --- |",
+        table,
+        "",
+        f"Resolved from [this answer]({redact(answer_url, cfg)}) by @{redact(author, cfg)}, "
+        f"whose effective repository permission was verified as `write` or `admin` before the answer was accepted.",
+    ]
+    note = redact(outcome.get("note") or "", cfg)
+    if note:
+        body += ["", "**Note recorded with the answer** (context only — never parsed as the answer):", "", f"> {note}"]
+    body += ["", "```yaml", machine, "```"]
+    return "\n".join(body)
+
+
+def poll(
+    cfg: dict[str, Any],
+    *,
+    issue: int,
+    dry_run: bool = False,
+    now: dt.datetime | None = None,
+) -> dict[str, Any]:
+    """Read `/decide` answers off ``issue`` and write each resolution back.
+
+    Transport only: every judgement about what a reply *means* is
+    :func:`resolve_reply`'s, unchanged from phase 1a. This function decides
+    which record a reply belongs to, whether its author may answer at all, and
+    whether the answer has already been recorded.
+    """
+    comments = fetch_issue_comments(cfg, issue=issue)
+
+    records: dict[str, dict[str, Any]] = {}
+    opened_at: dict[str, str] = {}
+    resolved: set[str] = set()
+    for comment in comments:
+        body = str(comment.get("body") or "")
+        record = parse_decision_record(body)
+        if record and record["decision_id"] not in records:
+            records[record["decision_id"]] = record
+            opened_at[record["decision_id"]] = str(comment.get("created_at") or "")
+        resolution = parse_resolution(body)
+        if resolution:
+            resolved.add(resolution["decision_id"])
+
+    outcomes: list[dict[str, Any]] = []
+    written = 0
+    for comment in comments:
+        body = str(comment.get("body") or "")
+        # Neither a record nor one of our own resolutions is ever an answer. The
+        # record's `/decide <decision_id> <option_id>` help line cannot parse
+        # anyway — angle brackets are not legal ids — but skipping them outright
+        # keeps that safety property from resting on the grammar alone.
+        if body.startswith(RECORD_MARKER) or body.startswith(RESOLUTION_MARKER):
+            continue
+        parsed = parse_decision_reply(body)
+        if parsed is None:
+            continue
+
+        decision_id = parsed["decision_id"]
+        author = str(comment.get("login") or "")
+        answer_url = str(comment.get("html_url") or "")
+        entry: dict[str, Any] = {"decision_id": decision_id, "author": author, "answer_url": answer_url}
+
+        record = records.get(decision_id)
+        if record is None:
+            outcomes.append({**entry, "status": "MISMATCHED_DECISION", "reason": "no record with that decision_id"})
+            continue
+        if str(comment.get("created_at") or "") < opened_at.get(decision_id, ""):
+            outcomes.append({**entry, "status": "MISMATCHED_DECISION", "reason": "answer predates its record"})
+            continue
+        if decision_id in resolved:
+            outcomes.append({**entry, "status": "ALREADY_RESOLVED"})
+            continue
+
+        permission = author_permission(cfg, author)
+        if permission not in AUTHORIZED_PERMISSIONS:
+            outcomes.append({**entry, "status": UNAUTHORIZED_AUTHOR, "permission": permission})
+            continue
+
+        result = resolve_reply(record, body, now=now)
+        entry.update({"status": result["status"], "option_id": result["option_id"]})
+        if result["status"] != "ANSWERED":
+            outcomes.append(entry)
+            continue
+
+        moment = now or dt.datetime.now(dt.timezone.utc)
+        if moment.tzinfo is None:
+            moment = moment.replace(tzinfo=dt.timezone.utc)
+        posted = post_github_comment(
+            cfg,
+            issue=issue,
+            body=render_resolution_comment(
+                record,
+                result,
+                author=author,
+                answer_url=answer_url,
+                resolved_at=moment.astimezone(dt.timezone.utc).isoformat(),
+                cfg=cfg,
+            ),
+            dry_run=dry_run,
+        )
+        entry["written"] = bool(posted.get("ok"))
+        if posted.get("ok"):
+            # Also within this run: a second `/decide` for the same decision
+            # further down the thread must not write a second resolution.
+            resolved.add(decision_id)
+            written += 1
+        else:
+            entry["error"] = posted.get("error")
+        outcomes.append(entry)
+
+    return {
+        "ok": True,
+        "issue": issue,
+        "repo": github_repo(cfg),
+        "dry_run": dry_run,
+        "decisions_open": len(records),
+        "resolutions_written": written,
+        "outcomes": outcomes,
     }
 
 
@@ -1840,6 +2214,18 @@ def cmd_decision(args: argparse.Namespace) -> int:
         return _emit({"ok": False, "error": redact(str(exc))}, EXIT_RUNTIME)
 
 
+def cmd_poll(args: argparse.Namespace) -> int:
+    try:
+        cfg = load_config(args.config)
+        result = poll(cfg, issue=args.issue, dry_run=args.dry_run)
+    except Exception as exc:
+        return _emit({"ok": False, "error": redact(str(exc))}, EXIT_RUNTIME)
+    # A dry run reads the thread and writes nothing, so it reports as such; a
+    # real poll may post a resolution comment and is a remote write even when
+    # this particular run happened to find nothing to resolve.
+    return _emit(result, EXIT_OK, SideEffect.READ_ONLY if args.dry_run else SideEffect.REMOTE_WRITE)
+
+
 def add_parsers(sub: argparse._SubParsersAction) -> None:
     group = sub.add_parser("notify", help="Long-run notification / HITL channel (Telegram push + GitHub record)")
     group_sub = group.add_subparsers(dest="notify_cmd", required=True)
@@ -1880,3 +2266,13 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
     p_dec.add_argument("--dry-run", action="store_true", dest="dry_run")
     p_dec.add_argument("--force", action="store_true")
     p_dec.set_defaults(func=cmd_decision)
+
+    p_poll = group_sub.add_parser(
+        "poll", help="Read /decide answers off an issue and write each resolution back into the record"
+    )
+    _common(p_poll)
+    p_poll.add_argument("--issue", type=int, required=True, help="tracking issue holding the decision records")
+    p_poll.add_argument(
+        "--dry-run", action="store_true", dest="dry_run", help="report what would be resolved; write nothing"
+    )
+    p_poll.set_defaults(func=cmd_poll)
