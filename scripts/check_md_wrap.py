@@ -122,6 +122,12 @@ def is_exempt(path: str) -> str | None:
 # --------------------------------------------------------------------------
 
 FENCE_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})")
+# A closing fence is indented at most three spaces, uses the opening character,
+# is at least as long, and carries nothing but whitespace after it. Anything
+# else — a four-space-indented run of backticks, or one with trailing text — is
+# still inside the code block, and treating it as the closer lets the engine
+# reflow code.
+FENCE_CLOSE_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})[ \t]*$")
 ATX_RE = re.compile(r"^ {0,3}#{1,6}(?: |\t|$)")
 HR_DASH_RE = re.compile(r"^ {0,3}-{3,}[ \t]*$")
 HR_OTHER_RE = re.compile(r"^ {0,3}(?:\*[ \t]*){3,}$|^ {0,3}(?:_[ \t]*){3,}$")
@@ -230,8 +236,26 @@ def split_quote(line: str) -> tuple[int, str]:
         rest = rest[m.end() :]
 
 
+def closes_fence(content: str, fence: str) -> bool:
+    """True if this line closes a fenced block opened with `fence`."""
+    m = FENCE_CLOSE_RE.match(content)
+    if not m:
+        return False
+    closer = m.group("fence")
+    return closer[0] == fence[0] and len(closer) >= len(fence)
+
+
 def indent_of(content: str) -> int:
-    return len(content) - len(content.lstrip(" "))
+    """Indentation in columns; a tab advances to the next multiple of four."""
+    width = 0
+    for ch in content:
+        if ch == " ":
+            width += 1
+        elif ch == "\t":
+            width += 4 - (width % 4)
+        else:
+            break
+    return width
 
 
 def is_block_start(content: str) -> bool:
@@ -329,7 +353,7 @@ def analyse(text: str) -> tuple[list[Violation], str]:
         # Inside a fenced block: copy verbatim until the fence closes.
         if fence is not None:
             out.append(raw)
-            if content.strip().startswith(fence):
+            if closes_fence(content, fence):
                 fence = None
             i += 1
             prev_open = False
@@ -493,7 +517,7 @@ def structure(text: str) -> dict:
             continue
         _, content = split_quote(raw)
         if fence is not None:
-            if content.strip().startswith(fence):
+            if closes_fence(content, fence):
                 fence = None
             else:
                 code.append(content)
@@ -562,7 +586,7 @@ def _table_health(text: str) -> list[tuple[int, bool]]:
     for raw in text.split("\n"):
         _, content = split_quote(raw)
         if fence is not None:
-            if content.strip().startswith(fence):
+            if closes_fence(content, fence):
                 fence = None
             continue
         m = FENCE_RE.match(content)

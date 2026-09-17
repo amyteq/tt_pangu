@@ -149,6 +149,38 @@ def test_tilde_fence_is_never_inspected():
     assert fixed(src) == src
 
 
+def test_indented_backticks_do_not_close_a_fence():
+    """A closing fence is indented at most three spaces. Regression for F001-F008 round 1 (F002)."""
+    src = "```\ncode one\n    ```\ncode two\ncode three\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_fence_closer_with_trailing_text_does_not_close():
+    src = "```\ncode one\n``` trailing\ncode two\ncode three\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_shorter_backtick_run_does_not_close_a_longer_fence():
+    src = "````\ncode one\n```\ncode two\ncode three\n````\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_fence_closer_indented_three_spaces_still_closes():
+    src = "```\ncode one\n   ```\nprose that is hard\nwrapped after it\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "```\ncode one\n   ```\nprose that is hard wrapped after it\n"
+
+
+def test_tab_indented_code_block_is_never_inspected():
+    """A tab is four columns of indentation, so this is a code block, not prose."""
+    src = "Para.\n\n\tcode one\n\tcode two\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
 def test_yaml_frontmatter_is_never_inspected():
     src = "---\nname: a-skill\ndescription: two\n  wrapped looking lines\n---\n\nBody.\n"
     assert kinds(src) == []
