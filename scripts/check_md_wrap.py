@@ -140,6 +140,11 @@ FENCE_RE = re.compile(r"^[ \t]*(?P<fence>`{3,}|~{3,})")
 FENCE_CLOSE_RE = re.compile(r"^[ \t]*(?P<fence>`{3,}|~{3,})[ \t]*$")
 ATX_RE = re.compile(r"^ {0,3}#{1,6}(?: |\t|$)")
 HR_DASH_RE = re.compile(r"^ {0,3}-{3,}[ \t]*$")
+# A run of `=` under a paragraph is a setext H1. Unlike `---` it has no thematic
+# break to be confused with, so it is unambiguous, valid Markdown — and this
+# checker has no heading-style opinions. Reading it as prose reported the
+# heading as a split block and offered `Title ===` as the repair.
+SETEXT_H1_RE = re.compile(r"^ {0,3}=+[ \t]*$")
 HR_OTHER_RE = re.compile(r"^ {0,3}(?:\*[ \t]*){3,}$|^ {0,3}(?:_[ \t]*){3,}$")
 # A list marker may be indented with tabs as well as spaces, and a tab-indented
 # child list is an ordinary nested list — reading its items as prose flattens
@@ -150,12 +155,10 @@ TABLE_RE = re.compile(r"^ {0,3}\|")
 HTML_RE = re.compile(r"^ {0,3}<")
 LINKDEF_RE = re.compile(r"^ {0,3}\[[^\]]+\]:")
 # A link reference definition may run onto the following lines: the destination
-# and then the title, or just the title. Those lines belong to the definition
-# and render as nothing, so joining a paragraph onto one would promote hidden
-# metadata to visible text.
-# The delimiter may appear inside the title when it is backslash-escaped, so the
-# title runs to the first *unescaped* closing delimiter.
-LINKDEF_TITLE_RE = re.compile(r"""^\s*(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\((?:\\.|[^()\\])*\))[ \t]*$""")
+# and then the title, or just the title — and the title itself may span several
+# lines. Those lines belong to the definition and render as nothing, so joining
+# a paragraph onto one would promote hidden metadata to visible text.
+LINKDEF_TITLE_DELIMS = {'"': '"', "'": "'", "(": ")"}
 QUOTE_RE = re.compile(r"^ {0,3}> ?")
 HARD_BREAK_RE = re.compile(r"(?:  +|\\)$")
 
@@ -417,34 +420,114 @@ def ends_table(content: str) -> bool:
     )
 
 
-def linkdef_parts(content: str) -> tuple[bool, bool] | None:
-    """(destination present, title present) for a link reference definition, else None."""
+def title_end(text: str, closer: str) -> int | None:
+    """Index just past `closer` in `text`, honouring backslash escapes; None if unclosed."""
+    escaped = False
+    for idx, ch in enumerate(text):
+        if escaped:
+            escaped = False
+        elif ch == "\\":
+            escaped = True
+        elif ch == closer:
+            return idx + 1
+    return None
+
+
+def linkdef_span(lines: list[str], i: int) -> int | None:
+    """How many physical lines the link reference definition at `lines[i]` occupies.
+
+    None if no definition starts there. A definition is a label, a destination
+    and an optional title, and each part may sit on its own line — a title may
+    run across several of them — so the whole span has to be found before the
+    paragraph below it can be judged.
+
+    A title that will not parse means different things in its two positions:
+    CommonMark disqualifies the whole definition when the junk is on the
+    destination's own line, and simply ends the definition above it when the
+    title started on a later line.
+    """
+    depth, content = split_quote(lines[i])
     m = LINKDEF_RE.match(content)
     if not m:
         return None
+
+    def body(k: int) -> str | None:
+        """Line `k`'s content if it is at this definition's quote depth and non-blank."""
+        if k >= len(lines):
+            return None
+        d, c = split_quote(lines[k])
+        return c if d == depth and c.strip() else None
+
+    n = 1
     rest = content[m.end() :].strip()
     if not rest:
-        return False, False
-    return True, len(rest.split(None, 1)) > 1
+        nxt = body(i + n)
+        if nxt is None or is_block_start(nxt, in_paragraph=False):
+            return n
+        rest = nxt.strip()
+        n += 1
+
+    # `rest` opens with the destination; whatever follows it is the title.
+    destination_only = n
+    parts = rest.split(None, 1)
+    scan = parts[1].strip() if len(parts) > 1 else ""
+    unparsable: int | None = None
+    if not scan:
+        nxt = body(i + n)
+        if nxt is None:
+            return destination_only
+        scan = nxt.strip()
+        n += 1
+        unparsable = destination_only
+
+    if scan[0] not in LINKDEF_TITLE_DELIMS:
+        return unparsable
+    closer = LINKDEF_TITLE_DELIMS[scan[0]]
+    scan = scan[1:]
+    end = title_end(scan, closer)
+    while end is None:
+        nxt = body(i + n)
+        if nxt is None:
+            return unparsable
+        n += 1
+        scan = nxt
+        end = title_end(scan, closer)
+    return n if not scan[end:].strip() else unparsable
 
 
 def leaves_block_open(content: str) -> bool:
     """True if a following non-blank line would continue this line's block.
 
-    Paragraph text, a non-empty list item and a table row are all continuable. A
-    heading, a thematic break and a link reference definition are complete on
-    their line, and so is an *empty* list item: CommonMark continues only a
-    paragraph, and an empty item holds none. `> -` followed by unquoted text is
-    an empty quoted item plus an outside paragraph — joining the two moves the
-    paragraph into the blockquote.
+    CommonMark's lazy continuation continues a *paragraph* and nothing else, so
+    this asks whether the line ends with one open. Paragraph text and a table row
+    do; a heading, a thematic break, a fence, an HTML block and a link reference
+    definition are complete on their line.
+
+    A list item or a blockquote holds a paragraph only if its own content does,
+    so those are unwrapped and asked again. `> - ---` is a quoted thematic break
+    and `> - <!-- c -->` a quoted comment; treating either as an open paragraph
+    pulled the unquoted line below it into the blockquote, and the renderer then
+    refused the rewrite — an unfixable false positive rather than a corruption,
+    but a red build either way.
     """
+    if not content.strip():
+        return False
+    depth, inner = split_quote(content)
+    if depth:
+        return leaves_block_open(inner)
     if ATX_RE.match(content) or HR_DASH_RE.match(content) or HR_OTHER_RE.match(content):
         return False
+    if fence_open(content):
+        return False
     if LINKDEF_RE.match(content):
+        # Only if it really parses as one: `[foo]: /url "title" ok` has junk
+        # after the title, which makes the whole line an ordinary paragraph.
+        return linkdef_span([content], 0) != 1
+    if html_block_start(content, interrupting=False) is not None:
         return False
     m = LIST_RE.match(content)
-    if m and not content[m.end() :].strip():
-        return False
+    if m:
+        return leaves_block_open(content[m.end() :])
     return True
 
 
@@ -607,26 +690,10 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
         # A link reference definition can span lines. Copy the whole definition
         # out, so its destination and title stay metadata instead of becoming
         # the head of the paragraph below.
-        parts = linkdef_parts(content) if not prev_open else None
-        if parts is not None:
-            has_destination, has_title = parts
-            out.append(raw)
-            i += 1
-            if not has_destination and i < len(lines):
-                next_depth, next_content = split_quote(lines[i])
-                if (
-                    next_depth == depth
-                    and next_content.strip()
-                    and not is_block_start(next_content, in_paragraph=False)
-                ):
-                    out.append(lines[i])
-                    i += 1
-                    has_destination = True
-            if has_destination and not has_title and i < len(lines):
-                next_depth, next_content = split_quote(lines[i])
-                if next_depth == depth and LINKDEF_TITLE_RE.match(next_content):
-                    out.append(lines[i])
-                    i += 1
+        span = linkdef_span(lines, i) if not prev_open else None
+        if span is not None:
+            out.extend(lines[i : i + span])
+            i += span
             prev_open = False
             prev_depth = depth
             table_cols, bare_table = None, False
@@ -646,6 +713,16 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
                     prev_open = not bare_table
                     prev_depth = depth
                     continue
+
+        # A setext H1 underline: the paragraph above it is a heading, not a
+        # block continued onto this line. Inside a table the same line is one
+        # more row, so this only applies where no table is open.
+        if SETEXT_H1_RE.match(content) and prev_open and table_cols is None:
+            out.append(raw)
+            i += 1
+            prev_open = False
+            prev_depth = depth
+            continue
 
         # Class B — a thematic break that CommonMark will read as a setext H2.
         if HR_DASH_RE.match(content) and prev_open:
