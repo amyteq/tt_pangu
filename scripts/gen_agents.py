@@ -216,7 +216,7 @@ def skill_front_matter(name: str) -> dict[str, str]:
     (`description: Review: check files`) is a YAML `ScannerError`, yet Codex
     reads it and advertises exactly the value this reader extracts. Probed
     directly on codex-cli 0.154.0 with a fixture skill, and two shipped skills
-    depend on it — `ctf-sandbox` and `kaggle-experiment-loop` both carry a colon
+    depend on it — `ctf-sandbox` and `kg-experiment` both carry a colon
     in their description and both appear in the committed loader dump. Rejecting
     that shape would stop generation for skills both harnesses load today, so it
     is accepted on purpose; `tests/test_instruction_parity.py` pins the evidence.

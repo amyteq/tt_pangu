@@ -3,6 +3,8 @@ name: kaggle-evaluation-harness
 description: Use when creating, running, or improving validation/evaluation loops for Kaggle competitions and competition-like benchmarks.
 ---
 
+> **Archived (issue #192) — not loaded by any harness.** Retired in favour of `kg-audit`, which carries the same leakage / split / metric / reproducibility / rules review with the tool calls and repo paths this checklist never had. Kept as history: read it as a record of what the project once instructed, not as instruction. See `.claude/archive/skills/README.md`.
+
 # Kaggle Evaluation Harness Skill
 
 ## Goal
