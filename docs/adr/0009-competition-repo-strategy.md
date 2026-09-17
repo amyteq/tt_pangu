@@ -10,22 +10,17 @@ Decided in: `docs/meeting-notes/2026-05-19-r2.md`
 
 During M3 design, two workspace strategies were considered:
 
-**Option A — Platform repo worktrees:** competition code lives inside the platform repo
-(`src/<competition>/`); each job gets a `git worktree` inside that repo.
+**Option A — Platform repo worktrees:** competition code lives inside the platform repo (`src/<competition>/`); each job gets a `git worktree` inside that repo.
 
-**Option B — Separate repo per competition:** each registered Kaggle competition gets
-its own GitHub repo; branches track experiments; jobs get worktrees *within* the
-competition repo.
+**Option B — Separate repo per competition:** each registered Kaggle competition gets its own GitHub repo; branches track experiments; jobs get worktrees *within* the competition repo.
 
-The platform repo and the competition repo solve different problems and should not
-be conflated.
+The platform repo and the competition repo solve different problems and should not be conflated.
 
 ## Decision
 
 **Each registered Kaggle competition gets its own dedicated GitHub repository.**
 
-Branches within that repo track experiments. Agent jobs get git worktrees within
-the competition repo for per-job isolation.
+Branches within that repo track experiments. Agent jobs get git worktrees within the competition repo for per-job isolation.
 
 ```
 Platform repo (tt_pangu)          ← platform code, kca tools, skills, config
@@ -80,8 +75,7 @@ Examples:
 
 ### How platform tools reach the competition repo
 
-The platform kca CLI must be accessible from within the competition repo workspace.
-Three options (choose based on what's available at job runtime):
+The platform kca CLI must be accessible from within the competition repo workspace. Three options (choose based on what's available at job runtime):
 
 1. **PYTHONPATH** (simplest for local dev):
    ```
@@ -109,8 +103,7 @@ ALTER TABLE competitions
   ADD COLUMN IF NOT EXISTS local_clone_path  text;
 ```
 
-`agent_jobs` table: `workspace_path` already stores the worktree path inside the
-competition repo clone.
+`agent_jobs` table: `workspace_path` already stores the worktree path inside the competition repo clone.
 
 ### Worker lifecycle with Approach B
 
@@ -143,12 +136,9 @@ kca workspace clean --job-id <id>
 
 ### M3 (current milestone) — interim: platform repo worktree
 
-M3 completes the worker skeleton using the platform repo. No competition repo
-management yet. `kca workspace init` creates `.workspaces/<job_id>/` inside the
-platform repo as a temporary worktree.
+M3 completes the worker skeleton using the platform repo. No competition repo management yet. `kca workspace init` creates `.workspaces/<job_id>/` inside the platform repo as a temporary worktree.
 
-This is intentional: the worktree mechanism itself is identical in both approaches;
-only the root repo changes.
+This is intentional: the worktree mechanism itself is identical in both approaches; only the root repo changes.
 
 **M3 scope is unchanged.**
 

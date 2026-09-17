@@ -8,9 +8,7 @@ Decided in: `docs/meeting-notes/2026-05-19-r1.md`
 
 ## Context
 
-The platform uses several related terms — project, competition, session, job, experiment,
-run, submission — that are easily confused. This ADR defines each term precisely so that
-all AI tools, platform code, and human users share the same vocabulary.
+The platform uses several related terms — project, competition, session, job, experiment, run, submission — that are easily confused. This ADR defines each term precisely so that all AI tools, platform code, and human users share the same vocabulary.
 
 ---
 
@@ -21,8 +19,7 @@ A top-level working context owned by a user.
 Corresponds to: `projects` table.  
 Example: `"flower-tpu-2026"`, `"ctf-practice-may26"`.
 
-One project can contain many competitions and sessions. It is the billing and
-access-control boundary.
+One project can contain many competitions and sessions. It is the billing and access-control boundary.
 
 ### Competition
 A specific contest the user has entered on an external platform.  
@@ -30,16 +27,14 @@ Corresponds to: `competitions` table.
 Fields: slug, platform (kaggle / ctf / hackathon), metric, objective, daily submission limit.  
 Example: `flower-classification-with-tpus` on `kaggle`.
 
-A competition belongs to one project. It carries the rules, metric name, and current
-best result.
+A competition belongs to one project. It carries the rules, metric name, and current best result.
 
 ### Session
 A working period grouping related jobs under a shared goal.  
 Corresponds to: `agent_sessions` table.  
 Example: "May 19 afternoon — try EfficientNetB3 and Mixup augmentation".
 
-A session has a branch/worktree reference and an overall goal. Jobs within a session
-share context (but NOT file state — each job gets its own workspace).
+A session has a branch/worktree reference and an overall goal. Jobs within a session share context (but NOT file state — each job gets its own workspace).
 
 ### Job ← primary schedulable unit
 **One discrete task assigned to one AI agent worker.**  
@@ -66,16 +61,14 @@ A hypothesis and configuration being tested.
 Corresponds to: `experiments` table.  
 Example: "EfficientNetB3 with Mixup, lr=1e-4, 20 epochs".
 
-An experiment is typically created by an `implement` or `experiment` job.
-It records the hypothesis, code ref, config, and dataset version.
+An experiment is typically created by an `implement` or `experiment` job. It records the hypothesis, code ref, config, and dataset version.
 
 ### Run (experiment run)
 One execution of experiment code.  
 Corresponds to: `experiment_runs` table + `runs/<competition>/<run_id>/` on disk.  
 Created by `kca run init`, updated by `kca run record-metric`.
 
-A run records: command, status, metrics (cv_score, val_loss, etc.), artifact paths,
-wall-clock time, analysis notes.
+A run records: command, status, metrics (cv_score, val_loss, etc.), artifact paths, wall-clock time, analysis notes.
 
 ### Submission
 A file submitted to the external competition leaderboard.  
@@ -128,8 +121,6 @@ Project
 ## Consequences
 
 - All code, prompts, and docs should use these exact terms.
-- If a concept doesn't map to one of these terms, it's either a UI concern (future M7)
-  or needs a new ADR.
+- If a concept doesn't map to one of these terms, it's either a UI concern (future M7) or needs a new ADR.
 - `agent_sessions` and `agent_jobs` table names already match these definitions.
-- The term "task" is ambiguous (used differently in todos, Supabase, LangGraph); prefer
-  "job" for the schedulable unit and "step" for sub-steps within a job turn.
+- The term "task" is ambiguous (used differently in todos, Supabase, LangGraph); prefer "job" for the schedulable unit and "step" for sub-steps within a job turn.
