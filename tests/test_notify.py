@@ -21,6 +21,7 @@ import datetime as dt
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -822,6 +823,80 @@ def test_a_gate_routed_to_no_record_channel_is_not_sent(cfg: dict, monkeypatch) 
     assert notify.dispatch(cfg, level="info", title="t", body="b", now=noon)["status"] == "sent"
 
 
+def test_a_disabled_push_channel_is_a_failed_gate_not_a_skip(cfg: dict, monkeypatch) -> None:
+    """#206 F016: a gate is a two-leg contract. Turning Telegram off while the
+    gate still routes to it used to report `sent` with exit 0 — a blocking
+    decision the operator was never pushed."""
+    monkeypatch.setattr(notify, "post_github_comment", lambda cfg, **kw: {"ok": True, "channel": "github"})
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    cfg["channels"]["telegram"]["enabled"] = False
+
+    out = notify.dispatch(cfg, level="gate", title="t", body="b", issue=197, now=noon)
+    telegram = next(c for c in out["channels"] if c["channel"] == "telegram")
+    assert telegram["ok"] is False
+    assert "disabled" in telegram["error"]
+    assert (out["status"], out["ok"]) == ("partial", False)
+    assert notify.exit_code_for(out) == notify.EXIT_RUNTIME
+    # …while a push-only level treats its one disabled outlet as a skip.
+    assert notify.dispatch(cfg, level="info", title="t", body="b", now=noon)["status"] == "sent"
+    # The same shape is rejected at load time rather than at 3am.
+    with pytest.raises(ValueError, match="push channel"):
+        notify.validate_config(cfg)
+
+
+def test_a_gate_routed_to_no_push_channel_is_not_sent(cfg: dict, monkeypatch) -> None:
+    """#206 F016: dropping Telegram from `levels.gate.channels` is the same
+    un-pushed block as disabling it, one config edit away."""
+    monkeypatch.setattr(notify, "post_github_comment", lambda cfg, **kw: {"ok": True, "channel": "github"})
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    cfg["levels"]["gate"]["channels"] = ["github"]
+
+    with pytest.raises(ValueError, match="no push channel"):
+        notify.validate_config(cfg)
+
+    out = notify.dispatch(cfg, level="gate", title="t", body="b", issue=197, now=noon)
+    push = next(c for c in out["channels"] if c["channel"] == "push")
+    assert push["ok"] is False
+    assert (out["status"], out["ok"]) == ("partial", False)
+    assert notify.exit_code_for(out) == notify.EXIT_RUNTIME
+
+
+def test_a_short_lock_wait_override_does_not_shorten_the_stale_window(cfg: dict, monkeypatch) -> None:
+    """#206 F003: staleness must be measured against what a hold can actually
+    take, not against how long *this* process is willing to wait. With
+    `lock_wait_s: 0` a holder still inside its 90 s `gh` call was declared
+    abandoned after 60 s and its lock taken from underneath it."""
+    monkeypatch.setattr(notify, "fcntl", None)
+    cfg["limits"]["lock_wait_s"] = 0
+    lock = notify.state_dir(cfg) / "ledger.lock"
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    lock.write_bytes(b"4242:0badc0de")
+    held_for = 120.0  # past the old 60 s threshold, still inside one GitHub call
+    aged = time.time() - held_for
+    os.utime(lock, (aged, aged))
+
+    with notify.ledger_lock(cfg) as acquired:
+        assert acquired is False  # the live holder keeps it
+    assert lock.read_bytes() == b"4242:0badc0de"  # and nobody reclaimed it
+    assert notify.lock_hold_ceiling_s(cfg) > held_for  # the window tracks the hold, not the wait
+
+
+def test_the_fallback_lock_releases_only_its_own_lock(cfg: dict, monkeypatch) -> None:
+    """#206 F003: a holder whose lock was reclaimed must not unlink the lock its
+    successor now owns — that is two processes in the critical section, both
+    spending the same daily budget."""
+    monkeypatch.setattr(notify, "fcntl", None)
+    cfg["limits"]["lock_wait_s"] = 0.05
+    lock = notify.state_dir(cfg) / "ledger.lock"
+
+    with notify.ledger_lock(cfg) as acquired:
+        assert acquired is True
+        assert lock.read_bytes() != b""  # the holder is identifiable…
+        lock.write_bytes(b"999:successor")  # …reclaimed, and retaken by another process
+
+    assert lock.read_bytes() == b"999:successor"  # released, did not steal
+
+
 def test_the_budget_is_serialised_even_without_fcntl(cfg: dict, monkeypatch) -> None:
     """#206 F003: on a platform with no `fcntl` the lock used to degrade to no
     serialisation *and* skip the routine fail-closed rule — the one case that
@@ -902,6 +977,40 @@ def test_an_unserialised_writer_does_not_rewrite_the_ledger(cfg: dict, monkeypat
     # The next serialised send does compact, so the bound is still enforced.
     assert notify.dispatch(cfg, level="gate", title="g2", body="b", issue=197, now=noon)["status"] == "sent"
     assert len(notify.read_ledger(cfg)) < padded
+
+
+def test_compaction_carries_over_a_line_appended_while_it_replaces(cfg: dict, monkeypatch) -> None:
+    """#206 F015: the final size check cannot cover the interval up to
+    `os.replace`, so an unserialised `gate` appending in that window used to be
+    rewritten away. The pre-replace file is held open and its stragglers carried
+    over instead."""
+    monkeypatch.setattr(notify, "LEDGER_MAX_BYTES", 400)
+    monkeypatch.setattr(notify, "LEDGER_KEEP_ENTRIES", 5)
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    path = notify.ledger_path(cfg)
+    padding = json.dumps({"ts": noon.isoformat(), "level": "gate", "key": "pad", "status": "partial"})
+    notify.append_ledger(cfg, {"ts": noon.isoformat(), "level": "gate", "key": "k0", "status": "partial"})
+    with path.open("a", encoding="utf-8") as fh:  # past the size bound, so compaction fires
+        fh.write("\n".join(padding for _ in range(40)) + "\n")
+    padded = len(notify.read_ledger(cfg))
+
+    real_replace = os.replace
+    latecomer = json.dumps({"ts": noon.isoformat(), "level": "gate", "key": "unserialised", "status": "sent"})
+
+    def replace_after_an_unserialised_append(src, dst, *args, **kwargs):
+        # Exactly the F015 interleaving: past the size check, before the swap.
+        with open(dst, "a", encoding="utf-8") as fh:
+            fh.write(latecomer + "\n")
+        return real_replace(src, dst, *args, **kwargs)
+
+    monkeypatch.setattr(os, "replace", replace_after_an_unserialised_append)
+    notify.compact_ledger(cfg)
+    monkeypatch.undo()
+
+    keys = [e.get("key") for e in notify.read_ledger(cfg)]
+    assert "unserialised" in keys  # the append survived the rewrite…
+    assert keys.count("unserialised") == 1  # …exactly once
+    assert len(keys) < padded  # …and the file was still compacted
 
 
 def test_a_corrupt_ledger_line_never_blocks_a_send(cfg: dict) -> None:
