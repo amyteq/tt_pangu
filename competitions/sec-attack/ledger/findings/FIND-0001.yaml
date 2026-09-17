@@ -1,0 +1,40 @@
+# Contract: contracts/finding.yaml
+# Backfilled from competitions/sec-attack/submissions.md "Final results", numbered point 3,
+# and competition.yaml `next_task`.
+id: FIND-0001
+competition: sec-attack
+statement: >-
+  Verify submission SELECTION explicitly before a code competition's deadline. Two
+  COMPLETE non-zero submissions scored 7.200 and 1.440 and we are still absent from the
+  final 4,186-row leaderboard. A scored submission is not a placed submission, and nothing
+  in the submit-and-poll loop reports the difference.
+type: rule
+confidence: high
+status: validated
+evidence:
+  - "competitions/sec-attack/submissions.md - Final results, point 3 (4,186-row snapshot downloaded 2026-09-13 contains no row for harrysun2006 or firefly2006)"
+  - "competitions/sec-attack/competition.yaml - best.public_lb null, current_blocker"
+  - "competitions/sec-attack/ledger/scores/SCORE-0001.yaml"
+from_experiments:
+  - EXP-0002
+from_scores:
+  - SCORE-0001
+transfer_scope: >-
+  Every competition whose final standing is chosen from submissions rather than taken as
+  the best score - which on Kaggle is most of them. The check is cheap (read the selected
+  set from the platform) and the failure is total (the whole campaign's work does not
+  appear), so it belongs in the pre-deadline sequence, not in the post-mortem.
+new_strategy: null
+supersedes: null
+insight_ref: null
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  This finding is the reason `selected_for_final` is a field on both Submission and Score
+  rather than an assumption, and the reason it is three-valued. It also explains why
+  "choosing the competition's final submissions" is one of the seven always-human-gated
+  actions in CLAUDE.md and ADR-0021: the decision is irreversible at the deadline, and an
+  agent that never verified selection cannot tell that it failed to act.
+
+  `insight_ref` is null because this competition's insights.md predates the finding; it
+  lives in submissions.md's Final results and in competition.yaml's next_task.

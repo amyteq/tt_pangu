@@ -1,5 +1,8 @@
 # competition.yaml — 单个 Kaggle 竞赛的机器可读元数据模板
 # 复制到 competitions/<slug>/competition.yaml 后逐项填写;未知项填 unknown / null。
+# This IS the `Competition` ledger record. Contract: contracts/competition.yaml (ADR-0023);
+# the other ten entities live under ledger/ -- see ledger/README.md for their skeletons.
+# Check with: kca contracts validate --competition <slug>
 slug: <competition-slug>
 kaggle_slug: <kaggle-slug-or-unknown>
 title: <title-or-unknown>
@@ -12,7 +15,9 @@ status: unknown            # open | closed | unknown -- is the official competit
 # Side states (any time, per competition): WAIT_HUMAN | PAUSED_BUDGET | RETRY_AT |
 # NEEDS_RECONCILIATION | FAILED | STOPPED
 state: DISCOVER
-competition_type: unknown  # tabular | cv | nlp | llm | simulation_agent | notebook | unknown
+competition_type: unknown  # tabular | cv | nlp | llm | reasoning | simulation_agent | notebook | unknown
+# NOTE: this is a TASK taxonomy, not Supabase's platform `competition_type_enum`
+# (kaggle / devpost / ctf / generic). ADR-0023 §7 drift D1.
 metric: <metric-or-unknown>
 launch: null               # <YYYY-MM-DD or null>; with `deadline` defines competition_period
 deadline: null             # <YYYY-MM-DD or null>; the final submission deadline
@@ -22,7 +27,7 @@ timing_verified_at: null      # <YYYY-MM-DD>; NOT last_updated, which is file-le
 timing_verified_ttl: 30d      # past this, timing is stale -> WAIT_HUMAN (ADR-0022 5)
 primary_artifact: unknown  # notebook | script | agent | submission | unknown
 submission_mode: unknown   # file | notebook | kernel | agent | unknown
-data_policy: unknown       # kaggle | external | generated | unknown
+data_policy: unknown       # kaggle | external | generated | api | unknown
 # Path to this competition's autonomy config, relative to this directory. ADR-0022 §5 A1
 # reads THIS file and no other -- `kca-<slug>.yaml` is a convention, not a rule, and the
 # slug is not always the filename. null, missing or unparseable => A1 FAILS (fail-closed).

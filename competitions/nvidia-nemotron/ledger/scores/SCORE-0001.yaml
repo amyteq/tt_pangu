@@ -1,0 +1,39 @@
+# Contract: contracts/score.yaml
+# Backfilled from submissions.md header + campaign table, postmortems/2026-06-16-final-postmortem.md,
+# and competition.yaml `best`.
+id: SCORE-0001
+competition: nvidia-nemotron
+submission_ref: INT-BACKFILL-nemo-soup
+experiment_id: EXP-0002
+metric: accuracy
+public_score: 0.86
+private_score: 0.85
+public_rank: 150
+public_total: 4350
+private_rank: null
+private_total: null
+scored_at: 2026-06-15
+private_released_at: 2026-06-16
+is_eligible: true
+selected_for_final: true
+source: "kaggle competitions submissions nvidia-nemotron-model-reasoning-challenge (read-only, both accounts)"
+read_at: 2026-06-16
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  This is why Score is a separate record rather than a field on the Submission: the
+  private value did not exist when the submission was written. It was released
+  2026-06-16, the day AFTER the competition closed, and backfilled into submissions.md
+  then. The soup aged 0.86 -> 0.85; public -> private was robust with no shake-up (private
+  top 0.92).
+
+  `is_eligible: true` and `selected_for_final: true` are what make this the competition's
+  `best` under ADR-0022 §3. The campaign's best PRIVATE score was not this one: nemo-eq-aug
+  scored 0.86 / 0.86 but was submitted 2026-06-16 09:22, in the post-deadline 100/day late
+  window, so it is `is_eligible: false` and counts for nothing. A ledger that ranked by
+  private_score alone would promote the ineligible row - which is the concrete reason
+  eligibility is a field and not a comment.
+
+  `private_rank` / `private_total` are null: the private standing was never read per row.
+  `public_total: 4350` is the denominator at the time `public_rank: 150` was read; a rank
+  without its denominator is not a result.

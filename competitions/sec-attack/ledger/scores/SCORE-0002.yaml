@@ -1,0 +1,28 @@
+# Contract: contracts/score.yaml
+id: SCORE-0002
+competition: sec-attack
+submission_ref: INT-BACKFILL-jed-v4
+experiment_id: EXP-0003
+metric: normalized_attack_score
+public_score: 1.44
+private_score: 0.36
+public_rank: null
+public_total: 4186
+private_rank: null
+private_total: null
+scored_at: 2026-06-29
+private_released_at: 2026-09-13
+is_eligible: null
+selected_for_final: null
+source: "kaggle competitions submissions ai-agent-security-multi-step-tool-attacks"
+read_at: 2026-09-13
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  The scores belong to a submission whose own status is contradictory
+  (INT-BACKFILL-jed-v4, needs_reconciliation): COMPLETE with 1.440 on 2026-06-29,
+  ERROR on the 2026-09-13 re-poll, scores still attached. Keeping the Score record while
+  the Submission stays unreconciled is the correct shape - the numbers were read from the
+  platform and are evidence; what they count for is unresolved. This is also why the Score
+  contract carries `source` and `read_at`: two readings of one submission are two facts
+  about two moments, not one fact to be overwritten.

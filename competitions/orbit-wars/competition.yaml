@@ -7,7 +7,16 @@ status: closed                 # open | closed | unknown -- is the official comp
 state: FINDINGS                # ADR-0022 §3 canonical state (was phase: iteration)
 competition_type: simulation_agent
 metric: skill-rating (μ) ladder, 1v1 (2-player), μ0=600, pairwise win/loss μ update
-deadline: 2026-06-23             # final eval ~2 weeks after
+launch: null                     # never recorded
+deadline: 2026-06-23             # final eval ~2 weeks after. ⚠ CONFLICT, unresolved: the
+                                 #   discussion #185 repository audit reports a Kaggle API
+                                 #   read of 2026-07-07 for this competition's close. The
+                                 #   value here is left as it stands; resolving it needs a
+                                 #   fresh dated read, which is what the fields below are for
+closing_window_days: null        # ADR-0022 §5; never set, and not computable with `launch` null
+timing_verified_source: null     # neither date carries a recorded source in this file
+timing_verified_at: null         # so A3 stays fail-closed, which is the correct outcome
+timing_verified_ttl: 30d         #   while two candidate deadlines disagree
 prize: "$50,000 Featured"
 competition_id: 138420
 primary_artifact: agent

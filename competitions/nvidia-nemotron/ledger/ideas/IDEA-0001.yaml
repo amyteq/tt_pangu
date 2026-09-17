@@ -1,0 +1,39 @@
+# Contract: contracts/idea.yaml
+# Backfilled from competitions/nvidia-nemotron/strategy.md (H3 / H3') and insights.md (INS-003 / INS-004).
+id: IDEA-0001
+competition: nvidia-nemotron
+hypothesis: >-
+  An SVD weight-space soup of three COMPARABLE and COMPLEMENTARY same-base LoRA
+  adapters — v14 (replay recipe), c1 (verified solver-CoT) and b1 (cryptarithm synth),
+  all three scoring 0.85 on different data — beats every member, where the earlier
+  strong+weak merge (T7) diluted.
+source_type: paper
+source_reference: "arXiv:2203.05482 (Model Soups); competitions/nvidia-nemotron/references.md"
+research_items:
+  - RI-0001
+expected_gain: medium
+cost: low
+risks:
+  - dilution_as_in_t7_strong_weak_merge
+  - repack_dispute_if_third_party_adapters_are_merged
+  - rank_cap_32_must_survive_svd_truncation
+required_approvals:
+  - rule_compatibility
+related_experiments:
+  - EXP-0002
+status: validated
+rank: 1
+rejection_reason: null
+re_proposal_of: null
+new_evidence: null
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  This idea is the refinement H3' of a refuted predecessor. strategy.md records H3
+  ("weight-space SVD merge of strong+weak adapters beats the strongest") as REFUTED by
+  T7 (0.82, route closed), then H3' as validated by the soup (0.86). The Idea contract's
+  re-proposal rule is exactly this shape, so in a `live` ledger H3 would be
+  IDEA-0000 with `status: refuted` and this record would carry
+  `re_proposal_of: IDEA-0000` plus the T7 evidence as `new_evidence`. It is not
+  backfilled that way here because a fabricated predecessor id would assert a record
+  that never existed; the real predecessor is the prose in strategy.md. Drift D7.
