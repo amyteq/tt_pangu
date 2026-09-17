@@ -784,6 +784,47 @@ def test_a_rewrite_that_would_change_rendering_is_refused():
     )
 
 
+def test_a_white_space_css_declaration_refuses_the_rewrite():
+    """`canonical_html` collapses whitespace a `white-space: pre` span preserves.
+
+    Moving the soundness claim onto the renderer did not make it sound: this
+    rewrite compared equal and was written, while a browser shows the newline.
+    A document the canonicaliser cannot judge is now refused instead. Regression
+    for round-3 finding F007 on PR #226.
+    """
+    renderer = _renderer()
+    src = 'before <span style="white-space: pre">a\nb</span> after\n'
+    assert kinds(src) == ["split-block"]
+    reason = mdwrap.unsafe_fix_reason(src, fixed(src), renderer)
+    assert reason is not None and "white-space" in reason
+
+
+@pytest.mark.parametrize(
+    "css", ["white-space: pre", "white-space:pre-wrap", "white-space : break-spaces", "WHITE-SPACE: PRE-LINE"]
+)
+def test_every_whitespace_preserving_css_value_is_caught(css):
+    assert mdwrap.unverifiable_reason(f"<p style='{css}'>a b</p>") is not None
+
+
+def test_ordinary_rendered_html_is_verifiable():
+    """The other direction: nothing about a plain document is unjudgeable."""
+    assert mdwrap.unverifiable_reason("<p>a b</p>\n<pre>code\n</pre>\n") is None
+
+
+def test_an_unbalanced_verbatim_element_refuses_the_rewrite():
+    """An unclosed `<pre>` preformats everything below it, and the regex cannot see it.
+
+    `VERBATIM_HTML_RE` needs a closing tag to find the region, so whitespace a
+    browser preserves would be collapsed and compared equal. Part of round-3
+    finding F007 on PR #226.
+    """
+    renderer = _renderer()
+    src = "> <pre>\n> x\n\npara one\npara two\n"
+    assert kinds(src) == ["split-block"]
+    reason = mdwrap.unsafe_fix_reason(src, fixed(src), renderer)
+    assert reason is not None and "unbalanced <pre>" in reason
+
+
 def test_fix_writes_a_safe_rewrite_and_refuses_an_unsafe_one(tmp_path, monkeypatch, capsys):
     _renderer()
     safe = tmp_path / "safe.md"
@@ -800,6 +841,44 @@ def test_fix_writes_a_safe_rewrite_and_refuses_an_unsafe_one(tmp_path, monkeypat
     out = capsys.readouterr()
     assert "unsafe.md: REFUSED" in out.out
     assert "1 file(s) refused" in out.err
+
+
+def test_fix_never_leaves_a_half_written_file(tmp_path, monkeypatch):
+    """The rewrite lands whole or not at all.
+
+    `Path.write_text` truncates the target first, so an interruption between the
+    truncate and the write left a partially written Markdown file — the one
+    outcome this tool must never produce. Regression for round-3 finding F015 on
+    PR #226.
+    """
+    _renderer()
+    target = tmp_path / "a.md"
+    original = "A paragraph hard\nwrapped.\n"
+    target.write_text(original, encoding="utf-8")
+    monkeypatch.setattr(mdwrap, "repo_root", lambda: tmp_path)
+
+    def interrupted(src, dst):
+        raise OSError("interrupted between write and rename")
+
+    monkeypatch.setattr(mdwrap.os, "replace", interrupted)
+
+    with pytest.raises(OSError):
+        mdwrap.main(["--fix", "--files", "a.md"])
+
+    assert target.read_text(encoding="utf-8") == original, "the original must survive intact"
+    assert [p.name for p in tmp_path.iterdir()] == ["a.md"], "no temporary file left behind"
+
+
+def test_fix_states_the_boundary_of_what_it_verified(tmp_path, monkeypatch, capsys):
+    """An unqualified guarantee is worse than a stated limit, so --fix prints the limit."""
+    _renderer()
+    target = tmp_path / "a.md"
+    target.write_text("A paragraph hard\nwrapped.\n", encoding="utf-8")
+    monkeypatch.setattr(mdwrap, "repo_root", lambda: tmp_path)
+
+    assert mdwrap.main(["--fix", "--files", "a.md"]) == 0
+    err = capsys.readouterr().err
+    assert "markdown-it-py" in err and "cmark-gfm" in err and "ADR-0024" in err
 
 
 def test_fix_refuses_to_run_at_all_without_the_renderer(tmp_path, monkeypatch, capsys):

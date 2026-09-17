@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import argparse
 import fnmatch
+import os
 import re
 import subprocess
 import sys
@@ -1064,11 +1065,35 @@ def compare_structure(before: str, after: str) -> list[str]:
 # Elements whose whitespace a browser preserves. Everywhere else a newline and a
 # space render the same, which is the whole premise of soft wrapping.
 VERBATIM_HTML_RE = re.compile(r"<(pre|textarea|script|style)\b.*?</\1>", re.DOTALL | re.IGNORECASE)
+VERBATIM_TAG_RE = re.compile(r"<(/?)(pre|textarea|script|style)\b", re.IGNORECASE)
+
+# Two things in the rendered HTML break `canonical_html`'s premise, and a text
+# comparison of the two renderings cannot see either:
+#
+#   - a CSS `white-space` value that keeps line breaks. `white-space: pre` on a
+#     span makes a source newline visible, so joining across it changes what the
+#     reader sees while the canonicalised HTML compares equal.
+#   - an unbalanced verbatim element. An unclosed `<pre>` makes everything after
+#     it preformatted in a browser, but `VERBATIM_HTML_RE` needs a closing tag to
+#     find the region, so the canonicaliser collapses it.
+#
+# Neither can be judged, so such a file is refused rather than verified. No
+# tracked file hits either today.
+WHITESPACE_CSS_RE = re.compile(r"white-space\s*:\s*(?:pre|pre-wrap|pre-line|break-spaces)", re.IGNORECASE)
 
 RENDERER_MISSING = (
     "--fix needs markdown-it-py to verify its own rewrite before writing it: "
     "`pip install markdown-it-py` (or `pip install -e '.[dev]'`). "
     "--check needs nothing beyond the standard library."
+)
+
+# Printed after every --fix run. The verification is strong but not unbounded,
+# and an unqualified claim is worse than a stated limit.
+VERIFICATION_BOUNDARY = (
+    "Each rewrite was rendered with markdown-it-py and compared to the original as a browser "
+    "resolves whitespace. The guarantee stops there: it is one parser's reading of CommonMark+GFM, "
+    "not GitHub's cmark-gfm, and a file whose rendering it cannot judge is refused, not written "
+    "(ADR-0024)."
 )
 
 
@@ -1100,6 +1125,26 @@ def canonical_html(html: str) -> str:
     return " ".join(p for p in parts if p)
 
 
+def unverifiable_reason(html: str) -> str | None:
+    """Why this rendered HTML is outside what `canonical_html` can judge, or None."""
+    if WHITESPACE_CSS_RE.search(html):
+        return (
+            "a `white-space` CSS declaration can make a source line break visible here, "
+            "and comparing rendered HTML cannot see that"
+        )
+    open_tags: dict[str, int] = {}
+    for closing, tag in VERBATIM_TAG_RE.findall(html):
+        tag = tag.lower()
+        open_tags[tag] = open_tags.get(tag, 0) + (-1 if closing else 1)
+    unbalanced = sorted(tag for tag, n in open_tags.items() if n)
+    if unbalanced:
+        return (
+            f"an unbalanced <{unbalanced[0]}> in the rendered output — a browser preserves the "
+            "whitespace after it, so this comparison would collapse a break the reader can see"
+        )
+    return None
+
+
 def renders_the_same(before: str, after: str, renderer) -> bool:
     """True if `before` and `after` render to the same thing."""
     return canonical_html(renderer.render(before)) == canonical_html(renderer.render(after))
@@ -1114,8 +1159,15 @@ def unsafe_fix_reason(before: str, after: str, renderer) -> str | None:
     purpose — a setext heading becomes a paragraph and a thematic break — so it
     is held to the structural rule that a setext heading may disappear but never
     appear.
+
+    Both rest on `canonical_html`, so a file it cannot judge — one whose CSS
+    preserves whitespace, or whose rendered HTML leaves a verbatim element open
+    — is refused before either check runs.
     """
     joined = analyse(before, repair=(SPLIT_BLOCK,))[1]
+    unverifiable = unverifiable_reason(renderer.render(before)) or unverifiable_reason(renderer.render(joined))
+    if unverifiable is not None:
+        return unverifiable
     if not renders_the_same(before, joined, renderer):
         return "rejoining its split blocks would change the rendered output"
     diffs = compare_structure(before, after)
@@ -1127,6 +1179,22 @@ def unsafe_fix_reason(before: str, after: str, renderer) -> str | None:
 # --------------------------------------------------------------------------
 # File selection
 # --------------------------------------------------------------------------
+
+
+def write_atomically(path: Path, text: str) -> None:
+    """Replace `path`'s contents in one step.
+
+    `Path.write_text` truncates first, so an interruption between the truncate
+    and the write leaves a half-written Markdown file — the one outcome this
+    tool must never produce. Writing a sibling and renaming over the target
+    cannot: the rename either happened or it did not.
+    """
+    tmp = path.with_name(f".{path.name}.md-wrap-tmp")
+    try:
+        tmp.write_text(text, encoding="utf-8")
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def git(*args: str) -> str:
@@ -1216,7 +1284,7 @@ def main(argv: list[str] | None = None) -> int:
                     refused += 1
                     print(f"{rel}: REFUSED, not rewritten — {reason}")
                     continue
-                path.write_text(fixed, encoding="utf-8")
+                write_atomically(path, fixed)
                 fixed_files += 1
                 print(f"{rel}: fixed {len(violations)} violation(s)")
         else:
@@ -1228,6 +1296,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n{len(paths)} file(s) checked ({scope_name}); {len(skipped)} exempt.", file=sys.stderr)
     if args.fix:
         print(f"{fixed_files} file(s) rewritten.", file=sys.stderr)
+        print(VERIFICATION_BOUNDARY, file=sys.stderr)
         if refused:
             print(
                 f"{refused} file(s) refused: the rewrite would have changed the rendered output, "
@@ -1258,8 +1327,12 @@ def _run_equivalence(ref: str, paths: list[str], root: Path) -> int:
         after = path.read_text(encoding="utf-8")
         compared += 1
         diffs = compare_structure(before, after)
-        if renderer is not None and not renders_the_same(before, after, renderer):
-            diffs.append("rendered output changed")
+        if renderer is not None:
+            unverifiable = unverifiable_reason(renderer.render(before)) or unverifiable_reason(renderer.render(after))
+            if unverifiable is not None:
+                diffs.append(f"not verifiable by rendering: {unverifiable}")
+            elif not renders_the_same(before, after, renderer):
+                diffs.append("rendered output changed")
         for d in diffs:
             print(f"{rel}: {d}")
         failures += len(diffs)
