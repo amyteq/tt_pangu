@@ -8,7 +8,7 @@
 - status: **landed** (issue #192) — folded into `kg-submit` § *Pre-push validation*, backed by `docs/tooling/kaggle-kernel-ops.md` §5.
 - source competitions: nvidia-nemotron
 - problem: kernel 运行期错误(F821 / `.shape` / ptxas 路径)曾各耗 ~2h GPU。
-- evidence: `competitions/nvidia-nemotron/experiments/kernel/README.md`(validate_kernel.py + fail-fast preflight)
+- evidence: `competitions/nvidia-nemotron/kernels/validate_kernel.py`(静态 lint + fail-fast preflight)。原先登记的 `experiments/kernel/README.md` 不存在,#192 更正为实际文件。
 - proposed future asset: 通用「push 前静态 lint + 单样本预检」skill。
 
 ## Candidate: ladder-predictive-gate
