@@ -809,11 +809,27 @@ def test_a_white_space_css_declaration_refuses_the_rewrite():
 )
 def test_every_whitespace_preserving_css_value_is_caught(css):
     assert mdwrap.unverifiable_reason(f"<p style='{css}'>a b</p>") is not None
+    assert mdwrap.unverifiable_reason(f"<style>\n.x {{ {css}; }}\n</style>\n<p>a b</p>") is not None
 
 
 def test_ordinary_rendered_html_is_verifiable():
     """The other direction: nothing about a plain document is unjudgeable."""
     assert mdwrap.unverifiable_reason("<p>a b</p>\n<pre>code\n</pre>\n") is None
+
+
+def test_writing_about_white_space_pre_does_not_make_a_file_unfixable():
+    """The declaration is CSS only where CSS lives — `style=`, or a `<style>` element.
+
+    ADR-0024 documents this very hazard, so its own rendered output contains the
+    string inside a `<code>` span with the quotes escaped. Matching that refused
+    `--fix` on the ADR, which is the unfixable-red-build failure mode the guard
+    exists to prevent.
+    """
+    renderer = _renderer()
+    src = 'A `<span style="white-space: pre">` span keeps its breaks, as does\n`white-space: pre-wrap`.\n'
+    assert kinds(src) == ["split-block"]
+    assert mdwrap.unverifiable_reason(renderer.render(src)) is None
+    assert mdwrap.unsafe_fix_reason(src, fixed(src), renderer) is None
 
 
 def test_an_unbalanced_verbatim_element_refuses_the_rewrite():

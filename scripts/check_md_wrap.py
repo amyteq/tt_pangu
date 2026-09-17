@@ -1091,7 +1091,14 @@ VERBATIM_TAG_RE = re.compile(r"<(/?)(pre|textarea|script|style)\b", re.IGNORECAS
 #
 # Neither can be judged, so such a file is refused rather than verified. No
 # tracked file hits either today.
-WHITESPACE_CSS_RE = re.compile(r"white-space\s*:\s*(?:pre|pre-wrap|pre-line|break-spaces)", re.IGNORECASE)
+#
+# The declaration is looked for only where CSS actually lives — a `style`
+# attribute or a `<style>` element. A document that merely writes about
+# `white-space: pre`, as ADR-0024 does, renders it inside a `<code>` span with
+# the quotes escaped, and must stay fixable.
+STYLE_ATTR_RE = re.compile(r"""\sstyle\s*=\s*("[^"]*"|'[^']*')""", re.IGNORECASE)
+STYLE_ELEMENT_RE = re.compile(r"<style\b[^>]*>(.*?)</style>", re.DOTALL | re.IGNORECASE)
+WHITESPACE_CSS_RE = re.compile(r"white-space\s*:\s*(?:pre|break-spaces)", re.IGNORECASE)
 
 RENDERER_MISSING = (
     "--fix needs markdown-it-py to verify its own rewrite before writing it: "
@@ -1139,7 +1146,9 @@ def canonical_html(html: str) -> str:
 
 def unverifiable_reason(html: str) -> str | None:
     """Why this rendered HTML is outside what `canonical_html` can judge, or None."""
-    if WHITESPACE_CSS_RE.search(html):
+    css = [m.group(1) for m in STYLE_ATTR_RE.finditer(html)]
+    css += [m.group(1) for m in STYLE_ELEMENT_RE.finditer(html)]
+    if any(WHITESPACE_CSS_RE.search(rule) for rule in css):
         return (
             "a `white-space` CSS declaration can make a source line break visible here, "
             "and comparing rendered HTML cannot see that"
