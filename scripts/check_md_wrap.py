@@ -132,6 +132,32 @@ LINKDEF_RE = re.compile(r"^ {0,3}\[[^\]]+\]:")
 QUOTE_RE = re.compile(r"^ {0,3}> ?")
 HARD_BREAK_RE = re.compile(r"(?:  +|\\)$")
 
+# CommonMark HTML blocks do not all end the same way. Types 1-5 run to their own
+# terminator and may contain blank lines — an `<!-- ... -->` comment spanning a
+# blank line is the common case here, and ending it early would let the engine
+# reflow text it promised never to inspect. Types 6 and 7 end at a blank line.
+HTML_CDATA_RE = re.compile(r"^ {0,3}<!\[CDATA\[")
+HTML_COMMENT_RE = re.compile(r"^ {0,3}<!--")
+HTML_PI_RE = re.compile(r"^ {0,3}<\?")
+HTML_DECL_RE = re.compile(r"^ {0,3}<![A-Za-z]")
+HTML_RAW_RE = re.compile(r"^ {0,3}<(script|pre|style|textarea)\b", re.IGNORECASE)
+
+
+def html_block_terminator(content: str) -> str | None:
+    """The string that closes this HTML block, or None if a blank line closes it."""
+    if HTML_CDATA_RE.match(content):
+        return "]]>"
+    if HTML_COMMENT_RE.match(content):
+        return "-->"
+    if HTML_PI_RE.match(content):
+        return "?>"
+    if HTML_DECL_RE.match(content):
+        return ">"
+    m = HTML_RAW_RE.match(content)
+    if m:
+        return f"</{m.group(1).lower()}>"
+    return None
+
 
 def split_quote(line: str) -> tuple[int, str]:
     """Strip blockquote markers, returning (depth, remaining content)."""
@@ -258,11 +284,16 @@ def analyse(text: str) -> tuple[list[Violation], str]:
             prev_depth = depth
             continue
 
-        # An HTML block runs to the next blank line.
+        # An HTML block is copied verbatim to its end condition.
         if not prev_open and HTML_RE.match(content):
+            terminator = html_block_terminator(content)
             while i < len(lines):
                 out.append(lines[i])
-                if not split_quote(lines[i])[1].strip():
+                body = split_quote(lines[i])[1]
+                if terminator is None:
+                    if not body.strip():
+                        break
+                elif terminator in body:
                     break
                 i += 1
             i += 1

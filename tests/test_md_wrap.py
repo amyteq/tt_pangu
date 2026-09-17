@@ -125,6 +125,32 @@ def test_html_block_is_never_inspected():
     assert fixed(src) == src
 
 
+def test_html_comment_containing_a_blank_line_is_never_inspected():
+    """A `<!--` block ends at `-->`, not at the first blank line (CommonMark type 2).
+
+    Ending it early let the engine reflow comment text and pull `-->` onto a prose
+    line — exactly the edit it promises not to make. Regression for issue #210.
+    """
+    src = "<!--\nheader note\n  continued here\n\nsecond paragraph of the\ncomment\n-->\n\nProse.\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_cdata_and_processing_instruction_blocks_survive_a_blank_line():
+    for src in (
+        "<![CDATA[\nraw\n\nmore raw\n]]>\n\nProse.\n",
+        "<?php\n$a = 1;\n\n$b = 2;\n?>\n\nProse.\n",
+    ):
+        assert kinds(src) == []
+        assert fixed(src) == src
+
+
+def test_ordinary_html_block_still_ends_at_a_blank_line():
+    src = "<details>\n<summary>x</summary>\n\nA paragraph hard\nwrapped after the block.\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "<details>\n<summary>x</summary>\n\nA paragraph hard wrapped after the block.\n"
+
+
 def test_wrapped_blockquote_is_flagged_and_joined():
     src = "> a quoted paragraph that was\n> hard wrapped\n"
     assert kinds(src) == ["split-block"]
