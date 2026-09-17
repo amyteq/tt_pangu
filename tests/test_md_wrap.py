@@ -454,6 +454,51 @@ def test_an_unclosed_html_block_in_a_blockquote_ends_with_the_blockquote():
     assert fixed(src) == "> <pre>\n> x\n\npara one para two\n"
 
 
+@pytest.mark.parametrize(
+    "src",
+    [
+        "- <!--\n  comment one\n  comment two\n  -->\n",  # type 2, runs to its own terminator
+        "- <div>\n  raw one\n  raw two\n  </div>\n",  # type 6, runs to a blank line
+        "- <pre>\n  raw one\n  raw two\n  </pre>\n",  # type 1, raw text
+        "* <![CDATA[\n  one\n  two\n  ]]>\n",  # type 5
+        "1. <!--\n   comment one\n   comment two\n   -->\n",  # an ordered marker too
+        "> - <!--\n>   comment one\n>   comment two\n>   -->\n",  # and inside a quote
+    ],
+)
+def test_an_html_block_opening_on_a_list_marker_line_is_never_inspected(src):
+    """`- <!--` opens the item's HTML block, not an item whose text is `<!--`.
+
+    Both cmark-gfm and markdown-it put the whole block inside the item. Reading
+    the marker line as text made every line below it the item's own prose, so
+    `--check` reported content ADR-0024 exempts and `--fix` folded the comment
+    onto one line. Regression for round-4 finding F017 on PR #226.
+    """
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_an_html_block_in_a_list_item_still_ends_with_the_item():
+    """The other direction: the block stops at the item's content column.
+
+    Without the container exit an unterminated one inside an item would hide
+    every line below it, which is the F003 defect one container in.
+    """
+    src = "- <!--\n  comment\n\npara one\npara two\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "- <!--\n  comment\n\npara one para two\n"
+
+
+def test_a_list_item_whose_text_merely_starts_with_a_tag_is_still_joined():
+    """`- <b>bold</b> and more` is an item holding text, not an HTML block.
+
+    A complete tag on a line with text after it satisfies no start condition, so
+    the item wraps like any other and its continuation is a violation.
+    """
+    src = "- <b>bold</b> and more\n  text continuing\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "- <b>bold</b> and more text continuing\n"
+
+
 def test_link_reference_definition_title_on_the_next_line_is_not_prose():
     """The title line renders as nothing; joining a paragraph onto it made it visible.
 
