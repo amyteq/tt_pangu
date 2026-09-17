@@ -134,7 +134,11 @@ FENCE_CLOSE_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})[ \t]*$")
 ATX_RE = re.compile(r"^ {0,3}#{1,6}(?: |\t|$)")
 HR_DASH_RE = re.compile(r"^ {0,3}-{3,}[ \t]*$")
 HR_OTHER_RE = re.compile(r"^ {0,3}(?:\*[ \t]*){3,}$|^ {0,3}(?:_[ \t]*){3,}$")
-LIST_RE = re.compile(r"^ *(?:[-*+]|\d{1,9}[.)])(?: |\t|$)")
+# A list marker may be indented with tabs as well as spaces, and a tab-indented
+# child list is an ordinary nested list — reading its items as prose flattens
+# the nesting into one paragraph.
+LIST_RE = re.compile(r"^[ \t]*(?:[-*+]|\d{1,9}[.)])(?: |\t|$)")
+LIST_MARKER_RE = re.compile(r"^(?P<lead>[ \t]*)(?P<marker>[-*+]|\d{1,9}[.)])(?P<gap>[ \t]*)")
 TABLE_RE = re.compile(r"^ {0,3}\|")
 HTML_RE = re.compile(r"^ {0,3}<")
 LINKDEF_RE = re.compile(r"^ {0,3}\[[^\]]+\]:")
@@ -353,12 +357,19 @@ def linkdef_parts(content: str) -> tuple[bool, bool] | None:
 def leaves_block_open(content: str) -> bool:
     """True if a following non-blank line would continue this line's block.
 
-    Paragraph text, a list item and a table row are all continuable. A heading,
-    a thematic break and a link reference definition are complete on their line.
+    Paragraph text, a non-empty list item and a table row are all continuable. A
+    heading, a thematic break and a link reference definition are complete on
+    their line, and so is an *empty* list item: CommonMark continues only a
+    paragraph, and an empty item holds none. `> -` followed by unquoted text is
+    an empty quoted item plus an outside paragraph — joining the two moves the
+    paragraph into the blockquote.
     """
     if ATX_RE.match(content) or HR_DASH_RE.match(content) or HR_OTHER_RE.match(content):
         return False
     if LINKDEF_RE.match(content):
+        return False
+    m = LIST_RE.match(content)
+    if m and not content[m.end() :].strip():
         return False
     return True
 
