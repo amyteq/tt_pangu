@@ -36,6 +36,7 @@ Use this workflow when the task involves Kaggle, ML competitions, leaderboard op
    - Explain whether the result supports the hypothesis.
    - Decide: iterate, revert, expand, or prepare submission.
 
-7. **Submission gate**
-   - Never submit automatically.
-   - Before submission, present file path, experiment ID, local metric, expected leaderboard behavior, risk, and ask for human approval.
+7. **Submission gate** — *this loop, run by a development harness*
+   - **Harness (you, here).** Do not submit automatically: a submission spends the human's Kaggle credentials and daily quota, so present file path, experiment ID, local metric, expected leaderboard behavior and risk, and ask for human approval. This binds a Claude Code and a Codex session identically.
+   - **KCA product agent.** Governed by its competition's `autonomy` block — the file `competition.yaml:autonomy_config` names, conventionally `kca-<slug>.yaml` — and that block is configuration, not permission. ADR-0022 §5 opens the approval-free path only for a competition meeting activation conditions **A1-A7**; no competition meets them, ADR-0021 §2's earlier screened grant is unimplemented, and no code reads the block, so KCA's submissions are asked for too. Where the grant is open, the record is the submission intent persisted under `competitions/<slug>/submissions/` before dispatch — never an audit log (`CLAUDE.md` principle 6).
+   - Either way the same facts are required before a submission; what differs is who reads them. `CLAUDE.md` principle 6 also names the things that stay human-gated for both however the rest is configured — read that floor there, not from a list in this skill.

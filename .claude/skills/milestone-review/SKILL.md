@@ -46,8 +46,10 @@ Ready for closeout: YES | NO  (with reasons)
 
 - Do not write `docs/milestones/m{N}/final-review.md` — that is the `milestone-final-review`
   skill's job.
-- Do not push commits, file issues, or apply labels — surface proposals for
-  human approval.
+- Do not push commits, file issues, or apply labels **from this skill** —
+  surface them as proposals for the caller to act on. This is a read-only
+  review; it is not a repository rule that those writes need approval
+  (`CLAUDE.md` → *GitHub collaboration* auto-allows them in the dev phase).
 - Do not declare a criterion `PASS` without a specific evidence link. "I read
   the diff" is not evidence — the test/audit row/doc is.
 - Do not retroactively redefine acceptance criteria to fit the implementation.
