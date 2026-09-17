@@ -10,14 +10,11 @@ Use this skill at milestone end to produce the canonical final review markdown.
 ## Inputs you need
 
 - Milestone number `{N}` (e.g. `6`, `8_5`).
-- The PASS/FAIL/SKIP table from every Loop Prompt's verification step in
-  the current session. If a Loop Prompt was completed in an earlier
-  session, the human must paste or point to that PASS record.
+- The PASS/FAIL/SKIP table from every Loop Prompt's verification step in the current session. If a Loop Prompt was completed in an earlier session, the human must paste or point to that PASS record.
 - The current branch (worktree) name.
 - The actual DSN / endpoint values used during validation (for the "DB access note").
 
-Refuse to write the final review if any input above is missing or
-unknown. Do **not** fill in placeholder metrics.
+Refuse to write the final review if any input above is missing or unknown. Do **not** fill in placeholder metrics.
 
 ## Layout
 
@@ -67,16 +64,12 @@ the Loop Prompts' stop conditions and known-gaps notes>
 ## Required honesty
 
 - If a check SKIPPed, write **SKIP** with the documented reason — not PASS.
-- If a metric is unknown, write `N/A — not recorded` and add it to the
-  follow-ups list. Never fabricate numbers.
-- If a Loop Prompt PASSed only after a fix-up, write **PASS** but record
-  the fix in the "What landed" section so the diff is auditable.
+- If a metric is unknown, write `N/A — not recorded` and add it to the follow-ups list. Never fabricate numbers.
+- If a Loop Prompt PASSed only after a fix-up, write **PASS** but record the fix in the "What landed" section so the diff is auditable.
 
 ## Output
 
-Write to `docs/milestones/m{N}/final-review.md`. After writing, print the file
-path, the validation matrix's PASS/FAIL/SKIP count, and any items
-deferred to follow-ups.
+Write to `docs/milestones/m{N}/final-review.md`. After writing, print the file path, the validation matrix's PASS/FAIL/SKIP count, and any items deferred to follow-ups.
 
 ## Safety
 

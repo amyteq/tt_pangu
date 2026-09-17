@@ -10,8 +10,7 @@ Use this skill when the user wants to:
 - Turn a `.ipynb` into a flat percent-format `.py` for editing or diff review.
 - Rebuild a `.ipynb` from a `.py` percent-format script for execution or submission.
 
-`.py` is the editable truth source; `.ipynb` is an execution/submission artifact.
-Never edit a `.ipynb` directly when a `.py` exists.
+`.py` is the editable truth source; `.ipynb` is an execution/submission artifact. Never edit a `.ipynb` directly when a `.py` exists.
 
 ## Commands
 

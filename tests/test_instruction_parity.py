@@ -1694,8 +1694,8 @@ def test_the_round_4_counterexamples_are_all_caught(name: str, surface: str, sen
         (
             "autonomy-screen",
             "docs/adr/0021-kca-autonomy-model.md",
-            "When enabled, the KCA agent performs `kaggle kernels push` and leaderboard\n"
-            "`submit` **without per-action human approval**, provided ALL screening criteria\npass.",
+            "When enabled, the KCA agent performs `kaggle kernels push` and leaderboard `submit` "
+            "**without per-action human approval**, provided ALL screening criteria pass.",
             "Screening criteria pass today, so the KCA agent performs `kaggle kernels push`\n"
             "and leaderboard `submit` without per-action human approval.",
         ),

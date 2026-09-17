@@ -23,10 +23,8 @@ Steps:
 2. Check row count and that target column values are valid.
 3. Load metrics.json; confirm cv_score is recorded.
 4. Summarise: run_id, competition, cv_score, submission_path, artifact_hash.
-5. Create a decision record:
-   `kca decision create --operation kaggle_submit --run-id <id> --reason "CV:<score>"`
-6. Print the decision record ID. Do NOT submit — human must approve via
-   `kca decision approve <id>`.
+5. Create a decision record: `kca decision create --operation kaggle_submit --run-id <id> --reason "CV:<score>"`
+6. Print the decision record ID. Do NOT submit — human must approve via `kca decision approve <id>`.
 
 Stop if:
 - submission.csv is missing or malformed → fail with clear error.

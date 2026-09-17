@@ -5,8 +5,7 @@ description: Initialize a run artifact directory under runs/<competition>/<run_i
 
 # kg-run — experiment run artifact management
 
-Use this skill when starting any experiment that needs a recorded baseline:
-hypothesis, metrics, logs, and output artifacts in one structured place.
+Use this skill when starting any experiment that needs a recorded baseline: hypothesis, metrics, logs, and output artifacts in one structured place.
 
 ## Layout
 

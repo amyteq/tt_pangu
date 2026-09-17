@@ -98,13 +98,9 @@ Full details: `docs/adr/0006-configurable-approval-gates.md`.
 
 Status: accepted (2026-05-19)
 
-Decision: Each registered Kaggle competition gets its own GitHub repo (`harry/kaggle-<slug>`).
-Branches track experiments (`exp/<hypothesis-slug>`). Agent jobs get git worktrees *within*
-the competition repo for per-job isolation. Platform code never mixes with competition code.
+Decision: Each registered Kaggle competition gets its own GitHub repo (`harry/kaggle-<slug>`). Branches track experiments (`exp/<hypothesis-slug>`). Agent jobs get git worktrees *within* the competition repo for per-job isolation. Platform code never mixes with competition code.
 
-Transition: M3 uses platform repo worktree as interim (worker skeleton). M4 adds
-`kca competition register/clone`, migration 0004 (`repo_url`, `local_clone_path`), and
-`pyproject.toml` so kca is pip-installable from competition repos.
+Transition: M3 uses platform repo worktree as interim (worker skeleton). M4 adds `kca competition register/clone`, migration 0004 (`repo_url`, `local_clone_path`), and `pyproject.toml` so kca is pip-installable from competition repos.
 
 Full details: `docs/adr/0009-competition-repo-strategy.md`.
 
@@ -120,9 +116,6 @@ Full details: `docs/adr/0007-otel-telemetry-strategy.md`.
 
 Status: accepted (M5).
 
-Decision: route the default model by job type — Haiku for `research`, Sonnet
-for `implement`/`experiment`, Opus for `eval`/`analysis`/`review`. `--model`
-on `scripts/run_job.py` remains a hard override; the routing function lives in
-`src/worker/routing.py`. JSON output now includes the resolved `model`.
+Decision: route the default model by job type — Haiku for `research`, Sonnet for `implement`/`experiment`, Opus for `eval`/`analysis`/`review`. `--model` on `scripts/run_job.py` remains a hard override; the routing function lives in `src/worker/routing.py`. JSON output now includes the resolved `model`.
 
 Full details: `docs/adr/0010-model-routing.md`.

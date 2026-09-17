@@ -5,12 +5,9 @@ description: Execute the milestone-end git+gh sequence per docs/milestone-loop-p
 
 # worktree-milestone-pr — milestone-end commit/push/PR
 
-Use this skill at the very end of a milestone, after `docs/milestones/m{N}/final-review.md`
-has been written, to commit per Loop Prompt, push the worktree branch, and
-open a PR against `main`.
+Use this skill at the very end of a milestone, after `docs/milestones/m{N}/final-review.md` has been written, to commit per Loop Prompt, push the worktree branch, and open a PR against `main`.
 
-This skill encodes protocol §5 (Git / GitHub — worktree mode) so loop
-prompts and the closeout agent don't have to re-derive the sequence.
+This skill encodes protocol §5 (Git / GitHub — worktree mode) so loop prompts and the closeout agent don't have to re-derive the sequence.
 
 ## Pre-flight gate
 
@@ -23,9 +20,7 @@ Refuse to proceed if any of the following is false:
    git merge-base --is-ancestor main HEAD     # main is ancestor of HEAD
    ```
 2. `docs/milestones/m{N}/final-review.md` exists and is non-empty.
-3. `git status` shows only milestone-owned files (compare against the
-   union of "files changed" sections in `docs/tasks/m{N}/M{N}-T*-*.md`). If
-   anything else shows up, halt and ask.
+3. `git status` shows only milestone-owned files (compare against the union of "files changed" sections in `docs/tasks/m{N}/M{N}-T*-*.md`). If anything else shows up, halt and ask.
 
 ## Commit sequence (default: one commit per Loop Prompt)
 
@@ -48,8 +43,7 @@ M{N}: final review
 See docs/milestones/m{N}/final-review.md.
 ```
 
-Squash variant (only if the milestone's last task spec or the user
-explicitly requested it):
+Squash variant (only if the milestone's last task spec or the user explicitly requested it):
 
 ```
 M{N}: <milestone title> (squash)
@@ -67,19 +61,14 @@ gh pr create --base main --head <branch> \
   --body-file docs/milestones/m{N}/final-review.md
 ```
 
-If the milestone is planning-only (e.g. M8.5-T003), prefix the PR title
-with `[planning]` and add `(no code changes)` if applicable.
+If the milestone is planning-only (e.g. M8.5-T003), prefix the PR title with `[planning]` and add `(no code changes)` if applicable.
 
 ## What this skill must NOT do
 
 - No `git push --force`, ever.
-- No `gh pr merge` **from this skill** — a milestone PR is merged by the human.
-  (Deliberately stricter than the repo-wide dev-phase policy, which auto-allows
-  `gh pr merge`; this is a scope rule for this skill, not a claim about the repo.)
+- No `gh pr merge` **from this skill** — a milestone PR is merged by the human. (Deliberately stricter than the repo-wide dev-phase policy, which auto-allows `gh pr merge`; this is a scope rule for this skill, not a claim about the repo.)
 - No push to `main` directly.
-- No `gh label create/edit/delete` against existing labels or
-  `gh issue edit/comment` / `gh pr edit/comment` against issues/PRs
-  not owned by this milestone — those stay on ASK per protocol §5.
+- No `gh label create/edit/delete` against existing labels or `gh issue edit/comment` / `gh pr edit/comment` against issues/PRs not owned by this milestone — those stay on ASK per protocol §5.
 - No commits that touch files outside the milestone's scope.
 
 ## Output

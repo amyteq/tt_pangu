@@ -22,59 +22,26 @@ Accepted (M12-T001, 2026-06-09).
 
 ## Context
 
-`docs/milestones/README.md` §M12 commits the platform to validating a non-Kaggle
-hackathon-submission path (Devpost) on the picked target `h01`
-(docs/evidence/m12/t000-candidates.md:14). M11 will reuse the same
-`competitions` surface for CTF challenges. M9 and M10 already established
-two Kaggle code paths (CSV submit and kernel push) against the existing
-Kaggle-only schema (supabase/migrations/0004_m4_competition_repo.sql:14–18)
-and ADR-0006 approval-gate hierarchy.
+`docs/milestones/README.md` §M12 commits the platform to validating a non-Kaggle hackathon-submission path (Devpost) on the picked target `h01` (docs/evidence/m12/t000-candidates.md:14). M11 will reuse the same `competitions` surface for CTF challenges. M9 and M10 already established two Kaggle code paths (CSV submit and kernel push) against the existing Kaggle-only schema (supabase/migrations/0004_m4_competition_repo.sql:14–18) and ADR-0006 approval-gate hierarchy.
 
-The Discovery / Debate Gate
-(`docs/milestone-loop-protocol.md` §7, `docs/architecture/discovery-debate-gate.md`)
-ran three role-isolated reports against the Kaggle-specific surfaces:
+The Discovery / Debate Gate (`docs/milestone-loop-protocol.md` §7, `docs/architecture/discovery-debate-gate.md`) ran three role-isolated reports against the Kaggle-specific surfaces:
 
-- `docs/evidence/m12/t001/discovery/legacy-archaeologist.md` — names the
-  ten Kaggle-specific dimensions the generalization touches, the
-  multi-Kaggle-account legacy precedent (`tools/legacy/kkr.py:541`), the
-  ADR-0006 four-level hierarchy, the untyped `competition_policy` jsonb
-  surface, and the per-skill profile loader at
-  `tools/kca/agent/permission_policy.py:79–88`.
-- `docs/evidence/m12/t001/discovery/requirements-skeptic.md` — surfaces
-  six explicit unknowns including the `'devpost'` vs
-  `'hackathon_devpost'` boundary, the team-scoped "owner" question, and
-  the silent-fallback foot-gun in the resolver.
-- `docs/evidence/m12/t001/discovery/design-red-team.md` — debates the
-  three required alternatives (A folded enum / B separate table /
-  C denormalised jsonb) plus one supplementary alternative (D, hybrid
-  enum + CHECK), names the dropped capabilities, and scores the four
-  long-term-cost axes.
+- `docs/evidence/m12/t001/discovery/legacy-archaeologist.md` — names the ten Kaggle-specific dimensions the generalization touches, the multi-Kaggle-account legacy precedent (`tools/legacy/kkr.py:541`), the ADR-0006 four-level hierarchy, the untyped `competition_policy` jsonb surface, and the per-skill profile loader at `tools/kca/agent/permission_policy.py:79–88`.
+- `docs/evidence/m12/t001/discovery/requirements-skeptic.md` — surfaces six explicit unknowns including the `'devpost'` vs `'hackathon_devpost'` boundary, the team-scoped "owner" question, and the silent-fallback foot-gun in the resolver.
+- `docs/evidence/m12/t001/discovery/design-red-team.md` — debates the three required alternatives (A folded enum / B separate table / C denormalised jsonb) plus one supplementary alternative (D, hybrid enum + CHECK), names the dropped capabilities, and scores the four long-term-cost axes.
 
 The product constraints the synthesis must satisfy:
 
-1. **Backwards-compatible.** Every existing Kaggle row (M9 / M10
-   baselines) must resolve its approval gates identically before and
-   after migration 0008. ADR-0006's four-level hierarchy is **preserved,
-   not superseded**.
-2. **M11 reuse without a second migration.** The enum must carry a
-   `'ctf'` value from day one (docs/tasks/m12/M12-T001-discovery-debate-gate.md:81–83).
-3. **Audit-traceable foot-gun rejection.** The Discovery / Debate Gate
-   exists because the original `tools/legacy/kkr.py` migration lost
-   multi-account semantics silently (`docs/meeting-notes/2026-05-24-r3.md` §6,
-   referenced from `docs/architecture/discovery-debate-gate.md:18–22`).
-   ADR-0018 must NOT introduce a new silent-fallback path.
-4. **Additive, not renaming.** "Renaming any of the existing
-   Kaggle-specific surfaces" is explicitly out of scope
-   (docs/milestones/m12/loop-prompts.md:116). `kaggle_submit` / `kernel_push` keep
-   their names; the new `devpost_submit` is additive.
+1. **Backwards-compatible.** Every existing Kaggle row (M9 / M10 baselines) must resolve its approval gates identically before and after migration 0008. ADR-0006's four-level hierarchy is **preserved, not superseded**.
+2. **M11 reuse without a second migration.** The enum must carry a `'ctf'` value from day one (docs/tasks/m12/M12-T001-discovery-debate-gate.md:81–83).
+3. **Audit-traceable foot-gun rejection.** The Discovery / Debate Gate exists because the original `tools/legacy/kkr.py` migration lost multi-account semantics silently (`docs/meeting-notes/2026-05-24-r3.md` §6, referenced from `docs/architecture/discovery-debate-gate.md:18–22`). ADR-0018 must NOT introduce a new silent-fallback path.
+4. **Additive, not renaming.** "Renaming any of the existing Kaggle-specific surfaces" is explicitly out of scope (docs/milestones/m12/loop-prompts.md:116). `kaggle_submit` / `kernel_push` keep their names; the new `devpost_submit` is additive.
 
 ## Decision
 
 ### Alternative chosen: **A — Folded `competition_type` enum on the existing `competitions` table.**
 
-The full text of the three alternatives the red team scored lives in
-`docs/evidence/m12/t001/discovery/design-red-team.md` §alternatives.
-Summary:
+The full text of the three alternatives the red team scored lives in `docs/evidence/m12/t001/discovery/design-red-team.md` §alternatives. Summary:
 
 | Axis (one-sentence summary) | A — folded enum | B — separate table | C — jsonb discriminator |
 |---|---|---|---|
@@ -84,25 +51,10 @@ Summary:
 | UI churn | low: one column added, two new pages read it | high: every Kaggle UI query must JOIN-or-NOT depending on type | low but unsafe: no `\d` visibility of the type |
 | Audit / safety | medium: untyped jsonb keys remain a known foot-gun (open disagreement #1) | high: DB-level type safety, but worker code complexity is high | **low: silent-fallback class of bug** (red team §blast_radius) |
 
-**Why A wins.** Alternative C's blast radius is the canonical Discovery /
-Debate Gate failure mode — a silent-fallback path that approves the
-wrong gate without surfacing the mistake (red-team §blast_radius); that
-alone disqualifies it for an architectural decision whose entire
-motivation is preventing this class of bug. Alternative B is structurally
-clean but multiplies the worker code surface and forces every
-`experiments` / `experiment_runs` / `submissions` FK to learn which
-parent table it is FK'd to — that cost lands in M12-T006 and every
-future task. Alternative A's two known weaknesses (the untyped jsonb
-surface and the silent-fallback in the resolver) are addressable
-without a schema change:
+**Why A wins.** Alternative C's blast radius is the canonical Discovery / Debate Gate failure mode — a silent-fallback path that approves the wrong gate without surfacing the mistake (red-team §blast_radius); that alone disqualifies it for an architectural decision whose entire motivation is preventing this class of bug. Alternative B is structurally clean but multiplies the worker code surface and forces every `experiments` / `experiment_runs` / `submissions` FK to learn which parent table it is FK'd to — that cost lands in M12-T006 and every future task. Alternative A's two known weaknesses (the untyped jsonb surface and the silent-fallback in the resolver) are addressable without a schema change:
 
-- The jsonb weakness is captured as **Open disagreement #1** (red team
-  §open_disagreements) and filed as a `type:tech-debt` follow-up at M12
-  close.
-- The silent-fallback weakness is captured as **Open disagreement #4**
-  and is addressed *in this ADR* by §"Resolver fallback contract" below
-  — the resolver MUST emit a structured warning event on every
-  type-specific profile miss.
+- The jsonb weakness is captured as **Open disagreement #1** (red team §open_disagreements) and filed as a `type:tech-debt` follow-up at M12 close.
+- The silent-fallback weakness is captured as **Open disagreement #4** and is addressed *in this ADR* by §"Resolver fallback contract" below — the resolver MUST emit a structured warning event on every type-specific profile miss.
 
 ### Schema (lands in M12-T002, migration 0008)
 
@@ -134,37 +86,19 @@ CREATE TABLE IF NOT EXISTS team_memberships (
 );
 ```
 
-The enum literal `('kaggle', 'devpost', 'hackathon_devpost', 'ctf', 'generic')`
-is **non-negotiable** for this ADR: `'ctf'` is reserved so M11 can plug
-in without a second migration (docs/tasks/m12/M12-T001-discovery-debate-gate.md:82–83),
-and `'generic'` is the fallback for future hackathon platforms
-(HackerEarth, MLH, Devfolio) that may land in M12.x or M13. No sixth
-value ships in M12; expansion requires a fresh ADR (docs/tasks/m12/M12-T001-discovery-debate-gate.md:111–113).
+The enum literal `('kaggle', 'devpost', 'hackathon_devpost', 'ctf', 'generic')` is **non-negotiable** for this ADR: `'ctf'` is reserved so M11 can plug in without a second migration (docs/tasks/m12/M12-T001-discovery-debate-gate.md:82–83), and `'generic'` is the fallback for future hackathon platforms (HackerEarth, MLH, Devfolio) that may land in M12.x or M13. No sixth value ships in M12; expansion requires a fresh ADR (docs/tasks/m12/M12-T001-discovery-debate-gate.md:111–113).
 
 #### Enum value semantics (one sentence each — addresses skeptic §explicit_unknowns)
 
-- `'kaggle'` — a Kaggle competition with CSV-submit and/or kernel-push;
-  ADR-0006 default-allow gates apply unless overridden.
-- `'devpost'` — the Devpost platform generally; non-hackathon Devpost
-  listings (challenges, judging-only events) belong here.
-- `'hackathon_devpost'` — a Devpost-hosted event that follows the
-  hackathon-format submission shape: README + demo + source +
-  architecture diagram. M12-T002 may write either `'devpost'` or
-  `'hackathon_devpost'` for the picked `h01` target; the picking happens
-  in T003 once the Devpost page is fetched.
-- `'ctf'` — reserved for M11. No M12 code paths read or write this
-  value; the M12 default profile DOES NOT carry `ctf_*` op entries,
-  so a stray `'ctf'` row in M12 falls through to
-  `_tool_default_decision(operation) == 'ask'` (skeptic §side_effects.6;
-  red-team §open_disagreement.5).
-- `'generic'` — fallback for unrecognised competition platforms;
-  resolver behaves as if the bound profile were `default.yaml`.
+- `'kaggle'` — a Kaggle competition with CSV-submit and/or kernel-push; ADR-0006 default-allow gates apply unless overridden.
+- `'devpost'` — the Devpost platform generally; non-hackathon Devpost listings (challenges, judging-only events) belong here.
+- `'hackathon_devpost'` — a Devpost-hosted event that follows the hackathon-format submission shape: README + demo + source + architecture diagram. M12-T002 may write either `'devpost'` or `'hackathon_devpost'` for the picked `h01` target; the picking happens in T003 once the Devpost page is fetched.
+- `'ctf'` — reserved for M11. No M12 code paths read or write this value; the M12 default profile DOES NOT carry `ctf_*` op entries, so a stray `'ctf'` row in M12 falls through to `_tool_default_decision(operation) == 'ask'` (skeptic §side_effects.6; red-team §open_disagreement.5).
+- `'generic'` — fallback for unrecognised competition platforms; resolver behaves as if the bound profile were `default.yaml`.
 
 ### Policy resolver shape (lands in M12-T002)
 
-The resolver in `tools/kca/agent/permission_policy.py:41–51` gains a
-`competition_type` argument (default `'kaggle'` for backwards-compat).
-ADR-0006's four-level hierarchy is preserved exactly:
+The resolver in `tools/kca/agent/permission_policy.py:41–51` gains a `competition_type` argument (default `'kaggle'` for backwards-compat). ADR-0006's four-level hierarchy is preserved exactly:
 
 ```
 per-job  >  competition (competition_policy jsonb) >  project >  platform defaults
@@ -198,23 +132,15 @@ resolve(operation, mode, *, competition_type):
 
 When the type-specific profile is missing, the resolver MUST:
 
-1. Emit a single structured event with `tool='policy_resolver'`,
-   `event='profile_fallback'`, the requested profile name, and the
-   resolved profile name. This is the audit-log signal that the
-   silent-fallback class of bug is now visible.
-2. Resolve against `default.yaml`. This preserves the M9 / M10
-   regression behaviour.
-3. Never raise. A missing profile is an *operational* condition (the
-   profile may not have shipped yet for a future type), not a *correctness*
-   condition.
+1. Emit a single structured event with `tool='policy_resolver'`, `event='profile_fallback'`, the requested profile name, and the resolved profile name. This is the audit-log signal that the silent-fallback class of bug is now visible.
+2. Resolve against `default.yaml`. This preserves the M9 / M10 regression behaviour.
+3. Never raise. A missing profile is an *operational* condition (the profile may not have shipped yet for a future type), not a *correctness* condition.
 
-The event lands in `agent_job_events` via the existing audit path; no
-new column is required.
+The event lands in `agent_job_events` via the existing audit path; no new column is required.
 
 ### Approval-gate vocabulary additions (lands in M12-T004)
 
-The `hackathon-runner.yaml` profile (M12-T004 scope, not this ADR)
-ships three new op entries:
+The `hackathon-runner.yaml` profile (M12-T004 scope, not this ADR) ships three new op entries:
 
 | Op | M12 default | Reason |
 |---|---|---|
@@ -222,33 +148,17 @@ ships three new op entries:
 | `demo_upload` | `ask` | Public artifact publication; analog of `kernel_push`. Not used in M12 (reserved for M12.x demo-video flow). |
 | `team_invite` | `deny` | Out of M12 scope (read-only team membership only; docs/tasks/m12/M12-T001-discovery-debate-gate.md:91–92). |
 
-The `default.yaml` profile gets no new entries — unknown ops continue
-to fall through to `_tool_default_decision(operation) == 'ask'` per
-`tools/kca/agent/permission_policy.py:50–51`.
+The `default.yaml` profile gets no new entries — unknown ops continue to fall through to `_tool_default_decision(operation) == 'ask'` per `tools/kca/agent/permission_policy.py:50–51`.
 
 ### Team-scoped operation rules
 
-M12 ships **owner-only** approval for every gate that fires on a
-`competition_type='devpost'` or `'hackathon_devpost'` row:
+M12 ships **owner-only** approval for every gate that fires on a `competition_type='devpost'` or `'hackathon_devpost'` row:
 
-- A `human_decisions` row inserted for a team-scoped competition records
-  the row owner (the `created_by_user_id` on the `competitions` row,
-  if present; if not present, the first-listed `team_memberships.user_id`
-  for the team).
-- Any `team_memberships.user_id` MAY view the pending decision; only
-  the owner MAY transition it to `approved` or `denied`.
-- This rule is documentation-only in M12 (the resolver does not
-  enforce it; the `kca decisions approve --id <id>` CLI does not
-  authenticate). Skeptic §personas_and_accounts.6 flagged this as a
-  weakness; red-team open_disagreement #2 filed it as a P1 follow-up
-  for M12-T007.
+- A `human_decisions` row inserted for a team-scoped competition records the row owner (the `created_by_user_id` on the `competitions` row, if present; if not present, the first-listed `team_memberships.user_id` for the team).
+- Any `team_memberships.user_id` MAY view the pending decision; only the owner MAY transition it to `approved` or `denied`.
+- This rule is documentation-only in M12 (the resolver does not enforce it; the `kca decisions approve --id <id>` CLI does not authenticate). Skeptic §personas_and_accounts.6 flagged this as a weakness; red-team open_disagreement #2 filed it as a P1 follow-up for M12-T007.
 
-A future milestone (M12.x or M13) MAY relax the rule per-op (e.g. let a
-non-owner member trigger `submission_checklist` reads but not
-`devpost_submit`) by adding an `allowed_for_roles: ['owner', 'member']`
-clause to each `PolicyRecord` in
-`tools/kca/agent/permission_policy.py:25–30`. ADR-0018 does NOT ship
-this relaxation.
+A future milestone (M12.x or M13) MAY relax the rule per-op (e.g. let a non-owner member trigger `submission_checklist` reads but not `devpost_submit`) by adding an `allowed_for_roles: ['owner', 'member']` clause to each `PolicyRecord` in `tools/kca/agent/permission_policy.py:25–30`. ADR-0018 does NOT ship this relaxation.
 
 ### Migration impact (concrete; lands in M12-T002)
 
