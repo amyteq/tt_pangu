@@ -12,3 +12,6 @@
 - output artifact paths:
 - interpretation:
 - deserves a leaderboard submission? yes/no + why:
+
+> The machine-readable form of this page is an `Experiment` record in `ledger/experiments/` plus one `Run` record per attempt in `ledger/runs/` — a retry is a new `Run`, never an edit to the failed one (ADR-0023 §2).
+> See [`ledger/README.md`](./ledger/README.md) for the record skeletons and `kca contracts validate --competition <slug>` to check them.

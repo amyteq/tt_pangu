@@ -1,0 +1,184 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://github.com/amyteq/tt_pangu/blob/main/contracts/experiment.yaml"
+title: Experiment
+description: >-
+  The DESIGN of one experiment: a hypothesis, the one variable it changes against
+  its parent, and the fixed conditions under which it is judged. It is not an
+  execution — see contracts/run.yaml.
+
+  Experiment holds what must be identical across every attempt: `code_commit`,
+  `data_version`, `config_hash`, `split_id`, `metric`, `seeds`. Run holds what
+  differs per attempt: the executor, the wall clock, the failure. One Experiment
+  may hold several folds, seeds or resource configurations, all as separate Runs.
+
+  `results` are the experiment's conclusions, aggregated over its Runs and always
+  read under a single `split_id`. Mixing split_ids into one improvement curve is
+  the mistake discussion #185 §6 names; the contract prevents it by making
+  `split_id` an experiment-level field rather than a per-run one.
+
+type: object
+additionalProperties: false
+required:
+  - id
+  - competition
+  - idea_id
+  - strategy_id
+  - decision_id
+  - parent_experiment
+  - hypothesis
+  - changes
+  - code_commit
+  - data_version
+  - config_hash
+  - split_id
+  - seeds
+  - metric
+  - results
+  - resource
+  - runs
+  - artifacts
+  - log_paths
+  - status
+  - conclusion
+  - lessons
+  - findings
+  - provenance
+  - recorded_at
+  - notes
+properties:
+  id:
+    type: string
+    pattern: "^EXP-[0-9]{4,}$"
+  competition:
+    type: string
+    pattern: "^[a-z0-9][a-z0-9-]*$"
+  idea_id:
+    description: The Idea this tests. Null only for a baseline that predates idea generation.
+    type: [string, "null"]
+    pattern: "^IDEA-[0-9]{4,}$"
+  strategy_id:
+    description: The approved envelope this runs inside. `scope` there bounds `changes` here.
+    type: [string, "null"]
+    pattern: "^STRATEGY-[0-9]{3,}$"
+  decision_id:
+    description: Set when a specific human decision authorized this experiment.
+    type: [string, "null"]
+    pattern: "^DEC-[0-9]{4,}$"
+  parent_experiment:
+    description: The experiment this is measured against. Null for the baseline itself.
+    type: [string, "null"]
+    pattern: "^EXP-[0-9]{4,}$"
+  hypothesis:
+    type: string
+    minLength: 1
+  changes:
+    description: >-
+      The variables changed relative to `parent_experiment`, as name -> value.
+      One meaningful change at a time (CLAUDE.md operating principle 4); several
+      entries here is a deliberate multi-variable experiment and costs attribution.
+    type: object
+  code_commit:
+    description: "The git sha the run executed. Null is permitted only for a `backfilled` record."
+    type: [string, "null"]
+    pattern: "^[0-9a-f]{7,40}$"
+  data_version:
+    description: Dataset version or content hash — what the run read.
+    type: [string, "null"]
+  config_hash:
+    description: Hash of the full resolved configuration, so two runs can be proved identical.
+    type: [string, "null"]
+    pattern: "^[0-9a-f]{7,64}$"
+  split_id:
+    description: >-
+      The validation protocol's id. A changed CV protocol is a NEW split_id — the
+      old scores are not comparable and must not join the same curve.
+    type: [string, "null"]
+  seeds:
+    description: Every seed this experiment covers. One Run per seed.
+    type: array
+    items:
+      type: integer
+  metric:
+    type: object
+    additionalProperties: false
+    required: [name, direction]
+    properties:
+      name:
+        type: string
+        minLength: 1
+      direction:
+        enum: [maximize, minimize]
+  results:
+    description: >-
+      Aggregated over the experiment's successful Runs, under `split_id`.
+      `public_lb` / `private_lb` are copied here for convenience; the Score record
+      is their authority, and a null here with a Score present is a drift.
+    type: object
+    additionalProperties: false
+    required: [cv_mean, cv_std, public_lb, private_lb]
+    properties:
+      cv_mean:
+        type: [number, "null"]
+      cv_std:
+        type: [number, "null"]
+      public_lb:
+        type: [number, "null"]
+      private_lb:
+        type: [number, "null"]
+  resource:
+    description: What it cost. Feeds ADR-0022 §6's compute dimension.
+    type: object
+    additionalProperties: false
+    required: [gpu_hours, accelerator, wall_clock_seconds]
+    properties:
+      gpu_hours:
+        type: [number, "null"]
+        minimum: 0
+      accelerator:
+        description: The device the work ran on — `T4 x1`, `RTX4090`, `cpu`, or null.
+        type: [string, "null"]
+      wall_clock_seconds:
+        type: [integer, "null"]
+        minimum: 0
+  runs:
+    description: Every execution attempt, including the failed ones. Never rewritten.
+    type: array
+    items:
+      type: string
+      pattern: "^RUN-[0-9]{4,}$"
+  artifacts:
+    type: array
+    items:
+      type: string
+      pattern: "^ART-[0-9]{4,}$"
+  log_paths:
+    type: array
+    items:
+      type: string
+  status:
+    enum: [planned, running, evaluated, abandoned, failed]
+  conclusion:
+    description: What the result means for the hypothesis. Null until evaluated.
+    type: [string, "null"]
+  lessons:
+    description: Transferable lessons. A lesson worth keeping becomes a Finding.
+    type: array
+    items:
+      type: string
+  findings:
+    type: array
+    items:
+      type: string
+      pattern: "^FIND-[0-9]{4,}$"
+  provenance:
+    description: >-
+      `live` requires the full repro set — `code_commit`, `data_version`,
+      `config_hash`, `split_id`, at least one seed — because ADR-0022 §5's
+      `require_repro` is a HARD gate on submission. `backfilled` permits nulls
+      and records that phase-1 history never captured the field.
+    enum: [live, backfilled]
+  recorded_at:
+    type: string
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  notes:
+    type: [string, "null"]

@@ -1,0 +1,38 @@
+# Contract: contracts/run.yaml
+# Backfilled from tracking.md Table 2 row T10 + submissions.md (v14 row).
+# The retry of RUN-0001. Same Experiment design, second attempt.
+id: RUN-0002
+competition: nvidia-nemotron
+experiment_id: EXP-0001
+attempt: 2
+supersedes: RUN-0001
+executor: kaggle_kernel
+external_ref: "harrysun2006/nemo-replay-v14"
+run_dir: null
+command: null
+config_hash: null
+seed: null
+status: succeeded
+started_at: 2026-06-12
+finished_at: 2026-06-12
+gpu_hours: null
+metrics:
+  steps_completed: 254
+  steps_planned: 254
+  train_loss: 0.05
+provenance: backfilled
+artifacts:
+  - ART-0003
+log_paths: []
+error_class: none
+error_summary: null
+recorded_at: 2026-09-17
+notes: >-
+  254/254 steps at seq8192, final loss about 0.05 (tracking.md T10). This attempt produced
+  the v14 adapter that the soup later took as its largest-weight member, and the
+  submission that scored 0.85 public / 0.84 private.
+
+  Only the code changed between RUN-0001 and this attempt - the design in EXP-0001 did
+  not - which is why this is a retry rather than a new experiment. Had the recipe itself
+  changed, the contract requires a new Experiment, because `changes` and `parent_experiment`
+  would no longer describe what ran.

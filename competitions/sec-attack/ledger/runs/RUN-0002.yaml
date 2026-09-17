@@ -1,0 +1,30 @@
+# Contract: contracts/run.yaml
+id: RUN-0002
+competition: sec-attack
+experiment_id: EXP-0002
+attempt: 1
+supersedes: null
+executor: kaggle_kernel
+external_ref: "harrysun2006/sec-attack-jed-xl (v1)"
+run_dir: null
+command: "kernels/attack_kaggle.py with max_findings=120, fanout=60, families=direct,deputy"
+config_hash: null
+seed: null
+status: succeeded
+started_at: 2026-06-29
+finished_at: 2026-06-29
+gpu_hours: null
+metrics:
+  max_findings: 120
+  fanout: 60
+artifacts:
+  - ART-0001
+log_paths: []
+error_class: none
+error_summary: null
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  A fresh kernel, so version 1. That matters operationally rather than cosmetically: a
+  code-competition submit requires an explicit --version, and a fresh kernel is v1, so a
+  submit that defaults the version submits the wrong thing.

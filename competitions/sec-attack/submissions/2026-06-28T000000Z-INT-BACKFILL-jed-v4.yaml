@@ -1,0 +1,61 @@
+# Contract: contracts/submission.yaml
+# Path and field names: ADR-0022 §5. BACKFILLED from submissions.md
+# "Kaggle LB submissions (2026-06-28)" and its footnote on the 2026-09-13 re-poll.
+#
+# The ledger's real NEEDS_RECONCILIATION case: the platform's own answer changed.
+ref: INT-BACKFILL-jed-v4
+competition: sec-attack
+account: harrysun2006
+team: harrysun2006
+experiment_id: EXP-0003
+run_id: RUN-0003
+artifact: "submission.csv emitted by the scored rerun of harrysun2006/sec-attack-jed v4"
+artifact_sha256: null
+code_commit: 91e3f9b5e14f005caa0040fa84443d8a262656f8
+expected_score: 1.44
+expected_metric: normalized_attack_score
+reason: >-
+  Balanced family mix (deputy + direct + filewash) at 30/12, to test coverage against the
+  breadth-only configuration.
+scenario: null
+decision_id: null
+screen:
+  require_repro: fail
+  rules_check: pass
+  beats_best: fail
+budget_reservations: {}
+driver: claude-code
+status: needs_reconciliation
+submitted_at: 2026-06-28
+external_id: 54134273
+reconciliation:
+  required: true
+  queried_at: 2026-09-13
+  source: "kaggle competitions submissions ai-agent-security-multi-step-tool-attacks"
+  outcome: ambiguous
+  note: >-
+    Read COMPLETE on 2026-06-29 with public 1.440. Re-polled 2026-09-13 and reports ERROR,
+    with its scores still attached. Two platform readings of one submission disagree and
+    the scores survive the disagreement, so neither reading settles it. Cause not
+    investigated. Stays in needs_reconciliation; the competition is closed, so the only
+    remaining route is a human reading of the platform's record.
+score_id: SCORE-0002
+selected_for_final: null
+supersedes: null
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  This is the case discussion #185 §11 is about, arriving from the other direction. §11
+  warns about the lost response - request sent, answer never received. Here the answers
+  arrived and then contradicted each other, which needs the same handling and the same
+  refusal: the outcome is not established, so nothing may be re-dispatched on the
+  assumption that it failed. `outcome: ambiguous` exists for exactly this, and only
+  `outcome: absent` would have permitted a new dispatch, under a new `ref`.
+
+  A blind retry here would have been the textbook duplicate submission: the submission is
+  almost certainly present (it has scores) while its status string says ERROR.
+
+  ADR-0022 §3 puts NEEDS_RECONCILIATION in the competition's side states too. sec-attack's
+  competition.yaml is in FINDINGS rather than NEEDS_RECONCILIATION because the competition
+  as a whole has moved on to its writeup while this one action stays unresolved - the
+  states are per unit of work, and this record is the unit that is stuck.

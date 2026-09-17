@@ -1,0 +1,201 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://github.com/amyteq/tt_pangu/blob/main/contracts/submission.yaml"
+title: Submission
+description: >-
+  One intended external submission, written and flushed BEFORE the external call.
+  This is ADR-0022 §5's submission-intent record, at §5's path
+  (competitions/<slug>/submissions/<utc-timestamp>-<intent-id>.yaml) and with §5's
+  field names; this contract types them and adds the lifecycle fields §5 leaves to
+  the ledger. A submission whose record could not be persisted DOES NOT DISPATCH
+  (§5 activation condition A6).
+
+  `ref` — not `experiment_id` — is the identity of one external action. Two
+  submissions of one experiment need different refs, and resuming the SAME action
+  keeps its ref and must not dispatch again.
+
+  A TIMEOUT IS NOT A FAILURE (discussion #185 §11). When the request went out and
+  the response was lost, the outcome is UNKNOWN: `status: needs_reconciliation`,
+  and the platform is queried and matched before anything else happens. An unknown
+  outcome never authorizes a second dispatch — that is how duplicate submissions
+  are made. Only after reconciliation has proved the previous action absent does a
+  new record get a NEW `ref` and name its predecessor in `supersedes`.
+
+type: object
+additionalProperties: false
+required:
+  - ref
+  - competition
+  - account
+  - team
+  - experiment_id
+  - run_id
+  - artifact
+  - artifact_sha256
+  - code_commit
+  - expected_score
+  - expected_metric
+  - reason
+  - scenario
+  - decision_id
+  - screen
+  - budget_reservations
+  - driver
+  - status
+  - submitted_at
+  - external_id
+  - reconciliation
+  - score_id
+  - selected_for_final
+  - supersedes
+  - provenance
+  - recorded_at
+  - notes
+properties:
+  ref:
+    description: >-
+      Unique per intended external action, across competitions and runs. NEVER the
+      experiment id. `INT-<utc>-<rand>` for a live action; a backfilled record uses
+      the `INT-BACKFILL-` form so a reconstructed record can never be mistaken for
+      a dispatch authorization.
+    type: string
+    pattern: "^INT-(BACKFILL-)?[0-9A-Za-z-]+$"
+  competition:
+    type: string
+    pattern: "^[a-z0-9][a-z0-9-]*$"
+  account:
+    description: The platform account that dispatched it. Notebook compute quota is per account.
+    type: [string, "null"]
+  team:
+    description: The team the submission counts against. Submission quota is per team (#193).
+    type: [string, "null"]
+  experiment_id:
+    type: [string, "null"]
+    pattern: "^EXP-[0-9]{4,}$"
+  run_id:
+    type: [string, "null"]
+    pattern: "^RUN-[0-9]{4,}$"
+  artifact:
+    description: The exact file dispatched, or the ART- id of its Artifact record.
+    type: [string, "null"]
+  artifact_sha256:
+    type: [string, "null"]
+    pattern: "^[0-9a-f]{64}$"
+  code_commit:
+    type: [string, "null"]
+    pattern: "^[0-9a-f]{7,40}$"
+  expected_score:
+    type: [number, "null"]
+  expected_metric:
+    description: The metric `expected_score` is on. §5 requires the metric with the number.
+    type: [string, "null"]
+  reason:
+    description: Why this candidate, in one line.
+    type: string
+    minLength: 1
+  scenario:
+    description: >-
+      ADR-0022 §5's submission-strategy row. 1-3 are the autonomous rows. 0 and 4
+      are inside the closing window and human-gated, so a record carrying them
+      must also carry a `decision_id` — the validator enforces that.
+    enum: [0, 1, 2, 3, 4, null]
+  decision_id:
+    description: Required (non-null) for scenario 0 or 4, and for any human-gated promotion.
+    type: [string, "null"]
+    pattern: "^DEC-[0-9]{4,}$"
+  screen:
+    description: >-
+      ADR-0022 §5's screen. `require_repro` and `rules_check` are HARD gates: a
+      `fail` in either blocks the submission. `beats_best` and `min_margin` only
+      order candidates and never block spending a slot that would otherwise expire.
+    type: object
+    additionalProperties: false
+    required: [require_repro, rules_check]
+    properties:
+      require_repro:
+        enum: [pass, fail, unknown]
+      rules_check:
+        enum: [pass, fail, unknown]
+      beats_best:
+        enum: [pass, fail, unknown]
+      min_margin:
+        type: [number, "null"]
+  budget_reservations:
+    description: >-
+      "<scope>/<dimension>" -> reservation id. A map, not a scalar: one action
+      reserves in EVERY scope that caps the dimension (§6's all-or-none rule), and
+      a scalar could name only one of them while settlement stranded the rest.
+    type: object
+  driver:
+    description: Which harness dispatched it. The record is competition-owned; the driver is not.
+    enum: [claude-code, codex, kca, human, unknown]
+  status:
+    description: >-
+      `intent` — persisted, not yet dispatched. `dispatched` — the external call
+      was made and acknowledged. `needs_reconciliation` — the outcome is UNKNOWN
+      (the classic lost response); query the platform, never retry.
+      `superseded` — a later submission replaced this one's role.
+    enum:
+      - intent
+      - dispatched
+      - accepted
+      - scored
+      - needs_reconciliation
+      - rejected
+      - failed
+      - superseded
+  submitted_at:
+    description: Filled after dispatch. Null in an `intent` record — that is the point of writing it first.
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}(:[0-9]{2})?Z)?$"
+  external_id:
+    description: The platform's own submission id, filled at reconciliation. Not every competition exposes one.
+    type: [string, integer, "null"]
+  reconciliation:
+    description: >-
+      How the external outcome was established. Required (non-null `queried_at`)
+      to leave `needs_reconciliation`. `outcome: absent` is the only finding that
+      permits a NEW dispatch, and then only under a new `ref`.
+    type: object
+    additionalProperties: false
+    required: [required, queried_at, source, outcome, note]
+    properties:
+      required:
+        description: True once the outcome became unknown. It does not become false again; it becomes resolved.
+        type: boolean
+      queried_at:
+        type: [string, "null"]
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}(:[0-9]{2})?Z)?$"
+      source:
+        description: What was queried — the API call or page the answer came from.
+        type: [string, "null"]
+      outcome:
+        description: >-
+          `present` — the platform has it; this record is the one that landed.
+          `absent` — it never arrived; a new dispatch is permitted under a new ref.
+          `ambiguous` — the platform's answer does not settle it; stay in
+          NEEDS_RECONCILIATION and ask a human. `unresolved` — not yet queried.
+        enum: [present, absent, ambiguous, unresolved, not_required]
+      note:
+        type: [string, "null"]
+  score_id:
+    description: The Score record carrying what the platform returned. Null until scored.
+    type: [string, "null"]
+    pattern: "^SCORE-[0-9]{4,}$"
+  selected_for_final:
+    description: >-
+      Whether this submission was SELECTED for the final standing. Three-valued on
+      purpose: null is "not known", which is a real and dangerous state — sec-attack
+      finished absent from the leaderboard with two COMPLETE submissions and no
+      verified selection. Choosing the final submissions is always human-gated.
+    type: [boolean, "null"]
+  supersedes:
+    description: The earlier `ref` this replaces, after reconciliation proved that action absent.
+    type: [string, "null"]
+    pattern: "^INT-(BACKFILL-)?[0-9A-Za-z-]+$"
+  provenance:
+    enum: [live, backfilled]
+  recorded_at:
+    type: string
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  notes:
+    type: [string, "null"]

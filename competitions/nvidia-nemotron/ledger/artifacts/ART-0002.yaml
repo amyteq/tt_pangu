@@ -1,0 +1,26 @@
+# Contract: contracts/artifact.yaml
+# The file that was actually submitted. Its bytes are gone; the record is not.
+id: ART-0002
+competition: nvidia-nemotron
+kind: submission_file
+path: /kaggle/working/submission.zip
+storage: kaggle_kernel_output
+content_hash: null
+hash_algo: null
+byte_size: null
+produced_by_run: RUN-0003
+produced_at: 2026-06-15
+retention: session
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  The rank-32 SVD-souped LoRA adapter, as adapter_config.json plus
+  adapter_model.safetensors (over 1 GB, asserted by the kernel). This is the artifact the
+  Submission dispatched, and its hash was never taken - so ADR-0022 §5's
+  `artifact_sha256` is null on the Submission record too, and the dispatched bytes cannot
+  now be proved identical to any local copy. Hashing the artifact before dispatch is
+  cheap; recovering the ability to do so afterwards is impossible. Drift D10.
+
+  `retention: session` is the honest value: a Kaggle kernel's /kaggle/working output lives
+  with the kernel version, not in this repository, and weights are deliberately kept out
+  of git (CLAUDE.md operating principle 7).

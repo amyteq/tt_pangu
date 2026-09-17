@@ -1,0 +1,41 @@
+# Contract: contracts/decision.yaml
+# Backfilled from competitions/nvidia-nemotron/tracking.md "Table 1 - Open Discussions", row D3.
+id: DEC-0001
+competition: nvidia-nemotron
+gate: ambiguous_competition_rules
+question: >-
+  What may the SVD merge take as members? Merging third-party public adapters would
+  raise a repack dispute under the competition's own-work rules, which the team read as
+  unsettled rather than as permitted.
+options:
+  - key: own_only
+    summary: Merge only adapters we trained ourselves.
+  - key: include_third_party
+    summary: Also merge public third-party adapters, for a wider member pool.
+selected: own_only
+rationale: >-
+  Avoid the repack dispute. Recorded in tracking.md Table 1 as "merge only our own
+  adapters (avoid repack dispute)", and carried into the dispatched kernel as a comment:
+  "All three source adapters were really trained by us (rank<=32, no repack of
+  third-party adapters) - compliant with the issue #86 red lines / D3".
+plan_hash: null
+status: approved
+requested_at: null
+decided_at: 2026-06-12
+expires_at: null
+decided_by: "project owner (GitHub issue #86, Table 1)"
+channel: tracking_issue
+evidence:
+  - "competitions/nvidia-nemotron/tracking.md - Table 1, row D3"
+  - "competitions/nvidia-nemotron/kernels/nemo-merge-soup.py:13-14"
+  - "https://github.com/amyteq/tt_pangu/issues/86"
+supersedes: null
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  This decision bounded the member pool for IDEA-0001 and so for EXP-0002 - it is the
+  Decision edge of discussion #185 §5's chain, not a formality. `requested_at` and
+  `plan_hash` are null because phase 1 asked the question in prose in issue #86 rather
+  than as a bound request; discussion #185 §9 requires both for a live gate (drift D8).
+  The eight other rows of Table 1 (D1, D2, D4-D9) are equally real decisions and are
+  left in the narrative; this backfill records one per entity, not the whole history.
