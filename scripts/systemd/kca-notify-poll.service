@@ -1,0 +1,23 @@
+[Unit]
+Description=Poll the kca notify tracking issue for /decide answers and record each resolution (#219)
+Documentation=https://github.com/amyteq/tt_pangu/blob/main/docs/tooling/notification-channel.md
+# Needs the network to reach the GitHub API via `gh`.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Oneshot, not a daemon: the poller reads the thread, writes any resolution it
+# finds, and exits. Nothing to supervise, nothing holding a bot's update stream
+# (discussion #187 §3), and a wedged run cannot outlive its timeout.
+Type=oneshot
+# %h expands to the invoking user's home. Adjust if your checkout lives elsewhere.
+WorkingDirectory=%h/test/tt_pangu
+# KCA_NOTIFY_POLL_ISSUE names the tracking issue that holds the decision
+# records. Override it in a drop-in rather than editing this unit:
+#   systemctl --user edit kca-notify-poll.service
+Environment=KCA_NOTIFY_POLL_ISSUE=197
+ExecStart=/bin/sh -c '%h/micromamba/envs/v3.12.12/bin/python -m tools.kca.kca notify poll --issue "$KCA_NOTIFY_POLL_ISSUE"'
+TimeoutStartSec=300
+
+[Install]
+WantedBy=default.target
