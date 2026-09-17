@@ -24,8 +24,7 @@ import numpy as np
 from agents.agent import Agent
 from arcengine import GameAction, GameState
 
-SIMPLE = [GameAction.ACTION1, GameAction.ACTION2, GameAction.ACTION3,
-          GameAction.ACTION4, GameAction.ACTION5]
+SIMPLE = [GameAction.ACTION1, GameAction.ACTION2, GameAction.ACTION3, GameAction.ACTION4, GameAction.ACTION5]
 
 
 def _avail_ids(latest_frame) -> list[int]:
@@ -68,7 +67,7 @@ class MyAgent(Agent):
         self.current_level = -1
         self.prev_grid = None
         self.prev_action_id = None
-        self.stats = {i: [0, 0] for i in range(1, 7)}   # id -> [tries, changes]
+        self.stats = {i: [0, 0] for i in range(1, 7)}  # id -> [tries, changes]
         self.last_used = {i: -999 for i in range(1, 7)}  # recency for novelty
         self.clicked: set[tuple[int, int]] = set()
         self.seen_hashes: set[str] = set()
