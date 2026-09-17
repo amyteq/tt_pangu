@@ -392,7 +392,7 @@ def list_content_indent(content: str) -> int:
     return column_of(m.group("lead") + m.group("marker") + gap)
 
 
-def is_block_start(content: str, *, in_paragraph: bool = True) -> bool:
+def is_block_start(content: str, *, in_paragraph: bool = True, container_indent: int = 0) -> bool:
     """True if this line begins a new block rather than continuing the one above.
 
     HTML is absent deliberately: an HTML block that may interrupt a paragraph is
@@ -401,7 +401,15 @@ def is_block_start(content: str, *, in_paragraph: bool = True) -> bool:
     A link reference definition is a block start only where no paragraph is open
     — CommonMark does not let one interrupt a paragraph, so `[foo]: /url` in the
     middle of wrapped prose is prose, and the gate has to say so.
+
+    Indentation is measured from the enclosing container: four columns past the
+    open list item's content column is an indented code block, and one of those
+    cannot interrupt a paragraph, so nothing that deep starts a block. A tab
+    before a `-` is four columns, which is why the paragraph above it simply
+    continues.
     """
+    if indent_of(content) >= container_indent + 4:
+        return False
     return bool(
         ATX_RE.match(content)
         or fence_open(content)
@@ -645,6 +653,12 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
         # column belongs to the item; one indented less, with nothing open, has
         # left it.
         marker = LIST_MARKER_RE.match(content) if LIST_RE.match(content) else None
+        if marker and indent_of(content) >= (list_indent or 0) + 4:
+            # Four columns past the open item's content column is no longer a
+            # marker: that deep it is an indented code block, or — with a
+            # paragraph open above — a lazy continuation of it. A tab is four
+            # columns, which is how a tab-indented `-` reached this rule.
+            marker = None
         if marker:
             list_indent = list_content_indent(content)
         elif list_indent is not None and not prev_open and indent_of(content) < list_indent:
@@ -679,8 +693,11 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
             table_cols, bare_table = None, False
 
         # An indented code block cannot interrupt a paragraph, so it only starts
-        # where nothing is open. Copy it out until a blank line.
-        if not prev_open and indent_of(content) >= 4:
+        # where nothing is open. Copy it out until a blank line. Inside a list
+        # item it starts four columns past the item's *content* column, not four
+        # past the margin — `10. item` puts its own paragraphs at column 4, and
+        # reading those as code let them be hard-wrapped straight through CI.
+        if not prev_open and indent_of(content) >= (list_indent or 0) + 4:
             out.append(raw)
             i += 1
             prev_depth = depth
@@ -780,7 +797,7 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
         # Class A — a block continued on the next physical line. A shallower
         # quote depth still continues it: CommonMark's lazy continuation lets a
         # wrapped blockquote paragraph drop the `>` on its second line.
-        if prev_open and depth <= prev_depth and not is_block_start(content):
+        if prev_open and depth <= prev_depth and not is_block_start(content, container_indent=list_indent or 0):
             if table_cols is not None and len(split_table_cells(split_quote(out[-1])[1])) >= table_cols:
                 # Inside a table whose previous row is already complete, a line
                 # without a leading pipe is the next row — GFM makes that pipe
@@ -853,6 +870,11 @@ def structure(text: str) -> dict:
     links: list[str] = []
     list_shape: list[tuple[int, str]] = []
     list_indents: list[int] = []
+    # Content column of each open item, so a marker indented four columns past
+    # its parent's content can be recognised as the indented text it is. Without
+    # it this heuristic counted list items the renderer does not, and refused a
+    # rewrite that renders identically.
+    list_contents: list[int] = []
     tables: list[tuple[int, ...]] = []
     table_rows: list[int] = []
     bare_table = False
@@ -926,16 +948,27 @@ def structure(text: str) -> dict:
             headings.append((len(h.group(1)), " ".join(h.group(2).split()), "atx"))
             open_paragraph, open_other_block = None, False
             continue
+        is_item = False
         if LIST_RE.match(content):
             indent = indent_of(content)
             while list_indents and indent < list_indents[-1]:
                 list_indents.pop()
+                list_contents.pop()
+            # Four columns past the enclosing item's content column this is
+            # indented text rather than a marker — the rule `analyse` applies,
+            # and the renderer's reading of it.
+            is_item = indent < (list_contents[-1] if list_contents else 0) + 4
+        if is_item:
             if not list_indents or indent > list_indents[-1]:
                 list_indents.append(indent)
+                list_contents.append(list_content_indent(content))
+            else:
+                list_contents[-1] = list_content_indent(content)
             marker = content.lstrip(" \t")[0]
             list_shape.append((len(list_indents), "ol" if marker.isdigit() else "ul"))
         elif indent_of(content) == 0 and not row and not open_other_block:
             list_indents.clear()
+            list_contents.clear()
 
         if HR_DASH_RE.match(content) or HR_OTHER_RE.match(content):
             open_paragraph, open_other_block = None, False
