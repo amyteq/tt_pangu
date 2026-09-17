@@ -1,0 +1,232 @@
+"""Unit tests for the ADR-0024 soft-wrap engine (`scripts/check_md_wrap.py`).
+
+The engine's contract is narrow and worth pinning precisely: it finds exactly
+two violation classes, it never looks inside a block where line breaks are
+semantic, and `--fix` changes whitespace and nothing else.
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import sys
+from pathlib import Path
+
+import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+_spec = importlib.util.spec_from_file_location("check_md_wrap", REPO_ROOT / "scripts" / "check_md_wrap.py")
+assert _spec and _spec.loader
+mdwrap = importlib.util.module_from_spec(_spec)
+sys.modules["check_md_wrap"] = mdwrap
+_spec.loader.exec_module(mdwrap)
+
+
+def kinds(text: str) -> list[str]:
+    return [v.kind for v in mdwrap.analyse(text)[0]]
+
+
+def fixed(text: str) -> str:
+    return mdwrap.analyse(text)[1]
+
+
+# --------------------------------------------------------------------------
+# Class A — split blocks
+# --------------------------------------------------------------------------
+
+
+def test_wrapped_paragraph_is_flagged_and_joined():
+    src = "A paragraph that was hard\nwrapped across two lines.\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "A paragraph that was hard wrapped across two lines.\n"
+
+
+def test_wrapped_list_item_is_flagged_and_joined():
+    src = "- an item that was hard\n  wrapped onto a second line\n- a second item\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "- an item that was hard wrapped onto a second line\n- a second item\n"
+
+
+def test_adjacent_list_items_are_not_flagged():
+    assert kinds("- one\n- two\n- three\n") == []
+
+
+def test_wrapped_table_row_is_flagged_and_joined():
+    src = "| Scenario | Result |\n|---|---|\n| a long scenario that\nkept going | ok |\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "| Scenario | Result |\n|---|---|\n| a long scenario that kept going | ok |\n"
+
+
+def test_adjacent_table_rows_are_not_flagged():
+    assert kinds("| a | b |\n|---|---|\n| c | d |\n| e | f |\n") == []
+
+
+def test_paragraph_after_heading_is_not_flagged():
+    assert kinds("# Heading\nA paragraph directly below it.\n") == []
+
+
+def test_explicit_hard_break_is_preserved():
+    """Two trailing spaces and a trailing backslash are authored line breaks."""
+    for src in ("line one  \nline two\n", "line one\\\nline two\n"):
+        assert kinds(src) == []
+        assert fixed(src) == src
+
+
+# --------------------------------------------------------------------------
+# Class B — setext hazard
+# --------------------------------------------------------------------------
+
+
+def test_rule_directly_below_text_is_flagged_and_separated():
+    src = "Some closing prose.\n---\n\nNext section.\n"
+    assert kinds(src) == ["setext-rule"]
+    assert fixed(src) == "Some closing prose.\n\n---\n\nNext section.\n"
+
+
+def test_rule_with_blank_line_above_is_clean():
+    assert kinds("Some closing prose.\n\n---\n\nNext section.\n") == []
+
+
+def test_table_delimiter_row_is_not_a_setext_rule():
+    assert kinds("| a | b |\n|---|---|\n| c | d |\n") == []
+
+
+# --------------------------------------------------------------------------
+# Blocks where line breaks are semantic
+# --------------------------------------------------------------------------
+
+
+def test_fenced_code_is_never_inspected():
+    src = "```python\nx = 1\ny = 2\n```\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_tilde_fence_is_never_inspected():
+    src = "~~~\nshort\nlines\n~~~\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_yaml_frontmatter_is_never_inspected():
+    src = "---\nname: a-skill\ndescription: two\n  wrapped looking lines\n---\n\nBody.\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_indented_code_block_is_never_inspected():
+    src = "Prose.\n\n    code line one\n    code line two\n\nMore prose.\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_html_block_is_never_inspected():
+    src = "<!--\na comment\nspanning lines\n-->\n\nProse.\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_wrapped_blockquote_is_flagged_and_joined():
+    src = "> a quoted paragraph that was\n> hard wrapped\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "> a quoted paragraph that was hard wrapped\n"
+
+
+def test_blockquote_and_body_at_different_depths_are_not_joined():
+    assert kinds("> quoted line\n\nplain line\n") == []
+
+
+# --------------------------------------------------------------------------
+# Idempotence and safety
+# --------------------------------------------------------------------------
+
+
+def test_compliant_file_is_byte_identical():
+    src = (
+        "# Title\n\nOne soft-wrapped paragraph on a single physical line.\n\n"
+        "- one item\n- another item\n\n| a | b |\n|---|---|\n| c | d |\n\n---\n\nEnd.\n"
+    )
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_fix_is_idempotent():
+    src = "A paragraph hard\nwrapped here.\n\n- item that\n  wrapped\n"
+    once = fixed(src)
+    assert kinds(once) == []
+    assert fixed(once) == once
+
+
+def test_trailing_newline_state_is_preserved():
+    assert fixed("a\nb") == "a b"
+    assert fixed("a\nb\n") == "a b\n"
+
+
+# --------------------------------------------------------------------------
+# Path scoping
+# --------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "path,pattern,expected",
+    [
+        ("docs/adr/0024-x.md", "docs/*.md", False),  # `*` must not cross `/`
+        ("docs/readme.md", "docs/*.md", True),
+        ("docs/adr/0024-x.md", "docs/adr/*.md", True),
+        (".claude/skills/a/SKILL.md", ".claude/skills/**/*.md", True),
+        (".kca/skills/a/SKILL.md", ".kca/skills/**/*.md", True),
+        (".agents/README.md", ".agents/**/*.md", True),
+        ("CLAUDE.md", "CLAUDE.md", True),
+    ],
+)
+def test_glob_match_segments(path, pattern, expected):
+    assert mdwrap.glob_match(path, pattern) is expected
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["worklogs/orbit5.md", "logs/M9.md", "competitions/nvidia-nemotron/external/writeup.md"],
+)
+def test_exempt_paths_are_skipped(path):
+    assert mdwrap.is_exempt(path) is not None
+
+
+@pytest.mark.parametrize("path", ["CLAUDE.md", "docs/adr/0024-x.md", ".claude/agents/a.md"])
+def test_non_exempt_paths_are_checked(path):
+    assert mdwrap.is_exempt(path) is None
+
+
+def test_allowlist_covers_the_agent_context_files():
+    paths = mdwrap.select_allowlist()
+    assert "CLAUDE.md" in paths
+    assert "AGENTS.md" in paths
+    assert any(p.startswith("docs/adr/") for p in paths), "ADRs stay in the allowlist (owner decision, issue #210)"
+    assert any(p.startswith(".claude/skills/") for p in paths)
+    assert not any(mdwrap.is_exempt(p) for p in paths)
+
+
+# --------------------------------------------------------------------------
+# Structural equivalence
+# --------------------------------------------------------------------------
+
+
+def test_equivalence_holds_across_a_reflow():
+    before = "# T\n\nA paragraph hard\nwrapped over lines.\n\n- item one\n- item two\n"
+    assert mdwrap.compare_structure(before, fixed(before)) == []
+
+
+def test_equivalence_detects_a_word_change():
+    before = "A paragraph here.\n"
+    after = "A paragraph there.\n"
+    assert "prose text changed (not a whitespace-only edit)" in mdwrap.compare_structure(before, after)
+
+
+def test_equivalence_detects_a_dropped_link():
+    before = "See [docs](https://example.com/a) and [more](https://example.com/b).\n"
+    after = "See [docs](https://example.com/a) and more.\n"
+    assert mdwrap.compare_structure(before, after)
+
+
+def test_equivalence_allows_a_repaired_table():
+    """Rejoining a split row repairs a table that was malformed before."""
+    before = "| a | b |\n|---|---|\n| a long cell that\nkept going | d |\n"
+    assert mdwrap.compare_structure(before, fixed(before)) == []
