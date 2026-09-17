@@ -23,6 +23,13 @@ final_submission_deadline: 2026-11-02
 paper_deadline: 2026-11-08       # ⚠ arcprize page says ~Nov 8-9; confirm on Kaggle
 winners_announced: 2026-12-04
 deadline: 2026-11-02             # canonical (final submission)
+closing_window_days: null        # ADR-0022 §5; unset, so the default applies: launch 2026-03-25
+                                 #   -> deadline 2026-11-02 is 222 days, x0.1 = 23 days, giving a
+                                 #   closing window opening 2026-10-10. Recorded here as a
+                                 #   derivation, not as a value: setting it is a deliberate act
+timing_verified_source: null     # the ARC Prize dates above are transcribed, not read on a date.
+timing_verified_at: null         #   The paper_deadline already carries a ⚠ confirm-on-Kaggle note
+timing_verified_ttl: 30d
 primary_artifact: notebook       # code competition; notebook is the entry point
 submission_mode: notebook        # notebook -> submission.json {task_id:[{attempt_1,attempt_2}]} (confirmed)
 data_policy: kaggle              # public train(1000)+eval(120) on GitHub; semi-private(120) LB; private(120) final

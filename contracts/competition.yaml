@@ -1,0 +1,326 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://github.com/amyteq/tt_pangu/blob/main/contracts/competition.yaml"
+title: Competition
+description: >-
+  One competition. ADR-0023 §3. The record is competitions/<slug>/competition.yaml,
+  which already existed as a de-facto Competition record before this contract; the
+  contract states its canonical shape rather than replacing it.
+
+  This is the ONLY open record in the ledger (additionalProperties: true). It is a
+  live, human-edited file and per-competition extras are legitimate: sec-attack
+  carries `sdk:` and `confirmed:`, arc-agi2 carries the ARC-Prize date fields,
+  orbit-wars carries `competition_id:`. The canonical keys below are fixed.
+
+  Rank 1 of ADR-0022 §3's precedence table: the only writable authority for
+  `state`, `status`, `best`, `current_blocker`, `next_task`, `last_updated`.
+
+type: object
+additionalProperties: true
+required:
+  - slug
+  - kaggle_slug
+  - title
+  - status
+  - state
+  - competition_type
+  - metric
+  - launch
+  - deadline
+  - closing_window_days
+  - timing_verified_source
+  - timing_verified_at
+  - timing_verified_ttl
+  - primary_artifact
+  - submission_mode
+  - data_policy
+  - autonomy_config
+  - last_updated
+  - budget
+  - best
+  - current_blocker
+  - next_task
+  - source_notes
+properties:
+  slug:
+    description: Directory name under competitions/. The ledger's foreign key for every other entity.
+    type: string
+    pattern: "^[a-z0-9][a-z0-9-]*$"
+  kaggle_slug:
+    description: The platform's own slug, or `unknown`. Not always equal to `slug`.
+    type: [string, "null"]
+  title:
+    type: [string, "null"]
+  aliases:
+    description: Short names humans and skills use for this competition.
+    type: array
+    items:
+      type: string
+  tracking_issue:
+    description: GitHub issue number of the per-competition tracking issue (ADR-0022 §3 rank 4).
+    type: [integer, "null"]
+  status:
+    description: >-
+      A fact about the COMPETITION, not about us: is the official submission
+      window open. ADR-0022 §3 narrowed this from the old four-value set.
+    enum: [open, closed, unknown]
+  state:
+    description: ADR-0022 §3 canonical state token. Main path or side state; `phase:` is removed.
+    enum:
+      - DISCOVER
+      - SELECT
+      - ONBOARD
+      - BASELINE
+      - RESEARCH
+      - IDEA_GENERATION
+      - IDEA_RANKING
+      - HUMAN_DIRECTION
+      - EXPERIMENT_PLAN
+      - IMPLEMENT
+      - INDEPENDENT_AUDIT
+      - TRAIN_VALIDATE
+      - EVALUATE
+      - SUBMISSION_ELIGIBILITY
+      - SKIP_SUBMISSION
+      - PRE_SUBMIT_GATE
+      - SUBMIT
+      - WAIT_SCORE
+      - RESULT_ANALYSIS
+      - FINDINGS
+      - WAIT_HUMAN
+      - PAUSED_BUDGET
+      - RETRY_AT
+      - NEEDS_RECONCILIATION
+      - FAILED
+      - STOPPED
+  resume_state:
+    description: >-
+      ADR-0022 §3: a side state records how to come back. The main-path state to
+      return to. Required (and validated) only when `state` is a side state.
+    enum:
+      - DISCOVER
+      - SELECT
+      - ONBOARD
+      - BASELINE
+      - RESEARCH
+      - IDEA_GENERATION
+      - IDEA_RANKING
+      - HUMAN_DIRECTION
+      - EXPERIMENT_PLAN
+      - IMPLEMENT
+      - INDEPENDENT_AUDIT
+      - TRAIN_VALIDATE
+      - EVALUATE
+      - SUBMISSION_ELIGIBILITY
+      - SKIP_SUBMISSION
+      - PRE_SUBMIT_GATE
+      - SUBMIT
+      - WAIT_SCORE
+      - RESULT_ANALYSIS
+      - FINDINGS
+  state_reason:
+    description: Why the side state was entered — the gate name, the failing budget dimension, the error class.
+    type: [string, "null"]
+  decision_id:
+    description: >-
+      For WAIT_HUMAN: the Decision record this is blocked on. A null value means
+      "no request channel", never "no request pending" (ADR-0022 §3).
+    type: [string, "null"]
+    pattern: "^DEC-[0-9]{4,}$"
+  retry_at:
+    description: "For RETRY_AT: the backoff deadline, UTC."
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?Z$"
+  external_ref:
+    description: "For NEEDS_RECONCILIATION: the persisted Submission intent `ref` whose outcome is unknown."
+    type: [string, "null"]
+  competition_type:
+    description: >-
+      TASK taxonomy. NOT Supabase's competition_type_enum, which is a PLATFORM
+      taxonomy (kaggle / devpost / ctf / generic) — see ADR-0023 §7, drift D1.
+      `reasoning` was added here because arc-agi2's live record already uses it.
+    enum:
+      - tabular
+      - cv
+      - nlp
+      - llm
+      - reasoning
+      - simulation_agent
+      - notebook
+      - unknown
+  metric:
+    description: The competition's own metric, in its own words. Experiment records carry the machine-readable name + direction.
+    type: [string, "null"]
+  launch:
+    description: Competition open date. With `deadline`, defines the competition_period ADR-0022 §5 reads.
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  deadline:
+    description: The final submission deadline.
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  closing_window_days:
+    description: ADR-0022 §5. Null means competition_period x 0.1, rounded up.
+    type: [integer, "null"]
+    minimum: 0
+  timing_verified_source:
+    description: Where `launch` / `deadline` were read — competition page or API field. Null keeps A3 fail-closed.
+    type: [string, "null"]
+  timing_verified_at:
+    description: The date those values were read. NOT `last_updated`, which is file-level.
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  timing_verified_ttl:
+    description: Past this, timing is stale and the competition goes to WAIT_HUMAN (ADR-0022 §5).
+    type: [string, "null"]
+    pattern: "^[0-9]+[dhm]$"
+  primary_artifact:
+    enum: [notebook, script, agent, submission, unknown]
+  submission_mode:
+    description: Execution topology. A kernel or notebook push is NOT a leaderboard submission (issue #77).
+    enum: [file, notebook, kernel, agent, unknown]
+  data_policy:
+    description: >-
+      `api` was added because arc-agi3 serves its environments over an API rather
+      than as a file download. Widening beyond the competition's own data is
+      always human-gated (CLAUDE.md, ADR-0006).
+    enum: [kaggle, external, generated, api, unknown]
+  autonomy_config:
+    description: >-
+      Path to this competition's autonomy config, relative to its directory.
+      ADR-0022 §5 A1 reads THIS field and no other — `kca-<slug>.yaml` is a
+      convention, not a rule (nemo's is `kca-nemo.yaml`). Null fails A1 closed.
+    type: [string, "null"]
+  last_updated:
+    type: string
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  budget:
+    description: >-
+      ADR-0022 §6 budget envelope. The KEY STRUCTURE is canonical — a missing,
+      extra or renamed key is a bug, not a local override. `null` is an UNKNOWN,
+      not "unlimited": it refuses the work that would spend against that dimension.
+    type: object
+    additionalProperties: false
+    required: [cycle, cycle_anchor, experiments, compute, llm, submissions, failures, progress]
+    properties:
+      cycle:
+        type: string
+        pattern: "^[0-9]+[dhm]$"
+      cycle_anchor:
+        type: [string, "null"]
+        pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}(:[0-9]{2})?Z$"
+      experiments:
+        type: object
+        additionalProperties: false
+        required: [max_per_cycle]
+        properties:
+          max_per_cycle:
+            type: [integer, "null"]
+            minimum: 0
+      compute:
+        type: object
+        additionalProperties: false
+        required: [max_gpu_hours_per_cycle]
+        properties:
+          max_gpu_hours_per_cycle:
+            type: [number, "null"]
+            minimum: 0
+      llm:
+        type: object
+        additionalProperties: false
+        required: [max_turns_per_research_task, max_metered_cost_per_cycle_usd]
+        properties:
+          max_turns_per_research_task:
+            type: [integer, "null"]
+            minimum: 0
+          max_metered_cost_per_cycle_usd:
+            description: 0 = subscription-only spend; null blocks metered spend.
+            type: [number, "null"]
+            minimum: 0
+      submissions:
+        type: object
+        additionalProperties: false
+        required:
+          - require_verified_competition_limit
+          - verified_daily_limit
+          - verified_source
+          - verified_at
+          - verified_reset_boundary
+          - verified_ttl
+          - reserve_for_human
+        properties:
+          require_verified_competition_limit:
+            type: boolean
+          verified_daily_limit:
+            description: This competition's and team's VERIFIED limit. Never an assumed 5.
+            type: [integer, "null"]
+            minimum: 0
+          verified_source:
+            type: [string, "null"]
+          verified_at:
+            type: [string, "null"]
+            pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          verified_reset_boundary:
+            description: WHEN the daily quota resets, from the competition's own rules. Never assumed.
+            type: [string, "null"]
+          verified_ttl:
+            type: [string, "null"]
+            pattern: "^[0-9]+[dhm]$"
+          reserve_for_human:
+            type: integer
+            minimum: 0
+      failures:
+        type: object
+        additionalProperties: false
+        required: [max_retries_per_task, pause_after_consecutive_failures]
+        properties:
+          max_retries_per_task:
+            type: [integer, "null"]
+            minimum: 0
+          pause_after_consecutive_failures:
+            type: [integer, "null"]
+            minimum: 0
+      progress:
+        type: object
+        additionalProperties: false
+        required: [review_after_no_gain_experiments]
+        properties:
+          review_after_no_gain_experiments:
+            type: [integer, "null"]
+            minimum: 0
+  best:
+    description: >-
+      The competition's ELIGIBLE best (ADR-0022 §3). Unknown final eligibility
+      means null here, not the last measured candidate; late and unselected
+      scores stay in the narrative, labelled as observations.
+
+      Open, like its parent record, because a competition can have a fact worth
+      keeping next to its best: orbit-wars carries `attributed_entry_lb` (the peak
+      of an attributed PUBLIC agent, which is not ours). An extra key here is an
+      observation and is never read as the competition's best - ADR-0022 §3's rule
+      reads the five canonical keys below and nothing else. ADR-0023 §7 drift D3
+      records that an extra score field inside `best` invites exactly the
+      two-fields-one-meaning confusion ADR-0022 removed from `status`/`phase`.
+    type: object
+    additionalProperties: true
+    required: [cv_metric, cv_score, public_lb, private_lb, submission_id]
+    properties:
+      cv_metric:
+        type: [string, "null"]
+      cv_score:
+        type: [number, "null"]
+      public_lb:
+        type: [number, "null"]
+      private_lb:
+        type: [number, "null"]
+      submission_id:
+        description: The platform's own submission id, when it exposes one. Kaggle does not for every competition.
+        type: [string, integer, "null"]
+  current_blocker:
+    type: [string, "null"]
+  next_task:
+    type: [string, "null"]
+  source_notes:
+    description: Where the facts in this record came from — paths, issues, PRs, URLs.
+    type: array
+    items:
+      type: string

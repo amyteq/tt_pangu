@@ -42,6 +42,7 @@ REGISTRY = CommandRegistry()
 
 def _seed_registry() -> None:
     import competition as competition_mod
+    import contracts as contracts_mod
     import ctf as ctf_mod
     import decisions as decisions_mod
     import devpost as devpost_mod
@@ -103,6 +104,15 @@ def _seed_registry() -> None:
             "LOCAL_WRITE",
             True,
             competition_mod.add_parsers,
+        )
+    )
+    REGISTRY.register(
+        CommandSpec(
+            "contracts",
+            "Ledger contract validation (ADR-0023).",
+            "READ_ONLY",
+            False,
+            contracts_mod.add_parsers,
         )
     )
     REGISTRY.register(

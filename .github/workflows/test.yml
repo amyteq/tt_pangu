@@ -36,6 +36,13 @@ jobs:
       - name: install
         run: pip install -e ".[dev,eval]" fastapi httpx
 
+      # ADR-0023: validate every real ledger record under competitions/ against
+      # contracts/, and fail when an entity has no record at all. READ_ONLY, no DB,
+      # no network. tests/test_contracts.py covers the same ground; this step exists
+      # so a broken record shows up as its own named check.
+      - name: kca contracts validate
+        run: python tools/kca/kca.py contracts validate --require-all-entities
+
       - name: pytest (no DB)
         run: python -m pytest tests/ services/decision_api/tests -v
 
