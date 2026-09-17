@@ -134,6 +134,26 @@ def test_bare_table_ends_at_the_next_block():
     assert fixed(src) == "a | b\n--- | ---\nc | d\n\n- item that wrapped\n"
 
 
+def test_bare_table_ends_with_the_list_item_holding_it():
+    """A table cannot outlive its container any more than a fence can.
+
+    Quote depth was tracked for a pipe-less table but list indentation was not,
+    so top-level prose below the list was still read as more rows and its wrap
+    went unreported. Regression for round-4 finding F019 on PR #226.
+    """
+    src = "- item\n\n  a | b\n  --- | ---\nafter one\nafter two\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "- item\n\n  a | b\n  --- | ---\nafter one after two\n"
+    assert mdwrap.structure(src)["tables"] == [(2, 2)]
+
+
+def test_a_bare_table_inside_a_list_item_still_runs_to_its_own_end():
+    """The other direction: rows indented into the item are still that table's rows."""
+    src = "- item\n\n  a | b\n  --- | ---\n  c | d\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
 def test_paragraph_after_heading_is_not_flagged():
     assert kinds("# Heading\nA paragraph directly below it.\n") == []
 
@@ -299,6 +319,41 @@ def test_an_unclosed_fence_in_a_list_item_ends_with_the_item():
     src = "10. item\n    ```\n    code\n\npara one\npara two\n"
     assert kinds(src) == ["split-block"]
     assert fixed(src) == "10. item\n    ```\n    code\n\npara one para two\n"
+
+
+@pytest.mark.parametrize(
+    "src",
+    [
+        "> ```\n> code\n\nafter one\nafter two\n",  # a fence leaving a blockquote
+        "- item\n  ```\n  code\n\nafter one\nafter two\n",  # leaving a bullet item
+        "1. item\n   ```\n   code\n\nafter one\nafter two\n",  # leaving an ordered item
+        "1. item\n   ~~~\n   code\n\nafter one\nafter two\n",  # a tilde fence too
+        "<!--\n```\n-->\n\nafter one\nafter two\n",  # fence-looking text inside a comment
+        "> a | b\n> --- | ---\n\nafter one\nafter two\n",  # a bare table leaving a quote
+    ],
+)
+def test_a_repair_below_a_closed_container_is_reported_and_accepted(src):
+    """Finding the violation is only half of it; the safety net has to allow the repair.
+
+    `analyse` learned that a fence ends with its container while `structure` did
+    not, so the prose below one still counted as fenced code and the correct,
+    rendering-preserving rewrite was refused as `fenced code content changed`.
+    Both readings now come from one scan. Regression for round-4 finding F016 on
+    PR #226; the last shape was already accepted and guards the table path.
+    """
+    renderer = _renderer()
+    assert kinds(src) == ["split-block"]
+    assert mdwrap.unsafe_fix_reason(src, fixed(src), renderer) is None
+
+
+def test_the_equivalence_heuristic_ends_a_fence_where_the_engine_does():
+    """The shared scan, asserted directly: `code` stops at the blockquote's end."""
+    assert mdwrap.structure("> ```\n> code\n\nafter one\nafter two\n")["code"] == "code"
+
+
+def test_the_equivalence_heuristic_reads_no_fence_inside_a_comment():
+    """An HTML block is opaque to both readings, so the backticks in it open nothing."""
+    assert mdwrap.structure("<!--\n```\n-->\n\nafter one\nafter two\n")["code"] == ""
 
 
 def test_backtick_in_the_info_string_is_not_a_fence():
