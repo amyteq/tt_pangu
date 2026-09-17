@@ -16,17 +16,19 @@ Expected existing tools include:
 ## Integration pattern
 Wrap scripts behind stable commands or typed tools.
 
-Example command namespace:
+The command namespace as it exists today (`tools/kca/`; the authoritative per-subcommand reference, including which subcommands are still stubs, is [`tools/kca/COMMANDS.md`](../../tools/kca/COMMANDS.md)):
 
 ```bash
-kca notebook to-ipynb path/to/script.py --output path/to/notebook.ipynb
-kca notebook to-py path/to/notebook.ipynb --output path/to/script.py
-kca kaggle data download --competition <slug> --output data/<slug>
-kca kaggle kernel push --kernel-dir kernels/<name> --dry-run
-kca kaggle submit --competition <slug> --file submission.csv --message "..." --requires-approval
-kca kaggle submissions list --competition <slug>
-kca runs record --run-dir runs/<slug>/<run_id>
+kca nb to-ipynb path/to/script.py --output path/to/notebook.ipynb
+kca nb to-py path/to/notebook.ipynb --output path/to/script.py
+kca kaggle download --competition <slug> --path data/<slug>
+kca kaggle push --kernel-dir kernels/<name> --dry-run
+kca kaggle submit --competition <slug> --file submission.csv --message "..."
+kca kaggle score --competition <slug>
+kca run record-metric --run-dir runs/<slug>/<run_id> --key <metric> --value <float>
 ```
+
+There is no `kca notebook` namespace — the converters live under `kca nb` (`tools/kca/nb.py:88-104`). There is no `--requires-approval` flag: approval is decided by Layer A's `KCA_POLICY` / `KCA_ALLOW_REMOTE` gate and the harness `permissions` lists, both documented in `COMMANDS.md` § Safety.
 
 ## Safety classes
 Each tool must be labeled:
