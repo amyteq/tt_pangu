@@ -71,7 +71,7 @@ Not submitting is a real outcome: record `SKIP_SUBMISSION` with the reason rathe
 
 For `kernel` and `notebook` modes, run this before the push. The evidence is three nemotron run-time errors — an F821 undefined name, a `.shape` on the wrong object, a ptxas path — each of which surfaced only at run time and cost roughly two GPU-hours. `docs/tooling/kaggle-kernel-ops.md` §5 is the full checklist:
 
-1. **Static lint** — the `kca kaggle push` gate / `validate_kernel.py`. `ruff` F821 catches undefined-name typos in seconds.
+1. **Static lint** — the `kca kaggle push` gate, or the competition's own checker (`competitions/nvidia-nemotron/kernels/validate_kernel.py` is the worked one). `ruff` F821 catches undefined-name typos in seconds.
 2. **Fail-fast preflight inside the kernel** — exercise the generate/eval path on one example immediately after model load, before the long train. Runtime type errors then surface in minutes.
 3. **Isolate non-essential steps** in their own `try/except`, so a failure in held-out eval cannot mislabel a successful train or lose the saved adapter.
 4. **Resolve mounts with a glob**, never a literal path (`docs/tooling/kaggle-kernel-ops.md` §6).
