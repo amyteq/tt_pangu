@@ -38,11 +38,7 @@ def parse(prompt, answer):
 
 
 def main():
-    rows = [
-        r
-        for r in csv.DictReader(open(D))
-        if "transformation rules is applied to equations" in r["prompt"].lower()
-    ]
+    rows = [r for r in csv.DictReader(open(D)) if "transformation rules is applied to equations" in r["prompt"].lower()]
     sample = rows[:400]
     len5 = 0
     digit_counts = []
@@ -66,13 +62,9 @@ def main():
     ddc = Counter(digit_counts)
     le10 = sum(v for k, v in ddc.items() if k <= 10)
     print(f"sample={len(sample)} inputs-all-5-char={len5}")
-    print(
-        f"DIGIT symbols/problem (excl middle char): <=10 in {le10}/{n} ({100 * le10 // max(1, n)}%)"
-    )
+    print(f"DIGIT symbols/problem (excl middle char): <=10 in {le10}/{n} ({100 * le10 // max(1, n)}%)")
     print(f"  distribution: {dict(sorted(ddc.items()))}")
-    print(
-        f"middle char (pos 2) constant within problem: {op_constant}/{n} -> operation must be searched"
-    )
+    print(f"middle char (pos 2) constant within problem: {op_constant}/{n} -> operation must be searched")
 
 
 if __name__ == "__main__":

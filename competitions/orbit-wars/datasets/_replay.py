@@ -21,10 +21,7 @@ import os
 
 def iter_replays(root):
     """Yield (path, replay_dict) for every *.json under `root` (non-recursive + one level)."""
-    paths = sorted(
-        glob.glob(os.path.join(root, "*.json"))
-        + glob.glob(os.path.join(root, "*", "*.json"))
-    )
+    paths = sorted(glob.glob(os.path.join(root, "*.json")) + glob.glob(os.path.join(root, "*", "*.json")))
     for p in paths:
         try:
             with open(p) as f:
@@ -34,20 +31,12 @@ def iter_replays(root):
 
 
 def _steps(replay):
-    return (
-        replay.get("steps")
-        if isinstance(replay, dict) and "steps" in replay
-        else replay
-    )
+    return replay.get("steps") if isinstance(replay, dict) and "steps" in replay else replay
 
 
 def parse_meta(path, replay):
     """Episode-index row. Returns dict (with malformed=True on parse failure)."""
-    if (
-        not isinstance(replay, dict)
-        or replay.get("__malformed__")
-        or "steps" not in replay
-    ):
+    if not isinstance(replay, dict) or replay.get("__malformed__") or "steps" not in replay:
         return {"episode_id": None, "source_path": path, "malformed": True}
     info = replay.get("info") or {}
     steps = _steps(replay)
@@ -68,9 +57,7 @@ def parse_meta(path, replay):
         "rewards": rewards,
         "winner_seat": winner_seat,
         "winner_name": (
-            names[winner_seat]
-            if (names and winner_seat is not None and winner_seat < len(names))
-            else None
+            names[winner_seat] if (names and winner_seat is not None and winner_seat < len(names)) else None
         ),
         "num_steps": len(steps),
         "malformed": False,

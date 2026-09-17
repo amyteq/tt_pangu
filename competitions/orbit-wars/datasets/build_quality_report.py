@@ -34,19 +34,11 @@ def build(in_root, out_path):
             steps = sum(1 for _ in csv.reader(f)) - 1
     n = len(cands)
     valid = sum(1 for c in cands if c.get("oracle_valid"))
-    unknown = sum(
-        1 for c in cands if c.get("oracle_first_hit_type") in (None, "unknown", "none")
-    )
+    unknown = sum(1 for c in cands if c.get("oracle_first_hit_type") in (None, "unknown", "none"))
     sun = sum(1 for c in cands if c.get("oracle_first_hit_type") == "sun")
-    near = sum(
-        1
-        for c in cands
-        if (c.get("candidate_features_json") or {}).get("path_near_sun")
-    )
+    near = sum(1 for c in cands if (c.get("candidate_features_json") or {}).get("path_near_sun"))
     pos = sum(1 for c in cands if c.get("teacher_selected"))
-    decoded = sum(
-        1 for c in cands if c.get("oracle_first_hit_id", -1) not in (None, -1)
-    )
+    decoded = sum(1 for c in cands if c.get("oracle_first_hit_id", -1) not in (None, -1))
 
     def pct(a, b):
         return f"{100.0 * a / b:.1f}%" if b else "n/a"
@@ -96,9 +88,7 @@ def build(in_root, out_path):
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Aggregate Orbit Wars dataset quality metrics."
-    )
+    ap = argparse.ArgumentParser(description="Aggregate Orbit Wars dataset quality metrics.")
     ap.add_argument("--in-root", required=True, help="dataset artifacts dir")
     ap.add_argument("--out", required=True, help="output markdown report path")
     args = ap.parse_args()

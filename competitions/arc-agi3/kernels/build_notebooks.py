@@ -8,6 +8,7 @@ the Kaggle competition-rerun contract is matched exactly.
 
 Usage: build_notebooks.py <sample_notebook.ipynb> <out_dir>
 """
+
 import json
 import os
 import sys
@@ -16,10 +17,10 @@ import sys
 # Title MUST slugify to exactly the kernel name (id), else Kaggle creates the
 # kernel under a different slug than the metadata id (the title-slug mismatch).
 KERNELS = {
-    "arc3-goose":    ("harrysun2006", "agent_goose.py",    True,  "arc3 goose"),
-    "arc3-goosenov": ("harrysun2006", "agent_goosenov.py", True,  "arc3 goosenov"),
-    "arc3-explore":  ("firefly2006",  "agent_explore.py",  False, "arc3 explore"),
-    "arc3-reactive": ("firefly2006",  "agent_reactive.py", False, "arc3 reactive"),
+    "arc3-goose": ("harrysun2006", "agent_goose.py", True, "arc3 goose"),
+    "arc3-goosenov": ("harrysun2006", "agent_goosenov.py", True, "arc3 goosenov"),
+    "arc3-explore": ("firefly2006", "agent_explore.py", False, "arc3 explore"),
+    "arc3-reactive": ("firefly2006", "agent_reactive.py", False, "arc3 reactive"),
 }
 WRITEFILE = "%%writefile /kaggle/working/my_agent.py\n"
 
