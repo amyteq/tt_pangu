@@ -7,7 +7,12 @@ status: closed                 # open | closed | unknown -- is the official comp
 state: FINDINGS                # ADR-0022 §3 canonical state (was phase: iteration)
 competition_type: simulation_agent   # red-team code competition (attack.py replayed by an evaluator)
 metric: normalized attack score (0-1000) = min(1000, raw/200000*1000); raw = Σ severity_weight + 2·unique_cells
+launch: null                    # never recorded
 deadline: 2026-09-01            # ✓ verified 2026-09-13 via Kaggle API (closed 2026-09-01 23:59); CLOSED
+closing_window_days: null       # ADR-0022 §5; never set, and not computable with `launch` null
+timing_verified_source: "Kaggle API competition record (deadline field), read via `kaggle competitions`"
+timing_verified_at: 2026-09-13  # the dated read that settled the earlier ⚠ unverified deadline note
+timing_verified_ttl: 30d        # so this verification is itself stale as of 2026-10-13
 primary_artifact: script        # attack.py defining AttackAlgorithm(AttackAlgorithmBase)
 submission_mode: kernel          # Kaggle code competition; attack.py run inside the evaluator
 data_policy: generated           # no train/test CSV — a sandboxed agent environment + seed fixtures

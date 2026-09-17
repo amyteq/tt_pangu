@@ -1,0 +1,26 @@
+# Contract: contracts/artifact.yaml
+# The kernel source that was dispatched. Committed, so its identity is exact and permanent.
+id: ART-0001
+competition: nvidia-nemotron
+kind: kernel_source
+path: competitions/nvidia-nemotron/kernels/nemo-merge-soup.py
+storage: in_git
+content_hash: 50059853344c6359abe0817f6ae61e26b0b745d7
+hash_algo: git-blob-sha1
+byte_size: null
+produced_by_run: null
+produced_at: 2026-06-15
+retention: permanent
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  The blob sha is the exact content at commit 5872e0b653ea34c227d39efb0d56cb3ef4292d92 -
+  the bytes that ran - and is verifiable with
+  `git cat-file -p 50059853344c6359abe0817f6ae61e26b0b745d7`. The file at HEAD is NOT this
+  content: it was reformatted twice since (2abd51d "reformat cols=120" #126, and #221), so
+  hashing the working tree today would produce a different value and a false negative.
+  That is the reason `hash_algo` exists as a field instead of assuming sha256 of a path:
+  for anything in git, the blob sha at a named commit is the only hash that stays true.
+
+  `produced_by_run` is null because a kernel source is written by a person or an agent
+  session, not emitted by a Run.

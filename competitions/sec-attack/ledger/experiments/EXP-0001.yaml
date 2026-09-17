@@ -1,0 +1,61 @@
+# Contract: contracts/experiment.yaml
+# Backfilled from competitions/sec-attack/submissions.md, "Kaggle LB submissions (2026-06-28)".
+id: EXP-0001
+competition: sec-attack
+idea_id: null
+strategy_id: null
+decision_id: null
+parent_experiment: null
+hypothesis: >-
+  Attack breadth beats attack depth: all-1-message families (direct exfiltration + deputy)
+  at high fanout fire more distinct cells per replay budget than slow multi-message
+  file-wash chains, so they score higher under raw = sum(severity_weight) + 2*unique_cells.
+changes:
+  families: "direct,deputy"
+  max_findings: 40
+  fanout: 20
+code_commit: 91e3f9b5e14f005caa0040fa84443d8a262656f8
+data_version: "aicomp-sdk 3.1.2; gpt_oss + gemma agents x public (optimal_public) + private guardrails"
+config_hash: null
+split_id: null
+seeds: []
+metric:
+  name: normalized_attack_score
+  direction: maximize
+results:
+  cv_mean: null
+  cv_std: null
+  public_lb: 2.4
+  private_lb: 0.6
+resource:
+  gpu_hours: null
+  accelerator: "T4 x1"
+  wall_clock_seconds: null
+runs:
+  - RUN-0001
+artifacts:
+  - ART-0001
+log_paths: []
+status: evaluated
+conclusion: >-
+  Validated and it became the campaign's reference point. 2.400 public / 0.600 private -
+  the best of the four 2026-06-28 submissions, against 1.440 for the balanced
+  filewash+deputy+direct config at 30/12 and 1.080 for filewash,direct at 24/12. The slow
+  7-message file-wash chains with a small cap scored lowest.
+lessons:
+  - "The evaluator is deterministic: two identical balanced configs scored identically (1.440)."
+  - "The scoring function rewards distinct firing cells, so breadth per replay-budget second is the quantity to maximise."
+findings: []
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  `split_id: null` and `cv_mean: null` are correct rather than missing: this competition
+  has no train/test split and no cross-validation. Its offline proxy is a local scorer run
+  against a gym environment, and submissions.md records the checklist item "offline
+  normalized == our score_attack" for exactly that. A contract that forced a CV number
+  here would be forcing a fiction - `competition_type: simulation_agent` competitions
+  score by replay, not by held-out prediction.
+
+  `code_commit` is the commit that carries the parameterized kernel variants; it is dated
+  2026-06-30, two days after this dispatch, because the campaign committed the variants
+  after running them. That ordering is itself the drift the contract removes.

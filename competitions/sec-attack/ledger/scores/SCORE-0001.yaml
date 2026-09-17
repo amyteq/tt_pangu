@@ -1,0 +1,36 @@
+# Contract: contracts/score.yaml
+id: SCORE-0001
+competition: sec-attack
+submission_ref: INT-BACKFILL-jed-xl-v1
+experiment_id: EXP-0002
+metric: normalized_attack_score
+public_score: 7.2
+private_score: 1.8
+public_rank: null
+public_total: 4186
+private_rank: null
+private_total: null
+scored_at: 2026-06-29
+private_released_at: 2026-09-13
+is_eligible: null
+selected_for_final: null
+source: "kaggle competitions submissions + kaggle competitions leaderboard -d, both for ai-agent-security-multi-step-tool-attacks"
+read_at: 2026-09-13
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  `public_rank: null` with `public_total: 4186` is not an oversight - there is no rank,
+  because the final 4,186-row leaderboard snapshot contains no row for either of our
+  accounts. The denominator is known and the position does not exist. 7.200 would have
+  placed around 3115/4186 against a top of 46.425, and that figure is an inference from
+  the snapshot rather than a reading, so it stays in `notes` and out of `public_rank`.
+
+  `is_eligible: null` for the same reason: eligibility was never established. ADR-0022 §3
+  then keeps competition.yaml's `best` null, which is why this measured 7.200 does not
+  appear on the dashboard as a result.
+
+  `private_score: 1.800` is exactly public/4, as it is for every scored row in this
+  competition (2.400 -> 0.600, 1.440 -> 0.360). A constant ratio across three different
+  configurations points at a fixed public/private split of one cell population rather than
+  a harder private guardrail set - so the public score was a faithful proxy here, which is
+  not something to assume in general.

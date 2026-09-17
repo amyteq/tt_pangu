@@ -1,0 +1,29 @@
+# Contract: contracts/research-item.yaml
+# Backfilled from competitions/nvidia-nemotron/references.md (literature scan 2026-06-15).
+id: RI-0001
+competition: nvidia-nemotron
+title: "Model Soups: averaging weights of multiple fine-tuned models improves accuracy without increasing inference time"
+source_type: paper
+source_reference: "arXiv:2203.05482"
+trust: trusted_public
+summary: >-
+  Averaging the weights of several fine-tunes of the same base model beats the best
+  individual member, at no inference cost. references.md records it as the paper that
+  "directly explains our 0.86 soup (v14+c1+b1)"; it was read during the 2026-06-15
+  literature scan, after the merge idea already existed, and is the reason the
+  strong+weak merge failure (T7) was re-read as a members-selection problem rather
+  than as merging being a dead end.
+quotes: []
+fetched_at: 2026-06-15
+content_hash: null
+fetcher: null
+related_ideas:
+  - IDEA-0001
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  No verbatim quote or archived copy was kept, so `quotes` is empty and
+  `content_hash` is null. Under a `live` record both would be required by the
+  ResearchItem contract; this is drift D6 in ADR-0023 §7 — phase 1 cited sources in
+  prose without archiving them. LoRA Soups / AdapterSoup are cited alongside it in
+  references.md without arXiv ids and are not given their own records here.

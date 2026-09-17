@@ -1,0 +1,123 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://github.com/amyteq/tt_pangu/blob/main/contracts/idea.yaml"
+title: Idea
+description: >-
+  A candidate change, evaluable and de-duplicable before any code is written.
+  Discussion #185 §5.2: research does not jump straight to code — it becomes an
+  idea that can be ranked, approved and rejected.
+
+  Two rules the validator enforces rather than the schema (ADR-0023 §5):
+  a rejected idea keeps its `rejection_reason`, and re-proposing a rejected idea
+  requires `re_proposal_of` plus `new_evidence` — the same idea cannot come back
+  merely because the loop forgot it failed.
+
+type: object
+additionalProperties: false
+required:
+  - id
+  - competition
+  - hypothesis
+  - source_type
+  - source_reference
+  - research_items
+  - expected_gain
+  - cost
+  - risks
+  - required_approvals
+  - related_experiments
+  - status
+  - rank
+  - rejection_reason
+  - re_proposal_of
+  - new_evidence
+  - provenance
+  - recorded_at
+  - notes
+properties:
+  id:
+    type: string
+    pattern: "^IDEA-[0-9]{4,}$"
+  competition:
+    type: string
+    pattern: "^[a-z0-9][a-z0-9-]*$"
+  hypothesis:
+    description: What we believe, phrased so a result can contradict it.
+    type: string
+    minLength: 1
+  source_type:
+    enum:
+      - paper
+      - forum
+      - writeup
+      - notebook
+      - repo
+      - dataset
+      - competition_page
+      - internal
+      - agent
+      - human
+      - other
+  source_reference:
+    type: [string, "null"]
+  research_items:
+    description: The ResearchItem records this idea rests on.
+    type: array
+    items:
+      type: string
+      pattern: "^RI-[0-9]{4,}$"
+  expected_gain:
+    enum: [low, medium, high, unknown]
+  cost:
+    enum: [low, medium, high, unknown]
+  risks:
+    description: Named risks, one per entry. `competition_rules_need_checking` is a real one.
+    type: array
+    items:
+      type: string
+  required_approvals:
+    description: >-
+      Gates this idea would need before it could run. Uses ADR-0021's
+      always-human-gated vocabulary so an idea cannot invent a softer gate.
+    type: array
+    items:
+      enum:
+        - direction
+        - rule_compatibility
+        - data_policy
+        - external_data
+        - final_submission_selection
+        - budget_real_money
+        - team_change
+        - irreversible_deletion
+        - none
+  related_experiments:
+    type: array
+    items:
+      type: string
+      pattern: "^EXP-[0-9]{4,}$"
+  status:
+    description: >-
+      `validated` / `refuted` are post-experiment verdicts; `rejected` means it
+      never ran and says why.
+    enum: [proposed, ranked, accepted, rejected, superseded, validated, refuted]
+  rank:
+    description: Position from IDEA_RANKING, 1 = run first. Null until ranked.
+    type: [integer, "null"]
+    minimum: 1
+  rejection_reason:
+    description: Required (non-null) when status is `rejected` or `refuted`.
+    type: [string, "null"]
+  re_proposal_of:
+    description: The rejected idea this one revives. Requires `new_evidence`.
+    type: [string, "null"]
+    pattern: "^IDEA-[0-9]{4,}$"
+  new_evidence:
+    description: What changed since the rejection. Required when `re_proposal_of` is set.
+    type: [string, "null"]
+  provenance:
+    enum: [live, backfilled]
+  recorded_at:
+    type: string
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  notes:
+    type: [string, "null"]

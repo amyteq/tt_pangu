@@ -1,0 +1,47 @@
+# Contract: contracts/strategy.yaml
+# Backfilled from competitions/nvidia-nemotron/strategy.md ("Current direction") + tracking.md.
+id: STRATEGY-001
+competition: nvidia-nemotron
+statement: >-
+  Treat the faithful public replay recipe (v14) as the backbone, train several
+  comparable same-base adapters on DIFFERENT verified data, then SVD-soup the
+  comparable+complementary ones back to the rank-32 cap. Own-work members only (DEC-0001).
+  Hold the best score to close rather than spending the last slots on unscreened variants.
+derived_from:
+  - DEC-0001
+  - IDEA-0001
+scope:
+  frozen_split_id: null
+  permitted_changes:
+    - soup_member_set
+    - soup_member_weights
+    - svd_rank_truncation
+    - added_sft_data_dose
+  forbidden_changes:
+    - third_party_adapter_members
+    - lora_rank_above_32
+    - base_model
+  max_experiments: null
+  max_gpu_hours: null
+  max_submissions: 5
+status: retired
+in_force_from: 2026-06-12
+in_force_to: 2026-06-15
+supersedes: null
+evidence:
+  - "competitions/nvidia-nemotron/strategy.md - Current direction, H3'"
+  - "competitions/nvidia-nemotron/tracking.md - Current snapshot 2026-06-15"
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  `frozen_split_id` is null because there was no frozen validation protocol during this
+  strategy - competition.yaml records `best.cv_score: null` with the comment "per-kernel
+  held-out only; not a single canonical CV", and the comparable protocol (T12 hard-val)
+  was only built on the last day. That is the single largest methodological gap of the
+  campaign and it is the field the contract exists to make visible: with no frozen split,
+  every cross-adapter comparison before 2026-06-15 rested on the leaderboard. Drift D4.
+
+  `max_submissions: 5` is the quota the campaign actually worked to (5/team/day, recorded
+  in submissions.md), not a cap the strategy chose. `max_experiments` and `max_gpu_hours`
+  were never set; ADR-0022 §6 now treats a null cap as an unknown that blocks spend
+  against that dimension, which this strategy would not have satisfied.
