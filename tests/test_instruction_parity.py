@@ -647,18 +647,28 @@ def test_generator_accepts_valid_yaml_the_reader_does_not_parse(gen, tmp_path, m
 #     HTML, so that edit is reported as altered text instead of as a new tag;
 #     `test_the_mention_scanner_extracts_these_sentences` carries both halves.
 #
-#     This under-tags, and #217 records two shapes where under-tagging means *missing*
-#     rather than merely erring safe — the rule is demoted or hidden in the rendered
-#     document while its pin stays byte-identical and the diff stays empty. A condition-7
-#     start on the line after a one-line HTML block is read as prose, because the blank
-#     flag is not reset when a block ends on the line it started; and a start four spaces
-#     deep in a list item's content opens a real block that this does not see, with the
-#     markup on its own line, so it never reaches the pinned text. An earlier draft of
-#     this comment claimed only line-sharing markup could leave a sentence byte-identical.
-#     That was wrong, and the round 9 review of #202 disproved it; the claim is narrowed
-#     here rather than left standing while #217 is open. So: this reports a rule moved
-#     into a fence, into `<pre>`, or into a comment at the top level, and does not report
-#     one hidden through either shape above.
+#     This under-tags, and #217 records three shapes where under-tagging means *missing*
+#     rather than erring safe: the rule is demoted or hidden in the rendered document
+#     while its pin stays byte-identical and the diff stays empty. Checked against
+#     `markdown-it` in CommonMark mode, which is the arbiter for all three:
+#
+#       1. Condition 7 is gated here on a preceding blank line. CommonMark gates it on not
+#          interrupting a *paragraph*, which is weaker: once a block has ended, the next
+#          line may open one with no blank between. So `<span style="display:none">` on the
+#          line after a one-line comment is an `html_block` to CommonMark and prose here.
+#       2. Container nesting is untracked, so a start four spaces deep in a list item's
+#          content — a real block start there — is read as prose, with the markup on its
+#          own line and therefore never in the pinned text.
+#       3. Inline HTML is never inspected at all. That one is not a misclassification:
+#          when a tag does interrupt a paragraph CommonMark agrees it is inline, and this
+#          agrees. But an unclosed `display:none` span on a neighbouring line still hides
+#          the rule, without altering one byte of it. Fixing 1 and 2 leaves 3 standing.
+#
+#     An earlier draft of this comment claimed only line-sharing markup could leave a
+#     sentence byte-identical, so container nesting could only under-tag. The round 9
+#     review of #202 disproved it. The claim is narrowed here rather than left standing
+#     while #217 is open: this reports a rule moved into a fence, into `<pre>`, or into a
+#     comment that opens where this recognises one, and does not report the three above.
 #
 # The pinned text is the sentence with markdown emphasis and code ticks removed and its
 # whitespace collapsed: those are rendering, so a bold/plain or hard-wrap/soft-wrap
@@ -945,11 +955,12 @@ def _line_blocks(lines: list[str]) -> list[str | None]:
     commented-out text. The precedence runs both ways, and in the spec's order: a fenced
     block is checked first, so `<!--` inside a fence is example text too.
 
-    Two known gaps, both tracked in #217: `blank` is not reset when a block starts and ends
-    on one line, so a condition-7 start on the following line is read as prose; and a start
-    indented past column 3 inside a list item's content opens a block in real Markdown that
-    this does not see. Both under-tag, and in both a rule can be hidden while its sentence
-    pins byte-identical.
+    Two known gaps here, both tracked in #217 and both under-tagging: condition 7 is gated
+    on a preceding blank line rather than on not interrupting a paragraph, so a start on
+    the line after a block ends is missed; and a start indented past column 3 inside a list
+    item's content opens a block in real Markdown that this does not see. A third gap is
+    not this function's to fix — inline HTML is never inspected, so an unclosed tag on a
+    neighbouring line can hide a rule whose own bytes are untouched.
     """
     tags: list[str | None] = []
     fence = ""
@@ -1238,9 +1249,9 @@ PINNED_MENTIONS: dict[tuple[str, str], tuple[str, ...]] = {
 def test_every_sensitive_mention_is_the_one_that_was_reviewed(name: str):
     """No sentence about these three rules changes its text, or its block, unseen.
 
-    Bounded by the two raw-HTML shapes in #217, which demote or hide a rule while leaving
-    its pinned text byte-identical: this does not report those. It is drift detection over
-    reviewed text, never a claim that the English is correct.
+    Bounded by the three raw- and inline-HTML shapes in #217, which hide a rule while
+    leaving its pinned text byte-identical: this does not report those. It is drift
+    detection over reviewed text, never a claim that the English is correct.
     """
     found = _collect_mentions(name)
     pinned = {rel: text for (topic, rel), text in PINNED_MENTIONS.items() if topic == name}
