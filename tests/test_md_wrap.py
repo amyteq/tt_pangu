@@ -97,10 +97,15 @@ def test_delimiter_row_needs_a_matching_header_width():
 
 
 def test_atx_looking_header_row_still_opens_a_table():
-    """markdown-it — and GitHub's preview — read `# a | b` over a delimiter as a table.
+    """The one shape markdown-it and cmark-gfm disagree on, and the gate leaves it alone.
 
-    Rejecting it left the delimiter and data rows to be joined as prose, which
-    destroyed the table. Regression for round-2 finding F001 on PR #226.
+    markdown-it reads `# a | b` over a delimiter as a two-column table;
+    cmark-gfm, which GitHub renders with, reads a heading plus a paragraph.
+    Rejecting the table left the delimiter and data rows to be joined as prose,
+    which destroyed the table under markdown-it — and the verifier is
+    markdown-it, so nothing would have caught it. Doing nothing costs at most a
+    missed finding under cmark-gfm's reading. Regression for round-2 finding
+    F001; ADR-0024 records the oracle choice, round-3 F001.
     """
     src = "# a | b\n--- | ---\nc | d\n"
     assert kinds(src) == []
