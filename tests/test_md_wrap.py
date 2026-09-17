@@ -60,6 +60,48 @@ def test_adjacent_table_rows_are_not_flagged():
     assert kinds("| a | b |\n|---|---|\n| c | d |\n| e | f |\n") == []
 
 
+def test_pipe_less_table_is_left_alone():
+    """GFM makes the outer pipes optional, so this is a table, not a paragraph.
+
+    Joining it flattened a rendered table into one prose line. Regression for
+    round-1 finding F001 on PR #226.
+    """
+    src = "a | b\n--- | ---\nc | d\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_table_may_interrupt_a_paragraph():
+    src = "paragraph text\na | b\n--- | ---\nc | d\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_pipe_less_row_after_a_complete_row_is_a_row_not_a_continuation():
+    """`| c | d |` is complete, so `e | f` is the next row and must not be absorbed."""
+    src = "| a | b |\n|---|---|\n| c | d |\ne | f\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_incomplete_table_row_still_absorbs_its_continuation():
+    src = "| a | b |\n|---|---|\n| a cell that\nkept going | d |\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "| a | b |\n|---|---|\n| a cell that kept going | d |\n"
+
+
+def test_delimiter_row_needs_a_matching_header_width():
+    """Cell counts disagree, so GFM renders a paragraph — and it is hard wrapped."""
+    src = "abc\n--- | ---\nc | d\n"
+    assert kinds(src) == ["split-block", "split-block"]
+
+
+def test_bare_table_ends_at_the_next_block():
+    src = "a | b\n--- | ---\nc | d\n\n- item that\n  wrapped\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "a | b\n--- | ---\nc | d\n\n- item that wrapped\n"
+
+
 def test_paragraph_after_heading_is_not_flagged():
     assert kinds("# Heading\nA paragraph directly below it.\n") == []
 
