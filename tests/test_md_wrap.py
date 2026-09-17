@@ -606,6 +606,57 @@ def test_a_tab_indented_wrapped_child_item_is_still_joined():
     assert fixed(src) == "- parent\n\t- child that is hard wrapped\n"
 
 
+def test_a_tab_indented_marker_cannot_interrupt_a_paragraph():
+    """A tab is four columns, and an indented code block cannot interrupt a paragraph.
+
+    So this renders as one wrapped paragraph — but accepting the marker as a
+    block start made the gate skip it. Regression for round-3 finding F012 on
+    PR #226.
+    """
+    src = "paragraph\n\t- continuation\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "paragraph - continuation\n"
+
+
+def test_a_marker_four_columns_past_the_item_content_is_text_not_a_nested_list():
+    """`- a` puts its content at column 2, so column 6 is inside its code range."""
+    src = "- item\n      - deep\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "- item - deep\n"
+
+
+def test_a_paragraph_inside_a_list_item_is_not_indented_code():
+    """`10. item` puts its own blocks at column 4, so column 4 is prose, not code.
+
+    Measuring the four-column code indent from the margin instead of the item's
+    content column let a hard-wrapped paragraph inside an item through the gate
+    entirely. Regression for round-3 finding F014 on PR #226.
+    """
+    src = "10. item\n\n    para one\n    para two\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "10. item\n\n    para one para two\n"
+
+
+def test_a_real_code_block_inside_a_list_item_is_still_never_inspected():
+    """The other direction: four columns past the content column really is code."""
+    src = "10. item\n\n        code one\n        code two\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_the_equivalence_heuristic_counts_the_items_the_engine_does():
+    """`structure()` is the second opinion, and it has to agree on what a list item is.
+
+    Counting an over-indented marker as an item made `compare_structure` report
+    `list-item count changed` for a rewrite the renderer accepts, so `--fix`
+    refused a file it should have rewritten. `docs/tasks/m12/M12-T006-end-to-end-local.md`
+    is the live instance, found by rendering all 788 tracked files.
+    """
+    src = "4. step\n\n   d. sub-step\n        - not a marker at this depth\n"
+    assert mdwrap.structure(src)["list_items"] == 1
+    assert mdwrap.compare_structure(src, fixed(src)) == []
+
+
 # --------------------------------------------------------------------------
 # Frontmatter vs a leading thematic break
 # --------------------------------------------------------------------------
