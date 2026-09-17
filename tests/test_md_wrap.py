@@ -96,6 +96,33 @@ def test_delimiter_row_needs_a_matching_header_width():
     assert kinds(src) == ["split-block", "split-block"]
 
 
+def test_atx_looking_header_row_still_opens_a_table():
+    """markdown-it — and GitHub's preview — read `# a | b` over a delimiter as a table.
+
+    Rejecting it left the delimiter and data rows to be joined as prose, which
+    destroyed the table. Regression for round-2 finding F001 on PR #226.
+    """
+    src = "# a | b\n--- | ---\nc | d\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_delimiter_row_indented_four_columns_opens_nothing():
+    """Indented four columns the delimiter is paragraph continuation text, not a table.
+
+    Reading it as a table suppressed the findings for the whole run below it —
+    the detection half of round-2 finding F001.
+    """
+    src = "head | x\n    --- | ---\nrow | y\n"
+    assert kinds(src) == ["split-block", "split-block"]
+    assert fixed(src) == "head | x --- | --- row | y\n"
+
+
+def test_thematic_break_still_wins_over_a_table_header():
+    src = "***\n--- | ---\nc | d\n"
+    assert kinds(src) == ["split-block"]
+
+
 def test_bare_table_ends_at_the_next_block():
     src = "a | b\n--- | ---\nc | d\n\n- item that\n  wrapped\n"
     assert kinds(src) == ["split-block"]
@@ -111,6 +138,18 @@ def test_explicit_hard_break_is_preserved():
     for src in ("line one  \nline two\n", "line one\\\nline two\n"):
         assert kinds(src) == []
         assert fixed(src) == src
+
+
+def test_a_joined_line_keeps_its_own_trailing_hard_break():
+    """Joining must not strip the `<br>` at the end of the line it absorbs.
+
+    `content.strip()` deleted it, so the rendered break between that line and the
+    next disappeared — found in `worklogs/orbit2.md:43393` by rendering every
+    tracked file before and after `--fix`.
+    """
+    src = "**Symptom**: something\n**Where**: `file.py:78`  \n**Impact**: none\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "**Symptom**: something **Where**: `file.py:78`  \n**Impact**: none\n"
 
 
 # --------------------------------------------------------------------------
@@ -172,6 +211,49 @@ def test_fence_closer_indented_three_spaces_still_closes():
     src = "```\ncode one\n   ```\nprose that is hard\nwrapped after it\n"
     assert kinds(src) == ["split-block"]
     assert fixed(src) == "```\ncode one\n   ```\nprose that is hard wrapped after it\n"
+
+
+def test_fence_inside_a_list_item_is_code_not_the_item_continuing():
+    """An indented fence beneath a list marker opens that item's code block.
+
+    Only three columns of indent were allowed, so every line of a fenced block
+    nested in a list item read as the item's text and `--fix` flattened the block
+    into one inline code span. Regression for round-2 finding F002 on PR #226;
+    the shape is live in `docs/tasks/m13/M13-T007-report-aggregator.md:38-51`.
+    """
+    src = "10. item\n    ```\n    code a\n    code b\n    ```\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_fence_inside_a_nested_list_item_closes_at_its_own_indent():
+    src = '   - `Payload` shape:\n     ```jsonc\n     {\n       "a": 1\n     }\n     ```\n   - next item\n'
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_indented_backticks_outside_a_list_are_still_prose():
+    """The other direction: with no list open, an indented fence run is paragraph text."""
+    src = "para\n    ```\n    code\n    ```\nafter\n"
+    assert kinds(src) == ["split-block", "split-block", "split-block", "split-block"]
+
+
+def test_backtick_in_the_info_string_is_not_a_fence():
+    """CommonMark: a backtick fence's info string may not contain a backtick.
+
+    Accepting one entered fence mode and hid the rest of the document from the
+    gate. Regression for round-2 finding F010 on PR #226.
+    """
+    src = "```a`b\nprose one\nprose two\n"
+    assert kinds(src) == ["split-block", "split-block"]
+    assert fixed(src) == "```a`b prose one prose two\n"
+
+
+def test_inline_code_span_starting_a_continuation_line_is_not_a_fence():
+    """A triple-backtick code span is not a fence, so the item is simply wrapped."""
+    src = "- an item mentioning\n  ```code``` inline\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "- an item mentioning ```code``` inline\n"
 
 
 def test_tab_indented_code_block_is_never_inspected():
@@ -261,6 +343,24 @@ def test_type_seven_html_block_at_a_block_start_is_not_inspected():
     assert fixed(src) == src
 
 
+def test_self_closing_pre_does_not_disable_the_rest_of_the_file():
+    """`<pre/>` is a complete tag (type 7), not the start of a raw-text block.
+
+    Type 1's start condition needs whitespace, `>` or end of line after the tag
+    name, so a `/` is not one; waiting for a `</pre>` that never came skipped
+    everything below. Regression for round-2 finding F003 on PR #226.
+    """
+    src = "<pre/>\n\nsplit para\ncontinues here\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "<pre/>\n\nsplit para continues here\n"
+
+
+def test_real_pre_block_is_still_raw_text():
+    src = "<pre>\none\n\ntwo\n</pre>\n\nProse.\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
 def test_link_reference_definition_title_on_the_next_line_is_not_prose():
     """The title line renders as nothing; joining a paragraph onto it made it visible.
 
@@ -281,6 +381,28 @@ def test_complete_link_reference_definition_still_ends_at_its_line():
     src = '[foo]: /url "title"\nA paragraph hard\nwrapped below it.\n'
     assert kinds(src) == ["split-block"]
     assert fixed(src) == '[foo]: /url "title"\nA paragraph hard wrapped below it.\n'
+
+
+def test_link_reference_definition_title_may_contain_an_escaped_delimiter():
+    r"""`"ti\"tle"` is a valid title, so that line is still part of the definition.
+
+    Rejecting it made the engine join the paragraph below onto the title, turning
+    invisible metadata into visible text. Regression for round-2 finding F004.
+    """
+    src = '[foo]: /url\n"ti\\"tle"\nParagraph after definition.\n'
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_link_reference_definition_cannot_interrupt_a_paragraph():
+    """CommonMark: a definition does not interrupt a paragraph, so this is prose.
+
+    Treating it as a block start suppressed every finding below it. Regression
+    for round-2 finding F009 on PR #226.
+    """
+    src = "para text\n[foo]: /url\nmore text\n"
+    assert kinds(src) == ["split-block", "split-block"]
+    assert fixed(src) == "para text [foo]: /url more text\n"
 
 
 def test_wrapped_blockquote_is_flagged_and_joined():

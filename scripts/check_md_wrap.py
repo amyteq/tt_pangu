@@ -124,13 +124,14 @@ def is_exempt(path: str) -> str | None:
 # Line classification
 # --------------------------------------------------------------------------
 
-FENCE_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})")
-# A closing fence is indented at most three spaces, uses the opening character,
-# is at least as long, and carries nothing but whitespace after it. Anything
-# else — a four-space-indented run of backticks, or one with trailing text — is
-# still inside the code block, and treating it as the closer lets the engine
-# reflow code.
-FENCE_CLOSE_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})[ \t]*$")
+# A fence run at any indentation. How far it may be indented depends on the
+# container it sits in, so the indent is checked separately — see `fence_open`.
+FENCE_RE = re.compile(r"^[ \t]*(?P<fence>`{3,}|~{3,})")
+# A closing fence uses the opening character, is at least as long, and carries
+# nothing but whitespace after it. Anything else — a run of backticks with
+# trailing text, or one indented out of its container — is still inside the code
+# block, and treating it as the closer lets the engine reflow code.
+FENCE_CLOSE_RE = re.compile(r"^[ \t]*(?P<fence>`{3,}|~{3,})[ \t]*$")
 ATX_RE = re.compile(r"^ {0,3}#{1,6}(?: |\t|$)")
 HR_DASH_RE = re.compile(r"^ {0,3}-{3,}[ \t]*$")
 HR_OTHER_RE = re.compile(r"^ {0,3}(?:\*[ \t]*){3,}$|^ {0,3}(?:_[ \t]*){3,}$")
@@ -146,7 +147,9 @@ LINKDEF_RE = re.compile(r"^ {0,3}\[[^\]]+\]:")
 # and then the title, or just the title. Those lines belong to the definition
 # and render as nothing, so joining a paragraph onto one would promote hidden
 # metadata to visible text.
-LINKDEF_TITLE_RE = re.compile(r"""^\s*(?:"[^"]*"|'[^']*'|\([^()]*\))[ \t]*$""")
+# The delimiter may appear inside the title when it is backslash-escaped, so the
+# title runs to the first *unescaped* closing delimiter.
+LINKDEF_TITLE_RE = re.compile(r"""^\s*(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\((?:\\.|[^()\\])*\))[ \t]*$""")
 QUOTE_RE = re.compile(r"^ {0,3}> ?")
 HARD_BREAK_RE = re.compile(r"(?:  +|\\)$")
 
@@ -163,7 +166,11 @@ HTML_CDATA_RE = re.compile(r"^ {0,3}<!\[CDATA\[")
 HTML_COMMENT_RE = re.compile(r"^ {0,3}<!--")
 HTML_PI_RE = re.compile(r"^ {0,3}<\?")
 HTML_DECL_RE = re.compile(r"^ {0,3}<![A-Za-z]")
-HTML_RAW_RE = re.compile(r"^ {0,3}<(script|pre|style|textarea)(?:[ \t>]|/?>|$)", re.IGNORECASE)
+# Type 1's start condition is the tag name followed by whitespace, `>`, or the
+# end of the line — a `/` does not satisfy it. `<pre/>` is a complete tag, so it
+# is type 7 and ends at the next blank line; reading it as type 1 made the engine
+# wait for a `</pre>` that never comes and skip the rest of the file.
+HTML_RAW_RE = re.compile(r"^ {0,3}<(script|pre|style|textarea)(?:[ \t>]|$)", re.IGNORECASE)
 
 # CommonMark's type-6 tag list, verbatim.
 HTML_BLOCK_TAGS = (
@@ -257,10 +264,23 @@ def is_delimiter_row(content: str) -> bool:
 
 
 def table_opens_here(header: str, delimiter: str) -> int | None:
-    """Column count if `header` + `delimiter` open a GFM table, else None."""
+    """Column count if `header` + `delimiter` open a GFM table, else None.
+
+    Indented four columns or more, neither line opens anything: a delimiter row
+    there is paragraph continuation text, and reading it as a table suppressed
+    the wrap findings for the whole run of lines below it.
+
+    An ATX-looking header does open one. `# a | b` over `--- | ---` is a heading
+    plus a paragraph to cmark-gfm but a two-column table to markdown-it, which
+    GitHub's own preview follows; treating the ambiguous case as a table only
+    means leaving those lines alone, which is right under either reading.
+    A fence or a thematic break wins over a table in both parsers.
+    """
     if not is_delimiter_row(delimiter):
         return None
-    if ATX_RE.match(header) or FENCE_RE.match(header) or HR_DASH_RE.match(header) or HR_OTHER_RE.match(header):
+    if indent_of(header) >= 4 or indent_of(delimiter) >= 4:
+        return None
+    if fence_open(header) or HR_DASH_RE.match(header) or HR_OTHER_RE.match(header):
         return None
     cols = len(split_table_cells(header))
     if cols != len(split_table_cells(delimiter)):
@@ -293,42 +313,90 @@ def split_quote(line: str) -> tuple[int, str]:
         rest = rest[m.end() :]
 
 
-def closes_fence(content: str, fence: str) -> bool:
-    """True if this line closes a fenced block opened with `fence`."""
+def column_of(prefix: str) -> int:
+    """Width of `prefix` in columns; a tab advances to the next multiple of four."""
+    width = 0
+    for ch in prefix:
+        width += 4 - (width % 4) if ch == "\t" else 1
+    return width
+
+
+def indent_of(content: str) -> int:
+    """Indentation in columns; a tab advances to the next multiple of four."""
+    return column_of(content[: len(content) - len(content.lstrip(" \t"))])
+
+
+def fence_open(content: str, max_indent: int = 3) -> tuple[str, int] | None:
+    """(fence run, indent) if this line opens a fenced block, else None.
+
+    A backtick fence's info string may not contain a backtick: CommonMark reads
+    ```` ```a`b ```` as ordinary paragraph text, and entering fence mode there
+    hides the rest of the document from the gate.
+    """
+    m = FENCE_RE.match(content)
+    if not m:
+        return None
+    indent = indent_of(content)
+    if indent > max_indent:
+        return None
+    run = m.group("fence")
+    if run[0] == "`" and "`" in content[m.end() :]:
+        return None
+    return run, indent
+
+
+def closes_fence(content: str, fence: str, open_indent: int = 0) -> bool:
+    """True if this line closes a fenced block opened with `fence` at `open_indent`.
+
+    A closer may be indented up to three columns past its opening fence — which
+    for a fence inside a list item means past the item's content column, not
+    past the margin.
+    """
     m = FENCE_CLOSE_RE.match(content)
     if not m:
+        return False
+    if indent_of(content) > max(3, open_indent + 3):
         return False
     closer = m.group("fence")
     return closer[0] == fence[0] and len(closer) >= len(fence)
 
 
-def indent_of(content: str) -> int:
-    """Indentation in columns; a tab advances to the next multiple of four."""
-    width = 0
-    for ch in content:
-        if ch == " ":
-            width += 1
-        elif ch == "\t":
-            width += 4 - (width % 4)
-        else:
-            break
-    return width
+def list_content_indent(content: str) -> int:
+    """The column a list item's own content starts at — where its child blocks live.
+
+    A fence, a nested list or an indented code block belonging to the item is
+    indented to at least this column.
+    """
+    m = LIST_MARKER_RE.match(content)
+    if not m:
+        return 0
+    gap = m.group("gap")
+    if not content[m.end() :].strip() or column_of(gap) > 4:
+        # An empty item, or a marker followed by more than four columns of
+        # space (which starts an indented code block inside the item): the
+        # content column is one past the marker.
+        gap = " "
+    return column_of(m.group("lead") + m.group("marker") + gap)
 
 
-def is_block_start(content: str) -> bool:
+def is_block_start(content: str, *, in_paragraph: bool = True) -> bool:
     """True if this line begins a new block rather than continuing the one above.
 
     HTML is absent deliberately: an HTML block that may interrupt a paragraph is
     consumed before this is consulted, so a `<` left here opens no block.
+
+    A link reference definition is a block start only where no paragraph is open
+    — CommonMark does not let one interrupt a paragraph, so `[foo]: /url` in the
+    middle of wrapped prose is prose, and the gate has to say so.
     """
     return bool(
         ATX_RE.match(content)
-        or FENCE_RE.match(content)
+        or fence_open(content)
         or HR_DASH_RE.match(content)
         or HR_OTHER_RE.match(content)
         or LIST_RE.match(content)
         or TABLE_RE.match(content)
-        or LINKDEF_RE.match(content)
+        or (not in_paragraph and LINKDEF_RE.match(content))
     )
 
 
@@ -400,7 +468,8 @@ def analyse(text: str) -> tuple[list[Violation], str]:
 
     out: list[str] = []
     violations: list[Violation] = []
-    fence: str | None = None
+    # The open fenced block, if any: its fence run and the column it opened at.
+    fence: tuple[str, int] | None = None
     frontmatter_last = frontmatter_end(lines)
     prev_open = False
     prev_depth = 0
@@ -408,6 +477,10 @@ def analyse(text: str) -> tuple[list[Violation], str]:
     # leading pipe. Without one, every line until the table ends is a row.
     table_cols: int | None = None
     bare_table = False
+    # Content column of the innermost open list item — the engine's one piece of
+    # container state, and the only way to tell an item's own code block from
+    # indented text continuing the item.
+    list_indent: int | None = None
 
     i = 0
     while i < len(lines):
@@ -424,15 +497,15 @@ def analyse(text: str) -> tuple[list[Violation], str]:
         # Inside a fenced block: copy verbatim until the fence closes.
         if fence is not None:
             out.append(raw)
-            if closes_fence(content, fence):
+            if closes_fence(content, *fence):
                 fence = None
             i += 1
             prev_open = False
             continue
 
-        m = FENCE_RE.match(content)
-        if m:
-            fence = m.group("fence")
+        opened = fence_open(content)
+        if opened:
+            fence = opened
             out.append(raw)
             i += 1
             prev_open = False
@@ -447,6 +520,14 @@ def analyse(text: str) -> tuple[list[Violation], str]:
             prev_depth = depth
             table_cols, bare_table = None, False
             continue
+
+        # Track the innermost open list item. A line indented to its content
+        # column belongs to the item; one indented less, with nothing open, has
+        # left it.
+        if LIST_RE.match(content):
+            list_indent = list_content_indent(content)
+        elif list_indent is not None and not prev_open and indent_of(content) < list_indent:
+            list_indent = None
 
         # Inside a table whose rows have no leading pipe, an ordinary text line
         # is a row, not a continuation of the row above — joining the two would
@@ -468,6 +549,24 @@ def analyse(text: str) -> tuple[list[Violation], str]:
             i += 1
             prev_depth = depth
             continue
+
+        # A fence indented into an open list item is that item's fenced code
+        # block, not the item's text continuing on another line. Outside a list
+        # the same indented run of backticks is paragraph text, so this needs the
+        # item's content column to tell them apart:
+        #
+        #   10. item          <- content column 4
+        #       ```           <- a fence, and everything to its closer is code
+        if prev_open and list_indent is not None and indent_of(content) >= list_indent:
+            opened = fence_open(content, max_indent=indent_of(content))
+            if opened:
+                fence = opened
+                out.append(raw)
+                i += 1
+                prev_open = False
+                prev_depth = depth
+                table_cols, bare_table = None, False
+                continue
 
         # An HTML block is copied verbatim to its end condition. Types 1-6 may
         # interrupt an open paragraph; type 7 may not, and is left as prose.
@@ -498,7 +597,11 @@ def analyse(text: str) -> tuple[list[Violation], str]:
             i += 1
             if not has_destination and i < len(lines):
                 next_depth, next_content = split_quote(lines[i])
-                if next_depth == depth and next_content.strip() and not is_block_start(next_content):
+                if (
+                    next_depth == depth
+                    and next_content.strip()
+                    and not is_block_start(next_content, in_paragraph=False)
+                ):
                     out.append(lines[i])
                     i += 1
                     has_destination = True
@@ -557,7 +660,11 @@ def analyse(text: str) -> tuple[list[Violation], str]:
                 prev_open = True
                 continue
             violations.append(Violation(i + 1, "split-block", SPLIT_MSG))
-            out[-1] = out[-1].rstrip() + " " + content.strip()
+            # Keep this line's own trailing hard break: stripping it deletes the
+            # `<br>` between it and the line below, which is authored intent and
+            # not whitespace the renderer is free to collapse.
+            tail = content.lstrip() if HARD_BREAK_RE.search(content) else content.strip()
+            out[-1] = out[-1].rstrip() + " " + tail
             i += 1
             prev_open = True
             continue
@@ -598,7 +705,7 @@ def structure(text: str) -> dict:
     as the same text, and only their shape gives them away.
     """
     lines = text.split("\n")
-    fence: str | None = None
+    fence: tuple[str, int] | None = None
     frontmatter_last = frontmatter_end(lines)
     stream: list[str] = []
     headings: list[tuple[int, str, str]] = []
@@ -624,14 +731,14 @@ def structure(text: str) -> dict:
             continue
         _, content = split_quote(raw)
         if fence is not None:
-            if closes_fence(content, fence):
+            if closes_fence(content, *fence):
                 fence = None
             else:
                 code.append(content)
             continue
-        m = FENCE_RE.match(content)
-        if m:
-            fence = m.group("fence")
+        opened = fence_open(content)
+        if opened:
+            fence = opened
             close_table()
             bare_table = False
             open_paragraph, open_other_block = None, False
