@@ -314,6 +314,49 @@ def test_blockquote_interrupting_a_paragraph_is_not_joined():
     assert kinds("plain paragraph\n> a quote below it\n") == []
 
 
+def test_an_empty_quoted_list_item_does_not_swallow_the_paragraph_below():
+    """Lazy continuation continues a paragraph, and an empty item holds none.
+
+    `> -` is an empty quoted list item; the unquoted line below it is a separate
+    top-level paragraph, and joining the two moved it into the blockquote.
+    Regression for round-2 finding F006 on PR #226.
+    """
+    src = "> -\nplain paragraph\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_an_empty_list_item_does_not_swallow_the_paragraph_below():
+    src = "-\nplain paragraph\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_a_non_empty_quoted_list_item_is_still_continued_lazily():
+    """The other direction: an item with text does hold a paragraph to continue."""
+    src = "> - item text\ncontinues\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "> - item text continues\n"
+
+
+def test_tab_indented_nested_list_is_not_flattened():
+    """A tab-indented child list is an ordinary nested list, not prose.
+
+    `LIST_RE` matched space indentation only, so both children read as
+    continuations of the parent item and `--fix` flattened three list items into
+    one. Regression for round-2 finding F012 on PR #226.
+    """
+    src = "- parent\n\t- child one\n\t- child two\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_a_tab_indented_wrapped_child_item_is_still_joined():
+    src = "- parent\n\t- child that is hard\n\t  wrapped\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "- parent\n\t- child that is hard wrapped\n"
+
+
 # --------------------------------------------------------------------------
 # Frontmatter vs a leading thematic break
 # --------------------------------------------------------------------------
