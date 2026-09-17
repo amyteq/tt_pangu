@@ -1,0 +1,20 @@
+# Contract: contracts/artifact.yaml
+id: ART-0003
+competition: nvidia-nemotron
+kind: adapter
+path: "kaggle dataset attached to harrysun2006/nemo-replay-v14 (rank-32 LoRA adapter, v14)"
+storage: kaggle_dataset
+content_hash: null
+hash_algo: null
+byte_size: null
+produced_by_run: RUN-0002
+produced_at: 2026-06-12
+retention: unknown
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  The v14 replay adapter. It is the reason this entity is not optional: three later
+  experiments consumed it (c1 and b1 trained on top of it; EXP-0002 souped it at weight
+  0.4), so it is a dependency of the campaign's best score and not merely an output. Its
+  bytes live on Kaggle as a private dataset; `path` is a description rather than a
+  resolvable path because the dataset slug was not recorded (drift D10).

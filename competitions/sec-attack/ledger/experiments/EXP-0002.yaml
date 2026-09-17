@@ -1,0 +1,56 @@
+# Contract: contracts/experiment.yaml
+# Backfilled from competitions/sec-attack/submissions.md, "Iteration (2026-06-29)".
+id: EXP-0002
+competition: sec-attack
+idea_id: null
+strategy_id: null
+decision_id: null
+parent_experiment: EXP-0001
+hypothesis: >-
+  Tripling the breadth of the 2.400 winner - same all-1-message families, cap 40 -> 120 and
+  fanout 20 -> 60 - triples the distinct firing cells and so the score. Stated with its own
+  doubt at the time: "aggregation may not be linear".
+changes:
+  max_findings: 120
+  fanout: 60
+code_commit: 91e3f9b5e14f005caa0040fa84443d8a262656f8
+data_version: "aicomp-sdk 3.1.2; gpt_oss + gemma agents x public (optimal_public) + private guardrails"
+config_hash: null
+split_id: null
+seeds: []
+metric:
+  name: normalized_attack_score
+  direction: maximize
+results:
+  cv_mean: null
+  cv_std: null
+  public_lb: 7.2
+  private_lb: 1.8
+resource:
+  gpu_hours: null
+  accelerator: "T4 x1"
+  wall_clock_seconds: null
+runs:
+  - RUN-0002
+artifacts:
+  - ART-0001
+log_paths: []
+status: evaluated
+conclusion: >-
+  Confirmed, and linear to three significant figures: 2.400 -> 7.200 is exactly 3.00x for
+  exactly 3x the breadth. Because the families stay all-1-message it remained well inside
+  the 9000s-per-phase replay budget, which hard-fails a submission on timeout. No ceiling
+  was found - the campaign ended with the lever still scaling.
+lessons:
+  - "The one changed variable was breadth, and the result is therefore attributable: one meaningful change at a time paid off here."
+  - "Linearity was the hypothesis's own open question and the experiment answered it; 'aggregation may not be linear' was worth writing down in advance."
+findings:
+  - FIND-0002
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  This is the record behind competition.yaml's `best.public_lb: null`. The measurement
+  (7.200 / 1.800) is solid and read from the platform twice; what is unknown is whether it
+  counted. ADR-0022 §3 therefore keeps the competition's `best` null while this experiment
+  keeps its measured results - the two fields answer different questions, and conflating
+  them is what would put an unverified number on the dashboard.

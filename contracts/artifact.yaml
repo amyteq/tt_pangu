@@ -1,0 +1,99 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://github.com/amyteq/tt_pangu/blob/main/contracts/artifact.yaml"
+title: Artifact
+description: >-
+  A file a Run produced that something later depends on — the submission file, an
+  adapter, OOF predictions, the kernel source that was dispatched, a report.
+
+  Not every output is an Artifact. The ledger registers the ones a Submission or a
+  Finding rests on, because those are the ones whose identity has to survive:
+  ADR-0008 keeps artifact bytes local-first and CLAUDE.md keeps them out of git,
+  so the bytes may be gone while the record must not be.
+
+  `content_hash` + `hash_algo` carry whatever identity is actually available.
+  `git-blob-sha1` is a first-class option: for anything committed, the blob sha at
+  a known commit is an exact, verifiable hash of the bytes that were used
+  (`git cat-file -p <sha>`), and it needs no separate archive.
+
+type: object
+additionalProperties: false
+required:
+  - id
+  - competition
+  - kind
+  - path
+  - storage
+  - content_hash
+  - hash_algo
+  - byte_size
+  - produced_by_run
+  - produced_at
+  - retention
+  - provenance
+  - recorded_at
+  - notes
+properties:
+  id:
+    type: string
+    pattern: "^ART-[0-9]{4,}$"
+  competition:
+    type: string
+    pattern: "^[a-z0-9][a-z0-9-]*$"
+  kind:
+    enum:
+      - submission_file
+      - adapter
+      - model
+      - oof_predictions
+      - predictions
+      - kernel_source
+      - agent_source
+      - dataset
+      - log
+      - report
+      - other
+  path:
+    description: >-
+      Repository-relative for anything in git; otherwise the path or platform
+      location the bytes were at. Kept even when the bytes are gone.
+    type: string
+    minLength: 1
+  storage:
+    description: Where the bytes live, which decides whether `path` can still be read.
+    enum:
+      - in_git
+      - local_runs
+      - kaggle_dataset
+      - kaggle_kernel_output
+      - remote_host
+      - external
+      - deleted
+      - unknown
+  content_hash:
+    type: [string, "null"]
+    pattern: "^[0-9a-f]{7,64}$"
+  hash_algo:
+    description: Which hash `content_hash` is. Null only when `content_hash` is null.
+    enum: [sha256, git-blob-sha1, md5, null]
+  byte_size:
+    type: [integer, "null"]
+    minimum: 0
+  produced_by_run:
+    description: The Run that wrote it. Null for an input or a hand-written artifact.
+    type: [string, "null"]
+    pattern: "^RUN-[0-9]{4,}$"
+  produced_at:
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}(:[0-9]{2})?Z)?$"
+  retention:
+    description: >-
+      What the bytes' future is. `permanent` means something in git; `session`
+      means the bytes are already gone in practice and only this record remains.
+    enum: [permanent, retained, session, expired, unknown]
+  provenance:
+    enum: [live, backfilled]
+  recorded_at:
+    type: string
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  notes:
+    type: [string, "null"]

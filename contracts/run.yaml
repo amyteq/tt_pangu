@@ -1,0 +1,144 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://github.com/amyteq/tt_pangu/blob/main/contracts/run.yaml"
+title: Run
+description: >-
+  ONE execution attempt of an Experiment. Discussion #185 §5: "a retry produces a
+  NEW run and must not silently overwrite failure history."
+
+  The contract makes that structural rather than advisory:
+
+    * `attempt` starts at 1 and increases; (experiment_id, attempt) is unique.
+    * `attempt > 1` requires `supersedes` — the earlier Run it retries.
+    * A superseded Run must be terminal AND unsuccessful (`failed` / `cancelled`).
+      A succeeded Run is never retried; a better idea is a new Experiment.
+    * A failed Run must carry `error_class` and `error_summary`. "It failed" with
+      no cause recorded is the history the retry rule exists to protect.
+
+  `status` uses Supabase's `run_status` enum verbatim (0001_init.sql:9) so the
+  token survives the phase-1 -> phase-2 storage change unchanged.
+
+  Bulk outputs (checkpoints, logs, OOF predictions) live under
+  runs/<competition>/<run_id>/, which is gitignored (.gitignore:58). This record
+  is what git keeps, so `run_dir` is a pointer that may be absent — a Kaggle
+  kernel run has no local run directory at all, only `external_ref`.
+
+type: object
+additionalProperties: false
+required:
+  - id
+  - competition
+  - experiment_id
+  - attempt
+  - supersedes
+  - executor
+  - external_ref
+  - run_dir
+  - command
+  - config_hash
+  - seed
+  - status
+  - started_at
+  - finished_at
+  - gpu_hours
+  - metrics
+  - artifacts
+  - log_paths
+  - error_class
+  - error_summary
+  - provenance
+  - recorded_at
+  - notes
+properties:
+  id:
+    type: string
+    pattern: "^RUN-[0-9]{4,}$"
+  competition:
+    type: string
+    pattern: "^[a-z0-9][a-z0-9-]*$"
+  experiment_id:
+    description: The design this attempt executes. Every Run has exactly one.
+    type: string
+    pattern: "^EXP-[0-9]{4,}$"
+  attempt:
+    description: 1 for the first execution; 2 for its first retry. Unique per experiment.
+    type: integer
+    minimum: 1
+  supersedes:
+    description: The Run this retries. Required when `attempt` > 1; must be failed or cancelled.
+    type: [string, "null"]
+    pattern: "^RUN-[0-9]{4,}$"
+  executor:
+    description: Where it ran. `kaggle_kernel` runs have no local run_dir.
+    enum: [local, local_gpu, kaggle_kernel, kaggle_notebook, remote_ssh, cloud_gpu, unknown]
+  external_ref:
+    description: The platform's own handle — `<account>/<kernel-slug>` plus a version when known.
+    type: [string, "null"]
+  run_dir:
+    description: runs/<competition>/<run_id>/ when the outputs are local. Gitignored; may be absent.
+    type: [string, "null"]
+  command:
+    description: The exact command or entry point, so the attempt can be repeated.
+    type: [string, "null"]
+  config_hash:
+    description: >-
+      The config this attempt actually used. Normally equal to the Experiment's;
+      a difference means the attempt did not execute the recorded design.
+    type: [string, "null"]
+    pattern: "^[0-9a-f]{7,64}$"
+  seed:
+    description: The one seed this attempt used, of the Experiment's `seeds`.
+    type: [integer, "null"]
+  status:
+    description: Supabase `run_status` enum verbatim.
+    enum: [queued, running, succeeded, failed, cancelled]
+  started_at:
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}(:[0-9]{2})?Z)?$"
+  finished_at:
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}(:[0-9]{2})?Z)?$"
+  gpu_hours:
+    description: What this attempt spent, including a failed one. A failed run still costs the budget.
+    type: [number, "null"]
+    minimum: 0
+  metrics:
+    description: Metrics this attempt produced, as name -> value. Free-form keys, numeric or null values.
+    type: object
+  artifacts:
+    type: array
+    items:
+      type: string
+      pattern: "^ART-[0-9]{4,}$"
+  log_paths:
+    type: array
+    items:
+      type: string
+  error_class:
+    description: >-
+      Required (non-null) when `status` is `failed`. The class drives what happens
+      next: transient errors back off into RETRY_AT, auth and rules failures go to
+      WAIT_HUMAN, code errors enter a bounded fix loop (discussion #185 §15).
+    enum:
+      - none
+      - transient
+      - rate_limit
+      - timeout
+      - out_of_memory
+      - code_error
+      - data_error
+      - config_error
+      - kernel_runtime
+      - auth
+      - rules
+      - budget
+      - unknown
+  error_summary:
+    description: Required (non-null) when `status` is `failed`. One line, plus where the evidence is.
+    type: [string, "null"]
+  provenance:
+    enum: [live, backfilled]
+  recorded_at:
+    type: string
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  notes:
+    type: [string, "null"]
