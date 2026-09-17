@@ -1,0 +1,85 @@
+# kca notification / HITL channel — source-controlled configuration (issue #197).
+#
+# Decision (#197, owner comment 5679417228): the Telegram bot is the PRIMARY
+# push channel; GitHub stays the system of record. Bot-per-agent-entry follows
+# discussion #187 §3. Nothing here is a secret: this file names the *environment
+# variables* that carry the bot tokens and chat ids. Values are read at run time
+# from the process environment, falling back to `secrets_file` (TELEGRAM_* keys
+# only, never echoed by any kca command).
+version: 1
+
+# Where TELEGRAM_* values live when not already exported. Kept outside the repo
+# so a token can never be committed. A leading `~` expands to $HOME.
+secrets_file: "~/.env"
+
+channels:
+  telegram:
+    enabled: true
+    role: primary # push transport
+    api_base: https://api.telegram.org
+    timeout_s: 15
+    # One bot per agent entry (discussion #187 §3: a token has exactly one
+    # active *receiving* process, so entries must not share one). Sending is
+    # unaffected — kca can push through a bot whose updates the Claude Code
+    # Telegram channel plugin is holding.
+    default_bot: bot1
+    bots:
+      bot1:
+        token_env: TELEGRAM_BOT1_TOKEN
+        # @ayla_claude1_bot (confirmed by getMe 2026-09-17)
+        label: entry A — Claude Code account 1; also the default for kca/KCA pushes
+      bot2:
+        token_env: TELEGRAM_BOT2_TOKEN
+        # @ayla_harry_bot (confirmed by getMe 2026-09-17)
+        label: entry B — Claude Code account 2 / Codex
+    recipients:
+      harry:
+        chat_id_env: TELEGRAM_CHAT_ID_ME
+        # Which agent/Kaggle accounts this recipient decides for (#197 req 4:
+        # "支持多个 claude code 账号"). chat_id -> recipient -> accounts.
+        accounts: [harrysun2006, firefly2006]
+        default: true
+        # bot: bot2   # optional per-recipient override of default_bot
+  github:
+    enabled: true
+    role: record # attributable, timestamped decision record
+    repo: amyteq/tt_pangu
+
+# Per-level routing. `quiet_hours: bypass` is only for traffic a human is
+# actually blocked on; only `digest`/`info` count against the daily budget.
+# `dedupe_minutes` is a rolling window; `suppress_unchanged` is time-independent
+# — it holds a message back for as long as it says the same thing as the last
+# one sent at that level, which is what a once-daily digest needs (a 24 h repeat
+# always falls outside any 12 h window).
+levels:
+  gate: # a decision is blocking work until a human answers
+    channels: [github, telegram]
+    quiet_hours: bypass
+    dedupe_minutes: 0
+  attention: # an agent session is stuck waiting on you (permission, StopFailure)
+    channels: [telegram]
+    quiet_hours: bypass
+    dedupe_minutes: 5
+  digest: # routine roll-up, never blocks
+    channels: [telegram]
+    quiet_hours: defer
+    dedupe_minutes: 720
+    suppress_unchanged: true # #197 AC: a daily digest with no news is not sent
+  info: # FYI, e.g. a Codex turn finished
+    channels: [telegram]
+    quiet_hours: defer
+    dedupe_minutes: 180
+
+quiet_hours:
+  timezone: Australia/Melbourne
+  start: "22:00"
+  end: "08:00"
+
+limits:
+  # #185 §18 intervention-cost criterion: <= 2 routine direction approvals/day.
+  # Applies to digest/info only — a gate or an attention ping is a block, not
+  # routine traffic, and is never rate-limited away.
+  routine_pushes_per_day: 2
+
+# Gitignored (.gitignore:61). Holds the dedupe / rate-limit send ledger.
+state_dir: .agent/notify

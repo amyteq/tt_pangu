@@ -52,6 +52,7 @@ def _seed_registry() -> None:
     import kg as kg_mod
     import local as local_mod
     import nb as nb_mod
+    import notify as notify_mod
     import research as research_mod
     import review as review_mod
     import run as run_mod
@@ -156,6 +157,15 @@ def _seed_registry() -> None:
             "LOCAL_WRITE",
             True,
             research_mod.add_parsers,
+        )
+    )
+    REGISTRY.register(
+        CommandSpec(
+            "notify",
+            "Long-run notification / HITL channel: Telegram push + GitHub record (#197).",
+            "REMOTE_WRITE",
+            False,
+            notify_mod.add_parsers,
         )
     )
     REGISTRY.register(
