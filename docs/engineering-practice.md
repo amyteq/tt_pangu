@@ -14,8 +14,13 @@ Supabase (local + staging)
 ```
 
 Out of scope here: a separate runtime competition agent runs *inside* the
-finished platform (Claude Agent SDK worker). It is product-internal and
-not the same as the platform-development agent that edits this repo.
+finished platform. It is product-internal and not the same as the
+platform-development agent that edits this repo.
+
+> **Superseded in part (2026-09-15, issue #189).** An earlier version of this paragraph called
+> that runtime agent a "Claude Agent SDK worker". `CLAUDE.md` → *Mission* is current: **KCA is
+> not built on Claude Code or the Claude Agent SDK.** `CLAUDE.md` and `AGENTS.md` win over this
+> document wherever they disagree.
 
 ## Five team rules
 

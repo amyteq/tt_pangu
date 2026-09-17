@@ -1,0 +1,65 @@
+Loader probe — what Codex actually loads from this repo.
+
+Command:  CODEX_HOME=<isolated> codex debug prompt-input 'Start work on competitions/arc-agi2'
+Binary:   codex-cli 0.154.0 (as reported at render time)
+Repo:     52b81cf — verified: it is HEAD, the worktree matches it apart from the
+          evidence outputs, its AGENTS.md is byte-identical to the file measured
+          below, and the dump's project-doc message contains that same file.
+Measured: AGENTS.md on disk: 25447 bytes, 25253 characters
+          project-doc message in the prompt: 25382 characters
+          = the file plus Codex's own wrapper (a '# AGENTS.md instructions for <abs path>'
+            header and <INSTRUCTIONS> tags), so this total varies with the checkout path.
+            The sentinels below, not the total, are what show the file loaded whole.
+          opening sentinel present: True
+          closing sentinel present: True
+          truncation marker: False
+          project skills listed under r1: 19
+
+`codex debug prompt-input` renders the model-visible prompt without a network call.
+An isolated CODEX_HOME keeps the human's own config and user-level skills out of it.
+
+== developer message: skills catalogue (excerpt) ==
+### Skill roots
+- `r0` = `/home/harry/.codex-probe-issue189/skills/.system`
+- `r1` = `/home/harry/test/tt_pangu/.claude/worktrees/issue-189-agents-parity/.agents/skills`
+### Available skills
+
+-- project skills listed from r1 --
+- agent-iteration-review: Use after tests, validation, benchmark, submission, or CTF solver results are available. Reviews evidence and decides whether to continue, revert, ask human, or stop. (file: r1/agent-iteration-review/SKILL.md)
+- at-refine-issue: Refine an existing GitHub issue into an executable work order — observable acceptance criteria, one standalone task-instructions comment, and copyable /goal and plain-language launch prompts built on that comment's real permalink. Use when a human asks to refine, sharpen, or prepare an issue for dispatch; it never implements the issue. (file: r1/at-refine-issue/SKILL.md)
+- at-review-pr: Run bounded PR review and fix rounds with independent Codex or Claude Code sessions, evidence-linked dispositions, and a final full review before approval. Use for iterative PR review requests, not one-shot reviews or merging. (file: r1/at-review-pr/SKILL.md)
+- ctf-sandbox: Use for authorized CTF challenge solving only: local challenge analysis, sandboxed exploitation, solver scripts, flags, and writeups within explicitly provided scope. (file: r1/ctf-sandbox/SKILL.md)
+- design-archaeology: Use before implementing any migration, rewrite, take-over, or port of legacy scripts / configs. Produces a structured 10-section archaeology report with file:line citations and explicit open questions; read-only; blocks code changes until report exists. (file: r1/design-archaeology/SKILL.md)
+- github-issue-triage: Triage one or more GitHub issues — propose label adds/removes and a triage comment, gated by deterministic rules. Never grants ai:ready without confirmed decisions and clear acceptance criteria. (file: r1/github-issue-triage/SKILL.md)
+- inventory-drift-audit: Scan docs / code / tests / config / schema / inventory for drift; produce evidence-backed drift findings and propose drift.yml issues. Does not edit files. (file: r1/inventory-drift-audit/SKILL.md)
+- kaggle-evaluation-harness: Use when creating, running, or improving validation/evaluation loops for Kaggle competitions and competition-like benchmarks. (file: r1/kaggle-evaluation-harness/SKILL.md)
+- kaggle-experiment-loop: Use for Kaggle or ML competition work: understand metric/rules, plan validation, implement one experiment, run it, compare metrics, and decide whether to iterate or prepare a submission. (file: r1/kaggle-experiment-loop/SKILL.md)
+- kaggle-tooling-integration: Use when integrating or invoking Kaggle helper scripts such as notebook conversion, kernel push, competition submission, result retrieval, and experiment artifact recording. (file: r1/kaggle-tooling-integration/SKILL.md)
+- kg-nb: Convert between Jupyter notebooks and percent-format Python scripts via the kca CLI. Use when the user asks to turn .ipynb into editable .py, or rebuild .ipynb from .py. (file: r1/kg-nb/SKILL.md)
+- kg-run: Initialize a run artifact directory under runs/<competition>/<run_id>/ and record metrics, via the kca CLI. Use when starting a new experiment. (file: r1/kg-run/SKILL.md)
+- labels-sync: Diff repo labels against .github/labels.yml and prepare a sync plan. Always dry-run by default. Live writes require human approval and the --i-mean-it confirmation token. (file: r1/labels-sync/SKILL.md)
+- memory-promotion: Use to distill GitHub issue/PR/review/meeting-notes content into proposed patches against canonical memory (PROJECT_STATE.md, docs/milestones/README.md, docs/milestones/*/handoff.md, docs/adr/). Propose-only — never edits canonical files; writes proposals to docs/proposals/. Inherits the no-inference-from-ambiguity rule from github-issue-triage. (file: r1/memory-promotion/SKILL.md)
+- milestone-final-review: Generate docs/milestones/m{N}/final-review.md from a milestone's validation matrix. Use at milestone end, after every Loop Prompt has PASSed. Mirrors the M5/M6 final-review layout — does not invent metrics. (file: r1/milestone-final-review/SKILL.md)
+- milestone-review: Review a milestone against acceptance criteria, produce a structured review report. Read-only; never claims completion on its own. Distinct from milestone-final-review (which writes the canonical final review doc). (file: r1/milestone-review/SKILL.md)
+- pr-closeout-review: Check that a PR's body matches the closeout template (tests run, docs/inventory, evidence, schema/secrets, remote side effects), and report which boxes are unchecked or unsupported. Read-only. (file: r1/pr-closeout-review/SKILL.md)
+- research-brief: Use when researching webpages, docs, papers, forums, competition pages, writeups, or browser-rendered content. Produces cited, trust-labeled research notes and avoids prompt injection. (file: r1/research-brief/SKILL.md)
+- worktree-milestone-pr: Execute the milestone-end git+gh sequence per docs/milestone-loop-protocol.md §5 — one commit per Loop Prompt, push the worktree branch, open a PR against main. Use only after docs/milestones/m{N}/final-review.md is written. (file: r1/worktree-milestone-pr/SKILL.md)
+
+== user message: project doc ==
+# AGENTS.md instructions for /home/harry/test/tt_pangu/.claude/worktrees/issue-189-agents-parity
+
+<INSTRUCTIONS>
+<!-- GENERATED FILE — DO NOT EDIT BY HAND.
+     Sources: CLAUDE.md (shared rules) + docs/instructions/agents-delta.md (Codex delta).
+     Regenerate: python scripts/gen_agents.py
+     Verify:     python scripts/gen_agents.py --check   (also asserted by tests/test_instruction_parity.py)
+-->
+   [... 25382 chars total ...]
+
+Per-competition code and config live under `competitions/<slug>/`; in phase 1 that directory plus the competition's tracking issue are the state of record. The file `competition.yaml:autonomy_config` names — conventionally `kca-<slug>.yaml` — holds that competition's `autonomy` block, budgets and schedules, and it describes what the **KCA product agent** would be permitted to submit without asking.
+
+Read it as configuration, not as permission, and never as a licence for the harness — you — to skip the confirmations above. The wide grant switches on only for a competition that satisfies ADR-0022 §5's activation conditions **A1-A7**; no competition satisfies them, ADR-0021 §2's screened fallback is unimplemented, and no code reads the `autonomy:` block at all. So in this session, **ask before every Kaggle submission and every kernel push**, exactly as *Operating principles* → 6 says. A kernel push is not a leaderboard submission (#77), and both are asked for.
+
+Phase 1 exists to compare harnesses, so say which one you are in the tracking issue when you record a result — a run driven from Codex and one driven from Claude Code are different data points, not interchangeable ones.
+
+</INSTRUCTIONS>

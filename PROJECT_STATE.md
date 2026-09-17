@@ -6,6 +6,13 @@ _Last updated: 2026-06-10 (M14 close — goal-driven Kaggle workflow; M13 close 
 Build a hybrid human + AI competition engineering workbench. The first target is Kaggle-style competitions, with future support for authorized CTF/lab challenges. The system should research, discuss ideas with humans, edit code, run tests/evaluations, analyze results, iterate, and prepare submissions under human-approved guardrails.
 
 ## Chosen architecture direction
+
+> **Superseded in part (2026-09-15, issue #189).** The "Claude Agent SDK for the production
+> coding worker" line below predates the phase-1/phase-2 rewrite. `CLAUDE.md` → *Mission* is
+> current: **KCA is not built on Claude Code or the Claude Agent SDK**; those are development
+> harnesses and phase-1 drivers. Both `CLAUDE.md` and `AGENTS.md` win over this section, and
+> both harnesses are told so. Full rewrite tracked in #188.
+
 - Hybrid architecture.
 - Claude Code Desktop/CLI for interactive project development and dogfooding (primary development tool for all layers).
 - Claude Agent SDK for the production coding worker.
@@ -24,6 +31,8 @@ Build a hybrid human + AI competition engineering workbench. The first target is
 7. Operator-facing UI: Dashboard, Run Timeline (OTEL swim-lane), Experiments, Research, Approval Inbox + Decision Gate, Artifact Browser.
 
 ## Human approval gates
+
+> **Partly superseded (2026-09-15, issue #189).** Read this list item by item — it is no longer wholly wrong or wholly right. The two **Kaggle** items are current policy: ADR-0022 §5 relaxes them only for a competition meeting activation conditions A1-A7, and none does, so ask. **"Any remote write operation"** and **"PR merges"** are superseded by the dev-phase policy in `CLAUDE.md` → *GitHub collaboration*, mirrored to `AGENTS.md`: non-destructive GitHub writes are auto-allowed, and in phase 1 you squash-merge your own feature-branch PR yourself once required checks are green — no separate approval. What does still need explicit human approval there is a **permanent deletion**; force-push is **denied outright — not approvable**. The **credentials/secrets** and **CTF scope** items stand as written. For **phase 2 / KCA** the list is wrong in the opposite direction: ADR-0021 §2 makes KCA's push and submit autonomous by default once `autonomy.screen` passes — design intent, not yet code, as the enforcement gaps below record.
 
 Require approval for:
 - Kaggle competition submissions. The relaxations in ADR-0021 §2 and ADR-0022 §5 are

@@ -1,5 +1,7 @@
 # Platform-Development Coding Agents vs Runtime Competition Code Agents
 
+> **Partly superseded (2026-09-14, issue #189).** The *distinction* below still holds and is the live one — it appears as "Two agents: Claude Code harness vs KCA product" in `CLAUDE.md` and `AGENTS.md`, and in `docs/adr/0021-kca-autonomy-model.md`. What is stale is §2's runtime direction: **KCA is not built on the Claude Agent SDK** (discussion #185). The approval-gate rows in the table below are superseded on paper by ADR-0021 §2's screened autonomy as widened by ADR-0022 §5 — but read that as design, not as current permission: the wide grant applies only to a competition meeting ADR-0022 §5's activation conditions **A1-A7**, none does, the ADR-0021 §2 fallback is unimplemented, and no code reads the `autonomy:` block. So a Kaggle submission or kernel push is asked for every time (`CLAUDE.md` → *Operating principles* 6). The full rewrite of this document's runtime half belongs to issues #188 / #190.
+
 This document defines two related but distinct meanings of "code agent" used in this project. Confusing them leads to incorrect scope assumptions, unsafe tool use, and broken multi-tool workflows.
 
 ## 1. Platform-development coding agents
