@@ -639,36 +639,55 @@ def test_generator_accepts_valid_yaml_the_reader_does_not_parse(gen, tmp_path, m
 #   * Code is scanned rather than skipped, so a *new* fenced example that mentions one of
 #     the topics needs a pin row too. That is the price of tagging instead of ignoring,
 #     and it buys the direction that matters: a rule demoted into a fence is reported.
-#   * Which block a sentence sits in is read off markdown structure — fences, indentation
-#     and all seven of CommonMark's raw-HTML start conditions — but not off container
-#     nesting: a block start indented past column 3, which inside a list item's content
-#     opens one, is not read as a start. Markup that shares a line with the sentence lands
-#     in the pinned text, because `_plain` strips markdown emphasis and ticks and never
-#     HTML, so that edit is reported as altered text instead of as a new tag;
+#   * Which block a sentence sits in is read off markdown structure — fences, indentation,
+#     all seven of CommonMark's raw-HTML start conditions, and one level of list-item
+#     nesting. Markup that shares a line with the sentence lands in the pinned text,
+#     because `_plain` strips markdown emphasis and ticks and never HTML, so that edit is
+#     reported as altered text instead of as a new tag;
 #     `test_the_mention_scanner_extracts_these_sentences` carries both halves.
 #
-#     This under-tags, and #217 records three shapes where under-tagging means *missing*
-#     rather than erring safe: the rule is demoted or hidden in the rendered document
-#     while its pin stays byte-identical and the diff stays empty. Checked against
-#     `markdown-it` in CommonMark mode, which is the arbiter for all three:
+#     #217 opened with three shapes where the under-tagging meant *missing* rather than
+#     erring safe: the rule was demoted or hidden in the rendered document while its pin
+#     stayed byte-identical and the diff stayed empty. Two are closed here and the third is
+#     not closable by a block classifier. All of it was adjudicated against `markdown-it` in
+#     CommonMark mode, which is the arbiter throughout:
 #
-#       1. Condition 7 is gated here on a preceding blank line. CommonMark gates it on not
-#          interrupting a *paragraph*, which is weaker: once a block has ended, the next
-#          line may open one with no blank between. So `<span style="display:none">` on the
-#          line after a one-line comment is an `html_block` to CommonMark and prose here.
-#       2. Container nesting is untracked, so a start four spaces deep in a list item's
-#          content — a real block start there — is read as prose, with the markup on its
-#          own line and therefore never in the pinned text.
-#       3. Inline HTML is never inspected at all. That one is not a misclassification:
-#          when a tag does interrupt a paragraph CommonMark agrees it is inline, and this
-#          agrees. But an unclosed `display:none` span on a neighbouring line still hides
-#          the rule, without altering one byte of it. Fixing 1 and 2 leaves 3 standing.
+#       1. Closed. Condition 7 was gated on a preceding blank line; CommonMark gates it on
+#          not interrupting a *paragraph*, which is weaker, because once a block has ended
+#          the next line may open one with no blank between. `_line_blocks` now tracks
+#          whether a paragraph is open and passes that, which is what `_html_block`'s
+#          `may_start` always claimed to be. So `<span style="display:none">` on the line
+#          after a one-line comment is an `html_block` to CommonMark and `[html] ` here.
+#       2. Closed for one level of nesting. A start condition is measured from the
+#          enclosing list item's content column rather than from column 0, so `<!--` four
+#          spaces into a `- ` item is the real start CommonMark reads it as. `_undent` does
+#          the shifting and only for the start tests; the tag and the pinned text keep
+#          reading the real line.
+#       3. Not closed, and accepted as residual risk rather than left implicit. Inline HTML
+#          is never inspected. That one is not a misclassification: when a tag does
+#          interrupt a paragraph CommonMark agrees it is inline, and this agrees. But an
+#          unclosed `display:none` span on a neighbouring line still hides the rule without
+#          altering one byte of it, so there is nothing for a *block* classifier to report.
+#          Closing it means reasoning about unclosed inline tags across a whole document,
+#          which is a different guard and a far larger surface than this drift check.
+#          Fixing 1 and 2 left it standing, exactly as #217 predicted.
+#
+#     What is still bounded rather than closed, measured and pinned by
+#     `test_container_tracking_reaches_one_level_and_these_are_outside_it`: container
+#     tracking follows the innermost list marker that sits within `^ {0,3}`, which covers
+#     every list on every scanned surface, so a marker indented four or more — a second
+#     level nested that deep — is measured from too far right and its start is missed. A
+#     blockquote needs no bound: hiding a rule inside one puts `> ` on the rule's own line,
+#     which is reported as altered text, and leaving the rule outside the quote does not
+#     hide it at all.
 #
 #     An earlier draft of this comment claimed only line-sharing markup could leave a
 #     sentence byte-identical, so container nesting could only under-tag. The round 9
-#     review of #202 disproved it. The claim is narrowed here rather than left standing
-#     while #217 is open: this reports a rule moved into a fence, into `<pre>`, or into a
-#     comment that opens where this recognises one, and does not report the three above.
+#     review of #202 disproved it, #217 recorded it, and the claim now matches the code:
+#     this reports a rule moved into a fence, into `<pre>`, into a comment that opens
+#     anywhere CommonMark opens one within a tracked container, or behind a condition-7
+#     start that does not interrupt a paragraph — and does not report shape 3 or a start
+#     below a marker indented past column 3.
 #
 # The pinned text is the sentence with markdown emphasis and code ticks removed and its
 # whitespace collapsed: those are rendering, so a bold/plain or hard-wrap/soft-wrap
@@ -854,6 +873,16 @@ LIST_MARKER = re.compile(r"(?:[-*+>]|\d+[.)])\s")
 INLINE_CODE = re.compile(r"`+[^`]*(?:`+|$)")
 WORD = re.compile(r"\w")
 INDENTS = ("    ", "\t")
+# A list item's marker, which sets the column its own content — and therefore its own
+# block structure — starts at. CommonMark measures a block start from the enclosing
+# container's content column and not from column 0, so `<!--` four spaces into a `- `
+# item is a real start condition; #217 shape 2 was exactly that, read here as prose.
+LIST_ITEM_START = re.compile(r"^(?P<indent> {0,3})(?P<marker>[-*+]|\d{1,9}[.)])(?P<space> {1,4}|\t)")
+# The two leaf blocks that look like prose to a line scanner and are not paragraph
+# content. They matter only because start condition 7 may not interrupt a *paragraph*:
+# a line after a heading or a thematic break interrupts nothing.
+ATX_HEADING = re.compile(r"^ {0,3}#{1,6}(?:[ \t]|$)")
+THEMATIC_BREAK = re.compile(r"^ {0,3}(?P<char>[-*_])(?:[ \t]*(?P=char)){2,}[ \t]*$")
 
 
 def _fence_delimiter(line: str) -> re.Match[str] | None:
@@ -935,6 +964,33 @@ def _html_block(line: str, may_start: bool) -> tuple[re.Pattern[str] | None, str
     return (None, HTML_PIN) if may_start and HTML_TAG_ALONE.match(line) else None
 
 
+def _container_indent(line: str, current: int) -> int:
+    """The content column of the innermost list item still open after `line`.
+
+    One level, which is what the counterexample needs and all the scanned surfaces use. A
+    list item opens one at its marker; a blank line does not close a list; anything that
+    falls back to the left of the content column does. Nested items are read as the
+    innermost marker's column, so a deeper start than one level is measured from too far
+    right and under-tags — the direction this whole module errs in.
+    """
+    item = LIST_ITEM_START.match(line)
+    if item:
+        return len(item["indent"]) + len(item["marker"]) + len(item["space"])
+    if not line.strip():
+        return current
+    return current if current and line.startswith(" " * current) else 0
+
+
+def _undent(line: str, container: int) -> str:
+    """`line` with the enclosing list item's content indent removed, for block-start tests.
+
+    Only the tests: the tag, the pinned text and everything downstream keep reading the
+    real line. This exists so `^ {0,3}` is measured from where the container's content
+    begins, which is what CommonMark measures it from.
+    """
+    return line[container:] if container and not line[:container].strip() else line
+
+
 def _line_blocks(lines: list[str]) -> list[str | None]:
     """Per line: the tag of the block it sits in, or `None` for a delimiter, which is in none.
 
@@ -955,12 +1011,20 @@ def _line_blocks(lines: list[str]) -> list[str | None]:
     commented-out text. The precedence runs both ways, and in the spec's order: a fenced
     block is checked first, so `<!--` inside a fence is example text too.
 
-    Two known gaps here, both tracked in #217 and both under-tagging: condition 7 is gated
-    on a preceding blank line rather than on not interrupting a paragraph, so a start on
-    the line after a block ends is missed; and a start indented past column 3 inside a list
-    item's content opens a block in real Markdown that this does not see. A third gap is
-    not this function's to fix — inline HTML is never inspected, so an unclosed tag on a
-    neighbouring line can hide a rule whose own bytes are untouched.
+    Two things decide where a raw HTML block may start, and #217 is why both are here.
+    `paragraph` is what condition 7 may not interrupt — not a preceding blank line, which
+    is stricter and missed a start on the line after a one-line comment closed. `container`
+    is the enclosing list item's content column, which is where CommonMark measures a start
+    condition from, so `<!--` four spaces into a `- ` item opens the block it really opens.
+
+    One gap remains here, stated rather than discovered:
+    `test_container_tracking_reaches_one_level_and_these_are_outside_it` pins it. Container
+    tracking follows the innermost list marker within `^ {0,3}`, so a marker indented four
+    or more is measured from too far right and a start below it is read as prose. Every list
+    on every scanned surface is inside that bound. A third #217 shape is not this function's
+    to fix at all — inline HTML is never inspected, so an unclosed tag on a neighbouring line
+    hides a rule whose own bytes are untouched, and that is recorded as accepted residual
+    risk by `test_inline_html_hiding_a_rule_is_accepted_residual_risk`.
     """
     tags: list[str | None] = []
     fence = ""
@@ -968,19 +1032,24 @@ def _line_blocks(lines: list[str]) -> list[str | None]:
     indented = False
     preceding = ""  # the last prose line, which decides whether an indent opens a block
     blank = True
+    paragraph = False  # a paragraph is open here, which is the only thing condition 7 may not interrupt
+    container = 0  # the enclosing list item's content column, which block starts are measured from
     for line in lines:
+        probe = _undent(line, container)
+        container = _container_indent(line, container)
         if html is not None:
             end, tag = html
             if end is None and not line.strip():
                 # Conditions 6 and 7 end at a blank line, which is outside the block.
-                html, blank = None, True
+                html, blank, paragraph = None, True, False
                 tags.append(PROSE_PIN)
                 continue
             tags.append(None if HTML_MARKUP_ONLY.match(line) else tag)
             if end is not None and end.search(line):
                 html = None
+            paragraph = False
             continue
-        opener = _fence_delimiter(line)
+        opener = _fence_delimiter(probe)
         closes = (
             opener
             and fence
@@ -991,28 +1060,29 @@ def _line_blocks(lines: list[str]) -> list[str | None]:
         if fence:
             tags.append(None if closes else CODE_PIN)
             fence = "" if closes else fence
+            paragraph = False
             continue
         if opener:
-            fence, indented, blank = opener["mark"], False, False
+            fence, indented, blank, paragraph = opener["mark"], False, False, False
             tags.append(None)
             continue
-        opens_html = _html_block(line, blank)
+        opens_html = _html_block(probe, not paragraph)
         if opens_html is not None:
             end, tag = opens_html
             # The start line is checked for its own end condition: `<!-- a rule -->` is a
             # one-line block, and so is `<!DOCTYPE html>`.
             html = None if end is not None and end.search(line) else opens_html
-            indented, blank = False, False
+            indented, blank, paragraph = False, False, False
             tags.append(None if HTML_MARKUP_ONLY.match(line) else tag)
             continue
         if not line.strip():
             # A blank line inside an indented block does not end it.
             tags.append(CODE_PIN if indented else PROSE_PIN)
-            blank = True
+            blank, paragraph = True, False
             continue
         if indented and line.startswith(INDENTS):
             tags.append(CODE_PIN)
-            blank = False
+            blank, paragraph = False, False
             continue
         indented = bool(
             blank
@@ -1022,6 +1092,9 @@ def _line_blocks(lines: list[str]) -> list[str | None]:
             and not LIST_MARKER.match(preceding)
         )
         tags.append(CODE_PIN if indented else PROSE_PIN)
+        # Only paragraph content opens a paragraph. Indented code is not prose at all, and
+        # a heading or a thematic break is a leaf block the next line does not interrupt.
+        paragraph = not indented and not ATX_HEADING.match(line) and not THEMATIC_BREAK.match(line)
         preceding, blank = line, False
     return tags
 
@@ -1249,9 +1322,14 @@ PINNED_MENTIONS: dict[tuple[str, str], tuple[str, ...]] = {
 def test_every_sensitive_mention_is_the_one_that_was_reviewed(name: str):
     """No sentence about these three rules changes its text, or its block, unseen.
 
-    Bounded by the three raw- and inline-HTML shapes in #217, which hide a rule while
-    leaving its pinned text byte-identical: this does not report those. It is drift
-    detection over reviewed text, never a claim that the English is correct.
+    Bounded by one shape from #217 and one bound on a second. Inline HTML is not inspected,
+    so an unclosed `display:none` span on a neighbouring line hides a rule whose own bytes
+    never change, and this does not report it — accepted residual risk, pinned by
+    `test_inline_html_hiding_a_rule_is_accepted_residual_risk`. Container tracking reaches
+    one list level, so a start condition below a marker indented four or more is still read
+    as prose, pinned by `test_container_tracking_reaches_one_level_and_these_are_outside_it`.
+    The two block shapes #217 opened with are reported. It is drift detection over reviewed
+    text, never a claim that the English is correct.
     """
     found = _collect_mentions(name)
     pinned = {rel: text for (topic, rel), text in PINNED_MENTIONS.items() if topic == name}
@@ -1728,6 +1806,136 @@ def test_a_rule_moved_into_raw_html_is_caught(form: str, wrap: str, tag: str, na
         [f"{surface}: not reviewed: {tag}{sentence}" for sentence in sentences]
         + [f"{surface}: reviewed text is gone or altered: {PROSE_PIN}{sentence}" for sentence in sentences]
     ), problems
+
+
+# The three shapes of #217, written the way the counterexamples were: the rule keeps its own
+# line and its own bytes, and only the lines above it change, so nothing about the pinned
+# sentence can be what reports the edit. Each was adjudicated against `markdown-it` in
+# CommonMark mode. The surfaces are the same three the raw-HTML move uses, and all three
+# anchor lines are unindented bullets, so one construction fits them all.
+HIDDEN_SPAN = '<span style="display:none">'
+HIDDEN_SHAPES = (
+    # 1: condition 7 gated on a preceding blank line missed this, because a one-line comment
+    # closes a block without leaving a blank, and CommonMark gates condition 7 on paragraphs.
+    ("condition 7 after a one-line comment", "<!-- x -->\n" + HIDDEN_SPAN + "\nDummy.\n{rule}", HTML_PIN),
+    # The control that made the round-9 finding decisive: one blank line later, always caught.
+    ("condition 7 after a blank line", "<!-- x -->\n\n" + HIDDEN_SPAN + "\nDummy.\n{rule}", HTML_PIN),
+    # 2: a start condition four spaces into a `- ` item's content, which is two columns into
+    # that item and so a real start. The issue confirms it for the three list shapes below.
+    ("an unordered item's content", "- item\n    <!-- Hidden.\n{rule}", HIDDEN_PIN),
+    ("an ordered item's content", "1. item\n    <!-- Hidden.\n{rule}", HIDDEN_PIN),
+    ("a list item, blank line after the marker", "- item\n\n    <!-- Hidden.\n{rule}", HIDDEN_PIN),
+    # The control: two spaces reaches `^ {0,3}` from column 0, so this was always caught.
+    ("a list item's content, two spaces deep", "- item\n  <!-- Hidden.\n{rule}", HIDDEN_PIN),
+)
+
+
+@pytest.mark.parametrize("label,shape,tag", HIDDEN_SHAPES)
+@pytest.mark.parametrize(
+    "name,surface,anchor",
+    [
+        ("force-push", ".agents/skills/worktree-milestone-pr/SKILL.md", "No `git push --force`, ever."),
+        ("force-push", "docs/instructions/agents-delta.md", "Do not force-push, and do not push to"),
+        ("autonomy-screen", ".agents/skills/kaggle-tooling-integration/SKILL.md", "opens the approval-free path only"),
+    ],
+)
+def test_a_rule_hidden_by_markup_on_its_own_line_is_caught(
+    label: str, shape: str, tag: str, name: str, surface: str, anchor: str
+):
+    """#217 shapes 1 and 2: the rule is hidden and its own bytes never change.
+
+    Both were live bypasses at `c197abd`: the classifier read the markup line as prose, the
+    rule kept its `[prose] ` pin byte-identical, and `_pin_diff` came back empty while the
+    rendered document no longer showed the rule. Shape 1 is condition 7 gated on a preceding
+    blank line where CommonMark gates it on not interrupting a paragraph; shape 2 is a start
+    condition measured from column 0 where CommonMark measures it from the enclosing list
+    item's content column. Each is now an addition under the tag the rule ended up in and a
+    removal of the prose it was, and the assertion is the *whole* diff, so a construction
+    that also disturbed a neighbouring pin would fail here rather than read as caught. The
+    two controls ride along in the same table: they were caught before this change and must
+    stay caught, which is what stops a fix from trading one shape for another.
+    """
+    assert surface in _scans(MENTION_TOPICS[name]), f"{surface} is not scanned for {name}"
+    text = (REPO_ROOT / surface).read_text(encoding="utf-8")
+    rules = [line for line in text.splitlines() if anchor in line]
+    assert len(rules) == 1, f"{surface} no longer holds exactly one line containing {anchor!r}"
+    sentences = [pin.removeprefix(PROSE_PIN) for pin in _mentions(rules[0], MENTION_TOPICS[name].trigger)]
+    assert sentences, f"the line this case hides pins nothing for {name}"
+    hidden = text.replace(rules[0], shape.format(rule=rules[0]), 1)
+    pinned = {rel: body for (pin_topic, rel), body in PINNED_MENTIONS.items() if pin_topic == name}
+    doctored = _mentions(hidden, MENTION_TOPICS[name].trigger)
+    problems = _pin_diff(pinned, {**_collect_mentions(name), surface: doctored})
+    assert sorted(problems) == sorted(
+        [f"{surface}: not reviewed: {tag}{sentence}" for sentence in sentences]
+        + [f"{surface}: reviewed text is gone or altered: {PROSE_PIN}{sentence}" for sentence in sentences]
+    ), problems
+
+
+# What `_container_indent` does not reach, measured rather than assumed. CommonMark opens a
+# real HTML block in each of these and the classifier reads prose, so each hides a rule the
+# same way shape 2 did. They are bounded here rather than closed: reaching them means
+# tracking arbitrary container nesting, which is most of a block parser, and #217's decision
+# was Route A — harden the line scanner, no new dependency. This test exists so the bound is
+# a measured fact that fails loudly when it moves, not a sentence in a comment.
+#
+# A blockquote is deliberately not in this table, and the reason is worth keeping. Hiding a
+# rule inside one means putting `> ` on the rule's own line, which changes the rule's bytes
+# and is reported as altered text — the line-sharing path the design comment describes. With
+# the rule left outside the quote, the comment block closes with the blockquote and the rule
+# is never hidden at all. So there is no bypass there to bound, in either direction.
+UNREACHED_CONTAINERS = (
+    ("a second list level whose marker is indented four", "- outer\n    - inner\n        <!-- Hidden.\n{rule}"),
+    ("a third level, deeper still", "- a\n  - b\n    - c\n        <!-- Hidden.\n{rule}"),
+)
+
+
+@pytest.mark.parametrize("label,shape", UNREACHED_CONTAINERS)
+def test_container_tracking_reaches_one_level_and_these_are_outside_it(label: str, shape: str):
+    """The stated bound of #217's shape-2 fix, pinned so it cannot widen unnoticed.
+
+    `_container_indent` tracks the innermost list item whose marker sits within `^ {0,3}`,
+    which covers every list in every scanned surface, both counterexamples the issue names,
+    and a second level whose marker is still within those three columns. A marker indented
+    past that is measured from too far right, so the start condition is not seen and the rule
+    keeps its prose pin. This asserts that missing behaviour on purpose. If a later change
+    closes one of these, this test fails and is the place to record it — an unexplained pass
+    would mean the bound in the design comment had drifted from the code, which AC6 forbids.
+    """
+    name, surface = "force-push", ".agents/skills/worktree-milestone-pr/SKILL.md"
+    text = (REPO_ROOT / surface).read_text(encoding="utf-8")
+    rules = [line for line in text.splitlines() if "No `git push --force`, ever." in line]
+    assert len(rules) == 1, f"{surface} no longer holds exactly one line containing the rule"
+    hidden = text.replace(rules[0], shape.format(rule=rules[0]), 1)
+    pinned = {rel: body for (pin_topic, rel), body in PINNED_MENTIONS.items() if pin_topic == name}
+    doctored = _mentions(hidden, MENTION_TOPICS[name].trigger)
+    assert _pin_diff(pinned, {**_collect_mentions(name), surface: doctored}) == []
+
+
+def test_inline_html_hiding_a_rule_is_accepted_residual_risk():
+    """#217 shape 3, dispositioned rather than closed — and the tag here is *correct*.
+
+    An unclosed `display:none` span that interrupts a paragraph is inline HTML, and both
+    CommonMark and this module agree it is. The rendered page still loses the rule, because
+    an unclosed tag emitted into the document swallows what follows it, but nothing about
+    the rule's own line or its block has changed — `_plain` strips markdown emphasis and
+    code ticks, never markup — so there is nothing for a block classifier to report.
+
+    Closing it means inspecting inline HTML and reasoning about unclosed tags across a whole
+    document, which is a different guard from this one and a much larger surface than the
+    drift check it would sit inside. #217 recorded the trade explicitly: all three shapes
+    need deliberately adversarial Markdown that a reviewer reading the diff would see, and
+    this is the one whose cost to close is out of proportion to that. It is therefore
+    accepted residual risk, pinned here so the decision stays visible and measured. Fixing
+    the two block shapes did not close it, which is exactly what the issue predicted.
+    """
+    name, surface = "force-push", ".agents/skills/worktree-milestone-pr/SKILL.md"
+    text = (REPO_ROOT / surface).read_text(encoding="utf-8")
+    rules = [line for line in text.splitlines() if "No `git push --force`, ever." in line]
+    assert len(rules) == 1, f"{surface} no longer holds exactly one line containing the rule"
+    hidden = text.replace(rules[0], f"Prose text {HIDDEN_SPAN}\n\n{rules[0]}", 1)
+    pinned = {rel: body for (pin_topic, rel), body in PINNED_MENTIONS.items() if pin_topic == name}
+    doctored = _mentions(hidden, MENTION_TOPICS[name].trigger)
+    assert _pin_diff(pinned, {**_collect_mentions(name), surface: doctored}) == []
 
 
 def test_the_block_tags_are_total_and_none_is_a_prefix_of_another():
