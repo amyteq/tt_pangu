@@ -258,6 +258,44 @@ def test_indented_backticks_outside_a_list_are_still_prose():
     assert kinds(src) == ["split-block", "split-block", "split-block", "split-block"]
 
 
+def test_a_fence_on_the_list_marker_line_is_the_items_code_block():
+    """`- ``` ` opens the item's fenced block right there, on the marker line.
+
+    Reading it as an item whose text is ``` made every code line the item's own
+    text, so `--fix` flattened the block into it. Part of round-3 finding F002
+    on PR #226.
+    """
+    src = "- ```\n  code one\n  code two\n  ```\n- next item\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_a_top_level_fence_still_spans_a_blank_line():
+    """The guard for the container rules below: nothing closes a top-level fence but its closer."""
+    src = "```\ncode one\n\ncode two\n```\n\nprose hard\nwrapped\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "```\ncode one\n\ncode two\n```\n\nprose hard wrapped\n"
+
+
+def test_an_unclosed_fence_in_a_blockquote_ends_with_the_blockquote():
+    """A fenced block cannot outlive its container, and the gate resumes below it.
+
+    Tracking the fence without its quote depth let one unclosed inside a
+    blockquote hide every line of the file below it. Regression for round-3
+    finding F002 on PR #226.
+    """
+    src = "> ```\n> code\n\npara one\npara two\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "> ```\n> code\n\npara one para two\n"
+
+
+def test_an_unclosed_fence_in_a_list_item_ends_with_the_item():
+    """The same for a list item: a non-blank line below its content column leaves it."""
+    src = "10. item\n    ```\n    code\n\npara one\npara two\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "10. item\n    ```\n    code\n\npara one para two\n"
+
+
 def test_backtick_in_the_info_string_is_not_a_fence():
     """CommonMark: a backtick fence's info string may not contain a backtick.
 
@@ -379,6 +417,36 @@ def test_real_pre_block_is_still_raw_text():
     src = "<pre>\none\n\ntwo\n</pre>\n\nProse.\n"
     assert kinds(src) == []
     assert fixed(src) == src
+
+
+def test_a_lowercase_declaration_is_prose_not_an_html_block():
+    """CommonMark type 4 needs an uppercase letter after `<!`, and both renderers agree.
+
+    Accepting `<!foo` opened a block that waits for a `>`; without one the whole
+    rest of the file was skipped. Regression for round-3 finding F003 on PR #226.
+    """
+    src = "<!foo\n\npara one\npara two\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "<!foo\n\npara one para two\n"
+
+
+def test_an_uppercase_declaration_is_still_an_html_block():
+    """The other direction: `<!DOCTYPE html>` is a real declaration block."""
+    src = "<!DOCTYPE html>\n\nProse.\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_an_unclosed_html_block_in_a_blockquote_ends_with_the_blockquote():
+    """An HTML block cannot outlive its container either.
+
+    An unterminated `<pre>` inside a quote consumed every line below it, because
+    the block's own quote depth was not tracked. Regression for round-3 finding
+    F003 on PR #226.
+    """
+    src = "> <pre>\n> x\n\npara one\npara two\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "> <pre>\n> x\n\npara one para two\n"
 
 
 def test_link_reference_definition_title_on_the_next_line_is_not_prose():

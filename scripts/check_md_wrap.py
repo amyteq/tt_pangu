@@ -174,7 +174,11 @@ HARD_BREAK_RE = re.compile(r"(?:  +|\\)$")
 HTML_CDATA_RE = re.compile(r"^ {0,3}<!\[CDATA\[")
 HTML_COMMENT_RE = re.compile(r"^ {0,3}<!--")
 HTML_PI_RE = re.compile(r"^ {0,3}<\?")
-HTML_DECL_RE = re.compile(r"^ {0,3}<![A-Za-z]")
+# Type 4's start condition is `<!` followed by an ASCII *uppercase* letter, which
+# is what both markdown-it and cmark-gfm implement: `<!foo` is ordinary paragraph
+# text to each of them. Accepting it opened a block that waits for a `>`, and an
+# unterminated one hid the whole rest of the file from the gate.
+HTML_DECL_RE = re.compile(r"^ {0,3}<![A-Z]")
 # Type 1's start condition is the tag name followed by whitespace, `>`, or the
 # end of the line — a `/` does not satisfy it. `<pre/>` is a complete tag, so it
 # is type 7 and ends at the next blank line; reading it as type 1 made the engine
@@ -568,8 +572,13 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
 
     out: list[str] = []
     violations: list[Violation] = []
-    # The open fenced block, if any: its fence run and the column it opened at.
+    # The open fenced block, if any: its fence run and the column it opened at,
+    # plus the container it opened inside. A fenced block cannot outlive the
+    # blockquote or list item holding it, and an unclosed one that did hid every
+    # line below it from the gate.
     fence: tuple[str, int] | None = None
+    fence_quote_depth = 0
+    fence_list_indent = 0
     frontmatter_last = frontmatter_end(lines)
     prev_open = False
     prev_depth = 0
@@ -594,18 +603,29 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
 
         depth, content = split_quote(raw)
 
-        # Inside a fenced block: copy verbatim until the fence closes.
+        # Inside a fenced block: copy verbatim until the fence closes, or until
+        # the container holding it does. A blockquote ends at a line shallower
+        # than itself and a list item at a non-blank line indented less than its
+        # content column; the fence ends with either, and this line is then
+        # reprocessed at the level it actually sits on.
         if fence is not None:
-            out.append(raw)
-            if closes_fence(content, *fence):
+            blank = not content.strip()
+            left_item = bool(fence_list_indent) and not blank and indent_of(content) < fence_list_indent
+            if depth < fence_quote_depth or left_item:
                 fence = None
-            i += 1
-            prev_open = False
-            continue
+            else:
+                out.append(raw)
+                if closes_fence(content, *fence):
+                    fence = None
+                i += 1
+                prev_open = False
+                continue
 
         opened = fence_open(content)
         if opened:
             fence = opened
+            fence_quote_depth = depth
+            fence_list_indent = list_indent if list_indent and indent_of(content) >= list_indent else 0
             out.append(raw)
             i += 1
             prev_open = False
@@ -624,10 +644,26 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
         # Track the innermost open list item. A line indented to its content
         # column belongs to the item; one indented less, with nothing open, has
         # left it.
-        if LIST_RE.match(content):
+        marker = LIST_MARKER_RE.match(content) if LIST_RE.match(content) else None
+        if marker:
             list_indent = list_content_indent(content)
         elif list_indent is not None and not prev_open and indent_of(content) < list_indent:
             list_indent = None
+
+        # `- ``` ` opens that item's fenced code block on the marker line
+        # itself. Reading it as an item holding the text ``` made every line of
+        # the block the item's own text, and `--fix` flattened them into it.
+        if marker:
+            opened = fence_open(content[marker.end() :])
+            if opened:
+                fence = (opened[0], list_indent or 0)
+                fence_quote_depth, fence_list_indent = depth, list_indent or 0
+                out.append(raw)
+                i += 1
+                prev_open = False
+                prev_depth = depth
+                table_cols, bare_table = None, False
+                continue
 
         # Inside a table whose rows have no leading pipe, an ordinary text line
         # is a row, not a continuation of the row above — joining the two would
@@ -661,6 +697,7 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
             opened = fence_open(content, max_indent=indent_of(content))
             if opened:
                 fence = opened
+                fence_quote_depth, fence_list_indent = depth, list_indent
                 out.append(raw)
                 i += 1
                 prev_open = False
@@ -672,16 +709,21 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
         # interrupt an open paragraph; type 7 may not, and is left as prose.
         terminator = html_block_start(content, interrupting=prev_open)
         if terminator is not None:
+            start = i
             while i < len(lines):
+                body_depth, body = split_quote(lines[i])
+                if i > start and body.strip() and body_depth < depth:
+                    # The blockquote holding this block has ended, and an HTML
+                    # block cannot outlive its container. An unclosed `<pre>`
+                    # inside a quote used to consume the rest of the file.
+                    break
                 out.append(lines[i])
-                body = split_quote(lines[i])[1]
+                i += 1
                 if terminator == ENDS_AT_BLANK_LINE:
                     if not body.strip():
                         break
                 elif terminator in body.lower():
                     break
-                i += 1
-            i += 1
             prev_open = False
             prev_depth = depth
             table_cols, bare_table = None, False
