@@ -125,15 +125,21 @@ Prompt (`docs/evidence/issue-189-codex-parity/smoke-prompt.txt`) asks, read-only
 git status --porcelain        # must be empty: both harnesses read the working tree
 prompt=docs/evidence/issue-189-codex-parity/smoke-prompt.txt
 
-time codex exec -m gpt-5.6-sol -c model_reasoning_effort=low --sandbox read-only \
+# capture each harness's own elapsed time — the writer cannot tell a measured
+# value from a copied one, so never type a literal here
+s=$SECONDS
+codex exec -m gpt-5.6-sol -c model_reasoning_effort=low --sandbox read-only \
   -o /tmp/smoke-codex.txt - < "$prompt"
+codex_s=$((SECONDS-s))
 
-time claude -p --model 'claude-opus-5[1m]' < "$prompt" > /tmp/smoke-claude.txt
+s=$SECONDS
+claude -p --model 'claude-opus-5[1m]' < "$prompt" > /tmp/smoke-claude.txt
+claude_s=$((SECONDS-s))
 
 # commit both answers with a header whose commit claim is verified, not asserted
 python scripts/write_codex_smoke_evidence.py \
-  --codex  /tmp/smoke-codex.txt  --codex-seconds  15 \
-  --claude /tmp/smoke-claude.txt --claude-seconds 16
+  --codex  /tmp/smoke-codex.txt  --codex-seconds  "$codex_s" \
+  --claude /tmp/smoke-claude.txt --claude-seconds "$claude_s"
 ```
 
 **Result — clean worktree at `52b81cf`, 2026-09-17**, both harnesses run from the same commit (full outputs, with their own provenance headers, under `docs/evidence/issue-189-codex-parity/`):
