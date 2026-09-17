@@ -606,21 +606,65 @@ SPLIT_BLOCK = "split-block"
 SETEXT_RULE = "setext-rule"
 ALL_REPAIRS = (SPLIT_BLOCK, SETEXT_RULE)
 
+# What `scan` decided a line is. The first six are never inspected, because a
+# line break inside them is semantic.
+FRONTMATTER = "frontmatter"
+FENCE = "fence"  # the opening or closing line of a fenced block
+CODE = "code"  # a line inside one
+HTML = "html"
+INDENTED_CODE = "indented-code"
+LINKDEF = "linkdef"
+BLANK = "blank"
+TEXT = "text"  # an ordinary line, opening a block of its own
+SPLIT = "split"  # continues the block above — the class-A violation
+BREAK_CONTINUATION = "break"  # continues it, but an authored hard break protects it
+SETEXT_H1 = "setext-h1"  # a `=` underline: the block above is a heading, not split
+SETEXT_H2 = "setext-h2"  # a `---` under a paragraph — the class-B violation
 
-def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Violation], str]:
-    """Return (violations, fixed_text). `fixed_text` differs only in whitespace.
 
-    `repair` selects which violation classes are written into `fixed_text`;
-    everything is still reported. Only the safety check uses this: a class-A
-    rejoin must leave the rendered output identical, while the class-B repair
-    deliberately changes it — that is the point of splitting a setext heading
-    back into a paragraph and a thematic break.
+class ScanLine:
+    """One physical line, with the block and container state that explains it."""
+
+    __slots__ = ("raw", "content", "depth", "role", "in_table", "is_item", "tail")
+
+    def __init__(
+        self,
+        raw: str,
+        content: str,
+        depth: int,
+        role: str,
+        in_table: bool,
+        is_item: bool,
+        tail: str,
+    ) -> None:
+        self.raw = raw  # the line as written, blockquote markers and all
+        self.content = content  # the same line with those markers stripped
+        self.depth = depth  # how many blockquote markers were stripped
+        self.role = role
+        self.in_table = in_table  # a row of an open GFM table
+        self.is_item = is_item  # opens a list item, by the renderer's reading
+        self.tail = tail  # for SPLIT: the text to append to the line above
+
+
+def scan(lines: list[str]) -> list[ScanLine]:
+    """Classify every line once, and let both readers of the document share it.
+
+    `analyse` and `structure` read the same file for different reasons — one
+    decides what to report and rewrite, the other fingerprints what a rewrite
+    must not change — so they have to agree about where blocks begin and end.
+    While each tracked its own they drifted, and the cost fell on correct
+    repairs: `structure` kept a fenced block open past the blockquote that had
+    already closed it, so ordinary prose below looked like code the rewrite had
+    edited, and `--fix` refused a file it should have fixed. Every fence, HTML
+    block, table, frontmatter and list container is tracked here and nowhere
+    else, which is what stops that happening again.
+
+    The state is deliberately thin — quote depth, the innermost list item's
+    content column, the open fence and the open table — and it is an
+    approximation of CommonMark's block grammar rather than an implementation of
+    it. The `--fix` safety net exists because of that.
     """
-    had_trailing_newline = text.endswith("\n")
-    lines = text[:-1].split("\n") if had_trailing_newline else text.split("\n")
-
-    out: list[str] = []
-    violations: list[Violation] = []
+    records: list[ScanLine] = []
     # The open fenced block, if any: its fence run and the column it opened at,
     # plus the container it opened inside. A fenced block cannot outlive the
     # blockquote or list item holding it, and an unclosed one that did hid every
@@ -631,14 +675,26 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
     frontmatter_last = frontmatter_end(lines)
     prev_open = False
     prev_depth = 0
-    # Open GFM table, if any: its column count, and whether its rows carry a
-    # leading pipe. Without one, every line until the table ends is a row.
+    # Open GFM table, if any: its column count, whether its rows carry a leading
+    # pipe, and the list item it opened in. Without the pipe, every line until
+    # the table ends is a row — including, until this was tracked, lines that
+    # had already left the item holding it.
     table_cols: int | None = None
     bare_table = False
+    bare_table_indent = 0
     # Content column of the innermost open list item — the engine's one piece of
     # container state, and the only way to tell an item's own code block from
     # indented text continuing the item.
     list_indent: int | None = None
+    # The content of the last line emitted, which a continuation would join
+    # onto. Not always the previous source line: a row already completed by an
+    # earlier join is complete, and the line after it opens the next row.
+    open_line = ""
+
+    def emit(
+        raw: str, content: str, depth: int, role: str, in_table: bool = False, is_item: bool = False, tail: str = ""
+    ) -> None:
+        records.append(ScanLine(raw, content, depth, role, in_table, is_item, tail))
 
     i = 0
     while i < len(lines):
@@ -646,15 +702,15 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
 
         # YAML frontmatter: only when it opens on the very first line and closes.
         if frontmatter_last is not None and i <= frontmatter_last:
-            out.append(raw)
+            emit(raw, raw, 0, FRONTMATTER)
             i += 1
             continue
 
         depth, content = split_quote(raw)
 
-        # Inside a fenced block: copy verbatim until the fence closes, or until
-        # the container holding it does. A blockquote ends at a line shallower
-        # than itself and a list item at a non-blank line indented less than its
+        # Inside a fenced block: verbatim until the fence closes, or until the
+        # container holding it does. A blockquote ends at a line shallower than
+        # itself and a list item at a non-blank line indented less than its
         # content column; the fence ends with either, and this line is then
         # reprocessed at the level it actually sits on.
         if fence is not None:
@@ -663,11 +719,12 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
             if depth < fence_quote_depth or left_item:
                 fence = None
             else:
-                out.append(raw)
-                if closes_fence(content, *fence):
+                closing = closes_fence(content, *fence)
+                emit(raw, content, depth, FENCE if closing else CODE)
+                if closing:
                     fence = None
                 i += 1
-                prev_open = False
+                prev_open, open_line = False, content
                 continue
 
         opened = fence_open(content)
@@ -675,18 +732,16 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
             fence = opened
             fence_quote_depth = depth
             fence_list_indent = list_indent if list_indent and indent_of(content) >= list_indent else 0
-            out.append(raw)
+            emit(raw, content, depth, FENCE)
             i += 1
-            prev_open = False
-            prev_depth = depth
+            prev_open, prev_depth, open_line = False, depth, content
             table_cols, bare_table = None, False
             continue
 
         if not content.strip():
-            out.append(raw)
+            emit(raw, content, depth, BLANK)
             i += 1
-            prev_open = False
-            prev_depth = depth
+            prev_open, prev_depth, open_line = False, depth, content
             table_cols, bare_table = None, False
             continue
 
@@ -717,44 +772,44 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
             if opened:
                 fence = (opened[0], list_indent or 0)
                 fence_quote_depth, fence_list_indent = depth, list_indent or 0
-                out.append(raw)
+                emit(raw, content, depth, FENCE, is_item=True)
                 i += 1
-                prev_open = False
-                prev_depth = depth
+                prev_open, prev_depth, open_line = False, depth, content
                 table_cols, bare_table = None, False
                 continue
             terminator = html_block_start(inner, interrupting=False)
             if terminator is not None:
                 end = html_block_end(lines, i, terminator, depth, list_indent or 0)
-                out.extend(lines[i:end])
+                for k in range(i, end):
+                    emit(lines[k], split_quote(lines[k])[1], depth, HTML, is_item=k == i)
                 i = end
-                prev_open = False
-                prev_depth = depth
+                prev_open, prev_depth, open_line = False, depth, records[-1].content
                 table_cols, bare_table = None, False
                 continue
 
         # Inside a table whose rows have no leading pipe, an ordinary text line
         # is a row, not a continuation of the row above — joining the two would
-        # merge two rendered rows into one. Copy rows out untouched until some
-        # other block interrupts the table.
+        # merge two rendered rows into one. Rows run until some other block
+        # interrupts the table, or until the container holding it ends: a bare
+        # table in a list item used to swallow the prose below the whole list.
         if bare_table:
-            if depth == prev_depth and not ends_table(content):
-                out.append(raw)
+            left_item = bool(bare_table_indent) and indent_of(content) < bare_table_indent
+            if depth == prev_depth and not left_item and not ends_table(content):
+                emit(raw, content, depth, TEXT, in_table=True, is_item=bool(marker))
                 i += 1
-                prev_open = False
-                prev_depth = depth
+                prev_open, prev_depth, open_line = False, depth, content
                 continue
             table_cols, bare_table = None, False
 
         # An indented code block cannot interrupt a paragraph, so it only starts
-        # where nothing is open. Copy it out until a blank line. Inside a list
-        # item it starts four columns past the item's *content* column, not four
-        # past the margin — `10. item` puts its own paragraphs at column 4, and
+        # where nothing is open. It runs until a blank line. Inside a list item
+        # it starts four columns past the item's *content* column, not four past
+        # the margin — `10. item` puts its own paragraphs at column 4, and
         # reading those as code let them be hard-wrapped straight through CI.
         if not prev_open and indent_of(content) >= (list_indent or 0) + 4:
-            out.append(raw)
+            emit(raw, content, depth, INDENTED_CODE)
             i += 1
-            prev_depth = depth
+            prev_depth, open_line = depth, content
             continue
 
         # A fence indented into an open list item is that item's fenced code
@@ -769,34 +824,33 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
             if opened:
                 fence = opened
                 fence_quote_depth, fence_list_indent = depth, list_indent
-                out.append(raw)
+                emit(raw, content, depth, FENCE)
                 i += 1
-                prev_open = False
-                prev_depth = depth
+                prev_open, prev_depth, open_line = False, depth, content
                 table_cols, bare_table = None, False
                 continue
 
-        # An HTML block is copied verbatim to its end condition. Types 1-6 may
+        # An HTML block runs verbatim to its end condition. Types 1-6 may
         # interrupt an open paragraph; type 7 may not, and is left as prose.
         terminator = html_block_start(content, interrupting=prev_open)
         if terminator is not None:
             end = html_block_end(lines, i, terminator, depth, list_indent or 0)
-            out.extend(lines[i:end])
+            for k in range(i, end):
+                emit(lines[k], split_quote(lines[k])[1], depth, HTML)
             i = end
-            prev_open = False
-            prev_depth = depth
+            prev_open, prev_depth, open_line = False, depth, records[-1].content
             table_cols, bare_table = None, False
             continue
 
-        # A link reference definition can span lines. Copy the whole definition
-        # out, so its destination and title stay metadata instead of becoming
+        # A link reference definition can span lines. The whole definition is one
+        # block, so its destination and title stay metadata instead of becoming
         # the head of the paragraph below.
         span = linkdef_span(lines, i) if not prev_open else None
         if span is not None:
-            out.extend(lines[i : i + span])
+            for k in range(i, i + span):
+                emit(lines[k], split_quote(lines[k])[1], depth, LINKDEF)
             i += span
-            prev_open = False
-            prev_depth = depth
+            prev_open, prev_depth, open_line = False, depth, records[-1].content
             table_cols, bare_table = None, False
             continue
 
@@ -809,71 +863,102 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
                 if cols is not None:
                     table_cols = cols
                     bare_table = not TABLE_RE.match(content)
-                    out.append(raw)
+                    bare_table_indent = list_indent or 0
+                    emit(raw, content, depth, TEXT, in_table=True, is_item=bool(marker))
                     i += 1
-                    prev_open = not bare_table
-                    prev_depth = depth
+                    prev_open, prev_depth, open_line = not bare_table, depth, content
                     continue
 
         # A setext H1 underline: the paragraph above it is a heading, not a
         # block continued onto this line. Inside a table the same line is one
         # more row, so this only applies where no table is open.
         if SETEXT_H1_RE.match(content) and prev_open and table_cols is None:
-            out.append(raw)
+            emit(raw, content, depth, SETEXT_H1)
             i += 1
-            prev_open = False
-            prev_depth = depth
+            prev_open, prev_depth, open_line = False, depth, content
             continue
 
         # Class B — a thematic break that CommonMark will read as a setext H2.
         if HR_DASH_RE.match(content) and prev_open:
-            violations.append(Violation(i + 1, SETEXT_RULE, SETEXT_MSG))
-            if SETEXT_RULE in repair:
-                out.append("> " * depth if depth else "")
-            out.append(raw)
+            emit(raw, content, depth, SETEXT_H2)
             i += 1
-            prev_open = False
-            prev_depth = depth
+            prev_open, prev_depth, open_line = False, depth, content
             continue
 
         # Class A — a block continued on the next physical line. A shallower
         # quote depth still continues it: CommonMark's lazy continuation lets a
         # wrapped blockquote paragraph drop the `>` on its second line.
         if prev_open and depth <= prev_depth and not is_block_start(content, container_indent=list_indent or 0):
-            if table_cols is not None and len(split_table_cells(split_quote(out[-1])[1])) >= table_cols:
+            if table_cols is not None and len(split_table_cells(open_line)) >= table_cols:
                 # Inside a table whose previous row is already complete, a line
                 # without a leading pipe is the next row — GFM makes that pipe
                 # optional — and not the tail of the row above.
-                out.append(raw)
+                emit(raw, content, depth, TEXT, in_table=True)
                 i += 1
-                prev_open = True
+                prev_open, open_line = True, content
                 continue
-            if HARD_BREAK_RE.search(out[-1]):
+            if HARD_BREAK_RE.search(open_line):
                 # An explicit hard break is authored intent; joining would change
                 # rendering. Leave it, and leave the line it introduces.
-                out.append(raw)
+                emit(raw, content, depth, BREAK_CONTINUATION)
                 i += 1
-                prev_open = True
+                prev_open, open_line = True, content
                 continue
-            violations.append(Violation(i + 1, SPLIT_BLOCK, SPLIT_MSG))
-            if SPLIT_BLOCK in repair:
-                # Keep this line's own trailing hard break: stripping it deletes
-                # the `<br>` between it and the line below, which is authored
-                # intent and not whitespace the renderer is free to collapse.
-                tail = content.lstrip() if HARD_BREAK_RE.search(content) else content.strip()
-                out[-1] = out[-1].rstrip() + " " + tail
-            else:
-                out.append(raw)
+            # Keep this line's own trailing hard break: stripping it deletes the
+            # `<br>` between it and the line below, which is authored intent and
+            # not whitespace the renderer is free to collapse.
+            tail = content.lstrip() if HARD_BREAK_RE.search(content) else content.strip()
+            emit(raw, content, depth, SPLIT, tail=tail)
             i += 1
-            prev_open = True
+            prev_open, open_line = True, open_line.rstrip() + " " + tail
             continue
 
-        out.append(raw)
+        emit(
+            raw,
+            content,
+            depth,
+            TEXT,
+            in_table=table_cols is not None and bool(TABLE_RE.match(content)),
+            is_item=bool(marker),
+        )
         prev_open = leaves_block_open(content)
-        prev_depth = depth
+        prev_depth, open_line = depth, content
         if not TABLE_RE.match(content):
             table_cols, bare_table = None, False
         i += 1
+
+    return records
+
+
+def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Violation], str]:
+    """Return (violations, fixed_text). `fixed_text` differs only in whitespace.
+
+    `repair` selects which violation classes are written into `fixed_text`;
+    everything is still reported. Only the safety check uses this: a class-A
+    rejoin must leave the rendered output identical, while the class-B repair
+    deliberately changes it — that is the point of splitting a setext heading
+    back into a paragraph and a thematic break.
+
+    All the reading happens in `scan`. What is left here is the two repairs: a
+    continuation is folded onto the line above, and a `---` that would make the
+    paragraph above it a heading gets the blank line it is missing.
+    """
+    had_trailing_newline = text.endswith("\n")
+    lines = text[:-1].split("\n") if had_trailing_newline else text.split("\n")
+
+    out: list[str] = []
+    violations: list[Violation] = []
+    for number, line in enumerate(scan(lines), start=1):
+        if line.role == SPLIT:
+            violations.append(Violation(number, SPLIT_BLOCK, SPLIT_MSG))
+            if SPLIT_BLOCK in repair:
+                out[-1] = out[-1].rstrip() + " " + line.tail
+                continue
+        elif line.role == SETEXT_H2:
+            violations.append(Violation(number, SETEXT_RULE, SETEXT_MSG))
+            if SETEXT_RULE in repair:
+                out.append("> " * line.depth if line.depth else "")
+        out.append(line.raw)
 
     fixed = "\n".join(out)
     if had_trailing_newline:
@@ -902,24 +987,21 @@ def structure(text: str) -> dict:
     Nesting is recorded, not just counted: a list that lost its indentation, a
     table that lost a row and a paragraph that became a setext heading all read
     as the same text, and only their shape gives them away.
+
+    Where a block begins and ends is `scan`'s answer, not a second opinion. This
+    used to keep its own fence, table and list-indent rules, and every time one
+    of them fell behind the engine the result was a refusal on a correct repair
+    — prose below a closed blockquote counted as fenced code, a paragraph after
+    a list counted as one more row of a table. It now only fingerprints.
     """
-    lines = text.split("\n")
-    fence: tuple[str, int] | None = None
-    frontmatter_last = frontmatter_end(lines)
     stream: list[str] = []
     headings: list[tuple[int, str, str]] = []
     code: list[str] = []
     links: list[str] = []
     list_shape: list[tuple[int, str]] = []
     list_indents: list[int] = []
-    # Content column of each open item, so a marker indented four columns past
-    # its parent's content can be recognised as the indented text it is. Without
-    # it this heuristic counted list items the renderer does not, and refused a
-    # rewrite that renders identically.
-    list_contents: list[int] = []
     tables: list[tuple[int, ...]] = []
     table_rows: list[int] = []
-    bare_table = False
     hard_breaks = 0
     # The last line of an open top-level paragraph, if one is open: only such a
     # paragraph can be turned into a setext heading by a `---` below it.
@@ -931,49 +1013,25 @@ def structure(text: str) -> dict:
             tables.append(tuple(table_rows))
             table_rows.clear()
 
-    for i, raw in enumerate(lines):
-        if frontmatter_last is not None and i <= frontmatter_last:
+    for line in scan(text.split("\n")):
+        content = line.content
+        if line.role == CODE:
+            code.append(content)
             continue
-        _, content = split_quote(raw)
-        if fence is not None:
-            if closes_fence(content, *fence):
-                fence = None
-            else:
-                code.append(content)
-            continue
-        opened = fence_open(content)
-        if opened:
-            fence = opened
+        if line.role in (FENCE, FRONTMATTER, BLANK):
             close_table()
-            bare_table = False
             open_paragraph, open_other_block = None, False
             continue
 
-        # Table rows, including a table whose rows carry no leading pipe.
-        row = TABLE_RE.match(content) is not None
-        if bare_table:
-            if not content.strip() or ends_table(content):
-                bare_table = False
-            else:
-                row = True
-        if not row and content.strip() and i + 1 < len(lines):
-            next_content = split_quote(lines[i + 1])[1]
-            if table_opens_here(content, next_content) is not None:
-                row = True
-                bare_table = TABLE_RE.match(content) is None
-        if row:
+        if line.in_table:
             table_rows.append(len(split_table_cells(content)))
         else:
             close_table()
 
-        if not content.strip():
-            open_paragraph, open_other_block = None, False
-            continue
-
         # A setext underline turns the paragraph above it into a heading — the
         # class-B hazard. Record it, so a comparison can see one appear.
         sx = SETEXT_RE.match(content)
-        if sx and open_paragraph is not None and not row:
+        if sx and open_paragraph is not None and not line.in_table:
             headings.append((1 if sx.group("rule")[0] == "=" else 2, open_paragraph, "setext"))
             open_paragraph = None
             stream.append(content)
@@ -990,31 +1048,25 @@ def structure(text: str) -> dict:
             headings.append((len(h.group(1)), " ".join(h.group(2).split()), "atx"))
             open_paragraph, open_other_block = None, False
             continue
-        is_item = False
+        indent = indent_of(content)
         if LIST_RE.match(content):
-            indent = indent_of(content)
             while list_indents and indent < list_indents[-1]:
                 list_indents.pop()
-                list_contents.pop()
-            # Four columns past the enclosing item's content column this is
-            # indented text rather than a marker — the rule `analyse` applies,
-            # and the renderer's reading of it.
-            is_item = indent < (list_contents[-1] if list_contents else 0) + 4
-        if is_item:
+        if line.is_item:
+            # Whether a marker this deep is a marker at all is `scan`'s call —
+            # four columns past the enclosing item's content column it is
+            # indented text. Deciding that twice is what made this heuristic
+            # count items the renderer does not, and refuse a rewrite that
+            # renders identically.
             if not list_indents or indent > list_indents[-1]:
                 list_indents.append(indent)
-                list_contents.append(list_content_indent(content))
-            else:
-                list_contents[-1] = list_content_indent(content)
-            marker = content.lstrip(" \t")[0]
-            list_shape.append((len(list_indents), "ol" if marker.isdigit() else "ul"))
-        elif indent_of(content) == 0 and not row and not open_other_block:
+            list_shape.append((len(list_indents), "ol" if content.lstrip(" \t")[0].isdigit() else "ul"))
+        elif indent == 0 and not line.in_table and not open_other_block:
             list_indents.clear()
-            list_contents.clear()
 
         if HR_DASH_RE.match(content) or HR_OTHER_RE.match(content):
             open_paragraph, open_other_block = None, False
-        elif row or LIST_RE.match(content) or LINKDEF_RE.match(content) or indent_of(content) >= 4:
+        elif line.in_table or LIST_RE.match(content) or LINKDEF_RE.match(content) or indent >= 4:
             open_paragraph, open_other_block = None, True
         elif open_other_block:
             open_paragraph = None  # a continuation line of a list item or table
@@ -1083,12 +1135,13 @@ def compare_structure(before: str, after: str) -> list[str]:
 # The --fix safety net
 #
 # Everything above is a hand-written approximation of CommonMark's block
-# grammar, and its container model has a long tail: two review rounds on PR #226
-# found real corruptions in it — a fence inside a list item, a tab-indented
-# nested list, a lazy continuation into an empty quoted item. Each was fixed,
-# and that is exactly the reason not to trust the next one. `--check` can only
-# be wrong about a finding; `--fix` writes files, and CLAUDE.md tells every
-# agent in this repository to run it.
+# grammar, and its container model has a long tail: four review rounds on PR
+# #226 found real corruptions in it — a fence inside a list item, a tab-indented
+# nested list, a lazy continuation into an empty quoted item, an HTML block
+# opening on a list-marker line. Each was fixed, and that is exactly the reason
+# not to trust the next one. `--check` can only be wrong about a finding;
+# `--fix` writes files, and CLAUDE.md tells every agent in this repository to
+# run it.
 #
 # So a rewrite is verified before it is written: render the original and the
 # rewrite with a real CommonMark+GFM parser and compare the HTML the way a
