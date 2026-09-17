@@ -98,9 +98,7 @@ def test_agent_final_actions_pass_oracle_on_sample_seeds():
     action on sampled opening states."""
     import importlib.util
 
-    spec = importlib.util.spec_from_file_location(
-        "ow_main", os.path.join(COMP, "agent", "main.py")
-    )
+    spec = importlib.util.spec_from_file_location("ow_main", os.path.join(COMP, "agent", "main.py"))
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     orc = FlightOracle()
@@ -151,9 +149,7 @@ def test_replay_79228928_decode_smoke():
 
 
 if __name__ == "__main__":
-    fns = [
-        v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)
-    ]
+    fns = [v for k, v in sorted(globals().items()) if k.startswith("test_") and callable(v)]
     passed = 0
     for fn in fns:
         fn()
