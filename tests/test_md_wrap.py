@@ -293,6 +293,52 @@ def test_blockquote_and_body_at_different_depths_are_not_joined():
     assert kinds("> quoted line\n\nplain line\n") == []
 
 
+def test_lazy_blockquote_continuation_is_flagged_and_joined():
+    """CommonMark lets a wrapped quote drop the `>`; the line is still in the quote.
+
+    Requiring equal quote depth let this through the gate. Regression for
+    round-1 finding F006 on PR #226.
+    """
+    src = "> quoted hard\nwrapped lazily\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "> quoted hard wrapped lazily\n"
+
+
+def test_lazy_continuation_of_a_nested_quote_keeps_its_markers():
+    src = "> > deep quote that\nwrapped\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "> > deep quote that wrapped\n"
+
+
+def test_blockquote_interrupting_a_paragraph_is_not_joined():
+    assert kinds("plain paragraph\n> a quote below it\n") == []
+
+
+# --------------------------------------------------------------------------
+# Frontmatter vs a leading thematic break
+# --------------------------------------------------------------------------
+
+
+def test_unclosed_leading_rule_is_not_frontmatter():
+    """`---` with no closing `---` is a thematic break, not frontmatter.
+
+    Treating it as unterminated frontmatter disabled the gate for the whole
+    file. Regression for round-1 finding F005 on PR #226.
+    """
+    src = "---\nHard wrapped\nparagraph.\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "---\nHard wrapped paragraph.\n"
+
+
+def test_closed_frontmatter_is_still_skipped_and_the_body_still_checked():
+    src = "---\nname: a-skill\ndescription: two\n  wrapped looking lines\n---\n\nBody that is hard\nwrapped.\n"
+    assert kinds(src) == ["split-block"]
+    assert (
+        fixed(src)
+        == "---\nname: a-skill\ndescription: two\n  wrapped looking lines\n---\n\nBody that is hard wrapped.\n"
+    )
+
+
 # --------------------------------------------------------------------------
 # Idempotence and safety
 # --------------------------------------------------------------------------

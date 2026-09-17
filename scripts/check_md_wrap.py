@@ -261,6 +261,20 @@ def table_opens_here(header: str, delimiter: str) -> int | None:
     return cols
 
 
+def frontmatter_end(lines: list[str]) -> int | None:
+    """Index of the `---` closing YAML frontmatter, or None if there is none.
+
+    An opening `---` with no closer is not frontmatter — it is a thematic break,
+    and reading it as an unterminated block would exempt the whole file.
+    """
+    if not lines or lines[0].strip() != "---":
+        return None
+    for j in range(1, len(lines)):
+        if lines[j].strip() == "---":
+            return j
+    return None
+
+
 def split_quote(line: str) -> tuple[int, str]:
     """Strip blockquote markers, returning (depth, remaining content)."""
     depth, rest = 0, line
@@ -373,7 +387,7 @@ def analyse(text: str) -> tuple[list[Violation], str]:
     out: list[str] = []
     violations: list[Violation] = []
     fence: str | None = None
-    in_frontmatter = False
+    frontmatter_last = frontmatter_end(lines)
     prev_open = False
     prev_depth = 0
     # Open GFM table, if any: its column count, and whether its rows carry a
@@ -385,16 +399,9 @@ def analyse(text: str) -> tuple[list[Violation], str]:
     while i < len(lines):
         raw = lines[i]
 
-        # YAML frontmatter: only when it opens on the very first line.
-        if i == 0 and raw.strip() == "---":
-            in_frontmatter = True
+        # YAML frontmatter: only when it opens on the very first line and closes.
+        if frontmatter_last is not None and i <= frontmatter_last:
             out.append(raw)
-            i += 1
-            continue
-        if in_frontmatter:
-            out.append(raw)
-            if raw.strip() == "---":
-                in_frontmatter = False
             i += 1
             continue
 
@@ -516,8 +523,10 @@ def analyse(text: str) -> tuple[list[Violation], str]:
             prev_depth = depth
             continue
 
-        # Class A — a block continued on the next physical line.
-        if prev_open and depth == prev_depth and not is_block_start(content):
+        # Class A — a block continued on the next physical line. A shallower
+        # quote depth still continues it: CommonMark's lazy continuation lets a
+        # wrapped blockquote paragraph drop the `>` on its second line.
+        if prev_open and depth <= prev_depth and not is_block_start(content):
             if table_cols is not None and len(split_table_cells(split_quote(out[-1])[1])) >= table_cols:
                 # Inside a table whose previous row is already complete, a line
                 # without a leading pipe is the next row — GFM makes that pipe
@@ -569,7 +578,7 @@ def structure(text: str) -> dict:
     """
     lines = text.split("\n")
     fence: str | None = None
-    in_frontmatter = False
+    frontmatter_last = frontmatter_end(lines)
     stream: list[str] = []
     headings: list[tuple[int, str]] = []
     code: list[str] = []
@@ -584,12 +593,7 @@ def structure(text: str) -> dict:
             table_rows.clear()
 
     for i, raw in enumerate(lines):
-        if i == 0 and raw.strip() == "---":
-            in_frontmatter = True
-            continue
-        if in_frontmatter:
-            if raw.strip() == "---":
-                in_frontmatter = False
+        if frontmatter_last is not None and i <= frontmatter_last:
             continue
         _, content = split_quote(raw)
         if fence is not None:
