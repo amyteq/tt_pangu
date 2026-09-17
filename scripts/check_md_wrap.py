@@ -135,6 +135,11 @@ LIST_RE = re.compile(r"^ *(?:[-*+]|\d{1,9}[.)])(?: |\t|$)")
 TABLE_RE = re.compile(r"^ {0,3}\|")
 HTML_RE = re.compile(r"^ {0,3}<")
 LINKDEF_RE = re.compile(r"^ {0,3}\[[^\]]+\]:")
+# A link reference definition may run onto the following lines: the destination
+# and then the title, or just the title. Those lines belong to the definition
+# and render as nothing, so joining a paragraph onto one would promote hidden
+# metadata to visible text.
+LINKDEF_TITLE_RE = re.compile(r"""^\s*(?:"[^"]*"|'[^']*'|\([^()]*\))[ \t]*$""")
 QUOTE_RE = re.compile(r"^ {0,3}> ?")
 HARD_BREAK_RE = re.compile(r"(?:  +|\\)$")
 
@@ -317,6 +322,17 @@ def ends_table(content: str) -> bool:
     )
 
 
+def linkdef_parts(content: str) -> tuple[bool, bool] | None:
+    """(destination present, title present) for a link reference definition, else None."""
+    m = LINKDEF_RE.match(content)
+    if not m:
+        return None
+    rest = content[m.end() :].strip()
+    if not rest:
+        return False, False
+    return True, len(rest.split(None, 1)) > 1
+
+
 def leaves_block_open(content: str) -> bool:
     """True if a following non-blank line would continue this line's block.
 
@@ -446,6 +462,30 @@ def analyse(text: str) -> tuple[list[Violation], str]:
                     break
                 i += 1
             i += 1
+            prev_open = False
+            prev_depth = depth
+            table_cols, bare_table = None, False
+            continue
+
+        # A link reference definition can span lines. Copy the whole definition
+        # out, so its destination and title stay metadata instead of becoming
+        # the head of the paragraph below.
+        parts = linkdef_parts(content) if not prev_open else None
+        if parts is not None:
+            has_destination, has_title = parts
+            out.append(raw)
+            i += 1
+            if not has_destination and i < len(lines):
+                next_depth, next_content = split_quote(lines[i])
+                if next_depth == depth and next_content.strip() and not is_block_start(next_content):
+                    out.append(lines[i])
+                    i += 1
+                    has_destination = True
+            if has_destination and not has_title and i < len(lines):
+                next_depth, next_content = split_quote(lines[i])
+                if next_depth == depth and LINKDEF_TITLE_RE.match(next_content):
+                    out.append(lines[i])
+                    i += 1
             prev_open = False
             prev_depth = depth
             table_cols, bare_table = None, False

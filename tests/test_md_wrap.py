@@ -261,6 +261,28 @@ def test_type_seven_html_block_at_a_block_start_is_not_inspected():
     assert fixed(src) == src
 
 
+def test_link_reference_definition_title_on_the_next_line_is_not_prose():
+    """The title line renders as nothing; joining a paragraph onto it made it visible.
+
+    Regression for round-1 finding F004 on PR #226.
+    """
+    src = '[foo]: /url\n  "title"\nParagraph after definition.\n'
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_link_reference_definition_destination_on_the_next_line():
+    src = '[foo]:\n/url\n"title"\nParagraph after definition.\n'
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_complete_link_reference_definition_still_ends_at_its_line():
+    src = '[foo]: /url "title"\nA paragraph hard\nwrapped below it.\n'
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == '[foo]: /url "title"\nA paragraph hard wrapped below it.\n'
+
+
 def test_wrapped_blockquote_is_flagged_and_joined():
     src = "> a quoted paragraph that was\n> hard wrapped\n"
     assert kinds(src) == ["split-block"]
