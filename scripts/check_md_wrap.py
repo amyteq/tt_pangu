@@ -24,11 +24,17 @@ single space, and inserts the missing blank line above a `---`. It never alters
 words, punctuation, link targets or block structure, and on an already-compliant
 file its output is byte-identical to its input.
 
+That promise is verified rather than asserted: every rewrite is rendered with
+markdown-it-py and compared against the original before the file is written, and
+a file whose rendering would change is reported and left alone. `--fix`
+therefore needs markdown-it-py installed; `--check` is standard-library only and
+always will be, because CI runs it on a bare Python with nothing installed.
+
 Usage:
   python scripts/check_md_wrap.py --allowlist              # the agent-context set
   python scripts/check_md_wrap.py --changed origin/main    # only what this branch touches
   python scripts/check_md_wrap.py --files a.md b.md        # exactly these
-  python scripts/check_md_wrap.py --fix --allowlist        # rewrite in place
+  python scripts/check_md_wrap.py --fix --allowlist        # rewrite in place (needs markdown-it-py)
   python scripts/check_md_wrap.py --equivalence origin/main --allowlist
 
 Exactly one scoping mode is required. There is deliberately no "whole
@@ -37,8 +43,8 @@ allowlist, and the historical backfill was declined (issue #210).
 
 Exit codes:
   0 — no violations (or, with --fix, everything fixed)
-  1 — violations found
-  2 — usage error
+  1 — violations found, or --fix refused to rewrite a file
+  2 — usage error, or --fix without markdown-it-py to verify itself
 """
 
 from __future__ import annotations
@@ -460,9 +466,20 @@ class Violation:
 SPLIT_MSG = "continues the block on the line above — soft-wrap it onto one physical line"
 SETEXT_MSG = "`---` directly below text parses as a setext H2 — leave a blank line above it"
 
+SPLIT_BLOCK = "split-block"
+SETEXT_RULE = "setext-rule"
+ALL_REPAIRS = (SPLIT_BLOCK, SETEXT_RULE)
 
-def analyse(text: str) -> tuple[list[Violation], str]:
-    """Return (violations, fixed_text). `fixed_text` differs only in whitespace."""
+
+def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Violation], str]:
+    """Return (violations, fixed_text). `fixed_text` differs only in whitespace.
+
+    `repair` selects which violation classes are written into `fixed_text`;
+    everything is still reported. Only the safety check uses this: a class-A
+    rejoin must leave the rendered output identical, while the class-B repair
+    deliberately changes it — that is the point of splitting a setext heading
+    back into a paragraph and a thematic break.
+    """
     had_trailing_newline = text.endswith("\n")
     lines = text[:-1].split("\n") if had_trailing_newline else text.split("\n")
 
@@ -632,8 +649,9 @@ def analyse(text: str) -> tuple[list[Violation], str]:
 
         # Class B — a thematic break that CommonMark will read as a setext H2.
         if HR_DASH_RE.match(content) and prev_open:
-            violations.append(Violation(i + 1, "setext-rule", SETEXT_MSG))
-            out.append("> " * depth if depth else "")
+            violations.append(Violation(i + 1, SETEXT_RULE, SETEXT_MSG))
+            if SETEXT_RULE in repair:
+                out.append("> " * depth if depth else "")
             out.append(raw)
             i += 1
             prev_open = False
@@ -659,12 +677,15 @@ def analyse(text: str) -> tuple[list[Violation], str]:
                 i += 1
                 prev_open = True
                 continue
-            violations.append(Violation(i + 1, "split-block", SPLIT_MSG))
-            # Keep this line's own trailing hard break: stripping it deletes the
-            # `<br>` between it and the line below, which is authored intent and
-            # not whitespace the renderer is free to collapse.
-            tail = content.lstrip() if HARD_BREAK_RE.search(content) else content.strip()
-            out[-1] = out[-1].rstrip() + " " + tail
+            violations.append(Violation(i + 1, SPLIT_BLOCK, SPLIT_MSG))
+            if SPLIT_BLOCK in repair:
+                # Keep this line's own trailing hard break: stripping it deletes
+                # the `<br>` between it and the line below, which is authored
+                # intent and not whitespace the renderer is free to collapse.
+                tail = content.lstrip() if HARD_BREAK_RE.search(content) else content.strip()
+                out[-1] = out[-1].rstrip() + " " + tail
+            else:
+                out.append(raw)
             i += 1
             prev_open = True
             continue
@@ -848,10 +869,99 @@ def compare_structure(before: str, after: str) -> list[str]:
     if a["tables"] != b["tables"]:
         # Rejoining a split row legitimately repairs a table that was broken
         # before, so a dimension change is only a defect when the result is
-        # still malformed. A well-formed table has one column count throughout.
-        if _malformed(b["tables"]) or not _malformed(a["tables"]):
+        # still malformed. A well-formed table has one column count throughout —
+        # but a table that disappeared entirely leaves an empty, vacuously
+        # well-formed set behind, so the count has to match too.
+        if len(a["tables"]) != len(b["tables"]) or _malformed(b["tables"]) or not _malformed(a["tables"]):
             diffs.append(f"table dimensions changed: {a['tables']} -> {b['tables']}")
     return diffs
+
+
+# --------------------------------------------------------------------------
+# The --fix safety net
+#
+# Everything above is a hand-written approximation of CommonMark's block
+# grammar, and its container model has a long tail: two review rounds on PR #226
+# found real corruptions in it — a fence inside a list item, a tab-indented
+# nested list, a lazy continuation into an empty quoted item. Each was fixed,
+# and that is exactly the reason not to trust the next one. `--check` can only
+# be wrong about a finding; `--fix` writes files, and CLAUDE.md tells every
+# agent in this repository to run it.
+#
+# So a rewrite is verified before it is written: render the original and the
+# rewrite with a real CommonMark+GFM parser and compare the HTML the way a
+# browser resolves it — whitespace collapsed outside verbatim elements, byte
+# for byte inside them. If they differ, the file is not written and the refusal
+# is reported.
+#
+# The split of responsibilities is deliberate. `--check` stays standard-library
+# only: CI runs it on a bare `setup-python` that installs nothing, and a check
+# that never writes cannot corrupt anything. `--fix` requires markdown-it-py and
+# refuses to run without it, rather than warning and writing anyway — a warning
+# in a scrolling agent log is not a safety net, and the install is one line.
+# --------------------------------------------------------------------------
+
+# Elements whose whitespace a browser preserves. Everywhere else a newline and a
+# space render the same, which is the whole premise of soft wrapping.
+VERBATIM_HTML_RE = re.compile(r"<(pre|textarea|script|style)\b.*?</\1>", re.DOTALL | re.IGNORECASE)
+
+RENDERER_MISSING = (
+    "--fix needs markdown-it-py to verify its own rewrite before writing it: "
+    "`pip install markdown-it-py` (or `pip install -e '.[dev]'`). "
+    "--check needs nothing beyond the standard library."
+)
+
+
+def load_renderer():
+    """The CommonMark+GFM renderer used to verify a rewrite, or None if absent."""
+    try:
+        from markdown_it import MarkdownIt
+    except ImportError:
+        return None
+    # linkify is off: it rewrites bare URLs into links, which is a rendering
+    # difference this comparison has no interest in.
+    return MarkdownIt("gfm-like").disable("linkify")
+
+
+def canonical_html(html: str) -> str:
+    """Rendered HTML reduced to what a browser actually shows.
+
+    Outside `<pre>` and friends every run of whitespace is one space, so a source
+    newline and a source space are indistinguishable; inside them whitespace is
+    significant and is kept exactly.
+    """
+    parts: list[str] = []
+    pos = 0
+    for m in VERBATIM_HTML_RE.finditer(html):
+        parts.append(" ".join(html[pos : m.start()].split()))
+        parts.append(m.group(0))
+        pos = m.end()
+    parts.append(" ".join(html[pos:].split()))
+    return " ".join(p for p in parts if p)
+
+
+def renders_the_same(before: str, after: str, renderer) -> bool:
+    """True if `before` and `after` render to the same thing."""
+    return canonical_html(renderer.render(before)) == canonical_html(renderer.render(after))
+
+
+def unsafe_fix_reason(before: str, after: str, renderer) -> str | None:
+    """Why writing `after` over `before` is unsafe, or None when it is safe.
+
+    The two repair classes are checked differently because they promise
+    different things. A class-A rejoin promises the rendered output does not
+    change, so it is held to exactly that. The class-B repair changes it on
+    purpose — a setext heading becomes a paragraph and a thematic break — so it
+    is held to the structural rule that a setext heading may disappear but never
+    appear.
+    """
+    joined = analyse(before, repair=(SPLIT_BLOCK,))[1]
+    if not renders_the_same(before, joined, renderer):
+        return "rejoining its split blocks would change the rendered output"
+    diffs = compare_structure(before, after)
+    if diffs:
+        return "; ".join(diffs)
+    return None
 
 
 # --------------------------------------------------------------------------
@@ -893,7 +1003,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     mode = p.add_mutually_exclusive_group()
     mode.add_argument("--check", action="store_true", help="report violations (default)")
-    mode.add_argument("--fix", action="store_true", help="rewrite files in place, whitespace only")
+    mode.add_argument(
+        "--fix",
+        action="store_true",
+        help="rewrite files in place, whitespace only; needs markdown-it-py to verify each rewrite",
+    )
     scope = p.add_mutually_exclusive_group(required=True)
     scope.add_argument("--files", nargs="+", metavar="PATH", help="check exactly these paths")
     scope.add_argument("--changed", metavar="REF", help="check only the .md files this branch changes against REF")
@@ -919,8 +1033,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.equivalence:
         return _run_equivalence(args.equivalence, paths, root)
 
+    renderer = None
+    if args.fix:
+        renderer = load_renderer()
+        if renderer is None:
+            print(f"error: {RENDERER_MISSING}", file=sys.stderr)
+            return 2
+
     failures = 0
     fixed_files = 0
+    refused = 0
     for rel in paths:
         path = root / rel
         if not path.exists():
@@ -929,6 +1051,11 @@ def main(argv: list[str] | None = None) -> int:
         violations, fixed = analyse(text)
         if args.fix:
             if fixed != text:
+                reason = unsafe_fix_reason(text, fixed, renderer)
+                if reason is not None:
+                    refused += 1
+                    print(f"{rel}: REFUSED, not rewritten — {reason}")
+                    continue
                 path.write_text(fixed, encoding="utf-8")
                 fixed_files += 1
                 print(f"{rel}: fixed {len(violations)} violation(s)")
@@ -941,6 +1068,13 @@ def main(argv: list[str] | None = None) -> int:
     print(f"\n{len(paths)} file(s) checked ({scope_name}); {len(skipped)} exempt.", file=sys.stderr)
     if args.fix:
         print(f"{fixed_files} file(s) rewritten.", file=sys.stderr)
+        if refused:
+            print(
+                f"{refused} file(s) refused: the rewrite would have changed the rendered output, "
+                "so it was not written. Soft-wrap those by hand and report the shape.",
+                file=sys.stderr,
+            )
+            return 1
         return 0
     if failures:
         print(f"{failures} violation(s). Run with --fix to rewrite.", file=sys.stderr)
@@ -950,6 +1084,7 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _run_equivalence(ref: str, paths: list[str], root: Path) -> int:
+    renderer = load_renderer()
     failures = 0
     compared = 0
     for rel in paths:
@@ -963,10 +1098,14 @@ def _run_equivalence(ref: str, paths: list[str], root: Path) -> int:
         after = path.read_text(encoding="utf-8")
         compared += 1
         diffs = compare_structure(before, after)
+        if renderer is not None and not renders_the_same(before, after, renderer):
+            diffs.append("rendered output changed")
         for d in diffs:
             print(f"{rel}: {d}")
         failures += len(diffs)
     print(f"\n{compared} file(s) compared against {ref}.", file=sys.stderr)
+    if renderer is None:
+        print(f"Structural comparison only — {RENDERER_MISSING}", file=sys.stderr)
     if failures:
         print(f"{failures} structural difference(s) — the edit was not whitespace-only.", file=sys.stderr)
         return 1
