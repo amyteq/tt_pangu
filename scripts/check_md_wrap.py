@@ -217,6 +217,11 @@ def html_block_start(content: str, interrupting: bool) -> str | None:
     line opens no HTML block at all. `interrupting` says a paragraph is open, in
     which case type 7 — any bare complete tag on its own line — is paragraph
     text rather than a block, per CommonMark.
+
+    The content passed in is a line with its blockquote markers and, for a block
+    that opens on a list-marker line, its list marker already stripped: all five
+    start conditions are anchored at the container's content column, not at the
+    margin.
     """
     if HTML_CDATA_RE.match(content):
         return "]]>"
@@ -234,6 +239,28 @@ def html_block_start(content: str, interrupting: bool) -> str | None:
     if not interrupting and HTML_TYPE7_RE.match(content):
         return ENDS_AT_BLANK_LINE
     return None
+
+
+def html_block_end(lines: list[str], start: int, terminator: str, depth: int, list_indent: int) -> int:
+    """Index just past the HTML block opening at `lines[start]`.
+
+    An HTML block cannot outlive the container holding it, so this stops at a
+    non-blank line shallower than the blockquote it opened in, or indented less
+    than the content column of the list item it opened in. Without that an
+    unterminated block consumed the rest of the file.
+    """
+    i = start
+    while i < len(lines):
+        body_depth, body = split_quote(lines[i])
+        if i > start and body.strip() and (body_depth < depth or (list_indent and indent_of(body) < list_indent)):
+            break
+        i += 1
+        if terminator == ENDS_AT_BLANK_LINE:
+            if not body.strip():
+                break
+        elif terminator in body.lower():
+            break
+    return i
 
 
 # GFM makes the leading and trailing pipe of a table row optional, so a table
@@ -677,16 +704,29 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
         elif list_indent is not None and not prev_open and indent_of(content) < list_indent:
             list_indent = None
 
-        # `- ``` ` opens that item's fenced code block on the marker line
-        # itself. Reading it as an item holding the text ``` made every line of
-        # the block the item's own text, and `--fix` flattened them into it.
+        # A block can open on the marker line itself, and then the item holds a
+        # block rather than text. `- ``` ` opens the item's fenced code block;
+        # `- <!--` opens an HTML block that runs to its `-->` several lines
+        # below. Reading either as an item whose text happens to be `` ``` `` or
+        # `<!--` made the lines below it the item's own text, and `--fix`
+        # flattened content ADR-0024 exempts into one line.
         if marker:
-            opened = fence_open(content[marker.end() :])
+            inner = content[marker.end() :]
+            opened = fence_open(inner)
             if opened:
                 fence = (opened[0], list_indent or 0)
                 fence_quote_depth, fence_list_indent = depth, list_indent or 0
                 out.append(raw)
                 i += 1
+                prev_open = False
+                prev_depth = depth
+                table_cols, bare_table = None, False
+                continue
+            terminator = html_block_start(inner, interrupting=False)
+            if terminator is not None:
+                end = html_block_end(lines, i, terminator, depth, list_indent or 0)
+                out.extend(lines[i:end])
+                i = end
                 prev_open = False
                 prev_depth = depth
                 table_cols, bare_table = None, False
@@ -739,21 +779,9 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
         # interrupt an open paragraph; type 7 may not, and is left as prose.
         terminator = html_block_start(content, interrupting=prev_open)
         if terminator is not None:
-            start = i
-            while i < len(lines):
-                body_depth, body = split_quote(lines[i])
-                if i > start and body.strip() and body_depth < depth:
-                    # The blockquote holding this block has ended, and an HTML
-                    # block cannot outlive its container. An unclosed `<pre>`
-                    # inside a quote used to consume the rest of the file.
-                    break
-                out.append(lines[i])
-                i += 1
-                if terminator == ENDS_AT_BLANK_LINE:
-                    if not body.strip():
-                        break
-                elif terminator in body.lower():
-                    break
+            end = html_block_end(lines, i, terminator, depth, list_indent or 0)
+            out.extend(lines[i:end])
+            i = end
             prev_open = False
             prev_depth = depth
             table_cols, bare_table = None, False
