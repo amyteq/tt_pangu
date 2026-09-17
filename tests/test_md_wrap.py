@@ -747,3 +747,26 @@ def test_equivalence_detects_a_flattened_pipe_less_table():
 def test_equivalence_holds_across_a_pipe_less_table_reflow():
     before = "Prose that is hard\nwrapped.\n\na | b\n--- | ---\nc | d\n"
     assert mdwrap.compare_structure(before, fixed(before)) == []
+
+
+# Round-2 finding F007: `--equivalence` passed corruption of its own. The sound
+# check is now the renderer; these close the two structural holes that were
+# cheap to close.
+
+
+def test_equivalence_detects_a_table_that_vanished_entirely():
+    """An empty table set is vacuously well-formed, so the count has to match too."""
+    before = "| a | b |\n|---|---|\n| c |\n"
+    after = "a b --- --- c\n"
+    assert any("table dimensions changed" in d for d in mdwrap.compare_structure(before, after))
+
+
+def test_equivalence_detects_a_deleted_hard_break():
+    before = "intro line\nvalue: `x`  \nnext line\n"
+    after = "intro line value: `x` next line\n"
+    assert "authored hard breaks changed: 1 -> 0" in mdwrap.compare_structure(before, after)
+
+
+def test_equivalence_allows_a_reflow_that_carries_the_hard_break_along():
+    before = "intro line\nvalue: `x`  \nnext line\n"
+    assert mdwrap.compare_structure(before, fixed(before)) == []

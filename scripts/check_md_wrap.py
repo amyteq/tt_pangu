@@ -737,6 +737,7 @@ def structure(text: str) -> dict:
     tables: list[tuple[int, ...]] = []
     table_rows: list[int] = []
     bare_table = False
+    hard_breaks = 0
     # The last line of an open top-level paragraph, if one is open: only such a
     # paragraph can be turned into a setext heading by a `---` below it.
     open_paragraph: str | None = None
@@ -796,6 +797,10 @@ def structure(text: str) -> dict:
             continue
 
         stream.append(content)
+        # An authored hard break renders as a `<br>`; a join that swallows one
+        # deletes a visible line break, so count them.
+        if HARD_BREAK_RE.search(content):
+            hard_breaks += 1
         links.extend(m.group("target") for m in INLINE_LINK_RE.finditer(content))
         h = re.match(r"^ {0,3}(#{1,6})(?: +)(.*?)\s*#*\s*$", content)
         if h:
@@ -832,6 +837,7 @@ def structure(text: str) -> dict:
         "list_items": len(list_shape),
         "list_shape": list_shape,
         "tables": tables,
+        "hard_breaks": hard_breaks,
     }
 
 
@@ -860,6 +866,8 @@ def compare_structure(before: str, after: str) -> list[str]:
 
     if a["code"] != b["code"]:
         diffs.append("fenced code content changed")
+    if a["hard_breaks"] != b["hard_breaks"]:
+        diffs.append(f"authored hard breaks changed: {a['hard_breaks']} -> {b['hard_breaks']}")
     if a["links"] != b["links"]:
         diffs.append("link targets changed")
     if a["list_items"] != b["list_items"]:
