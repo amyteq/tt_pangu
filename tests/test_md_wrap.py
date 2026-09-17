@@ -171,6 +171,26 @@ def test_table_delimiter_row_is_not_a_setext_rule():
     assert kinds("| a | b |\n|---|---|\n| c | d |\n") == []
 
 
+def test_setext_h1_underline_is_valid_markdown_not_a_split_block():
+    """`===` under a paragraph is an unambiguous setext H1, and this gate has no
+    heading-style opinions.
+
+    Reporting it offered `Title ===` as the repair, which destroys the heading;
+    the renderer refused that rewrite, so the finding was an unfixable red build.
+    Regression for round-3 finding F013 on PR #226.
+    """
+    for src in ("Title\n===\n", "Some Title\n=========\n\nBody text.\n"):
+        assert kinds(src) == []
+        assert fixed(src) == src
+
+
+def test_a_hard_wrapped_setext_h1_is_still_joined():
+    """The other direction: the heading's own text may be split, and that is a violation."""
+    src = "A heading split\nover two lines\n===\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "A heading split over two lines\n===\n"
+
+
 # --------------------------------------------------------------------------
 # Blocks where line breaks are semantic
 # --------------------------------------------------------------------------
@@ -394,6 +414,26 @@ def test_link_reference_definition_title_may_contain_an_escaped_delimiter():
     assert fixed(src) == src
 
 
+def test_link_reference_definition_title_may_span_physical_lines():
+    """A title runs to its closing delimiter, however many lines that takes.
+
+    Stopping at the first line made `continued"` the head of a paragraph, so the
+    prose below it was reported and joined onto invisible metadata — and the
+    renderer then refused the rewrite, leaving a red build with no repair.
+    Regression for round-3 finding F004 on PR #226.
+    """
+    src = '[foo]: /url "title\ncontinued"\npara one\npara two\n'
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == '[foo]: /url "title\ncontinued"\npara one para two\n'
+
+
+def test_a_title_that_does_not_parse_leaves_the_line_as_prose():
+    """`[foo]: /url "title" ok` is a paragraph to CommonMark, junk and all."""
+    src = '[foo]: /url "title" ok\nnext line\n'
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == '[foo]: /url "title" ok next line\n'
+
+
 def test_link_reference_definition_cannot_interrupt_a_paragraph():
     """CommonMark: a definition does not interrupt a paragraph, so this is prose.
 
@@ -459,6 +499,25 @@ def test_a_non_empty_quoted_list_item_is_still_continued_lazily():
     src = "> - item text\ncontinues\n"
     assert kinds(src) == ["split-block"]
     assert fixed(src) == "> - item text continues\n"
+
+
+@pytest.mark.parametrize(
+    "item",
+    ["<!-- c -->", "```", "---", "# h", ">"],
+    ids=["html-comment", "fence", "thematic-break", "heading", "empty-nested-quote"],
+)
+def test_a_quoted_list_item_holding_no_paragraph_does_not_swallow_the_line_below(item):
+    """Lazy continuation continues a paragraph, and none of these items holds one.
+
+    An item is not continuable just because it is non-empty: a comment, a fence,
+    a break, a heading and an empty nested quote are all complete on their line.
+    Joining the unquoted paragraph below onto one moved it into the blockquote,
+    the renderer refused the rewrite, and CI went red with nothing `--fix` could
+    do. Regression for round-3 finding F006 on PR #226.
+    """
+    src = f"> - {item}\nplain paragraph\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
 
 
 def test_tab_indented_nested_list_is_not_flattened():
