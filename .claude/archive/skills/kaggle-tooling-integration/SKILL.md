@@ -3,6 +3,8 @@ name: kaggle-tooling-integration
 description: Use when integrating or invoking Kaggle helper scripts such as notebook conversion, kernel push, competition submission, result retrieval, and experiment artifact recording.
 ---
 
+> **Archived (issue #192) — not loaded by any harness.** Split, then retired: the submission gate and the required-facts list moved to `kg-submit`; the kernel/version model, flat structure, per-account concurrency and the in-kernel mount-path resolver moved to `docs/tooling/kaggle-kernel-ops.md`. Its "do not submit until explicit approval is given" wording is *unscoped* — it predates ADR-0022 §5 and is superseded by `kg-submit`, which says which agent each rule binds. Kept as history: read it as a record of what the project once instructed, not as instruction. See `.claude/archive/skills/README.md`.
+
 # Kaggle Tooling Integration Skill
 
 ## Purpose
