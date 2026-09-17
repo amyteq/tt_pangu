@@ -434,3 +434,35 @@ def test_equivalence_allows_a_repaired_table():
     """Rejoining a split row repairs a table that was malformed before."""
     before = "| a | b |\n|---|---|\n| a long cell that\nkept going | d |\n"
     assert mdwrap.compare_structure(before, fixed(before)) == []
+
+
+# Round-1 finding F007 on PR #226: `--equivalence` passed all three of these.
+
+
+def test_equivalence_detects_lost_list_nesting():
+    before = "- outer\n  - inner one\n  - inner two\n"
+    after = "- outer\n- inner one\n- inner two\n"
+    assert "list nesting changed" in mdwrap.compare_structure(before, after)
+
+
+def test_equivalence_detects_a_paragraph_becoming_a_setext_heading():
+    before = "Some closing prose.\n\n---\n\nNext section.\n"
+    after = "Some closing prose.\n---\n\nNext section.\n"
+    assert any("setext heading" in d for d in mdwrap.compare_structure(before, after))
+
+
+def test_equivalence_allows_the_class_b_repair():
+    """The reverse direction — removing a setext heading — is what `--fix` does."""
+    before = "Some closing prose.\n---\n\nNext section.\n"
+    assert mdwrap.compare_structure(before, fixed(before)) == []
+
+
+def test_equivalence_detects_a_flattened_pipe_less_table():
+    before = "a | b\n--- | ---\nc | d\n"
+    after = "a | b --- | --- c | d\n"
+    assert any("table dimensions changed" in d for d in mdwrap.compare_structure(before, after))
+
+
+def test_equivalence_holds_across_a_pipe_less_table_reflow():
+    before = "Prose that is hard\nwrapped.\n\na | b\n--- | ---\nc | d\n"
+    assert mdwrap.compare_structure(before, fixed(before)) == []
