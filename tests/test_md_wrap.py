@@ -554,6 +554,52 @@ def test_a_list_item_whose_text_merely_starts_with_a_tag_is_still_joined():
     assert fixed(src) == "- <b>bold</b> and more text continuing\n"
 
 
+@pytest.mark.parametrize(
+    "src",
+    [
+        "- item\n<!--\nraw one\nraw two\n-->\n",  # type 2, runs to its own terminator
+        "- item\n<div>\nraw one\nraw two\n</div>\n",  # type 6, runs to a blank line
+        "- item\n<pre>\nraw one\nraw two\n</pre>\n",  # type 1, raw text
+        "1. item\n<!--\nraw one\nraw two\n-->\n",  # an ordered marker too
+    ],
+)
+def test_an_html_block_outdented_from_a_list_is_never_inspected(src):
+    """A block at the margin below a list item belongs to the document, not the item.
+
+    Both cmark-gfm and markdown-it close the list on the opening line and make
+    the block top-level. The engine kept handing it the item's content column, so
+    `html_block_end` found the very next line "outdented from the item" and ended
+    the block after one line — everything below it was reported and folded as
+    prose. Only a paragraph continues lazily across a missing container prefix;
+    a block opener does not. Regression for round-5 finding F020 on PR #226.
+    """
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+@pytest.mark.parametrize(
+    "src",
+    [
+        "- > <!--\n  > comment one\n  > comment two\n  > -->\n",  # item holds quote holds comment
+        "- > ```\n  > code one\n  > code two\n  > ```\n",  # and a fence
+        "- > quoted text\n  >\n  >     code one\n  >     code two\n",  # and indented code
+        "> - ```\n>   code one\n>   code two\n>   ```\n",  # the reverse nesting, as a guard
+    ],
+)
+def test_a_block_inside_a_quote_inside_a_list_item_is_never_inspected(src):
+    """Composed containers have to be peeled in the order they were written.
+
+    `> - x` is a quote holding an item and `- > x` an item holding a quote, and
+    the engine only understood the first: it stripped every quote marker and then
+    measured indentation, so a continuation line of the second read as unindented
+    prose and the exempt block it belongs to ended on its opening line. Both
+    renderers agree on all four shapes. Regression for round-5 finding F021 on
+    PR #226; the last case is the direction that already worked.
+    """
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
 def test_link_reference_definition_title_on_the_next_line_is_not_prose():
     """The title line renders as nothing; joining a paragraph onto it made it visible.
 
