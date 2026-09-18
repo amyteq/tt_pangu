@@ -242,18 +242,20 @@ def html_block_start(content: str, interrupting: bool) -> str | None:
     return None
 
 
-def html_block_end(lines: list[str], start: int, terminator: str, depth: int, list_indent: int) -> int:
+def html_block_end(lines: list[str], start: int, terminator: str, depth: int, item: tuple[int, int] | None) -> int:
     """Index just past the HTML block opening at `lines[start]`.
 
     An HTML block cannot outlive the container holding it, so this stops at a
-    non-blank line shallower than the blockquote it opened in, or indented less
-    than the content column of the list item it opened in. Without that an
-    unterminated block consumed the rest of the file.
+    non-blank line shallower than the blockquote it opened in, or one that has
+    left the list item it opened in — `item` is that item, as `item_holds`
+    understands it. Without that an unterminated block consumed the rest of the
+    file. Lazy continuation is no help here: it carries a paragraph and nothing
+    else, so an HTML block really does end where its container does.
     """
     i = start
     while i < len(lines):
         body_depth, body = split_quote(lines[i])
-        if i > start and body.strip() and (body_depth < depth or (list_indent and indent_of(body) < list_indent)):
+        if i > start and body.strip() and (body_depth < depth or (item is not None and not item_holds(lines[i], item))):
             break
         i += 1
         if terminator == ENDS_AT_BLANK_LINE:
@@ -380,6 +382,44 @@ def indent_of(content: str) -> int:
     return column_of(content[: len(content) - len(content.lstrip(" \t"))])
 
 
+def strip_quotes(line: str, count: int) -> str | None:
+    """`line` with exactly `count` blockquote markers removed, or None if it has fewer."""
+    rest = line
+    for _ in range(count):
+        m = QUOTE_RE.match(rest)
+        if not m:
+            return None
+        rest = rest[m.end() :]
+    return rest
+
+
+def item_holds(line: str, item: tuple[int, int] | None) -> bool:
+    """True if this non-blank line is still inside the open list item `item`.
+
+    An item's content is whatever is indented to its content column, and that
+    column is measured *inside* whatever encloses the item: an item in a
+    blockquote is indented from the quote's own content, not from the margin. So
+    the enclosing markers come off first — `item` is the (quote depth, content
+    column) pair recording how many there are — and the indentation is measured
+    on what is left.
+
+    Which is why the two nestings have to be peeled in the order they were
+    written. `> - x` is a quote holding an item, `- > x` an item holding a quote;
+    stripping every quote marker first and only then measuring reads the second
+    one's continuation lines as unindented prose, and the block they belong to
+    ends on its opening line.
+
+    A line carrying fewer quote markers than the item's container has left the
+    item. Whether it nevertheless continues the item's paragraph lazily is a
+    separate question, and the caller's.
+    """
+    if item is None:
+        return False
+    depth, indent = item
+    rest = strip_quotes(line, depth)
+    return rest is not None and indent_of(rest) >= indent
+
+
 def fence_open(content: str, max_indent: int = 3) -> tuple[str, int] | None:
     """(fence run, indent) if this line opens a fenced block, else None.
 
@@ -460,6 +500,25 @@ def is_block_start(content: str, *, in_paragraph: bool = True, container_indent:
         or TABLE_RE.match(content)
         or (not in_paragraph and LINKDEF_RE.match(content))
     )
+
+
+def continues_lazily(content: str, container_indent: int) -> bool:
+    """True if a line outdented from an open list item still continues its paragraph.
+
+    CommonMark's lazy continuation carries a *paragraph* across a missing
+    container prefix and nothing else, so a line that opens a block of its own
+    has left the item however little it is indented. Reading an interrupting
+    block opener as still inside the item handed that block the item's content
+    column, and an HTML block that outdented from the list was then cut short
+    after its opening line — the lines below it, which ADR-0024 exempts, were
+    reported and folded as prose.
+
+    The caller has already established that a paragraph is open. HTML is asked
+    about separately because `is_block_start` leaves it out by design.
+    """
+    if html_block_start(content, interrupting=True) is not None:
+        return False
+    return not is_block_start(content, container_indent=container_indent)
 
 
 def ends_table(content: str) -> bool:
@@ -660,9 +719,9 @@ def scan(lines: list[str]) -> list[ScanLine]:
     else, which is what stops that happening again.
 
     The state is deliberately thin — quote depth, the innermost list item's
-    content column, the open fence and the open table — and it is an
-    approximation of CommonMark's block grammar rather than an implementation of
-    it. The `--fix` safety net exists because of that.
+    position, the open fence and the open table — and it is an approximation of
+    CommonMark's block grammar rather than an implementation of it. The `--fix`
+    safety net exists because of that.
     """
     records: list[ScanLine] = []
     # The open fenced block, if any: its fence run and the column it opened at,
@@ -671,7 +730,7 @@ def scan(lines: list[str]) -> list[ScanLine]:
     # line below it from the gate.
     fence: tuple[str, int] | None = None
     fence_quote_depth = 0
-    fence_list_indent = 0
+    fence_item: tuple[int, int] | None = None
     frontmatter_last = frontmatter_end(lines)
     prev_open = False
     prev_depth = 0
@@ -681,11 +740,12 @@ def scan(lines: list[str]) -> list[ScanLine]:
     # had already left the item holding it.
     table_cols: int | None = None
     bare_table = False
-    bare_table_indent = 0
-    # Content column of the innermost open list item — the engine's one piece of
-    # container state, and the only way to tell an item's own code block from
-    # indented text continuing the item.
-    list_indent: int | None = None
+    bare_table_item: tuple[int, int] | None = None
+    # The innermost open list item, as (quote depth, content column) — the
+    # engine's one piece of list state, and the only way to tell an item's own
+    # code block from indented text continuing the item. Both halves are needed
+    # because a quote may enclose the item or sit inside it; see `item_holds`.
+    item: tuple[int, int] | None = None
     # The content of the last line emitted, which a continuation would join
     # onto. Not always the previous source line: a row already completed by an
     # earlier join is complete, and the line after it opens the next row.
@@ -695,6 +755,15 @@ def scan(lines: list[str]) -> list[ScanLine]:
         raw: str, content: str, depth: int, role: str, in_table: bool = False, is_item: bool = False, tail: str = ""
     ) -> None:
         records.append(ScanLine(raw, content, depth, role, in_table, is_item, tail))
+
+    def own_indent(depth: int) -> int:
+        """The open item's content column in the frame of a line at quote depth `depth`.
+
+        Zero where no item is open, and zero inside a blockquote nested in the
+        item: that quote's markers have already consumed the item's indentation,
+        so within it the item imposes none of its own.
+        """
+        return item[1] if item is not None and depth == item[0] else 0
 
     i = 0
     while i < len(lines):
@@ -715,7 +784,7 @@ def scan(lines: list[str]) -> list[ScanLine]:
         # reprocessed at the level it actually sits on.
         if fence is not None:
             blank = not content.strip()
-            left_item = bool(fence_list_indent) and not blank and indent_of(content) < fence_list_indent
+            left_item = fence_item is not None and not blank and not item_holds(raw, fence_item)
             if depth < fence_quote_depth or left_item:
                 fence = None
             else:
@@ -729,9 +798,12 @@ def scan(lines: list[str]) -> list[ScanLine]:
 
         opened = fence_open(content)
         if opened:
+            if not item_holds(raw, item):
+                # A fence outdented from the item closes the list it interrupts,
+                # and the block that follows belongs to whatever held the list.
+                item = None
             fence = opened
-            fence_quote_depth = depth
-            fence_list_indent = list_indent if list_indent and indent_of(content) >= list_indent else 0
+            fence_quote_depth, fence_item = depth, item
             emit(raw, content, depth, FENCE)
             i += 1
             prev_open, prev_depth, open_line = False, depth, content
@@ -749,16 +821,19 @@ def scan(lines: list[str]) -> list[ScanLine]:
         # column belongs to the item; one indented less, with nothing open, has
         # left it.
         marker = LIST_MARKER_RE.match(content) if LIST_RE.match(content) else None
-        if marker and indent_of(content) >= (list_indent or 0) + 4:
+        if marker and indent_of(content) >= own_indent(depth) + 4:
             # Four columns past the open item's content column is no longer a
             # marker: that deep it is an indented code block, or — with a
             # paragraph open above — a lazy continuation of it. A tab is four
             # columns, which is how a tab-indented `-` reached this rule.
             marker = None
         if marker:
-            list_indent = list_content_indent(content)
-        elif list_indent is not None and not prev_open and indent_of(content) < list_indent:
-            list_indent = None
+            item = (depth, list_content_indent(content))
+        elif item is not None and not item_holds(raw, item):
+            # Outdented from the item. Only an open paragraph survives that, and
+            # only while the line opens no block of its own.
+            if not (prev_open and continues_lazily(content, own_indent(depth))):
+                item = None
 
         # A block can open on the marker line itself, and then the item holds a
         # block rather than text. `- ``` ` opens the item's fenced code block;
@@ -766,12 +841,18 @@ def scan(lines: list[str]) -> list[ScanLine]:
         # below. Reading either as an item whose text happens to be `` ``` `` or
         # `<!--` made the lines below it the item's own text, and `--fix`
         # flattened content ADR-0024 exempts into one line.
+        #
+        # The item's content may itself open a blockquote, so the marker comes
+        # off and then any quote markers behind it: `- > <!--` is an item
+        # holding a quote holding a comment, and the block it opens lives at the
+        # composed depth of both containers.
         if marker:
-            inner = content[marker.end() :]
+            inner_depth, inner = split_quote(content[marker.end() :])
+            inner_depth += depth
             opened = fence_open(inner)
             if opened:
-                fence = (opened[0], list_indent or 0)
-                fence_quote_depth, fence_list_indent = depth, list_indent or 0
+                fence = (opened[0], own_indent(inner_depth))
+                fence_quote_depth, fence_item = inner_depth, item
                 emit(raw, content, depth, FENCE, is_item=True)
                 i += 1
                 prev_open, prev_depth, open_line = False, depth, content
@@ -779,9 +860,9 @@ def scan(lines: list[str]) -> list[ScanLine]:
                 continue
             terminator = html_block_start(inner, interrupting=False)
             if terminator is not None:
-                end = html_block_end(lines, i, terminator, depth, list_indent or 0)
+                end = html_block_end(lines, i, terminator, inner_depth, item)
                 for k in range(i, end):
-                    emit(lines[k], split_quote(lines[k])[1], depth, HTML, is_item=k == i)
+                    emit(lines[k], split_quote(lines[k])[1], inner_depth, HTML, is_item=k == i)
                 i = end
                 prev_open, prev_depth, open_line = False, depth, records[-1].content
                 table_cols, bare_table = None, False
@@ -793,7 +874,7 @@ def scan(lines: list[str]) -> list[ScanLine]:
         # interrupts the table, or until the container holding it ends: a bare
         # table in a list item used to swallow the prose below the whole list.
         if bare_table:
-            left_item = bool(bare_table_indent) and indent_of(content) < bare_table_indent
+            left_item = bare_table_item is not None and not item_holds(raw, bare_table_item)
             if depth == prev_depth and not left_item and not ends_table(content):
                 emit(raw, content, depth, TEXT, in_table=True, is_item=bool(marker))
                 i += 1
@@ -806,7 +887,7 @@ def scan(lines: list[str]) -> list[ScanLine]:
         # it starts four columns past the item's *content* column, not four past
         # the margin — `10. item` puts its own paragraphs at column 4, and
         # reading those as code let them be hard-wrapped straight through CI.
-        if not prev_open and indent_of(content) >= (list_indent or 0) + 4:
+        if not prev_open and indent_of(content) >= own_indent(depth) + 4:
             emit(raw, content, depth, INDENTED_CODE)
             i += 1
             prev_depth, open_line = depth, content
@@ -819,11 +900,11 @@ def scan(lines: list[str]) -> list[ScanLine]:
         #
         #   10. item          <- content column 4
         #       ```           <- a fence, and everything to its closer is code
-        if prev_open and list_indent is not None and indent_of(content) >= list_indent:
+        if prev_open and item is not None and indent_of(content) >= own_indent(depth):
             opened = fence_open(content, max_indent=indent_of(content))
             if opened:
                 fence = opened
-                fence_quote_depth, fence_list_indent = depth, list_indent
+                fence_quote_depth, fence_item = depth, item
                 emit(raw, content, depth, FENCE)
                 i += 1
                 prev_open, prev_depth, open_line = False, depth, content
@@ -834,7 +915,7 @@ def scan(lines: list[str]) -> list[ScanLine]:
         # interrupt an open paragraph; type 7 may not, and is left as prose.
         terminator = html_block_start(content, interrupting=prev_open)
         if terminator is not None:
-            end = html_block_end(lines, i, terminator, depth, list_indent or 0)
+            end = html_block_end(lines, i, terminator, depth, item)
             for k in range(i, end):
                 emit(lines[k], split_quote(lines[k])[1], depth, HTML)
             i = end
@@ -863,7 +944,7 @@ def scan(lines: list[str]) -> list[ScanLine]:
                 if cols is not None:
                     table_cols = cols
                     bare_table = not TABLE_RE.match(content)
-                    bare_table_indent = list_indent or 0
+                    bare_table_item = item
                     emit(raw, content, depth, TEXT, in_table=True, is_item=bool(marker))
                     i += 1
                     prev_open, prev_depth, open_line = not bare_table, depth, content
@@ -888,7 +969,7 @@ def scan(lines: list[str]) -> list[ScanLine]:
         # Class A — a block continued on the next physical line. A shallower
         # quote depth still continues it: CommonMark's lazy continuation lets a
         # wrapped blockquote paragraph drop the `>` on its second line.
-        if prev_open and depth <= prev_depth and not is_block_start(content, container_indent=list_indent or 0):
+        if prev_open and depth <= prev_depth and not is_block_start(content, container_indent=own_indent(depth)):
             if table_cols is not None and len(split_table_cells(open_line)) >= table_cols:
                 # Inside a table whose previous row is already complete, a line
                 # without a leading pipe is the next row — GFM makes that pipe
