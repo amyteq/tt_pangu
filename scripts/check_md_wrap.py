@@ -1323,7 +1323,7 @@ RAW_TEXT_TAGS = ("script", "style", "textarea")
 # past a pattern anchored on the literal text `white-space` followed by a colon,
 # and `--fix` then joined across a newline the reader can see. So the
 # declarations are read out rather than matched.
-CSS_COMMENT_RE = re.compile(r"/\*.*?(?:\*/|$)", re.DOTALL)
+#
 # A CSS escape is `\` plus one to six hex digits, which may absorb one following
 # whitespace character, or `\` plus any other single character taken literally.
 CSS_ESCAPE_RE = re.compile(r"\\(?:([0-9A-Fa-f]{1,6})[ \t\n\r\f]?|(.))", re.DOTALL)
@@ -1486,17 +1486,20 @@ def css_declarations(block: str) -> list[tuple[str, str]]:
     strings — a `;` inside `content: "a;b"` separates nothing — and parentheses,
     so the `:` inside `(max-width: 40em)` is not a declaration's colon.
 
-    Comments are replaced by a space rather than removed, because that is what
-    they are: `white-space/**/:pre` is the declaration and `white-spac/**/e:pre`
-    is two idents and not a property name at all.
+    Comments are one of the things it tokenises, and they are replaced by a space
+    rather than removed, because that is what they are: `white-space/**/:pre` is
+    the declaration and `white-spac/**/e:pre` is two idents and not a property
+    name at all. They have to be read *here*, in the same pass as strings and
+    escapes, rather than stripped beforehand — `/*` inside a quoted value is
+    string data, and a pattern that removed it first swallowed everything to the
+    end of the block, hiding a `white-space: pre` declaration behind it. The
+    nesting runs the other way too: a `"` inside a comment opens no string.
     """
-    text = CSS_COMMENT_RE.sub(" ", block)
     declarations: list[tuple[str, str]] = []
     name: list[str] = []
     value: list[str] | None = None
     buf = name
     quote = ""
-    escaped = False
     parens = 0
 
     def flush() -> None:
@@ -1506,17 +1509,24 @@ def css_declarations(block: str) -> list[tuple[str, str]]:
         name, value = [], None
         buf = name
 
-    for ch in text:
-        if escaped:  # the backslash is kept, for `_unescape_css` to resolve
-            buf.append(ch)
-            escaped = False
-        elif ch == "\\":
-            buf.append(ch)
-            escaped = True
-        elif quote:
+    i = 0
+    while i < len(block):
+        ch = block[i]
+        if ch == "\\" and i + 1 < len(block):
+            buf.append(block[i : i + 2])  # the backslash is kept, for `_unescape_css` to resolve
+            i += 2
+            continue
+        if quote:
             buf.append(ch)
             if ch == quote:
                 quote = ""
+        elif block.startswith("/*", i):
+            # A comment is a token separator, and an unclosed one runs to the end
+            # of the block, which is what a browser does with it.
+            end = block.find("*/", i + 2)
+            buf.append(" ")
+            i = len(block) if end < 0 else end + 2
+            continue
         elif ch in "\"'":
             quote = ch
             buf.append(ch)
@@ -1533,6 +1543,7 @@ def css_declarations(block: str) -> list[tuple[str, str]]:
             flush()
         else:
             buf.append(ch)
+        i += 1
     flush()
 
     out = []

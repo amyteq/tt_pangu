@@ -1068,6 +1068,54 @@ def test_css_that_collapses_whitespace_still_allows_the_repair(css):
     assert mdwrap.unverifiable_reason(f"<style>\n.x {{ {css}; }}\n</style>\n<p>a b</p>") is None
 
 
+@pytest.mark.parametrize(
+    "css",
+    [
+        '--x:"/*";white-space:pre',  # an unterminated one, which is where the reader broke
+        '--x:"a;/*";white-space:pre',
+        '--x:"/*x*/";white-space:pre',  # a closed one, already read correctly before
+        'white-space:/*"*/pre',  # and the other nesting: a quote inside a comment opens no string
+    ],
+)
+def test_a_comment_delimiter_inside_a_css_string_hides_no_declaration(css):
+    """`/*` inside a quoted value is string data, so it starts no comment.
+
+    Round 5 replaced the `white-space` pattern with a reader but stripped
+    comments before tokenising strings, so an unterminated `/*` inside a string
+    swallowed the rest of the declaration block: the `white-space: pre` behind it
+    was invisible and `--fix` joined across a newline a browser shows. On this
+    input the reader was weaker than the pattern it replaced. Comments are now
+    tokenised in the same pass as strings and escapes. Regression for round-6
+    finding F024 on PR #226.
+    """
+    assert mdwrap.unverifiable_reason(f"<p style='{css}'>a b</p>") is not None
+    assert mdwrap.unverifiable_reason(f"<style>\n.x {{ {css}; }}\n</style>\n<p>a b</p>") is not None
+
+
+@pytest.mark.parametrize(
+    "css",
+    [
+        'content:"/*";color:red',
+        'content:"/*";white-space:normal',  # read, and then classified as collapsing
+        'content:"*/";color:red',
+        "color:red;/*unclosed",  # an unclosed comment outside a string really does run to the end
+    ],
+)
+def test_a_comment_shaped_string_still_allows_the_repair(css):
+    """The overshoot guard on F024: reading the declarations is not refusing every file."""
+    assert mdwrap.unverifiable_reason(f"<p style='{css}'>a b</p>") is None
+    assert mdwrap.unverifiable_reason(f"<style>\n.x {{ {css}; }}\n</style>\n<p>a b</p>") is None
+
+
+def test_a_declaration_behind_a_quoted_comment_opener_refuses_the_rewrite():
+    """F024 end to end: the file `--fix` would have rewritten is refused instead."""
+    renderer = _renderer()
+    src = "before <span style='--x:\"/*\";white-space:pre'>a\nb</span> after\n"
+    assert kinds(src) == ["split-block"]
+    reason = mdwrap.unsafe_fix_reason(src, fixed(src), renderer)
+    assert reason is not None and "white-space" in reason
+
+
 def test_ordinary_rendered_html_is_verifiable():
     """The other direction: nothing about a plain document is unjudgeable."""
     assert mdwrap.unverifiable_reason("<p>a b</p>\n<pre>code\n</pre>\n") is None
