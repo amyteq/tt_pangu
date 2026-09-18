@@ -473,6 +473,44 @@ def list_content_indent(content: str) -> int:
     return column_of(m.group("lead") + m.group("marker") + gap)
 
 
+def peel_containers(content: str, depth: int) -> tuple[int, str, tuple[int, int]]:
+    """Strip the containers this line opens, in the order they were written.
+
+    `content` is a line at quote depth `depth` that opens a list item, with any
+    enclosing blockquote markers already removed. Returns the quote depth
+    reached, what is left of the line, and the innermost list item as
+    `item_holds` understands it.
+
+    One line can open several containers — `- > x`, `- - x`, `> - > x` — and
+    stripping quotes first and markers second only describes one of those
+    orders. Each blockquote marker also starts a new frame for measuring
+    columns, because a quote's content begins at its own left edge; that is why
+    the offset resets at one and accumulates across a nested marker.
+
+    The peel stops where the item's content is not another container: a marker
+    followed by more than four columns of space opens the item's indented code
+    block, and what looks like a nested marker there is code.
+    """
+    offset = list_content_indent(content)
+    item = (depth, offset)
+    while True:
+        m = LIST_MARKER_RE.match(content) if LIST_RE.match(content) else None
+        if m is None or column_of(content[: m.end()]) != list_content_indent(content):
+            # No marker, or a gap wide enough that the item's content is its own
+            # indented code block — where a marker-looking line is code.
+            break
+        content = content[m.end() :]
+        quoted, content = split_quote(content)
+        if quoted:
+            depth += quoted
+            offset = 0  # a quote's content starts its own frame for columns
+        if not LIST_RE.match(content):
+            break
+        offset += list_content_indent(content)
+        item = (depth, offset)
+    return depth, content, item
+
+
 def is_block_start(content: str, *, in_paragraph: bool = True, container_indent: int = 0) -> bool:
     """True if this line begins a new block rather than continuing the one above.
 
@@ -828,7 +866,7 @@ def scan(lines: list[str]) -> list[ScanLine]:
             # columns, which is how a tab-indented `-` reached this rule.
             marker = None
         if marker:
-            item = (depth, list_content_indent(content))
+            inner_depth, inner, item = peel_containers(content, depth)
         elif item is not None and not item_holds(raw, item):
             # Outdented from the item. Only an open paragraph survives that, and
             # only while the line opens no block of its own.
@@ -842,13 +880,12 @@ def scan(lines: list[str]) -> list[ScanLine]:
         # `<!--` made the lines below it the item's own text, and `--fix`
         # flattened content ADR-0024 exempts into one line.
         #
-        # The item's content may itself open a blockquote, so the marker comes
-        # off and then any quote markers behind it: `- > <!--` is an item
-        # holding a quote holding a comment, and the block it opens lives at the
-        # composed depth of both containers.
+        # The item's content may itself open further containers, in any order —
+        # `- > <!--` is an item holding a quote holding a comment and `- - ```
+        # ` an item holding an item holding a fence — so `peel_containers` has
+        # already taken them all off. The block lives at the composed depth of
+        # every quote it sits in, and inside the innermost item.
         if marker:
-            inner_depth, inner = split_quote(content[marker.end() :])
-            inner_depth += depth
             opened = fence_open(inner)
             if opened:
                 fence = (opened[0], own_indent(inner_depth))
