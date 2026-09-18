@@ -455,22 +455,42 @@ def closes_fence(content: str, fence: str, open_indent: int = 0) -> bool:
     return closer[0] == fence[0] and len(closer) >= len(fence)
 
 
+def list_marker(content: str) -> tuple[re.Match[str], int, bool] | None:
+    """The list item this line opens: (marker match, content column, content is on this line).
+
+    None where the line opens no item. The padding between the marker and what
+    follows decides both of the other two, and it is measured from the marker's
+    *ending* column, because that is where a tab's advance starts: after a
+    one-column `-` a tab reaches column four, so `-\\t` is three columns of
+    padding and `-\\t ` is four — both inside the one to four CommonMark allows.
+    Measuring that padding from the margin instead called it five, took the
+    over-wide branch below, and put the content column at two; a block of the
+    item's own, indented to the five columns it really starts at, then read as
+    outdented from the item and ended on its opening line.
+
+    Over four columns of padding opens the item's indented code block, so the
+    content column is one past the marker and what follows on the line is that
+    block rather than the item's own content. An empty item holds nothing on its
+    line either.
+    """
+    m = LIST_MARKER_RE.match(content) if LIST_RE.match(content) else None
+    if m is None:
+        return None
+    marker_end = column_of(m.group("lead") + m.group("marker"))
+    padded_to = column_of(m.group(0))
+    if not content[m.end() :].strip() or padded_to - marker_end > 4:
+        return m, marker_end + 1, False
+    return m, padded_to, True
+
+
 def list_content_indent(content: str) -> int:
     """The column a list item's own content starts at — where its child blocks live.
 
     A fence, a nested list or an indented code block belonging to the item is
-    indented to at least this column.
+    indented to at least this column. Zero where the line opens no item.
     """
-    m = LIST_MARKER_RE.match(content)
-    if not m:
-        return 0
-    gap = m.group("gap")
-    if not content[m.end() :].strip() or column_of(gap) > 4:
-        # An empty item, or a marker followed by more than four columns of
-        # space (which starts an indented code block inside the item): the
-        # content column is one past the marker.
-        gap = " "
-    return column_of(m.group("lead") + m.group("marker") + gap)
+    opened = list_marker(content)
+    return opened[1] if opened else 0
 
 
 def peel_containers(content: str, depth: int) -> tuple[int, str, tuple[int, int]]:
@@ -488,18 +508,20 @@ def peel_containers(content: str, depth: int) -> tuple[int, str, tuple[int, int]
     the offset resets at one and accumulates across a nested marker.
 
     The peel stops where the item's content is not another container: a marker
-    followed by more than four columns of space opens the item's indented code
-    block, and what looks like a nested marker there is code.
+    followed by more than four columns of padding opens the item's indented code
+    block, and what looks like a nested marker there is code. That is
+    `list_marker`'s decision, taken once, so the peel and the content column it
+    hands on can never disagree about how wide the padding is.
     """
     offset = list_content_indent(content)
     item = (depth, offset)
     while True:
-        m = LIST_MARKER_RE.match(content) if LIST_RE.match(content) else None
-        if m is None or column_of(content[: m.end()]) != list_content_indent(content):
-            # No marker, or a gap wide enough that the item's content is its own
+        opened = list_marker(content)
+        if opened is None or not opened[2]:
+            # No marker, or padding wide enough that the item's content is its own
             # indented code block — where a marker-looking line is code.
             break
-        content = content[m.end() :]
+        content = content[opened[0].end() :]
         quoted, content = split_quote(content)
         if quoted:
             depth += quoted
