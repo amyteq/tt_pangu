@@ -606,6 +606,61 @@ def test_a_block_inside_nested_containers_on_one_line_is_never_inspected(src):
     assert fixed(src) == src
 
 
+@pytest.mark.parametrize(
+    "src",
+    [
+        "-\t <!--\n     raw one\n     raw two\n     -->\n",  # tab then space: four columns of padding
+        "-\t <div>\n     raw one\n     raw two\n     </div>\n",
+        "-\t <pre>\n     raw one\n     raw two\n     </pre>\n",
+        "-\t ```\n     code one\n     code two\n     ```\n",  # a fence measures the same padding
+        " -\t <!--\n     raw one\n     raw two\n     -->\n",  # an indented marker starts its tab later
+        "1.\t  <!--\n      raw one\n      raw two\n      -->\n",  # a two-column marker too
+        "10.\t <!--\n     raw one\n     raw two\n     -->\n",
+        "> -\t <!--\n>      raw one\n>      raw two\n>      -->\n",  # and inside a quote
+    ],
+)
+def test_a_block_on_a_tab_padded_marker_line_is_never_inspected(src):
+    """A tab's advance starts at the marker, not at the margin.
+
+    `-\\t ` is four columns of padding — the tab reaches column four from the
+    marker's column one, and the space makes five — which is the one-to-four
+    CommonMark allows, so the item's content starts at column five and the block
+    indented there is the item's own. Measuring that padding from the margin
+    called it five, took the over-wide branch that puts the content column two
+    columns in, and every line of the block then read as outdented from the item:
+    `--check` reported exempt content and `--fix` folded it. Both renderers put
+    the block inside the item. Regression for round-6 finding F023 on PR #226.
+    """
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+def test_a_block_outdented_from_a_tab_padded_item_is_never_inspected():
+    """The same mismeasurement, reached from the other side — F020's failure mode.
+
+    With the content column two instead of five, an HTML block at column two
+    looked like it was still inside the item, so `html_block_end` was handed
+    stale item state and ended the block at the first line below it. cmark-gfm
+    closes the list on the block's opening line and makes it top-level.
+    """
+    src = "-\t item\n  <!--\nraw one\nraw two\n-->\n"
+    assert kinds(src) == []
+    assert fixed(src) == src
+
+
+@pytest.mark.parametrize(
+    "src,want",
+    [
+        ("-\t item one\n     item one continued\n", "-\t item one item one continued\n"),
+        ("1.\t  item one\n      item one continued\n", "1.\t  item one item one continued\n"),
+    ],
+)
+def test_a_wrapped_tab_padded_item_is_still_joined(src, want):
+    """The other direction: a deeper content column must not hide a real violation."""
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == want
+
+
 def test_link_reference_definition_title_on_the_next_line_is_not_prose():
     """The title line renders as nothing; joining a paragraph onto it made it visible.
 
