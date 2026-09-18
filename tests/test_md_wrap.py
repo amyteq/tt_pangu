@@ -583,18 +583,24 @@ def test_an_html_block_outdented_from_a_list_is_never_inspected(src):
         "- > <!--\n  > comment one\n  > comment two\n  > -->\n",  # item holds quote holds comment
         "- > ```\n  > code one\n  > code two\n  > ```\n",  # and a fence
         "- > quoted text\n  >\n  >     code one\n  >     code two\n",  # and indented code
+        "- - ```\n    code one\n    code two\n    ```\n",  # item holds item holds fence
+        "- - <!--\n    comment one\n    comment two\n    -->\n",
+        "1. - <div>\n     raw one\n     raw two\n     </div>\n",
+        "- > - ```\n  >   code one\n  >   code two\n  >   ```\n",  # all three orders at once
         "> - ```\n>   code one\n>   code two\n>   ```\n",  # the reverse nesting, as a guard
     ],
 )
-def test_a_block_inside_a_quote_inside_a_list_item_is_never_inspected(src):
+def test_a_block_inside_nested_containers_on_one_line_is_never_inspected(src):
     """Composed containers have to be peeled in the order they were written.
 
     `> - x` is a quote holding an item and `- > x` an item holding a quote, and
-    the engine only understood the first: it stripped every quote marker and then
-    measured indentation, so a continuation line of the second read as unindented
-    prose and the exempt block it belongs to ended on its opening line. Both
-    renderers agree on all four shapes. Regression for round-5 finding F021 on
-    PR #226; the last case is the direction that already worked.
+    the engine only understood the first: it stripped every quote marker, looked
+    for one list marker behind them and then measured indentation, so a
+    continuation line of any other order read as unindented prose and the exempt
+    block it belongs to ended on its opening line. Both renderers agree on all
+    eight shapes. Regression for round-5 finding F021 on PR #226 — the quote
+    cases are the ones it named, the doubly-nested items are the same defect in
+    the list direction, and the last case is the direction that already worked.
     """
     assert kinds(src) == []
     assert fixed(src) == src
