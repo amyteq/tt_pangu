@@ -951,11 +951,60 @@ def test_a_white_space_css_declaration_refuses_the_rewrite():
 
 
 @pytest.mark.parametrize(
-    "css", ["white-space: pre", "white-space:pre-wrap", "white-space : break-spaces", "WHITE-SPACE: PRE-LINE"]
+    "css",
+    [
+        "white-space: pre",
+        "white-space:pre-wrap",
+        "white-space : break-spaces",
+        "WHITE-SPACE: PRE-LINE",
+        "white-space:/**/pre",  # a comment is a token separator, so this is the declaration
+        "white-space/**/:pre",
+        "white-spac\\65:pre",  # and a property name may be escaped
+        "white-spac\\65 :pre",
+        "white-space-collapse: preserve",  # the longhand preserves breaks too
+        "white-space: pre !important",
+        "white-space: inherit",  # cannot be classified: the parent is not visible here
+        "white-space: var(--x)",
+        "white-space: unset",
+    ],
 )
 def test_every_whitespace_preserving_css_value_is_caught(css):
+    """Read as CSS, not matched as text. Regression for round-5 finding F022 on PR #226.
+
+    The guard looked in the right places by then — a real `style` attribute, the
+    text of a real `<style>` — but still recognised the declaration with a
+    pattern anchored on `white-space` followed by a colon. A CSS comment and a
+    CSS escape are both legal between those two, so `white-space:/**/pre` slipped
+    past and `--fix` joined across a newline a browser shows. The last three
+    cases are the conservative half: a value this cannot resolve is refused
+    rather than assumed safe.
+    """
     assert mdwrap.unverifiable_reason(f"<p style='{css}'>a b</p>") is not None
     assert mdwrap.unverifiable_reason(f"<style>\n.x {{ {css}; }}\n</style>\n<p>a b</p>") is not None
+
+
+@pytest.mark.parametrize(
+    "css",
+    [
+        "color: red",
+        "white-space: normal",
+        "white-space: nowrap",
+        "white-space: collapse balance",  # the shorthand's other components
+        "content: 'white-space:pre'",  # a string is not a declaration
+        "white-spac/**/e:pre",  # two idents, so no `white-space` property at all
+        "font-family: 'a;b'; color: red",
+        "background: url(a;b.png)",
+    ],
+)
+def test_css_that_collapses_whitespace_still_allows_the_repair(css):
+    """The other half of F022: refusing everything would be no safer than missing this.
+
+    A refusal costs a contributor a manual fix, so the reader has to keep the
+    declarations it can resolve apart from the ones it cannot — including the
+    three ways a `;` or a `:` can appear without separating anything.
+    """
+    assert mdwrap.unverifiable_reason(f"<p style='{css}'>a b</p>") is None
+    assert mdwrap.unverifiable_reason(f"<style>\n.x {{ {css}; }}\n</style>\n<p>a b</p>") is None
 
 
 def test_ordinary_rendered_html_is_verifiable():

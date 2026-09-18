@@ -1256,7 +1256,34 @@ RAW_TEXT_TAGS = ("script", "style", "textarea")
 #
 # Neither can be judged, so such a file is refused rather than verified. No
 # tracked file hits either today.
-WHITESPACE_CSS_RE = re.compile(r"white-space\s*:\s*(?:pre|break-spaces)", re.IGNORECASE)
+#
+# The first of the two is a CSS question, and a pattern is no better at CSS than
+# it was at HTML. `white-space:/**/pre` is that declaration — a comment is a
+# token separator, so a browser computes `white-space: pre` — and
+# `white-spac\65:pre` is too, because a property name may be escaped. Both slid
+# past a pattern anchored on the literal text `white-space` followed by a colon,
+# and `--fix` then joined across a newline the reader can see. So the
+# declarations are read out rather than matched.
+CSS_COMMENT_RE = re.compile(r"/\*.*?(?:\*/|$)", re.DOTALL)
+# A CSS escape is `\` plus one to six hex digits, which may absorb one following
+# whitespace character, or `\` plus any other single character taken literally.
+CSS_ESCAPE_RE = re.compile(r"\\(?:([0-9A-Fa-f]{1,6})[ \t\n\r\f]?|(.))", re.DOTALL)
+CSS_IMPORTANT_RE = re.compile(r"!\s*important\s*$")
+
+# The properties that decide whether a source line break survives, and the
+# values that answer either way. `white-space-collapse` is the longhand, and
+# `white-space` is now a shorthand that also carries text-wrap and trim values,
+# so a declaration can hold several tokens.
+WHITESPACE_PROPERTIES = frozenset({"white-space", "white-space-collapse"})
+# Any of these keeps a line break, `pre-line` included: it collapses spaces but
+# not newlines, which is exactly the break this gate would delete.
+PRESERVING_VALUES = frozenset(
+    {"pre", "pre-wrap", "pre-line", "break-spaces", "preserve", "preserve-breaks", "preserve-spaces"}
+)
+# And these collapse it, which is the premise soft wrapping rests on.
+COLLAPSING_VALUES = frozenset(
+    {"normal", "nowrap", "initial", "collapse", "wrap", "balance", "pretty", "stable", "auto"}
+)
 
 
 class HtmlScan(HTMLParser):
@@ -1375,10 +1402,111 @@ def canonical_html(html: str, scan: HtmlScan | None = None) -> str:
     return " ".join(p for p in parts if p)
 
 
+def _unescape_css(text: str) -> str:
+    """`text` with CSS escapes resolved, so `white-spac\\65` reads as what it names."""
+
+    def one(m: re.Match[str]) -> str:
+        if m.group(1):
+            point = int(m.group(1), 16)
+            # Zero, a surrogate or a value past the last code point is U+FFFD,
+            # which names no property and matches no value — as intended.
+            unusable = point == 0 or 0xD800 <= point <= 0xDFFF or point > 0x10FFFF
+            return chr(0xFFFD) if unusable else chr(point)
+        return m.group(2) or ""
+
+    return CSS_ESCAPE_RE.sub(one, text)
+
+
+def css_declarations(block: str) -> list[tuple[str, str]]:
+    """Every (property, value) pair a browser would read out of `block`.
+
+    `block` is either a `style` attribute or the text of a `<style>` element, so
+    this has to survive selectors, at-rules and nesting braces as well as
+    declarations. It is a reader, not a CSS parser: it tokenises only as far as
+    finding where one declaration ends and the next begins, which means tracking
+    strings — a `;` inside `content: "a;b"` separates nothing — and parentheses,
+    so the `:` inside `(max-width: 40em)` is not a declaration's colon.
+
+    Comments are replaced by a space rather than removed, because that is what
+    they are: `white-space/**/:pre` is the declaration and `white-spac/**/e:pre`
+    is two idents and not a property name at all.
+    """
+    text = CSS_COMMENT_RE.sub(" ", block)
+    declarations: list[tuple[str, str]] = []
+    name: list[str] = []
+    value: list[str] | None = None
+    buf = name
+    quote = ""
+    escaped = False
+    parens = 0
+
+    def flush() -> None:
+        nonlocal name, value, buf
+        if value is not None:
+            declarations.append(("".join(name), "".join(value)))
+        name, value = [], None
+        buf = name
+
+    for ch in text:
+        if escaped:  # the backslash is kept, for `_unescape_css` to resolve
+            buf.append(ch)
+            escaped = False
+        elif ch == "\\":
+            buf.append(ch)
+            escaped = True
+        elif quote:
+            buf.append(ch)
+            if ch == quote:
+                quote = ""
+        elif ch in "\"'":
+            quote = ch
+            buf.append(ch)
+        elif ch == "(":
+            parens += 1
+            buf.append(ch)
+        elif ch == ")":
+            parens = max(0, parens - 1)
+            buf.append(ch)
+        elif parens == 0 and ch == ":" and value is None:
+            value = []
+            buf = value
+        elif parens == 0 and ch in ";{}":
+            flush()
+        else:
+            buf.append(ch)
+    flush()
+
+    out = []
+    for prop, val in declarations:
+        text_value = CSS_IMPORTANT_RE.sub("", _unescape_css(val).strip().lower()).strip()
+        out.append((_unescape_css(prop).strip().lower(), text_value))
+    return out
+
+
+def preserves_whitespace(block: str) -> bool:
+    """True if this CSS could keep a source line break visible.
+
+    An unrecognised value counts as could: `inherit` and `unset` take the value
+    from a parent this cannot see, `var(--x)` from a custom property, and a typo
+    is a value too. Refusing there costs a contributor a manual fix on a file
+    `--fix` would probably have rewritten correctly; missing one writes a
+    corrupted file over theirs, so the doubt resolves the same way every time.
+    """
+    for prop, value in css_declarations(block):
+        if prop not in WHITESPACE_PROPERTIES:
+            continue
+        tokens = value.split()
+        if not tokens or any(t in PRESERVING_VALUES for t in tokens):
+            return True
+        if not all(t in COLLAPSING_VALUES for t in tokens):
+            return True
+    return False
+
+
 def unverifiable_reason(html: str, scan: HtmlScan | None = None) -> str | None:
     """Why this rendered HTML is outside what `canonical_html` can judge, or None."""
     scan = scan if scan is not None else HtmlScan(html)
-    if any(WHITESPACE_CSS_RE.search(rule) for rule in scan.css):
+    if any(preserves_whitespace(rule) for rule in scan.css):
         return (
             "a `white-space` CSS declaration can make a source line break visible here, "
             "and comparing rendered HTML cannot see that"
