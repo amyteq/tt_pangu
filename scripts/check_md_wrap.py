@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check and fix Markdown soft wrap (ADR-0024).
+"""Check Markdown soft wrap (ADR-0024).
 
 ADR-0024 is the whole policy, so this detects exactly two violation classes and
 no others — no heading-style, list-marker or line-length opinions:
@@ -14,55 +14,49 @@ no others — no heading-style, list-marker or line-length opinions:
 Line breaks are semantic in some places, so those are never inspected: fenced
 code blocks and their contents, YAML frontmatter, indented code blocks, and HTML
 blocks. An explicit hard break — a line ending in two or more spaces, or in a
-backslash — is authored intent, so the line after it is left alone too. That is
-the whole exemption set: ADR-0024 also exempts a verbatim diff, log excerpt or
-file listing, which qualifies by being fenced or indented, because nothing
-distinguishes bare verbatim lines from hard-wrapped prose.
+backslash — is authored intent, so the line after it is left alone too, as is
+the body line under a GitHub alert marker, which renders as a callout only while
+the marker stands alone on its own blockquote line. That is the whole exemption
+set: ADR-0024 also exempts a verbatim diff, log excerpt or file listing, which
+qualifies by being fenced or indented, because nothing distinguishes bare
+verbatim lines from hard-wrapped prose.
 
-`--fix` is whitespace only. It rejoins a split block onto the line above with a
-single space, and inserts the missing blank line above a `---`. It never alters
-words, punctuation, link targets or block structure, and on an already-compliant
-file its output is byte-identical to its input.
+This reports and never writes. It began with a `--fix` mode that rejoined split
+blocks in place; that mode is gone (issue #237), because keeping a rewrite of
+someone's prose honest took more machinery than the gate itself — a renderer, a
+structural fingerprint, an HTML and CSS reader to know when the rendering could
+be trusted — and every one of those was a way for a checker to damage a file.
+A reported violation costs one manual edit, which is the cheaper end of that
+trade. What is left is standard-library only, and always will be, because CI
+runs it on a bare Python with nothing installed.
 
-That promise is verified rather than asserted: every rewrite is rendered with
-markdown-it-py and compared against the original before the file is written, and
-a file whose rendering would change is reported and left alone. `--fix`
-therefore needs markdown-it-py installed; `--check` is standard-library only and
-always will be, because CI runs it on a bare Python with nothing installed.
-
-The renderer this gate exists for is GitHub's, which is cmark-gfm. The renderer
-it verifies with is markdown-it-py, which is pure Python and can be a hard
-dependency of `--fix` on any machine. They agree almost everywhere; where they
-do not, the rule is to leave the construct alone rather than pick a side, so a
-disagreement costs a missed finding and never a bad rewrite. ADR-0024 records
-that choice and why cmark-gfm was not made the verifier.
+The renderer this gate exists for is GitHub's, which is cmark-gfm. Where a
+construct is read differently by different CommonMark implementations, the rule
+is to leave it alone rather than pick a side, so a disagreement costs a missed
+finding and never a false one. ADR-0024 records that choice.
 
 Usage:
   python scripts/check_md_wrap.py --allowlist              # the agent-context set
   python scripts/check_md_wrap.py --changed origin/main    # only what this branch touches
   python scripts/check_md_wrap.py --files a.md b.md        # exactly these
-  python scripts/check_md_wrap.py --fix --allowlist        # rewrite in place (needs markdown-it-py)
-  python scripts/check_md_wrap.py --equivalence origin/main --allowlist
 
 Exactly one scoping mode is required. There is deliberately no "whole
 repository" mode: ADR-0024's enforcement is scoped to changed files plus the
 allowlist, and the historical backfill was declined (issue #210).
 
 Exit codes:
-  0 — no violations (or, with --fix, everything fixed)
-  1 — violations found, or --fix refused to rewrite a file
-  2 — usage error, or --fix without markdown-it-py to verify itself
+  0 — no violations
+  1 — violations found
+  2 — usage error
 """
 
 from __future__ import annotations
 
 import argparse
 import fnmatch
-import os
 import re
 import subprocess
 import sys
-from html.parser import HTMLParser
 from pathlib import Path
 
 # --------------------------------------------------------------------------
@@ -152,7 +146,7 @@ HR_DASH_RE = re.compile(r"^ {0,3}-{3,}[ \t]*$")
 # A run of `=` under a paragraph is a setext H1. Unlike `---` it has no thematic
 # break to be confused with, so it is unambiguous, valid Markdown — and this
 # checker has no heading-style opinions. Reading it as prose reported the
-# heading as a split block and offered `Title ===` as the repair.
+# heading as a split block.
 SETEXT_H1_RE = re.compile(r"^ {0,3}=+[ \t]*$")
 HR_OTHER_RE = re.compile(r"^ {0,3}(?:\*[ \t]*){3,}$|^ {0,3}(?:_[ \t]*){3,}$")
 # A list marker may be indented with tabs as well as spaces, and a tab-indented
@@ -334,16 +328,14 @@ def table_opens_here(header: str, delimiter: str) -> int | None:
     there is paragraph continuation text, and reading it as a table suppressed
     the wrap findings for the whole run of lines below it.
 
-    An ATX-looking header does open one, and this is the one shape where the two
+    An ATX-looking header does open one, and this is the one shape where common
     parsers disagree: `# a | b` over `--- | ---` is a two-column table to
     markdown-it and a heading plus a paragraph to cmark-gfm, which is what
-    GitHub renders with. The gate's rule under disagreement is to do nothing,
-    because only one of the two readings is checkable by the verifier it has —
-    calling it a table means leaving those lines alone, which costs at most a
-    missed finding, while calling it a paragraph means rewriting lines that the
-    verifier would then have to approve on markdown-it's reading of them. See
-    ADR-0024 for why the target renderer and the verifier are different
-    programs. A fence or a thematic break wins over a table in both parsers.
+    GitHub renders with. The gate's rule under disagreement is to do nothing.
+    Calling it a table means leaving those lines alone and costs at most a
+    missed finding; calling it a paragraph means reporting lines that render
+    correctly on the only renderer that matters here. A fence or a thematic
+    break wins over a table in both parsers.
     """
     if not is_delimiter_row(delimiter):
         return None
@@ -705,9 +697,8 @@ def leaves_block_open(content: str) -> bool:
     A list item or a blockquote holds a paragraph only if its own content does,
     so those are unwrapped and asked again. `> - ---` is a quoted thematic break
     and `> - <!-- c -->` a quoted comment; treating either as an open paragraph
-    pulled the unquoted line below it into the blockquote, and the renderer then
-    refused the rewrite — an unfixable false positive rather than a corruption,
-    but a red build either way.
+    pulled the unquoted line below it into the blockquote and reported a
+    compliant file — a red build on nothing.
     """
     if not content.strip():
         return False
@@ -750,7 +741,6 @@ SETEXT_MSG = "`---` directly below text parses as a setext H2 — leave a blank 
 
 SPLIT_BLOCK = "split-block"
 SETEXT_RULE = "setext-rule"
-ALL_REPAIRS = (SPLIT_BLOCK, SETEXT_RULE)
 
 # What `scan` decided a line is. The first six are never inspected, because a
 # line break inside them is semantic.
@@ -789,26 +779,24 @@ class ScanLine:
         self.role = role
         self.in_table = in_table  # a row of an open GFM table
         self.is_item = is_item  # opens a list item, by the renderer's reading
-        self.tail = tail  # for SPLIT: the text to append to the line above
+        self.tail = tail  # for SPLIT: what a rejoin would append to the line above
 
 
 def scan(lines: list[str]) -> list[ScanLine]:
-    """Classify every line once, and let both readers of the document share it.
+    """Classify every line once: what block it is in, and what container holds it.
 
-    `analyse` and `structure` read the same file for different reasons — one
-    decides what to report and rewrite, the other fingerprints what a rewrite
-    must not change — so they have to agree about where blocks begin and end.
-    While each tracked its own they drifted, and the cost fell on correct
-    repairs: `structure` kept a fenced block open past the blockquote that had
-    already closed it, so ordinary prose below looked like code the rewrite had
-    edited, and `--fix` refused a file it should have fixed. Every fence, HTML
-    block, table, frontmatter and list container is tracked here and nowhere
-    else, which is what stops that happening again.
+    Every fence, HTML block, table, frontmatter run and list container is
+    tracked here and nowhere else. When a second reader kept its own copy of
+    that state the two drifted — one held a fenced block open past the
+    blockquote that had already closed it — and the whole file below the
+    disagreement was read wrongly by one of them.
 
     The state is deliberately thin — quote depth, the innermost list item's
     position, the open fence and the open table — and it is an approximation of
-    CommonMark's block grammar rather than an implementation of it. The `--fix`
-    safety net exists because of that.
+    CommonMark's block grammar rather than an implementation of it. That is
+    affordable because the gate only ever reports: where the approximation is
+    wrong the cost is a missed violation or, at worst, one line a human looks
+    at and leaves alone.
     """
     records: list[ScanLine] = []
     # The open fenced block, if any: its fence run and the column it opened at,
@@ -926,8 +914,8 @@ def scan(lines: list[str]) -> list[ScanLine]:
         # block rather than text. `- ``` ` opens the item's fenced code block;
         # `- <!--` opens an HTML block that runs to its `-->` several lines
         # below. Reading either as an item whose text happens to be `` ``` `` or
-        # `<!--` made the lines below it the item's own text, and `--fix`
-        # flattened content ADR-0024 exempts into one line.
+        # `<!--` made the lines below it the item's own text, and reported
+        # content ADR-0024 exempts as hard-wrapped prose.
         #
         # The item's content may itself open further containers, in any order —
         # `- > <!--` is an item holding a quote holding a comment and `- - ```
@@ -1073,7 +1061,7 @@ def scan(lines: list[str]) -> list[ScanLine]:
                 # blockquote printing the literal `[!NOTE]`. `prev_depth` is the
                 # quote depth of the line `open_line` came from. The body below
                 # is left open, so a body that really is hard-wrapped is still
-                # reported and rejoined.
+                # reported.
                 emit(raw, content, depth, BREAK_CONTINUATION)
                 i += 1
                 prev_open, open_line = True, content
@@ -1104,603 +1092,27 @@ def scan(lines: list[str]) -> list[ScanLine]:
     return records
 
 
-def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Violation], str]:
-    """Return (violations, fixed_text). `fixed_text` differs only in whitespace.
+def analyse(text: str) -> list[Violation]:
+    """Report every soft-wrap violation in `text`.
 
-    `repair` selects which violation classes are written into `fixed_text`;
-    everything is still reported. Only the safety check uses this: a class-A
-    rejoin must leave the rendered output identical, while the class-B repair
-    deliberately changes it — that is the point of splitting a setext heading
-    back into a paragraph and a thematic break.
-
-    All the reading happens in `scan`. What is left here is the two repairs: a
-    continuation is folded onto the line above, and a `---` that would make the
-    paragraph above it a heading gets the blank line it is missing, carrying
-    that line's own container prefix so the break stays where it was written.
+    All the reading happens in `scan`; what is left here is turning two of its
+    line roles into findings. This is a gate, so that is the whole job — it
+    reports what a human then soft-wraps by hand, and writes nothing itself.
     """
-    had_trailing_newline = text.endswith("\n")
-    lines = text[:-1].split("\n") if had_trailing_newline else text.split("\n")
+    lines = text[:-1].split("\n") if text.endswith("\n") else text.split("\n")
 
-    out: list[str] = []
     violations: list[Violation] = []
     for number, line in enumerate(scan(lines), start=1):
         if line.role == SPLIT:
             violations.append(Violation(number, SPLIT_BLOCK, SPLIT_MSG))
-            if SPLIT_BLOCK in repair:
-                out[-1] = out[-1].rstrip() + " " + line.tail
-                continue
         elif line.role == SETEXT_H2:
             violations.append(Violation(number, SETEXT_RULE, SETEXT_MSG))
-            if SETEXT_RULE in repair:
-                # The blank line belongs in the same container as the `---`, and
-                # that container is already written on the line: what
-                # `split_quote` left in front of the content is indentation and
-                # blockquote markers, which is the container path. Rebuilding it
-                # as one `> ` per quote level put the quotes back but not the
-                # list holding them, so `- > x` / `  > ---` got a top-level `> `
-                # between them, closing the list and taking the break out of it.
-                out.append(line.raw[: len(line.raw) - len(line.content)])
-        out.append(line.raw)
-
-    fixed = "\n".join(out)
-    if had_trailing_newline:
-        fixed += "\n"
-    return violations, fixed
-
-
-# --------------------------------------------------------------------------
-# Structural equivalence
-# --------------------------------------------------------------------------
-
-INLINE_LINK_RE = re.compile(r"\[(?P<text>[^\]]*)\]\((?P<target>[^)\s]+)")
-CODE_SPAN_RE = re.compile(r"`[^`]*`")
-
-
-SETEXT_RE = re.compile(r"^ {0,3}(?P<rule>=+|-+)[ \t]*$")
-
-
-def structure(text: str) -> dict:
-    """Extract wrap-invariant structure, for before/after comparison.
-
-    The text stream drops `|` before comparing. Rejoining a split table row moves
-    its tail from a prose line into a table cell, which is a repair rather than a
-    content change, and only pipe-blindness makes the two states comparable.
-
-    Nesting is recorded, not just counted: a list that lost its indentation, a
-    table that lost a row and a paragraph that became a setext heading all read
-    as the same text, and only their shape gives them away.
-
-    Where a block begins and ends is `scan`'s answer, not a second opinion. This
-    used to keep its own fence, table and list-indent rules, and every time one
-    of them fell behind the engine the result was a refusal on a correct repair
-    — prose below a closed blockquote counted as fenced code, a paragraph after
-    a list counted as one more row of a table. It now only fingerprints.
-    """
-    stream: list[str] = []
-    headings: list[tuple[int, str, str]] = []
-    code: list[str] = []
-    links: list[str] = []
-    list_shape: list[tuple[int, str]] = []
-    list_indents: list[int] = []
-    tables: list[tuple[int, ...]] = []
-    table_rows: list[int] = []
-    hard_breaks = 0
-    # The last line of an open top-level paragraph, if one is open: only such a
-    # paragraph can be turned into a setext heading by a `---` below it.
-    open_paragraph: str | None = None
-    open_other_block = False
-
-    def close_table() -> None:
-        if table_rows:
-            tables.append(tuple(table_rows))
-            table_rows.clear()
-
-    for line in scan(text.split("\n")):
-        content = line.content
-        if line.role == CODE:
-            code.append(content)
-            continue
-        if line.role in (FENCE, FRONTMATTER, BLANK):
-            close_table()
-            open_paragraph, open_other_block = None, False
-            continue
-
-        if line.in_table:
-            table_rows.append(len(split_table_cells(content)))
-        else:
-            close_table()
-
-        # A setext underline turns the paragraph above it into a heading — the
-        # class-B hazard. Record it, so a comparison can see one appear.
-        sx = SETEXT_RE.match(content)
-        if sx and open_paragraph is not None and not line.in_table:
-            headings.append((1 if sx.group("rule")[0] == "=" else 2, open_paragraph, "setext"))
-            open_paragraph = None
-            stream.append(content)
-            continue
-
-        stream.append(content)
-        # An authored hard break renders as a `<br>`; a join that swallows one
-        # deletes a visible line break, so count them.
-        if HARD_BREAK_RE.search(content):
-            hard_breaks += 1
-        links.extend(m.group("target") for m in INLINE_LINK_RE.finditer(content))
-        h = re.match(r"^ {0,3}(#{1,6})(?: +)(.*?)\s*#*\s*$", content)
-        if h:
-            headings.append((len(h.group(1)), " ".join(h.group(2).split()), "atx"))
-            open_paragraph, open_other_block = None, False
-            continue
-        indent = indent_of(content)
-        if LIST_RE.match(content):
-            while list_indents and indent < list_indents[-1]:
-                list_indents.pop()
-        if line.is_item:
-            # Whether a marker this deep is a marker at all is `scan`'s call —
-            # four columns past the enclosing item's content column it is
-            # indented text. Deciding that twice is what made this heuristic
-            # count items the renderer does not, and refuse a rewrite that
-            # renders identically.
-            if not list_indents or indent > list_indents[-1]:
-                list_indents.append(indent)
-            list_shape.append((len(list_indents), "ol" if content.lstrip(" \t")[0].isdigit() else "ul"))
-        elif indent == 0 and not line.in_table and not open_other_block:
-            list_indents.clear()
-
-        if HR_DASH_RE.match(content) or HR_OTHER_RE.match(content):
-            open_paragraph, open_other_block = None, False
-        elif line.in_table or LIST_RE.match(content) or LINKDEF_RE.match(content) or indent >= 4:
-            open_paragraph, open_other_block = None, True
-        elif open_other_block:
-            open_paragraph = None  # a continuation line of a list item or table
-        else:
-            open_paragraph = " ".join(content.split())
-
-    close_table()
-
-    return {
-        "prose": " ".join(" ".join(stream).replace("|", " ").split()),
-        "headings": headings,
-        "code": "\n".join(code),
-        "links": sorted(links),
-        "list_items": len(list_shape),
-        "list_shape": list_shape,
-        "tables": tables,
-        "hard_breaks": hard_breaks,
-    }
-
-
-def _malformed(tables: list[tuple[int, ...]]) -> bool:
-    """True if any table's rows disagree on column count."""
-    return any(len(widths) > 1 and len(set(widths)) > 1 for widths in tables)
-
-
-def compare_structure(before: str, after: str) -> list[str]:
-    """Differences that mean the reflow changed more than whitespace."""
-    a, b = structure(before), structure(after)
-    diffs: list[str] = []
-    if a["prose"] != b["prose"]:
-        diffs.append("prose text changed (not a whitespace-only edit)")
-
-    # ATX headings are invariant. Setext headings may only disappear: removing
-    # one is the class-B repair, while creating one silently promotes a
-    # paragraph to a heading.
-    atx = [h for h in a["headings"] if h[2] == "atx"], [h for h in b["headings"] if h[2] == "atx"]
-    if atx[0] != atx[1]:
-        diffs.append(f"heading sequence changed: {len(atx[0])} -> {len(atx[1])}")
-    setext_before = [h for h in a["headings"] if h[2] == "setext"]
-    new_setext = [h for h in b["headings"] if h[2] == "setext" and h not in setext_before]
-    if new_setext:
-        diffs.append(f"a paragraph became a setext heading: {new_setext[0][1]!r}")
-
-    if a["code"] != b["code"]:
-        diffs.append("fenced code content changed")
-    if a["hard_breaks"] != b["hard_breaks"]:
-        diffs.append(f"authored hard breaks changed: {a['hard_breaks']} -> {b['hard_breaks']}")
-    if a["links"] != b["links"]:
-        diffs.append("link targets changed")
-    if a["list_items"] != b["list_items"]:
-        diffs.append(f"list-item count changed: {a['list_items']} -> {b['list_items']}")
-    elif a["list_shape"] != b["list_shape"]:
-        diffs.append("list nesting changed")
-    if a["tables"] != b["tables"]:
-        # Rejoining a split row legitimately repairs a table that was broken
-        # before, so a dimension change is only a defect when the result is
-        # still malformed. A well-formed table has one column count throughout —
-        # but a table that disappeared entirely leaves an empty, vacuously
-        # well-formed set behind, so the count has to match too.
-        if len(a["tables"]) != len(b["tables"]) or _malformed(b["tables"]) or not _malformed(a["tables"]):
-            diffs.append(f"table dimensions changed: {a['tables']} -> {b['tables']}")
-    return diffs
-
-
-# --------------------------------------------------------------------------
-# The --fix safety net
-#
-# Everything above is a hand-written approximation of CommonMark's block
-# grammar, and its container model has a long tail: four review rounds on PR
-# #226 found real corruptions in it — a fence inside a list item, a tab-indented
-# nested list, a lazy continuation into an empty quoted item, an HTML block
-# opening on a list-marker line. Each was fixed, and that is exactly the reason
-# not to trust the next one. `--check` can only be wrong about a finding;
-# `--fix` writes files, and CLAUDE.md tells every agent in this repository to
-# run it.
-#
-# So a rewrite is verified before it is written: render the original and the
-# rewrite with a real CommonMark+GFM parser and compare the HTML the way a
-# browser resolves it — whitespace collapsed outside verbatim elements, byte
-# for byte inside them. If they differ, the file is not written and the refusal
-# is reported.
-#
-# The split of responsibilities is deliberate. `--check` stays standard-library
-# only: CI runs it on a bare `setup-python` that installs nothing, and a check
-# that never writes cannot corrupt anything. `--fix` requires markdown-it-py and
-# refuses to run without it, rather than warning and writing anyway — a warning
-# in a scrolling agent log is not a safety net, and the install is one line.
-# --------------------------------------------------------------------------
-
-# Elements whose whitespace a browser preserves. Everywhere else a newline and a
-# space render the same, which is the whole premise of soft wrapping.
-VERBATIM_TAGS = ("pre", "textarea", "script", "style")
-# Elements whose content is text, not markup: a `<pre>` written inside one of
-# them opens nothing.
-RAW_TEXT_TAGS = ("script", "style", "textarea")
-# Elements that say *where* content sits. A repair may change what a block
-# renders as — the class-B repair turns a heading into a paragraph and a
-# thematic break on purpose — but never which list item or blockquote it is
-# inside, and a structural fingerprint of the source cannot see that move.
-CONTAINER_TAGS = ("blockquote", "ul", "ol", "li")
-
-# Two things in the rendered HTML break `canonical_html`'s premise, and a text
-# comparison of the two renderings cannot see either:
-#
-#   - a CSS `white-space` value that keeps line breaks. `white-space: pre` on a
-#     span makes a source newline visible, so joining across it changes what the
-#     reader sees while the canonicalised HTML compares equal.
-#   - an unbalanced verbatim element. An unclosed `<pre>` makes everything after
-#     it preformatted in a browser, but a verbatim region needs a closing tag to
-#     be found at all, so the canonicaliser collapses it.
-#
-# Neither can be judged, so such a file is refused rather than verified. No
-# tracked file hits either today.
-#
-# The first of the two is a CSS question, and a pattern is no better at CSS than
-# it was at HTML. `white-space:/**/pre` is that declaration — a comment is a
-# token separator, so a browser computes `white-space: pre` — and
-# `white-spac\65:pre` is too, because a property name may be escaped. Both slid
-# past a pattern anchored on the literal text `white-space` followed by a colon,
-# and `--fix` then joined across a newline the reader can see. So the
-# declarations are read out rather than matched.
-#
-# A CSS escape is `\` plus one to six hex digits, which may absorb one following
-# whitespace character, or `\` plus any other single character taken literally.
-CSS_ESCAPE_RE = re.compile(r"\\(?:([0-9A-Fa-f]{1,6})[ \t\n\r\f]?|(.))", re.DOTALL)
-CSS_IMPORTANT_RE = re.compile(r"!\s*important\s*$")
-
-# The properties that decide whether a source line break survives, and the
-# values that answer either way. `white-space-collapse` is the longhand, and
-# `white-space` is now a shorthand that also carries text-wrap and trim values,
-# so a declaration can hold several tokens.
-WHITESPACE_PROPERTIES = frozenset({"white-space", "white-space-collapse"})
-# Any of these keeps a line break, `pre-line` included: it collapses spaces but
-# not newlines, which is exactly the break this gate would delete.
-PRESERVING_VALUES = frozenset(
-    {"pre", "pre-wrap", "pre-line", "break-spaces", "preserve", "preserve-breaks", "preserve-spaces"}
-)
-# And these collapse it, which is the premise soft wrapping rests on.
-COLLAPSING_VALUES = frozenset(
-    {"normal", "nowrap", "initial", "collapse", "wrap", "balance", "pretty", "stable", "auto"}
-)
-
-
-class HtmlScan(HTMLParser):
-    """The real tags, CSS and verbatim regions of a rendered document.
-
-    A regular expression is the wrong tool for every question this answers, and
-    each wrong answer was a defect: `<!-- mention <pre> -->` contains no `<pre>`
-    element but matches a tag pattern, `<span style=white-space:pre>` is a valid
-    unquoted attribute that a quoted-value pattern misses, and a `<pre>` written
-    inside `<script>` is text. So this asks a parser instead — `html.parser` is
-    standard library, which the whole module has to stay inside.
-
-    Four products, all from one pass:
-
-      `css`        every declaration block a browser would apply — the `style`
-                   attribute of each real tag, and the text of each `<style>`
-      `spans`      the offsets of each balanced verbatim region, outermost only
-      `unbalanced` verbatim tags that are opened and never closed
-      `containers` the list and blockquote tags in order, opens and closes
-    """
-
-    def __init__(self, html: str) -> None:
-        super().__init__(convert_charrefs=True)
-        self._html = html
-        self._line_start = [0]
-        for line in html.split("\n"):
-            self._line_start.append(self._line_start[-1] + len(line) + 1)
-        self.css: list[str] = []
-        self.containers: list[str] = []
-        self.spans: list[tuple[int, int]] = []
-        self._open: list[tuple[str, int]] = []
-        self._raw_text: str | None = None
-        self.feed(html)
-        self.close()
-        self.unbalanced = sorted({tag for tag, _ in self._open})
-
-    def _offset(self) -> int:
-        line, column = self.getpos()
-        return self._line_start[line - 1] + column
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if self._raw_text is not None:
-            return  # markup inside a raw-text element is that element's text
-        if tag in CONTAINER_TAGS:
-            self.containers.append(tag)
-        self.css.extend(value for name, value in attrs if name.lower() == "style" and value)
-        if tag in RAW_TEXT_TAGS:
-            self._raw_text = tag
-        if tag in VERBATIM_TAGS:
-            self._open.append((tag, self._offset()))
-
-    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        # A browser ignores the `/` on a non-void element, so `<pre/>` opens a
-        # `<pre>` that nothing closes. Reading it as a complete empty element
-        # would balance it and hide the very hazard this looks for.
-        self.handle_starttag(tag, attrs)
-
-    def handle_endtag(self, tag: str) -> None:
-        if self._raw_text is not None:
-            if tag != self._raw_text:
-                return
-            self._raw_text = None
-        if tag in CONTAINER_TAGS:
-            self.containers.append("/" + tag)
-        for k in range(len(self._open) - 1, -1, -1):
-            if self._open[k][0] != tag:
-                continue
-            start = self._open[k][1]
-            del self._open[k:]
-            if not self._open:
-                close = self._html.find(">", self._offset())
-                self.spans.append((start, len(self._html) if close < 0 else close + 1))
-            return
-
-    def handle_data(self, data: str) -> None:
-        if self._raw_text == "style":
-            self.css.append(data)
-
-
-RENDERER_MISSING = (
-    "--fix needs markdown-it-py to verify its own rewrite before writing it: "
-    "`pip install markdown-it-py` (or `pip install -e '.[dev]'`). "
-    "--check needs nothing beyond the standard library."
-)
-
-# Printed after every --fix run. The verification is strong but not unbounded,
-# and an unqualified claim is worse than a stated limit.
-VERIFICATION_BOUNDARY = (
-    "Each rewrite was rendered with markdown-it-py and compared to the original as a browser "
-    "resolves whitespace. The guarantee stops there: it is one parser's reading of CommonMark+GFM, "
-    "not GitHub's cmark-gfm, and a file whose rendering it cannot judge is refused, not written "
-    "(ADR-0024)."
-)
-
-
-def load_renderer():
-    """The CommonMark+GFM renderer used to verify a rewrite, or None if absent."""
-    try:
-        from markdown_it import MarkdownIt
-    except ImportError:
-        return None
-    # linkify is off: it rewrites bare URLs into links, which is a rendering
-    # difference this comparison has no interest in.
-    return MarkdownIt("gfm-like").disable("linkify")
-
-
-def canonical_html(html: str, scan: HtmlScan | None = None) -> str:
-    """Rendered HTML reduced to what a browser actually shows.
-
-    Outside `<pre>` and friends every run of whitespace is one space, so a source
-    newline and a source space are indistinguishable; inside them whitespace is
-    significant and is kept exactly.
-    """
-    scan = scan if scan is not None else HtmlScan(html)
-    parts: list[str] = []
-    pos = 0
-    for start, end in scan.spans:
-        parts.append(" ".join(html[pos:start].split()))
-        parts.append(html[start:end])
-        pos = end
-    parts.append(" ".join(html[pos:].split()))
-    return " ".join(p for p in parts if p)
-
-
-def _unescape_css(text: str) -> str:
-    """`text` with CSS escapes resolved, so `white-spac\\65` reads as what it names."""
-
-    def one(m: re.Match[str]) -> str:
-        if m.group(1):
-            point = int(m.group(1), 16)
-            # Zero, a surrogate or a value past the last code point is U+FFFD,
-            # which names no property and matches no value — as intended.
-            unusable = point == 0 or 0xD800 <= point <= 0xDFFF or point > 0x10FFFF
-            return chr(0xFFFD) if unusable else chr(point)
-        return m.group(2) or ""
-
-    return CSS_ESCAPE_RE.sub(one, text)
-
-
-def css_declarations(block: str) -> list[tuple[str, str]]:
-    """Every (property, value) pair a browser would read out of `block`.
-
-    `block` is either a `style` attribute or the text of a `<style>` element, so
-    this has to survive selectors, at-rules and nesting braces as well as
-    declarations. It is a reader, not a CSS parser: it tokenises only as far as
-    finding where one declaration ends and the next begins, which means tracking
-    strings — a `;` inside `content: "a;b"` separates nothing — and parentheses,
-    so the `:` inside `(max-width: 40em)` is not a declaration's colon.
-
-    Comments are one of the things it tokenises, and they are replaced by a space
-    rather than removed, because that is what they are: `white-space/**/:pre` is
-    the declaration and `white-spac/**/e:pre` is two idents and not a property
-    name at all. They have to be read *here*, in the same pass as strings and
-    escapes, rather than stripped beforehand — `/*` inside a quoted value is
-    string data, and a pattern that removed it first swallowed everything to the
-    end of the block, hiding a `white-space: pre` declaration behind it. The
-    nesting runs the other way too: a `"` inside a comment opens no string.
-    """
-    declarations: list[tuple[str, str]] = []
-    name: list[str] = []
-    value: list[str] | None = None
-    buf = name
-    quote = ""
-    parens = 0
-
-    def flush() -> None:
-        nonlocal name, value, buf
-        if value is not None:
-            declarations.append(("".join(name), "".join(value)))
-        name, value = [], None
-        buf = name
-
-    i = 0
-    while i < len(block):
-        ch = block[i]
-        if ch == "\\" and i + 1 < len(block):
-            buf.append(block[i : i + 2])  # the backslash is kept, for `_unescape_css` to resolve
-            i += 2
-            continue
-        if quote:
-            buf.append(ch)
-            if ch == quote:
-                quote = ""
-        elif block.startswith("/*", i):
-            # A comment is a token separator, and an unclosed one runs to the end
-            # of the block, which is what a browser does with it.
-            end = block.find("*/", i + 2)
-            buf.append(" ")
-            i = len(block) if end < 0 else end + 2
-            continue
-        elif ch in "\"'":
-            quote = ch
-            buf.append(ch)
-        elif ch == "(":
-            parens += 1
-            buf.append(ch)
-        elif ch == ")":
-            parens = max(0, parens - 1)
-            buf.append(ch)
-        elif parens == 0 and ch == ":" and value is None:
-            value = []
-            buf = value
-        elif parens == 0 and ch in ";{}":
-            flush()
-        else:
-            buf.append(ch)
-        i += 1
-    flush()
-
-    out = []
-    for prop, val in declarations:
-        text_value = CSS_IMPORTANT_RE.sub("", _unescape_css(val).strip().lower()).strip()
-        out.append((_unescape_css(prop).strip().lower(), text_value))
-    return out
-
-
-def preserves_whitespace(block: str) -> bool:
-    """True if this CSS could keep a source line break visible.
-
-    An unrecognised value counts as could: `inherit` and `unset` take the value
-    from a parent this cannot see, `var(--x)` from a custom property, and a typo
-    is a value too. Refusing there costs a contributor a manual fix on a file
-    `--fix` would probably have rewritten correctly; missing one writes a
-    corrupted file over theirs, so the doubt resolves the same way every time.
-    """
-    for prop, value in css_declarations(block):
-        if prop not in WHITESPACE_PROPERTIES:
-            continue
-        tokens = value.split()
-        if not tokens or any(t in PRESERVING_VALUES for t in tokens):
-            return True
-        if not all(t in COLLAPSING_VALUES for t in tokens):
-            return True
-    return False
-
-
-def unverifiable_reason(html: str, scan: HtmlScan | None = None) -> str | None:
-    """Why this rendered HTML is outside what `canonical_html` can judge, or None."""
-    scan = scan if scan is not None else HtmlScan(html)
-    if any(preserves_whitespace(rule) for rule in scan.css):
-        return (
-            "a `white-space` CSS declaration can make a source line break visible here, "
-            "and comparing rendered HTML cannot see that"
-        )
-    if scan.unbalanced:
-        return (
-            f"an unbalanced <{scan.unbalanced[0]}> in the rendered output — a browser preserves the "
-            "whitespace after it, so this comparison would collapse a break the reader can see"
-        )
-    return None
-
-
-def renders_the_same(before: str, after: str, renderer) -> bool:
-    """True if `before` and `after` render to the same thing."""
-    return canonical_html(renderer.render(before)) == canonical_html(renderer.render(after))
-
-
-def unsafe_fix_reason(before: str, after: str, renderer) -> str | None:
-    """Why writing `after` over `before` is unsafe, or None when it is safe.
-
-    The two repair classes are checked differently because they promise
-    different things. A class-A rejoin promises the rendered output does not
-    change, so it is held to exactly that. The class-B repair changes it on
-    purpose — a setext heading becomes a paragraph and a thematic break — so it
-    is held to the structural rule that a setext heading may disappear but never
-    appear.
-
-    Neither may move content between containers, and the fingerprint cannot see
-    that: it reads the source through the same approximate container model the
-    repair does, so a blank line at the wrong nesting looks right to both. The
-    rendered list and blockquote tags are where the move shows.
-
-    Both rest on `canonical_html`, so a file it cannot judge — one whose CSS
-    preserves whitespace, or whose rendered HTML leaves a verbatim element open
-    — is refused before either check runs.
-    """
-    joined = analyse(before, repair=(SPLIT_BLOCK,))[1]
-    before_html, joined_html = renderer.render(before), renderer.render(joined)
-    before_scan, joined_scan = HtmlScan(before_html), HtmlScan(joined_html)
-    unverifiable = unverifiable_reason(before_html, before_scan) or unverifiable_reason(joined_html, joined_scan)
-    if unverifiable is not None:
-        return unverifiable
-    if canonical_html(before_html, before_scan) != canonical_html(joined_html, joined_scan):
-        return "rejoining its split blocks would change the rendered output"
-    if HtmlScan(renderer.render(after)).containers != before_scan.containers:
-        return "the rewrite moves content across a list or blockquote boundary"
-    diffs = compare_structure(before, after)
-    if diffs:
-        return "; ".join(diffs)
-    return None
+    return violations
 
 
 # --------------------------------------------------------------------------
 # File selection
 # --------------------------------------------------------------------------
-
-
-def write_atomically(path: Path, text: str) -> None:
-    """Replace `path`'s contents in one step.
-
-    `Path.write_text` truncates first, so an interruption between the truncate
-    and the write leaves a half-written Markdown file — the one outcome this
-    tool must never produce. Writing a sibling and renaming over the target
-    cannot: the rename either happened or it did not.
-    """
-    tmp = path.with_name(f".{path.name}.md-wrap-tmp")
-    try:
-        tmp.write_text(text, encoding="utf-8")
-        os.replace(tmp, path)
-    finally:
-        tmp.unlink(missing_ok=True)
 
 
 def git(*args: str) -> str:
@@ -1733,20 +1145,13 @@ def select_changed(base: str) -> list[str]:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="check_md_wrap.py",
-        description="Check or fix Markdown soft wrap per ADR-0024.",
+        description="Check Markdown soft wrap per ADR-0024.",
     )
-    mode = p.add_mutually_exclusive_group()
-    mode.add_argument("--check", action="store_true", help="report violations (default)")
-    mode.add_argument(
-        "--fix",
-        action="store_true",
-        help="rewrite files in place, whitespace only; needs markdown-it-py to verify each rewrite",
-    )
+    p.add_argument("--check", action="store_true", help="report violations — the default, and the only mode")
     scope = p.add_mutually_exclusive_group(required=True)
     scope.add_argument("--files", nargs="+", metavar="PATH", help="check exactly these paths")
     scope.add_argument("--changed", metavar="REF", help="check only the .md files this branch changes against REF")
     scope.add_argument("--allowlist", action="store_true", help="check the agent-context allowlist")
-    p.add_argument("--equivalence", metavar="REF", help="compare each selected file against its version at REF")
     return p
 
 
@@ -1761,94 +1166,24 @@ def main(argv: list[str] | None = None) -> int:
         paths = sorted(args.files)
 
     root = repo_root()
-    skipped = [p for p in paths if is_exempt(p)]
-    paths = [p for p in paths if not is_exempt(p)]
-
-    if args.equivalence:
-        return _run_equivalence(args.equivalence, paths, root)
-
-    renderer = None
-    if args.fix:
-        renderer = load_renderer()
-        if renderer is None:
-            print(f"error: {RENDERER_MISSING}", file=sys.stderr)
-            return 2
+    skipped = [path for path in paths if is_exempt(path)]
+    paths = [path for path in paths if not is_exempt(path)]
 
     failures = 0
-    fixed_files = 0
-    refused = 0
     for rel in paths:
         path = root / rel
         if not path.exists():
             continue
-        text = path.read_text(encoding="utf-8")
-        violations, fixed = analyse(text)
-        if args.fix:
-            if fixed != text:
-                reason = unsafe_fix_reason(text, fixed, renderer)
-                if reason is not None:
-                    refused += 1
-                    print(f"{rel}: REFUSED, not rewritten — {reason}")
-                    continue
-                write_atomically(path, fixed)
-                fixed_files += 1
-                print(f"{rel}: fixed {len(violations)} violation(s)")
-        else:
-            for v in violations:
-                print(v.format(rel))
-            failures += len(violations)
+        for violation in analyse(path.read_text(encoding="utf-8")):
+            print(violation.format(rel))
+            failures += 1
 
     scope_name = "allowlist" if args.allowlist else (f"changed vs {args.changed}" if args.changed else "files")
     print(f"\n{len(paths)} file(s) checked ({scope_name}); {len(skipped)} exempt.", file=sys.stderr)
-    if args.fix:
-        print(f"{fixed_files} file(s) rewritten.", file=sys.stderr)
-        print(VERIFICATION_BOUNDARY, file=sys.stderr)
-        if refused:
-            print(
-                f"{refused} file(s) refused: the rewrite would have changed the rendered output, "
-                "so it was not written. Soft-wrap those by hand and report the shape.",
-                file=sys.stderr,
-            )
-            return 1
-        return 0
     if failures:
-        print(f"{failures} violation(s). Run with --fix to rewrite.", file=sys.stderr)
+        print(f"{failures} violation(s). Each message says what to change; ADR-0024 has the rule.", file=sys.stderr)
         return 1
     print("No violations.", file=sys.stderr)
-    return 0
-
-
-def _run_equivalence(ref: str, paths: list[str], root: Path) -> int:
-    renderer = load_renderer()
-    failures = 0
-    compared = 0
-    for rel in paths:
-        path = root / rel
-        if not path.exists():
-            continue
-        try:
-            before = git("show", f"{ref}:{rel}")
-        except subprocess.CalledProcessError:
-            continue  # new file — nothing to compare against
-        after = path.read_text(encoding="utf-8")
-        compared += 1
-        diffs = compare_structure(before, after)
-        if renderer is not None:
-            unverifiable = unverifiable_reason(renderer.render(before)) or unverifiable_reason(renderer.render(after))
-            if unverifiable is not None:
-                diffs.append(f"not verifiable by rendering: {unverifiable}")
-            elif not renders_the_same(before, after, renderer):
-                diffs.append("rendered output changed")
-        for d in diffs:
-            print(f"{rel}: {d}")
-        failures += len(diffs)
-    print(f"\n{compared} file(s) compared against {ref}.", file=sys.stderr)
-    if renderer is None:
-        print(f"Structural comparison only — {RENDERER_MISSING}", file=sys.stderr)
-    if failures:
-        print(f"{failures} structural difference(s) — the edit was not whitespace-only.", file=sys.stderr)
-        return 1
-    print("Structurally equivalent: prose, headings, code, links, list items and tables all match.", file=sys.stderr)
     return 0
 
 
