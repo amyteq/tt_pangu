@@ -180,7 +180,7 @@ HARD_BREAK_RE = re.compile(r"(?:  +|\\)$")
 # indented far enough into a list. Syntax reference:
 # https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts
 ALERT_MARKER_RE = re.compile(
-    r"^[ \t]*(?:>[ \t]*)*\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*$",
+    r"^[ \t]*(?P<quote>(?:>[ \t]*)*)\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*$",
     re.IGNORECASE,
 )
 
@@ -380,6 +380,20 @@ def split_quote(line: str) -> tuple[int, str]:
             return depth, rest
         depth += 1
         rest = rest[m.end() :]
+
+
+def is_alert_marker(content: str, depth: int) -> bool:
+    """Is `content` a GitHub alert type marker standing alone *inside* a blockquote?
+
+    GitHub reads the callout only inside a blockquote, so a bare `[!NOTE]` at top
+    level is ordinary prose and joins like any other line. The quote can reach
+    here two ways, and the marker needs one of them: `split_quote` stripped the
+    `>` and reported `depth`, or it left the `>` in the content — which is what
+    happens four or more columns into a list item, past `QUOTE_RE`'s reach — for
+    the `quote` group to match.
+    """
+    m = ALERT_MARKER_RE.match(content)
+    return bool(m) and (depth > 0 or bool(m["quote"]))
 
 
 def column_of(prefix: str) -> int:
@@ -1050,14 +1064,16 @@ def scan(lines: list[str]) -> list[ScanLine]:
                 i += 1
                 prev_open, open_line = True, content
                 continue
-            if HARD_BREAK_RE.search(open_line) or ALERT_MARKER_RE.match(open_line):
+            if HARD_BREAK_RE.search(open_line) or is_alert_marker(open_line, prev_depth):
                 # An explicit hard break is authored intent; joining would change
                 # rendering. Leave it, and leave the line it introduces. A GitHub
                 # alert's type marker is the same kind of control line: the
                 # callout exists only while `> [!NOTE]` stands alone above its
-                # body, so a join demotes it to an ordinary blockquote printing
-                # the literal `[!NOTE]`. The body below is left open, so a body
-                # that really is hard-wrapped is still reported and rejoined.
+                # body inside a blockquote, so a join demotes it to an ordinary
+                # blockquote printing the literal `[!NOTE]`. `prev_depth` is the
+                # quote depth of the line `open_line` came from. The body below
+                # is left open, so a body that really is hard-wrapped is still
+                # reported and rejoined.
                 emit(raw, content, depth, BREAK_CONTINUATION)
                 i += 1
                 prev_open, open_line = True, content

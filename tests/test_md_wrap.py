@@ -205,9 +205,20 @@ def test_github_alert_marker_is_exempt_at_any_depth_and_inside_a_list():
     for src in (
         ">> [!WARNING]\n>> Nested in a second quote.\n",
         "- an item\n\n  > [!TIP]\n  > Alerts nest inside list items.\n",
+        # Four columns into an item, past `QUOTE_RE`'s reach: `split_quote`
+        # reports depth 0 and the `>` stays in the content, so the exemption
+        # has to read the quote off the line itself.
+        "1.  an item\n\n    > [!TIP]\n    > Still an alert.\n",
     ):
         assert kinds(src) == []
         assert fixed(src) == src
+
+
+def test_a_bare_alert_marker_outside_a_blockquote_is_prose():
+    """GitHub reads the callout only inside a blockquote; alone it is plain text."""
+    src = "[!NOTE]\nBody.\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "[!NOTE] Body.\n"
 
 
 def test_a_line_that_only_looks_like_an_alert_marker_still_joins():
