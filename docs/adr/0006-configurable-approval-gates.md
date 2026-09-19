@@ -9,18 +9,14 @@ Supersedes: prior implicit policy of "always require approval for remote writes"
 
 ## Context
 
-Earlier platform design required human approval for all Kaggle submissions, kernel
-pushes, and git pushes. This was chosen conservatively during M0–M2 setup.
+Earlier platform design required human approval for all Kaggle submissions, kernel pushes, and git pushes. This was chosen conservatively during M0–M2 setup.
 
-The user's actual Kaggle workflow (see `docs/meeting-notes/2026-05-17-r1.md`) is
-iterative and fast. Requiring manual approval on every submission adds friction
-without meaningfully increasing safety for an experienced user who:
+The user's actual Kaggle workflow (see `docs/meeting-notes/2026-05-17-r1.md`) is iterative and fast. Requiring manual approval on every submission adds friction without meaningfully increasing safety for an experienced user who:
 - Has already reviewed the code in the job's experiment run
 - Understands the submission mechanics
 - Wants the agent to handle routine mechanics autonomously
 
-The main human decision points are **strategic** (switch model, switch approach,
-ensemble), not operational (submit file X, push kernel Y).
+The main human decision points are **strategic** (switch model, switch approach, ensemble), not operational (submit file X, push kernel Y).
 
 ## Decision
 
@@ -45,8 +41,7 @@ All approval gates are **configurable per project** and **default to allow (no a
 `true` = requires human approval before executing.  
 `false` = agent executes autonomously (logged, auditable, but no pause).
 
-`dataset_upload`, `git_force_push`, `supabase_migrate`, and `delete_artifact` default
-to `true` because they are infrequent, higher-blast-radius operations.
+`dataset_upload`, `git_force_push`, `supabase_migrate`, and `delete_artifact` default to `true` because they are infrequent, higher-blast-radius operations.
 
 ### Per-competition override
 
@@ -60,8 +55,7 @@ A competition record can override the project defaults:
 }
 ```
 
-Useful if a competition has strict submission limits or the user wants to be more
-careful during the final days before deadline.
+Useful if a competition has strict submission limits or the user wants to be more careful during the final days before deadline.
 
 ### Per-job override
 
@@ -91,13 +85,11 @@ def _check_approval_gate(operation: str, policy: dict) -> None:
         raise ApprovalRequired(operation, policy)
 ```
 
-`OPERATION_DEFAULTS` mirrors the table above. The `KCA_ALLOW_REMOTE` env var is kept
-as an emergency override for CI/scripted contexts but is no longer the primary gate.
+`OPERATION_DEFAULTS` mirrors the table above. The `KCA_ALLOW_REMOTE` env var is kept as an emergency override for CI/scripted contexts but is no longer the primary gate.
 
 ### In `src/worker/tools.py` (`ToolExecutor`)
 
-`ToolExecutor` receives the job's resolved approval policy and calls `_check_approval_gate`
-before executing any REMOTE_WRITE or SUBMISSION tool.
+`ToolExecutor` receives the job's resolved approval policy and calls `_check_approval_gate` before executing any REMOTE_WRITE or SUBMISSION tool.
 
 ### In `scripts/run_job.py`
 
@@ -114,22 +106,16 @@ When an approval gate fires, the worker:
 2. Logs the decision_id to stderr.
 3. Returns `WorkerResult(status='paused')`.
 
-The human resolves with `kca decisions approve --id <id>` or via the future UI.
-The job can then be restarted (M4+ resume logic).
+The human resolves with `kca decisions approve --id <id>` or via the future UI. The job can then be restarted (M4+ resume logic).
 
 ## Consequences
 
-- **Positive:** Faster iteration. Agent can run a full research → implement → submit
-  cycle without human touch on routine operations.
+- **Positive:** Faster iteration. Agent can run a full research → implement → submit cycle without human touch on routine operations.
 - **Positive:** Experienced users are not blocked by unnecessary gates.
-- **Positive:** All operations are still logged in `agent_job_events` — autonomy does
-  not mean invisibility.
-- **Negative:** Higher risk of an unintended submission on a fresh competition if the
-  user forgets to set `kaggle_submit: true` for that competition.
-- **Mitigation:** New competition records should remind the user to review the approval
-  policy before the first `submit` job runs. Platform UI (M7) will surface this clearly.
-- **Mitigation:** `kca decisions list` still works as an audit trail for all completed
-  actions, even auto-approved ones.
+- **Positive:** All operations are still logged in `agent_job_events` — autonomy does not mean invisibility.
+- **Negative:** Higher risk of an unintended submission on a fresh competition if the user forgets to set `kaggle_submit: true` for that competition.
+- **Mitigation:** New competition records should remind the user to review the approval policy before the first `submit` job runs. Platform UI (M7) will surface this clearly.
+- **Mitigation:** `kca decisions list` still works as an audit trail for all completed actions, even auto-approved ones.
 
 ## Human intervention points (unchanged)
 
@@ -139,5 +125,4 @@ The following always require human judgment regardless of approval gate settings
 - **Data policy decisions:** using external data, expanding training set beyond competition data.
 - **Final submission selection:** choosing which 1–2 runs to use as final submissions.
 
-These are not gate-able by the platform — they are judgment calls that belong to
-the human and are surfaced via the analysis and eval job outputs.
+These are not gate-able by the platform — they are judgment calls that belong to the human and are surfaced via the analysis and eval job outputs.

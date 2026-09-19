@@ -22,7 +22,11 @@ llm = ["litellm>=1.40"]
 # `ruff lint + format check` job always agree — an unpinned bump (e.g.
 # 0.14->0.15 reflowed multi-line lambda bodies) silently passed locally but
 # failed CI. Bump CI (.github/workflows/test.yml) and this line together.
-dev = ["pytest>=8", "ruff==0.15.14", "jsonschema>=4.21"]
+# markdown-it-py is what `scripts/check_md_wrap.py --fix` renders with to verify
+# its own rewrite before writing it (ADR-0024). It is a `--fix` and test-time
+# dependency only: the CI `md-wrap` job runs `--check`, which is standard-library
+# only and installs nothing.
+dev = ["pytest>=8", "ruff==0.15.14", "markdown-it-py>=3", "jsonschema>=4.21"]
 # Required by the M13 Kaggle-replay eval suites (kaggle_replay_titanic /
 # kaggle_replay_spaceship_titanic / kaggle_replay_house_prices). Lean
 # install (`.[dev]`) keeps these out; CI installs `.[dev,eval]` so the
