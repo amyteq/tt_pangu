@@ -7,7 +7,13 @@ status: closed                 # open | closed | unknown -- is the official comp
 state: FINDINGS                # ADR-0022 §3 canonical state (was phase: submission)
 competition_type: llm
 metric: accuracy (extracted \boxed{} answer; exact match or numeric within 1e-2)
+launch: null                     # never recorded; the campaign started from the deadline backwards
 deadline: 2026-06-15             # 23:59 UTC (issue #86 snapshot)
+closing_window_days: null        # ADR-0022 §5; never set. With `launch` null the default
+                                 #   (competition_period x 0.1) is not computable either
+timing_verified_source: "GitHub issue #86 snapshot of the competition page"
+timing_verified_at: null         # the snapshot itself is undated, so A3 stays fail-closed
+timing_verified_ttl: 30d
 primary_artifact: notebook
 submission_mode: kernel          # rank<=32 LoRA adapter -> submission.zip via Kaggle kernel
 data_policy: kaggle              # + public Kaggle datasets (huikang corpus / replay-math / wheels), real training (no repack)

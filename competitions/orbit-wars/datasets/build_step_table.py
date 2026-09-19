@@ -78,18 +78,14 @@ def build(replay_root, out_root, stride=5, horizon=40, max_steps=None):
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Build per-step per-player table from replays."
-    )
+    ap = argparse.ArgumentParser(description="Build per-step per-player table from replays.")
     ap.add_argument("--replay-root", required=True)
     ap.add_argument("--out-root", required=True)
     ap.add_argument("--step-stride", type=int, default=5)
     ap.add_argument("--horizon", type=int, default=40)
     ap.add_argument("--max-steps", type=int, default=None)
     args = ap.parse_args()
-    build(
-        args.replay_root, args.out_root, args.step_stride, args.horizon, args.max_steps
-    )
+    build(args.replay_root, args.out_root, args.step_stride, args.horizon, args.max_steps)
 
 
 if __name__ == "__main__":

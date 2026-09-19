@@ -1,0 +1,43 @@
+# Contract: contracts/finding.yaml
+# Backfilled from competitions/nvidia-nemotron/insights.md INS-004.
+id: FIND-0001
+competition: nvidia-nemotron
+statement: >-
+  A model soup of comparable, complementary same-base fine-tunes beats each member. Train
+  N>=3 diverse fine-tunes of one base near the same loss basin, weight-average their LoRA
+  deltas, SVD-truncate back to the rank cap. Members must be comparable (similar score)
+  AND complementary (different data or seed); a strong+weak mix dilutes instead.
+type: technique
+confidence: high
+status: validated
+evidence:
+  - "competitions/nvidia-nemotron/insights.md - INS-004"
+  - "competitions/nvidia-nemotron/submissions.md - Real-training campaign table (soup 0.86/0.85 vs v14 0.85/0.84, c1 0.85, b1 0.85, b2 0.84, c2 0.83, t7 strong+weak 0.82)"
+  - "competitions/nvidia-nemotron/strategy.md - H3 refuted, H3' validated"
+  - "arXiv:2203.05482 (Model Soups) - RI-0001"
+from_experiments:
+  - EXP-0001
+  - EXP-0002
+from_scores:
+  - SCORE-0001
+transfer_scope: >-
+  Any LoRA/PEFT competition where several diverse same-base fine-tunes can be trained
+  within budget. Cheap to test: no new training data and no new training run, only a merge
+  and one packaging run.
+new_strategy: null
+supersedes: null
+insight_ref: INS-004
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  The evidence is a contrast rather than a single number, and that is what raises it above
+  a hypothesis: the same merge machinery over strong+weak members regressed (0.82), every
+  single-adapter add-on tied or trailed (0.83-0.85), and only the comparable+complementary
+  soup exceeded the backbone (0.86). The later eq-aug result sharpened it further - souping
+  a hard-tail-WEAK member produced 0.85, below both parents - so "comparable" has to be
+  read as comparable on the hard tail, not only on the aggregate.
+
+  `new_strategy: null` because the competition closed the same day this was established:
+  the finding had no successor strategy to feed inside this competition, which is
+  discussion #185 §5's loop terminating rather than closing. Its successor is the transfer
+  scope above, and insights.md marks it for promotion to _shared/skill-candidates.md.

@@ -17,9 +17,11 @@ Coverage maps 1:1 onto the phase-1a acceptance criteria in issue #197:
 
 from __future__ import annotations
 
+import ast
 import datetime as dt
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -1268,3 +1270,451 @@ def test_attention_is_not_counted_as_routine(cfg: dict) -> None:
     noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
     notify.append_ledger(cfg, {"ts": noon.isoformat(), "level": "attention", "key": "a", "status": "sent"})
     assert notify.routine_sends_today(cfg, notify.read_ledger(cfg), noon) == 0
+
+
+def test_an_append_survives_compaction_swapping_the_file_under_it(cfg: dict, monkeypatch) -> None:
+    """#206 F015's last instant. Compaction carries over what landed before its
+    final read; a write to the already-unlinked inode *after* that read used to
+    vanish. The writer now notices the swap and re-appends to the live file."""
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    path = notify.ledger_path(cfg)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("", encoding="utf-8")
+
+    swapped = {"done": False}
+    real_stat = Path.stat
+
+    def swap_once(self, *args, **kwargs):
+        # Exactly the losing interleaving: by the time the appender looks, a
+        # fresh inode is at `path` and its bytes went to the unlinked one.
+        if not swapped["done"] and self == path:
+            swapped["done"] = True
+            replacement = path.with_name(path.name + ".compacted")
+            replacement.write_text("", encoding="utf-8")
+            os.replace(replacement, path)
+        return real_stat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "stat", swap_once)
+    notify.append_ledger(cfg, {"ts": noon.isoformat(), "level": "gate", "key": "survivor"}, compact=False)
+    monkeypatch.undo()
+
+    assert swapped["done"], "the test did not actually swap the file"
+    keys = [entry.get("key") for entry in notify.read_ledger(cfg)]
+    assert keys.count("survivor") == 1  # neither lost to the swap…
+
+
+def test_a_carried_over_and_re_appended_entry_counts_once(cfg: dict) -> None:
+    """…nor double-counted when compaction's carry-over and the writer's retry
+    both land. The id is what makes "exactly once" observable."""
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    path = notify.ledger_path(cfg)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    line = json.dumps({"ts": noon.isoformat(), "level": "digest", "key": "k", "status": "sent", "id": "abc123"})
+    path.write_text(line + "\n" + line + "\n", encoding="utf-8")
+
+    entries = notify.read_ledger(cfg)
+    assert len(entries) == 1
+    assert notify.routine_sends_today(cfg, entries, noon) == 1
+
+
+def test_entries_written_before_ids_existed_are_never_dropped(cfg: dict) -> None:
+    """The dedupe is keyed on an id the old format does not carry, so a ledger
+    written by an earlier build must survive an upgrade intact."""
+    noon = dt.datetime(2026, 9, 15, 12, 0, tzinfo=MELBOURNE)
+    path = notify.ledger_path(cfg)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    legacy = json.dumps({"ts": noon.isoformat(), "level": "digest", "key": "k", "status": "sent"})
+    path.write_text(legacy + "\n" + legacy + "\n", encoding="utf-8")
+
+    assert len(notify.read_ledger(cfg)) == 2
+
+
+def test_the_fallback_lock_restores_a_live_successor_without_hard_links(tmp_path: Path, monkeypatch) -> None:
+    """#206 F017. Reclaiming used to rename the lock aside and put it back with
+    `os.link`, which is a no-op where hard links are unavailable — so a live
+    successor's lock could be carried off and never restored. Reclamation is now
+    serialised and verifies in place, so nothing is moved and nothing needs
+    restoring."""
+    monkeypatch.setattr(notify, "fcntl", None)
+
+    def no_hard_links(*args, **kwargs):
+        raise OSError("hard links are not supported on this filesystem")
+
+    monkeypatch.setattr(notify.os, "link", no_hard_links)
+
+    lock = tmp_path / "ledger.lock"
+    lock.write_bytes(b"successor-token")
+    observed_stale = b"dead-holder-token"  # what a previous scan saw, since replaced
+
+    notify._reclaim_stale_lock(lock, observed_stale)
+
+    assert lock.exists(), "a live successor's lock must survive a failed reclaim"
+    assert lock.read_bytes() == b"successor-token"
+
+
+def test_the_fallback_lock_reclaims_the_token_it_actually_observed(tmp_path: Path, monkeypatch) -> None:
+    """The other half: a genuinely abandoned lock is still removed, so a dead
+    holder cannot wedge the channel forever."""
+    monkeypatch.setattr(notify, "fcntl", None)
+    lock = tmp_path / "ledger.lock"
+    lock.write_bytes(b"dead-holder-token")
+
+    notify._reclaim_stale_lock(lock, b"dead-holder-token")
+
+    assert not lock.exists()
+
+
+def test_a_concurrent_reclaimer_is_locked_out_rather_than_racing(tmp_path: Path, monkeypatch) -> None:
+    """Two contenders reclaiming at once is what let one delete the fresh lock
+    the other had just created (#206 F003/F017). The reclaim mutex makes the
+    second one back off instead."""
+    monkeypatch.setattr(notify, "fcntl", None)
+    lock = tmp_path / "ledger.lock"
+    lock.write_bytes(b"dead-holder-token")
+    held = lock.with_name(lock.name + ".reclaim")
+    held.write_bytes(b"another contender is mid-reclaim")
+
+    notify._reclaim_stale_lock(lock, b"dead-holder-token")
+
+    assert lock.exists(), "a second reclaimer must not act while the first holds the mutex"
+    assert held.exists()
+
+
+def test_an_abandoned_reclaim_mutex_does_not_wedge_reclamation(tmp_path: Path, monkeypatch) -> None:
+    """A reclaimer that died holding the mutex must not block every later one."""
+    monkeypatch.setattr(notify, "fcntl", None)
+    lock = tmp_path / "ledger.lock"
+    lock.write_bytes(b"dead-holder-token")
+    held = lock.with_name(lock.name + ".reclaim")
+    held.write_bytes(b"a reclaimer that never finished")
+    ancient = time.time() - (notify.RECLAIM_MUTEX_STALE_S + 60)
+    os.utime(held, (ancient, ancient))
+
+    notify._reclaim_stale_lock(lock, b"dead-holder-token")
+
+    assert not lock.exists()
+
+
+# ---------------------------------------------------------------------------
+# Phase 1b — the reply poller (#219, option A: GitHub is record *and* reply)
+# ---------------------------------------------------------------------------
+
+
+def _comment(
+    body: str,
+    *,
+    login: str = "harrysun2006",
+    created_at: str = "2026-09-15T11:00:00Z",
+    cid: int = 1,
+) -> dict:
+    return {
+        "id": cid,
+        "body": body,
+        "created_at": created_at,
+        "html_url": f"https://github.com/amyteq/tt_pangu/issues/219#issuecomment-{cid}",
+        "login": login,
+    }
+
+
+@pytest.fixture
+def gh(monkeypatch):
+    """Stub the two `gh` call sites, leaving every line of parsing real.
+
+    Only `_gh_lines` and `post_github_comment` are replaced, so
+    `fetch_issue_comments`, `parse_decision_record`, `author_permission` and
+    `poll` all run their real code against canned bytes. No network, no token,
+    no `gh` binary needed.
+    """
+    state = {"comments": [], "permissions": {"harrysun2006": "admin"}, "posted": [], "calls": []}
+
+    def fake_gh_lines(args, timeout_s=notify.GITHUB_TIMEOUT_S):
+        state["calls"].append(list(args))
+        path = args[1]
+        if path.endswith("/comments"):
+            return [json.dumps(c) for c in state["comments"]]
+        match = re.search(r"/collaborators/([^/]+)/permission\Z", path)
+        if match:
+            login = match.group(1)
+            if login not in state["permissions"]:
+                raise RuntimeError("gh: HTTP 404 (Not Found)")
+            return [state["permissions"][login]]
+        raise AssertionError(f"unexpected gh call: {args}")
+
+    def fake_post(cfg, *, issue, body, dry_run=False):
+        if dry_run:
+            return {"ok": True, "channel": "github", "dry_run": True, "issue": issue, "body": body}
+        state["posted"].append({"issue": issue, "body": body})
+        return {"ok": True, "channel": "github", "issue": issue, "url": "https://example.invalid/c/1"}
+
+    monkeypatch.setattr(notify, "_gh_lines", fake_gh_lines)
+    monkeypatch.setattr(notify, "post_github_comment", fake_post)
+    return state
+
+
+@pytest.fixture
+def record(cfg: dict) -> dict:
+    """A real `kca notify decision` record comment, rendered by the sender."""
+    return _comment(notify.render_github_comment(_request(), cfg), cid=1, created_at="2026-09-15T10:00:00Z")
+
+
+BEFORE_EXPIRY = dt.datetime(2026, 9, 16, 8, 0, tzinfo=MELBOURNE)
+AFTER_EXPIRY = dt.datetime(2026, 9, 17, 9, 0, tzinfo=MELBOURNE)
+
+
+def test_the_record_round_trips_into_the_dict_resolve_reply_accepts(cfg: dict, record: dict) -> None:
+    """AC2. The poller carries no second copy of the decision schema: the
+    sender's own machine block *is* the input `resolve_reply` takes."""
+    parsed = notify.parse_decision_record(record["body"])
+    assert parsed is not None
+    assert parsed["decision_id"] == "d-2026-09-15-001"
+    assert parsed["options"] == ["promote", "hold"]
+    assert parsed["expires_at"] == "2026-09-16T09:00:00+10:00"
+
+    outcome = notify.resolve_reply(parsed, "/decide d-2026-09-15-001 promote", now=BEFORE_EXPIRY)
+    assert outcome["status"] == "ANSWERED"
+    assert outcome["approved"] is True
+
+
+def test_an_authorized_answer_writes_exactly_one_attributable_resolution(cfg, gh, record) -> None:
+    """AC3 + AC4."""
+    gh["comments"] = [record, _comment("/decide d-2026-09-15-001 promote ship it", cid=2)]
+
+    result = notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert result["resolutions_written"] == 1
+    assert len(gh["posted"]) == 1
+    body = gh["posted"][0]["body"]
+    assert body.startswith(notify.RESOLUTION_MARKER)
+    assert "d-2026-09-15-001" in body
+    assert "`promote`" in body
+    assert "`ANSWERED`" in body
+    assert "@harrysun2006" in body
+    assert "issuecomment-2" in body  # links the answer it resolved from
+    assert "2026-09-15" in body or "2026-09-16" in body  # a resolution timestamp
+    assert "ship it" in body  # the note is recorded as context
+    assert [o["status"] for o in result["outcomes"]] == ["ANSWERED"]
+
+
+def test_a_second_poll_over_the_same_thread_writes_nothing(cfg, gh, record) -> None:
+    """AC3 — idempotency, keyed on the resolution the first poll published."""
+    gh["comments"] = [record, _comment("/decide d-2026-09-15-001 promote", cid=2)]
+    notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+    assert len(gh["posted"]) == 1
+
+    # The published resolution is now part of the thread, exactly as a real
+    # second run would find it.
+    gh["comments"].append(_comment(gh["posted"][0]["body"], cid=3, created_at="2026-09-15T12:00:00Z"))
+    result = notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert result["resolutions_written"] == 0
+    assert len(gh["posted"]) == 1
+    assert [o["status"] for o in result["outcomes"]] == ["ALREADY_RESOLVED"]
+
+
+def test_two_answers_in_one_run_resolve_once(cfg, gh, record) -> None:
+    """AC3 — "exactly once" holds within a single poll, not just across runs."""
+    gh["comments"] = [
+        record,
+        _comment("/decide d-2026-09-15-001 promote", cid=2, created_at="2026-09-15T11:00:00Z"),
+        _comment("/decide d-2026-09-15-001 hold", cid=3, created_at="2026-09-15T11:30:00Z"),
+    ]
+    result = notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert result["resolutions_written"] == 1
+    assert [o["status"] for o in result["outcomes"]] == ["ANSWERED", "ALREADY_RESOLVED"]
+
+
+def test_an_unauthorized_author_resolves_nothing(cfg, gh, record) -> None:
+    """AC5. Write access is the gate, and a drive-by commenter does not have it."""
+    gh["permissions"]["driveby"] = "read"
+    gh["comments"] = [record, _comment("/decide d-2026-09-15-001 promote", login="driveby", cid=2)]
+
+    result = notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert gh["posted"] == []
+    assert result["resolutions_written"] == 0
+    assert result["outcomes"][0]["status"] == notify.UNAUTHORIZED_AUTHOR
+    assert result["outcomes"][0]["permission"] == "read"
+
+
+def test_a_failed_permission_lookup_does_not_authorize(cfg, gh, record) -> None:
+    """AC5. A check that opens up when the lookup fails is not a check — an
+    unknown login 404s, and fail-closed means no resolution."""
+    gh["comments"] = [record, _comment("/decide d-2026-09-15-001 promote", login="stranger", cid=2)]
+
+    result = notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert gh["posted"] == []
+    assert result["outcomes"][0]["status"] == notify.UNAUTHORIZED_AUTHOR
+    assert result["outcomes"][0]["permission"] == ""
+
+
+def test_effective_permission_is_read_never_author_association(cfg, gh, record) -> None:
+    """AC5. `authorAssociation` does not test write access (#196), so it must
+    not appear in the implementation — and the poller must actually call the
+    collaborator permission endpoint."""
+    gh["comments"] = [record, _comment("/decide d-2026-09-15-001 promote", cid=2)]
+    notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert any("/collaborators/harrysun2006/permission" in call[1] for call in gh["calls"])
+    assert not any("authorAssociation" in str(call) for call in gh["calls"])
+
+    # Explaining in a docstring why it is wrong is good; *using* it is the
+    # defect. So the check reads the parsed module and ignores docstrings,
+    # rather than grepping the file and tripping over its own rationale.
+    tree = ast.parse(Path(notify.__file__).read_text())
+    docstrings = {
+        ast.get_docstring(node, clean=False)
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+    }
+    live_strings = [
+        node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value not in docstrings
+    ]
+    assert not any("authorAssociation" in text for text in live_strings)
+    assert not any(
+        getattr(node, "attr", "") == "authorAssociation" or getattr(node, "id", "") == "authorAssociation"
+        for node in ast.walk(tree)
+    )
+
+
+def test_an_option_that_is_not_on_the_decision_writes_nothing(cfg, gh, record) -> None:
+    """AC6."""
+    gh["comments"] = [record, _comment("/decide d-2026-09-15-001 rewrite-everything", cid=2)]
+    result = notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert gh["posted"] == []
+    assert result["outcomes"][0]["status"] == "INVALID_OPTION"
+
+
+def test_an_unknown_decision_id_writes_nothing(cfg, gh, record) -> None:
+    """AC6."""
+    gh["comments"] = [record, _comment("/decide d-not-a-real-decision promote", cid=2)]
+    result = notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert gh["posted"] == []
+    assert result["outcomes"][0]["status"] == "MISMATCHED_DECISION"
+
+
+def test_an_answer_predating_its_record_writes_nothing(cfg, gh, record) -> None:
+    """AC6. A `/decide` that ran before the decision existed cannot be an answer
+    to it — otherwise a recycled decision_id would inherit an old reply."""
+    gh["comments"] = [
+        _comment("/decide d-2026-09-15-001 promote", cid=2, created_at="2026-09-14T09:00:00Z"),
+        record,
+    ]
+    result = notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert gh["posted"] == []
+    assert result["outcomes"][0]["status"] == "MISMATCHED_DECISION"
+
+
+@pytest.mark.parametrize("prose", ["yes", "go ahead", "A", "promote", "LGTM 👍", "/decide"])
+def test_prose_is_never_an_answer(cfg, gh, record, prose: str) -> None:
+    """AC6. WAIT_HUMAN is the absence of a parsable reply, and it writes nothing."""
+    gh["comments"] = [record, _comment(prose, cid=2)]
+    result = notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert gh["posted"] == []
+    assert result["outcomes"] == []
+
+
+def test_a_late_answer_does_not_revive_a_lapsed_decision(cfg, gh, record) -> None:
+    """AC7. Silence is never consent, and neither is a reply that arrives after
+    the deadline it was supposed to beat."""
+    gh["comments"] = [record, _comment("/decide d-2026-09-15-001 promote", cid=2)]
+    result = notify.poll(cfg, issue=219, now=AFTER_EXPIRY)
+
+    assert gh["posted"] == []
+    assert result["outcomes"][0]["status"] == "EXPIRED"
+
+
+def test_a_record_never_resolves_itself(cfg, gh, record) -> None:
+    """AC8. The record spells out `/decide <decision_id> <option_id>` as help.
+    Angle brackets are not legal ids so it cannot parse, and the poller skips
+    record comments outright rather than resting on the grammar alone."""
+    gh["comments"] = [record]
+    result = notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert notify.parse_decision_reply(record["body"]) is None
+    assert gh["posted"] == []
+    assert result["resolutions_written"] == 0
+    assert result["decisions_open"] == 1
+
+
+def test_a_blockquoted_answer_is_not_an_answer(cfg, gh, record) -> None:
+    """AC8. Quoting someone else's answer must not re-trigger it."""
+    gh["comments"] = [record, _comment("> /decide d-2026-09-15-001 promote\n\nagreed, nice one", cid=2)]
+    result = notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert gh["posted"] == []
+    assert result["outcomes"] == []
+
+
+def test_a_fenced_answer_is_an_answer(cfg, gh, record) -> None:
+    """AC8's other half: pasting the line from the Telegram card inside a fence
+    is a real answer, and deliberately still resolves."""
+    gh["comments"] = [record, _comment("```\n/decide d-2026-09-15-001 promote\n```", cid=2)]
+    result = notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert result["resolutions_written"] == 1
+
+
+def test_our_own_resolution_is_never_read_back_as_an_answer(cfg, gh, record) -> None:
+    """A resolution names the option it recorded; if that could parse as a
+    reply the poller would answer itself forever."""
+    gh["comments"] = [record, _comment("/decide d-2026-09-15-001 promote", cid=2)]
+    notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+    resolution_body = gh["posted"][0]["body"]
+
+    assert notify.parse_decision_reply(resolution_body) is None
+    assert notify.parse_resolution(resolution_body)["decision_id"] == "d-2026-09-15-001"
+
+
+def test_dry_run_writes_nothing_and_reports_read_only(cfg, gh, record) -> None:
+    gh["comments"] = [record, _comment("/decide d-2026-09-15-001 promote", cid=2)]
+    result = notify.poll(cfg, issue=219, dry_run=True, now=BEFORE_EXPIRY)
+
+    assert gh["posted"] == []
+    assert result["dry_run"] is True
+    assert result["outcomes"][0]["status"] == "ANSWERED"
+
+
+def test_a_malformed_comment_line_does_not_take_the_poll_down(cfg, gh, record, monkeypatch) -> None:
+    """The ledger already refuses to die on a corrupt line; the thread reader
+    holds the same property, because one bad page must not strand every gate."""
+    real = notify._gh_lines
+
+    def with_garbage(args, timeout_s=notify.GITHUB_TIMEOUT_S):
+        lines = real(args, timeout_s)
+        return ["not json at all", *lines] if args[1].endswith("/comments") else lines
+
+    monkeypatch.setattr(notify, "_gh_lines", with_garbage)
+    gh["comments"] = [record, _comment("/decide d-2026-09-15-001 promote", cid=2)]
+
+    assert notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)["resolutions_written"] == 1
+
+
+def test_a_record_whose_machine_block_is_unusable_is_ignored(cfg, gh) -> None:
+    """An unanswerable record is a *sending* bug. Guessing its options here
+    would resolve a decision that was never published."""
+    broken = notify.RECORD_MARKER + "\n## 🔔 Decision request\n\n```yaml\ndecision_id: d-1\noptions: []\n```"
+    gh["comments"] = [_comment(broken, cid=1), _comment("/decide d-1 promote", cid=2)]
+    result = notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    assert gh["posted"] == []
+    assert result["decisions_open"] == 0
+    assert result["outcomes"][0]["status"] == "MISMATCHED_DECISION"
+
+
+def test_a_secret_shaped_note_is_redacted_out_of_the_resolution(cfg, gh, record) -> None:
+    """The resolution is transmitted like any other body: the note is free text
+    the human typed, so it goes through `redact` before it is published."""
+    gh["comments"] = [record, _comment(f"/decide d-2026-09-15-001 promote token={SECRET_TOKEN}", cid=2)]
+    notify.poll(cfg, issue=219, now=BEFORE_EXPIRY)
+
+    body = gh["posted"][0]["body"]
+    assert SECRET_TOKEN not in body
+    assert notify.REDACTED in body

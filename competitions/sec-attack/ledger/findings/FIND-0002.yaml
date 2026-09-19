@@ -1,0 +1,39 @@
+# Contract: contracts/finding.yaml
+# Backfilled from competitions/sec-attack/submissions.md "Final results", points 1 and 2.
+id: FIND-0002
+competition: sec-attack
+statement: >-
+  Breadth scaled linearly with no ceiling found: 2.400 -> 7.200 for exactly 3x the
+  cap/fanout, to three significant figures. And private was exactly public/4 on every
+  scored row, across three different configurations - a fixed split of one cell population
+  rather than a harder private guardrail set, so the public score was a faithful proxy here.
+type: fact
+confidence: medium
+status: validated
+evidence:
+  - "competitions/sec-attack/submissions.md - Final results, points 1 and 2"
+  - "competitions/sec-attack/ledger/experiments/EXP-0001.yaml (2.400 at 40/20)"
+  - "competitions/sec-attack/ledger/experiments/EXP-0002.yaml (7.200 at 120/60)"
+from_experiments:
+  - EXP-0001
+  - EXP-0002
+  - EXP-0003
+from_scores:
+  - SCORE-0001
+  - SCORE-0002
+transfer_scope: >-
+  Competitions scored by counting distinct events under a replay budget. The transferable
+  half is the method - scale the one lever by a known factor and check the ratio - not the
+  constant: the public/private ratio held on 3 of 5 rows here and a ratio measured on one
+  competition is not a property of leaderboards.
+new_strategy: null
+supersedes: null
+insight_ref: null
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  `confidence: medium` rather than high, deliberately. The linearity claim rests on two
+  points, and the public/private ratio was verified on three of five submitted rows -
+  firefly2006's two were never re-polled because those credentials now return 403
+  Forbidden. Recording the reason the other two are missing is part of the finding: the
+  evidence is not merely absent, it is now unobtainable.

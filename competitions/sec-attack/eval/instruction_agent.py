@@ -22,6 +22,7 @@ Natural-language parsing (keyword/regex) so the same chains read sensibly to a r
   - "run <cmd>"                                       -> shell.run {cmd}
   - "send email to <addr> ... : <body>"              -> email.send {to,subject,body}
 """
+
 from __future__ import annotations
 
 import re
@@ -81,13 +82,13 @@ class InstructionAgent:
             url = url_m.group(0).rstrip(".,)")
             outs = self._outputs(history)
             if any(k in low for k in ("page", "contents", "that", "what you", "retrieved", "earlier")):
-                data = outs[0] if outs else ""           # the first thing retrieved (the page)
+                data = outs[0] if outs else ""  # the first thing retrieved (the page)
             elif "text " in low:
                 data = msg.split("text ", 1)[1].strip()  # literal text to post
             elif " data=" in msg:
                 data = msg.split(" data=", 1)[1].strip()
             else:
-                data = outs[-1] if outs else ""           # most recent retrieved content
+                data = outs[-1] if outs else ""  # most recent retrieved content
             return self._call("http.post", {"url": url, "data": data})
 
         if low.startswith("open ") or "page " in low:

@@ -147,7 +147,7 @@ scripts/agent_notify.py --source codex --dry-run \
 | Direction | outbound push only | two-way chat into a live session |
 | Needs a session running | no — cron, KCA, CI, a hook | yes, and it must stay online |
 | Writes the GitHub decision record | **yes** | no |
-| Buttons | one link to the record — nothing tappable to answer with (phase 1a) | tool-approval relay only |
+| Buttons | one link to the record — nothing tappable to answer with (option B is deferred) | tool-approval relay only |
 | Uses a bot's update stream | no (send-only) | **yes — exclusively** |
 
 They coexist because only the plugin consumes updates. Both can send through the same bot. The consequence for **phase 1b** (the reply poller) is concrete: a poller calling `getUpdates` on a token a Channels plugin already holds will get `409 Conflict`, so it must either use a third, dedicated bot or read replies from the GitHub record instead.
@@ -219,6 +219,79 @@ python -m tools.kca.kca notify doctor
 
 `pip install -e .` would put `kca` on `PATH` (`pyproject.toml` already declares the entry point) — that is independent of this feature.
 
-## Not built yet (phase 1b)
+## Closing the loop: `kca notify poll` (phase 1b)
 
-`kca notify` only **sends**. Nothing consumes `getUpdates` or button taps, which is why the decision card has no option buttons and an answer arrives by commenting `/decide …` on the issue. The poller — which must respect the one-receiver-per-token rule above, ignore chat ids outside `.kca/notify.yml`, and write the answer back into the issue as the record — is the follow-up. The reply contract is already fixed and tested, and decisions are validated against it at creation, so that work is transport only.
+`kca notify` sends; `kca notify poll` is what finally **receives**. It reads the tracking issue's comments, finds `/decide …` answers, and writes each resolution back into the same issue.
+
+```bash
+python -m tools.kca.kca notify poll --issue 197            # resolve what is answered
+python -m tools.kca.kca notify poll --issue 197 --dry-run  # report only; writes nothing
+```
+
+**Why it reads GitHub and not Telegram.** A bot token has exactly one active receiving process ([#187](https://github.com/amyteq/tt_pangu/discussions/187) §3), and `bot1` / `bot2` are both agent entries, so a poller calling `getUpdates` on either would get `409 Conflict`. Reading the answer off the record needs no third bot, no `@BotFather` step, and no long-running process — the decision recorded in [#219](https://github.com/amyteq/tt_pangu/issues/219) is *A now, B later*. One-tap answering (a receive-only `bot3` consuming `callback_query`) stays a deliberate follow-up, and `callback_data()` is already shipped and validated as its reserved contract.
+
+**It is transport only.** Every judgement about what a reply *means* is still `resolve_reply()`'s, unchanged from phase 1a. The record comment's trailing `yaml` block already **is** the mapping `resolve_reply()` accepts, so the poller keeps no second copy of the decision schema — it reads back exactly what the sender wrote.
+
+### What it does, in order
+
+1. Reads every comment on the issue, oldest first.
+2. Finds decision records (first line `<!-- kca-decision:v1 -->`) and parses each one's trailing `yaml` block into `decision_id` / `expires_at` / `options`. A record whose block did not survive the round trip is **ignored**, not guessed at: an unanswerable record is a sending bug, and inventing options here would resolve a decision nobody published.
+3. Finds resolutions it wrote earlier (first line `<!-- kca-decision-resolved:v1 -->`). This is the idempotency key, and it deliberately lives **in the issue** rather than in `state_dir` — a gitignored local file would let a second checkout resolve the same decision twice.
+4. For every other comment, parses a reply with `parse_decision_reply()`.
+5. Checks the answering author's **effective** repository permission and requires `admin` or `write`.
+6. Calls `resolve_reply()`. Only `ANSWERED` writes anything.
+
+### Who may answer
+
+The commenter's effective permission is read from the collaborator endpoint:
+
+```bash
+gh api repos/amyteq/tt_pangu/collaborators/<login>/permission --jq .permission
+```
+
+`authorAssociation` is **not** used and must not be: it reports how GitHub labels a commenter's relationship to the repository, not whether they can write to it — on a user-owned repository a collaborator with full write access still reports `NONE` ([#196](https://github.com/amyteq/tt_pangu/issues/196#issuecomment-5672917107)). A failed lookup returns no permission and therefore does not authorise, because a check that opens up when the network is down is not a check.
+
+### What never resolves a decision
+
+| Input | Outcome |
+|---|---|
+| The record's own `/decide <decision_id> <option_id>` help line | Nothing. Angle brackets are not legal ids so it cannot parse, and record comments are skipped outright rather than resting on the grammar alone |
+| A blockquoted `> /decide …` | Nothing — quoting someone else's answer must not re-trigger it |
+| A fenced ` ``` /decide … ``` ` | **Resolves.** Pasting the line from the card inside a fence is a real answer |
+| Prose — "yes", "go ahead", a bare "A" | Nothing (`WAIT_HUMAN`) |
+| An option that is not on the decision | Nothing (`INVALID_OPTION`) |
+| A `decision_id` with no record on the issue, or an answer predating its record | Nothing (`MISMATCHED_DECISION`) |
+| An answer after `expires_at` | Nothing (`EXPIRED`) — silence is never consent, and neither is a late reply |
+| A second answer to an already-resolved decision | Nothing (`ALREADY_RESOLVED`), within one run and across runs alike |
+| An author without `admin` / `write` | Nothing (`UNAUTHORIZED_AUTHOR`) |
+
+### Running it on a timer
+
+The units are source-controlled and mirror the worklogs dump ([`worklogs-systemd-timer.md`](./worklogs-systemd-timer.md)):
+
+| File | Role |
+|---|---|
+| `scripts/systemd/kca-notify-poll.service` | `Type=oneshot` — reads the thread, writes any resolution, exits. Nothing to supervise, nothing holding a bot's update stream |
+| `scripts/systemd/kca-notify-poll.timer` | fires every five minutes (`OnCalendar=*:0/5`), `Persistent=true` so a suspend does not swallow an answer |
+
+Installing them is a human step — the agent ships the units, it does not enable anything:
+
+```bash
+cd ~/test/tt_pangu
+systemctl --user link "$PWD/scripts/systemd/kca-notify-poll.service"
+systemctl --user link "$PWD/scripts/systemd/kca-notify-poll.timer"
+systemctl --user daemon-reload
+systemctl --user enable --now kca-notify-poll.timer
+
+# Which issue it polls (default 197). Override rather than editing the unit:
+systemctl --user edit kca-notify-poll.service   # [Service] Environment=KCA_NOTIFY_POLL_ISSUE=219
+
+systemctl --user list-timers kca-notify-poll.timer   # verify
+journalctl --user -u kca-notify-poll.service -n 50   # what it did
+```
+
+Linger is already enabled for the worklogs timer, so the poller runs without an active login too.
+
+## Still deferred to option B ([#230](https://github.com/amyteq/tt_pangu/issues/230))
+
+One-tap answering from the Telegram card. It needs a third, receive-only bot (`bot3`) so that nothing contends for `bot1` / `bot2`'s update stream, which in turn needs a human prerequisite only the owner can do: create the bot with @BotFather, press Start, and add `TELEGRAM_BOT3_TOKEN` to `~/.env`. That work must report a `409 Conflict` as a configuration error rather than retrying forever. Until then the card stays a read-only mirror with a link to the record, and the answer is a `/decide` comment.

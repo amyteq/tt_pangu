@@ -1,0 +1,70 @@
+# Contract: contracts/submission.yaml
+# Path and field names: ADR-0022 §5 (the submission-intent record, condition A6).
+#
+# BACKFILLED. `ref` carries the INT-BACKFILL- prefix, which is what makes this record
+# unusable as a dispatch authorization: the validator refuses a `live` submission whose
+# ref carries that prefix, and refuses a `backfilled` one whose ref does not. A
+# reconstructed record can never be mistaken for one written before an external call.
+ref: INT-BACKFILL-nemo-soup
+competition: nvidia-nemotron
+account: harrysun2006
+team: harrysun2006
+experiment_id: EXP-0002
+run_id: RUN-0003
+artifact: ART-0002
+artifact_sha256: null
+code_commit: 5872e0b653ea34c227d39efb0d56cb3ef4292d92
+expected_score: 0.86
+expected_metric: accuracy
+reason: >-
+  The SVD soup of v14+c1+b1 is the only candidate that exceeded the 0.85 v14 ceiling, and
+  the T12 hard-val ranking put it level with v14 (0.764) and far above every augmented
+  single adapter - so the gain is robustness, not dilution.
+scenario: null
+decision_id: null
+screen:
+  require_repro: fail
+  rules_check: pass
+  beats_best: pass
+budget_reservations: {}
+driver: claude-code
+status: scored
+submitted_at: 2026-06-15T03:22Z
+external_id: null
+reconciliation:
+  required: false
+  queried_at: 2026-06-16
+  source: "kaggle competitions submissions nvidia-nemotron-model-reasoning-challenge (read-only, both accounts) - submissions.md header"
+  outcome: present
+  note: >-
+    Re-read read-only on 2026-06-16 and confirmed SubmissionStatus.COMPLETE. No lost
+    response occurred; this is a routine confirmation, not a reconciliation of an
+    unknown outcome.
+score_id: SCORE-0001
+selected_for_final: true
+supersedes: null
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  `screen.require_repro: fail` is deliberate and is the most useful thing in this record.
+  ADR-0022 §5 defines require_repro as "seed + artifact path + exact command recorded",
+  and EXP-0002 has no seed, no config hash and no artifact hash. So the campaign's best
+  submission would NOT pass its own hard gate today. It is recorded as a fail rather than
+  as unknown because the fields are known to be absent, not merely unread.
+
+  `scenario: null` because ADR-0022 §5's scenario table did not exist in June 2026. Read
+  against it, this dispatch was scenario 0 - the competition closed 23:59 UTC the same
+  day, so it was inside its closing window and promotion would now be human-gated.
+
+  `external_id: null` is a platform fact, not an omission: submissions.md records that
+  Kaggle's submissions API exposes no numeric submission id for this competition, and the
+  (date + description) pair is the key. This is exactly why `external_id` is nullable and
+  why the ledger cannot depend on it for identity - `ref` does that job.
+
+  `budget_reservations: {}` because no reservation machinery existed; ADR-0022 §6 now
+  requires one reservation per capping scope before dispatch.
+
+  Timestamp conflict, unresolved and recorded: competition.yaml and submissions.md's
+  final-selection section both give 2026-06-15 03:22 for this submission, while
+  submissions.md's campaign table row gives "2026-06-15 ~12". 03:22 UTC is used here
+  because two sources agree on it and it is the more precise. Drift D11.
