@@ -8,8 +8,7 @@ Decided in: `docs/meeting-notes/2026-05-19-r1.md`
 
 ## Context
 
-The platform runs multi-turn agent jobs that call LLMs, execute tools, read/write files,
-and interact with Kaggle APIs. Without structured observability:
+The platform runs multi-turn agent jobs that call LLMs, execute tools, read/write files, and interact with Kaggle APIs. Without structured observability:
 - It is hard to know which tool calls are slow.
 - Cost per job type is estimated, not measured.
 - Performance regressions across platform versions are invisible.
@@ -73,9 +72,7 @@ For M3/M4: start with local Jaeger. Defer SaaS selection to M7.
 
 ### Structured event log (no-OTEL fallback)
 
-Before OTEL is wired up, `agent_job_events` in Postgres serves as a structured
-audit trail. Every turn, tool call, and result is already recorded there.
-OTEL adds real-time visibility and cross-job aggregation on top of this.
+Before OTEL is wired up, `agent_job_events` in Postgres serves as a structured audit trail. Every turn, tool call, and result is already recorded there. OTEL adds real-time visibility and cross-job aggregation on top of this.
 
 ## Implementation plan
 
@@ -115,8 +112,7 @@ except ImportError:
 - `opentelemetry-api` + `opentelemetry-sdk` + `opentelemetry-exporter-otlp`
 - Or: rely entirely on LiteLLM's built-in OTEL callback (no direct OTEL import needed in worker)
 
-The LiteLLM OTEL callback covers the LLM call span. Manual spans are needed for
-tool execution and the overall job root span.
+The LiteLLM OTEL callback covers the LLM call span. Manual spans are needed for tool execution and the overall job root span.
 
 ## Consequences
 

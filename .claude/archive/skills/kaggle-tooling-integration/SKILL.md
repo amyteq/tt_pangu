@@ -19,9 +19,7 @@ Use project-approved wrappers for Kaggle operations. Do not call ad hoc scripts 
 
 ## Who approves what
 
-This skill is used by a **development harness** (Claude Code / Codex) driving Kaggle tooling
-on the human's own machine and account. It is not KCA's submission policy — keep the two
-apart (`CLAUDE.md` → *Two agents*, issue #65):
+This skill is used by a **development harness** (Claude Code / Codex) driving Kaggle tooling on the human's own machine and account. It is not KCA's submission policy — keep the two apart (`CLAUDE.md` → *Two agents*, issue #65):
 
 - **Harness (you, here).** A remote write or submission spends the human's Kaggle credentials and daily quota, so ask first. That is the same rule as "the Claude Code harness still asks for paid-API/credential use", and it binds a Codex session identically.
 - **KCA product agent.** Governed by its competition's `autonomy` block — the file `competition.yaml:autonomy_config` names, conventionally `kca-<slug>.yaml` — and that block is configuration, not permission. ADR-0022 §5 opens the approval-free path only for a competition meeting activation conditions **A1-A7**; no competition meets them, ADR-0021 §2's earlier screened grant is unimplemented, and no code reads the block, so KCA's pushes and submissions are asked for too. Where the grant is open, the record is the submission intent persisted under `competitions/<slug>/submissions/` before dispatch — never an audit log (`CLAUDE.md` principle 6).
@@ -45,15 +43,10 @@ For code-competition (notebook/kernel) work, follow `docs/tooling/kaggle-kernel-
 - **Pre-push hygiene**: static lint (`kca kaggle push` gate / `validate_kernel.py`), a fail-fast eval preflight, and isolating non-essential steps — never waste a multi-hour GPU run on a typo.
 
 ## Kaggle in-kernel data mount paths
-Inside a Kaggle kernel, **do not hardcode** the input mount. Since ~Feb 2026 Kaggle
-adds a slug chunk to the path, so the same competition data may appear under either
-form depending on the kernel's attached sources:
+Inside a Kaggle kernel, **do not hardcode** the input mount. Since ~Feb 2026 Kaggle adds a slug chunk to the path, so the same competition data may appear under either form depending on the kernel's attached sources:
 
-- Competition data: `/kaggle/input/competitions/<competition-slug>/` (newer) or
-  `/kaggle/input/<competition-slug>/` (older).
-- Datasets / models: `/kaggle/input/<owner>/<dataset-slug>/` (and utility-script /
-  model mounts under `/kaggle/usr/lib/...` with the slug **slugified to underscores**,
-  e.g. `nvidia-utility-script` → `nvidia_utility_script`).
+- Competition data: `/kaggle/input/competitions/<competition-slug>/` (newer) or `/kaggle/input/<competition-slug>/` (older).
+- Datasets / models: `/kaggle/input/<owner>/<dataset-slug>/` (and utility-script / model mounts under `/kaggle/usr/lib/...` with the slug **slugified to underscores**, e.g. `nvidia-utility-script` → `nvidia_utility_script`).
 
 Resolve robustly with a glob rather than a literal path, e.g.:
 
@@ -65,10 +58,7 @@ cands = (glob.glob("/kaggle/input/competitions/*/train.csv")
 train_csv = cands[0]  # raise if empty; print cands for diagnostics
 ```
 
-A battle-tested resolver lives in `experiments/tpu-getting-started/baseline-tl/baseline.py`
-(`_resolve_kaggle_input_path`): try `/kaggle/input/<slug>` then
-`/kaggle/input/competitions/<slug>`, and on miss, list `/kaggle/input` contents so the
-failure shows the real layout instead of an opaque "not found".
+A battle-tested resolver lives in `experiments/tpu-getting-started/baseline-tl/baseline.py` (`_resolve_kaggle_input_path`): try `/kaggle/input/<slug>` then `/kaggle/input/competitions/<slug>`, and on miss, list `/kaggle/input` contents so the failure shows the real layout instead of an opaque "not found".
 
 ## Safety
 Kaggle credentials are **read-for-use, not read-to-share** (see the dev-phase secret policy in `CLAUDE.md` / `AGENTS.md`): read `~/.kaggle/kaggle.json` or the per-account credential files that policy names (`.vscode/.env.harry`, `.vscode/.env.may` — that list, not a wildcard) to authenticate a call, but never echo a credential into the session, a log, a web fetch, a PR, or a comment. Never commit API tokens. Never bypass daily submission limits or competition rules.

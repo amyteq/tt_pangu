@@ -8,9 +8,7 @@ Decided in: `docs/meeting-notes/2026-05-19-r1.md`
 
 ## Context
 
-The platform's `AgentWorker` needs to call LLMs for research, code generation,
-debugging, and analysis. Initial prototypes used `anthropic.Anthropic()` directly,
-creating a hard dependency on the Anthropic SDK and Claude models.
+The platform's `AgentWorker` needs to call LLMs for research, code generation, debugging, and analysis. Initial prototypes used `anthropic.Anthropic()` directly, creating a hard dependency on the Anthropic SDK and Claude models.
 
 The user explicitly does not want vendor lock-in. Kaggle competition work benefits from:
 - Switching models per task type (Claude for coding, GPT-4o for review)
@@ -35,13 +33,11 @@ response = litellm.completion(
 )
 ```
 
-LiteLLM normalises all provider responses to OpenAI format, so `AgentWorker`
-never needs provider-specific branches.
+LiteLLM normalises all provider responses to OpenAI format, so `AgentWorker` never needs provider-specific branches.
 
 ## Tool schema format
 
-All tool definitions (`TOOL_SCHEMAS`) use the **OpenAI tool schema format**,
-which LiteLLM accepts for all providers (translates to Anthropic format internally):
+All tool definitions (`TOOL_SCHEMAS`) use the **OpenAI tool schema format**, which LiteLLM accepts for all providers (translates to Anthropic format internally):
 
 ```python
 {
@@ -62,8 +58,7 @@ which LiteLLM accepts for all providers (translates to Anthropic format internal
 
 ## Sampling parameters per job type
 
-Each job type has a recommended parameter profile. These are stored in `JobPolicy`
-and passed verbatim to `litellm.completion()`.
+Each job type has a recommended parameter profile. These are stored in `JobPolicy` and passed verbatim to `litellm.completion()`.
 
 | job_type | model (default) | temperature | top_p | notes |
 |---|---|---|---|---|
@@ -97,8 +92,7 @@ cost = litellm.completion_cost(completion_response=response)
 litellm.success_callback = ["langfuse"]  # optional; OTEL in ADR-0007
 ```
 
-`BudgetTracker` in `src/worker/budget.py` uses `litellm.completion_cost()` instead
-of the manual per-model lookup table from M3-T004.
+`BudgetTracker` in `src/worker/budget.py` uses `litellm.completion_cost()` instead of the manual per-model lookup table from M3-T004.
 
 ## Supported providers (tested/planned)
 
@@ -117,13 +111,9 @@ of the manual per-model lookup table from M3-T004.
 - **Positive:** Cost tracking unified through `litellm.completion_cost()`.
 - **Positive:** OTEL integration available via LiteLLM callbacks (ADR-0007).
 - **Negative:** LiteLLM is a third-party dependency (~30 transitive deps — within limit).
-- **Negative:** Some advanced provider features (extended thinking, prompt caching) may
-  require provider-specific params passed through `extra_body` or `litellm_extra_params`.
-- **Mitigation:** Keep tool schemas in OpenAI format; document provider quirks in
-  `docs/tooling/litellm-provider-notes.md` as they arise.
+- **Negative:** Some advanced provider features (extended thinking, prompt caching) may require provider-specific params passed through `extra_body` or `litellm_extra_params`.
+- **Mitigation:** Keep tool schemas in OpenAI format; document provider quirks in `docs/tooling/litellm-provider-notes.md` as they arise.
 
 ## Migration note for M3
 
-M3-T003 (`src/worker/tools.py`) should define `TOOL_SCHEMAS` in OpenAI format from the start.
-M3-T004 (`src/worker/worker.py`) should use `litellm.completion()` instead of `anthropic.Anthropic()`.
-`MockAnthropicClient` should be renamed to `MockLiteLLMClient` and return OpenAI-format responses.
+M3-T003 (`src/worker/tools.py`) should define `TOOL_SCHEMAS` in OpenAI format from the start. M3-T004 (`src/worker/worker.py`) should use `litellm.completion()` instead of `anthropic.Anthropic()`. `MockAnthropicClient` should be renamed to `MockLiteLLMClient` and return OpenAI-format responses.

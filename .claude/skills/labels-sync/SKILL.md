@@ -40,11 +40,7 @@ When applied, prints one line per mutation.
 
 ## Must not
 
-- Do not run `--apply --i-mean-it` without a human-recorded approval — labels
-  affect every issue/PR that uses them.
-- Do not delete labels via this skill. Deletion is an out-of-band human
-  decision; the script intentionally does not implement delete.
-- Do not edit `.github/labels.yml` to "match current GitHub state" — the
-  YAML is the source of truth, drift the other way.
-- Do not mass-apply labels to existing issues from this skill; that is a
-  separate (and gated) workflow.
+- Do not run `--apply --i-mean-it` without a human-recorded approval — labels affect every issue/PR that uses them.
+- Do not delete labels via this skill. Deletion is an out-of-band human decision; the script intentionally does not implement delete.
+- Do not edit `.github/labels.yml` to "match current GitHub state" — the YAML is the source of truth, drift the other way.
+- Do not mass-apply labels to existing issues from this skill; that is a separate (and gated) workflow.

@@ -151,6 +151,42 @@ jobs:
       # - name: pyright
       #   run: pyright
 
+  md-wrap:
+    name: markdown soft wrap (ADR-0024)
+    runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
+    # This job installs nothing on purpose: both steps run `--check`, which is
+    # standard-library only. `--fix` is the mode that needs markdown-it-py (it
+    # renders its own rewrite before writing it) — if a step here ever grows a
+    # `--fix`, it needs `pip install markdown-it-py` on that step alone.
+    steps:
+      # fetch-depth: 0 so `--changed` has a merge base to diff against.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python on GitHub-hosted
+        if: ${{ runner.environment == 'github-hosted' }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Use micromamba Python on self-hosted Arch
+        if: ${{ runner.environment == 'self-hosted' }}
+        run: |
+          echo "$SELF_HOSTED_PYTHON_BIN" >> "$GITHUB_PATH"
+          "$SELF_HOSTED_PYTHON_BIN/python" --version
+
+      # The agent-context files are checked on every run, whether or not this
+      # change touches them: a wrap defect there costs every agent session.
+      - name: allowlist
+        run: python scripts/check_md_wrap.py --allowlist
+
+      # Everything else is gated only as a pull request touches it. The historical
+      # backfill was declined deliberately — see ADR-0024 "Enforcement" and #210.
+      - name: changed files
+        if: ${{ github.event_name == 'pull_request' }}
+        run: python scripts/check_md_wrap.py --changed "origin/${{ github.base_ref }}"
+
   ui:
     name: ui build + lint + typecheck + test
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
