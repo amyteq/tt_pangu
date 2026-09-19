@@ -1081,7 +1081,8 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
 
     All the reading happens in `scan`. What is left here is the two repairs: a
     continuation is folded onto the line above, and a `---` that would make the
-    paragraph above it a heading gets the blank line it is missing.
+    paragraph above it a heading gets the blank line it is missing, carrying
+    that line's own container prefix so the break stays where it was written.
     """
     had_trailing_newline = text.endswith("\n")
     lines = text[:-1].split("\n") if had_trailing_newline else text.split("\n")
@@ -1097,7 +1098,14 @@ def analyse(text: str, repair: tuple[str, ...] = ALL_REPAIRS) -> tuple[list[Viol
         elif line.role == SETEXT_H2:
             violations.append(Violation(number, SETEXT_RULE, SETEXT_MSG))
             if SETEXT_RULE in repair:
-                out.append("> " * line.depth if line.depth else "")
+                # The blank line belongs in the same container as the `---`, and
+                # that container is already written on the line: what
+                # `split_quote` left in front of the content is indentation and
+                # blockquote markers, which is the container path. Rebuilding it
+                # as one `> ` per quote level put the quotes back but not the
+                # list holding them, so `- > x` / `  > ---` got a top-level `> `
+                # between them, closing the list and taking the break out of it.
+                out.append(line.raw[: len(line.raw) - len(line.content)])
         out.append(line.raw)
 
     fixed = "\n".join(out)
@@ -1302,6 +1310,11 @@ VERBATIM_TAGS = ("pre", "textarea", "script", "style")
 # Elements whose content is text, not markup: a `<pre>` written inside one of
 # them opens nothing.
 RAW_TEXT_TAGS = ("script", "style", "textarea")
+# Elements that say *where* content sits. A repair may change what a block
+# renders as — the class-B repair turns a heading into a paragraph and a
+# thematic break on purpose — but never which list item or blockquote it is
+# inside, and a structural fingerprint of the source cannot see that move.
+CONTAINER_TAGS = ("blockquote", "ul", "ol", "li")
 
 # Two things in the rendered HTML break `canonical_html`'s premise, and a text
 # comparison of the two renderings cannot see either:
@@ -1355,12 +1368,13 @@ class HtmlScan(HTMLParser):
     inside `<script>` is text. So this asks a parser instead — `html.parser` is
     standard library, which the whole module has to stay inside.
 
-    Three products, all from one pass:
+    Four products, all from one pass:
 
       `css`        every declaration block a browser would apply — the `style`
                    attribute of each real tag, and the text of each `<style>`
       `spans`      the offsets of each balanced verbatim region, outermost only
       `unbalanced` verbatim tags that are opened and never closed
+      `containers` the list and blockquote tags in order, opens and closes
     """
 
     def __init__(self, html: str) -> None:
@@ -1370,6 +1384,7 @@ class HtmlScan(HTMLParser):
         for line in html.split("\n"):
             self._line_start.append(self._line_start[-1] + len(line) + 1)
         self.css: list[str] = []
+        self.containers: list[str] = []
         self.spans: list[tuple[int, int]] = []
         self._open: list[tuple[str, int]] = []
         self._raw_text: str | None = None
@@ -1384,6 +1399,8 @@ class HtmlScan(HTMLParser):
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if self._raw_text is not None:
             return  # markup inside a raw-text element is that element's text
+        if tag in CONTAINER_TAGS:
+            self.containers.append(tag)
         self.css.extend(value for name, value in attrs if name.lower() == "style" and value)
         if tag in RAW_TEXT_TAGS:
             self._raw_text = tag
@@ -1401,6 +1418,8 @@ class HtmlScan(HTMLParser):
             if tag != self._raw_text:
                 return
             self._raw_text = None
+        if tag in CONTAINER_TAGS:
+            self.containers.append("/" + tag)
         for k in range(len(self._open) - 1, -1, -1):
             if self._open[k][0] != tag:
                 continue
@@ -1604,6 +1623,11 @@ def unsafe_fix_reason(before: str, after: str, renderer) -> str | None:
     is held to the structural rule that a setext heading may disappear but never
     appear.
 
+    Neither may move content between containers, and the fingerprint cannot see
+    that: it reads the source through the same approximate container model the
+    repair does, so a blank line at the wrong nesting looks right to both. The
+    rendered list and blockquote tags are where the move shows.
+
     Both rest on `canonical_html`, so a file it cannot judge — one whose CSS
     preserves whitespace, or whose rendered HTML leaves a verbatim element open
     — is refused before either check runs.
@@ -1616,6 +1640,8 @@ def unsafe_fix_reason(before: str, after: str, renderer) -> str | None:
         return unverifiable
     if canonical_html(before_html, before_scan) != canonical_html(joined_html, joined_scan):
         return "rejoining its split blocks would change the rendered output"
+    if HtmlScan(renderer.render(after)).containers != before_scan.containers:
+        return "the rewrite moves content across a list or blockquote boundary"
     diffs = compare_structure(before, after)
     if diffs:
         return "; ".join(diffs)
