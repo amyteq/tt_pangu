@@ -115,7 +115,7 @@ It is one shared function because three consecutive review rounds found this sec
 On top of that shared check, each writer verifies what only it can:
 
 - `scripts/render_codex_probe.py` — that `AGENTS.md` at the named commit is byte-identical to the file being measured, **and** that the dump's project-doc message contains that same file, which is what catches a stale `probe.json` rendered after an edit. The binary version in the header is read at render time, so render right after probing.
-- `scripts/write_codex_smoke_evidence.py` — that both answer files exist and are non-empty.
+- `scripts/write_codex_smoke_evidence.py` — that both answer files exist and are non-empty, and that `smoke-prompt.txt` is a **regular file at the named commit** (`verify_paths_exist`). The shared tree check above closes on "nothing differs", which a commit that never contained the prompt satisfies trivially, so without this the header's "Prompt … verified unmodified against that commit" would name a file that is not there ([#218](https://github.com/amyteq/tt_pangu/issues/218)). The criterion is the tree entry's mode (`100644`/`100755`), not the object type: git stores a symlink as a blob, so a committed `smoke-prompt.txt` pointing outside the commit would pass a type test while its bytes stayed changeable under a clean worktree.
 
 Neither can check which binary produced a dump or an answer file, or that an answer file came from the run you believe it did. Those stay attestations; pass the paths explicitly so the provenance is at least visible at the call site.
 
