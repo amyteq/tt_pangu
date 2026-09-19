@@ -36,6 +36,8 @@ Exempt, because line breaks are semantic there: fenced code blocks and their con
 
 One line break inside a paragraph is authored rather than incidental: a line ending in two or more spaces, or in a backslash, is an explicit CommonMark hard break. That is honoured, and the line it introduces is left alone.
 
+A [GitHub alert](https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts) marker is the same kind of control line, and exempt for the same reason. GitHub renders a callout only while the type marker — `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]` or `[!CAUTION]`, case-insensitive — stands alone on its blockquote line with the body on the line below; joining the two demotes it to an ordinary blockquote printing the literal `[!NOTE]`. So a blockquote line holding nothing but one of those five markers does not join to the line under it, at any quote depth and inside a list. Only that one boundary is exempt: a body that really is hard-wrapped is still reported and still rejoined, and a line that merely resembles a marker — `> [!NOTE] text on the same line`, `> [!NOPE]` — is ordinary prose. Alerts are a GitHub extension that neither `markdown-it-py` nor `cmark-gfm` implements, so both render the joined and unjoined forms identically and the `--fix` safety net below cannot see the damage; this exemption has to live in the engine, not in the verifier.
+
 ## Enforcement
 
 Enforcement is asymmetric, and honest about it:

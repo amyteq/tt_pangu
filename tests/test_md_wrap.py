@@ -177,6 +177,50 @@ def test_a_joined_line_keeps_its_own_trailing_hard_break():
     assert fixed(src) == "**Symptom**: something **Where**: `file.py:78`  \n**Impact**: none\n"
 
 
+def test_github_alert_marker_does_not_join_its_body():
+    """GitHub only reads the callout when the type marker stands alone on its line.
+
+    Joining `> [!NOTE]` onto the line below it renders as an ordinary blockquote
+    containing the literal text `[!NOTE]`. No renderer available here implements
+    the extension, so the `--fix` safety net cannot see that; the marker is
+    exempted in the engine instead.
+    """
+    for kind in ("NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION"):
+        src = f"> [!{kind}]\n> Useful information.\n"
+        assert kinds(src) == []
+        assert fixed(src) == src
+    lower = "> [!note]\n> Useful information.\n"
+    assert kinds(lower) == []
+    assert fixed(lower) == lower
+
+
+def test_github_alert_body_is_still_rejoined():
+    """Only the marker line is exempt — a hard-wrapped body is an ordinary split."""
+    src = "> [!NOTE]\n> First half\n> second half\n"
+    assert kinds(src) == ["split-block"]
+    assert fixed(src) == "> [!NOTE]\n> First half second half\n"
+
+
+def test_github_alert_marker_is_exempt_at_any_depth_and_inside_a_list():
+    for src in (
+        ">> [!WARNING]\n>> Nested in a second quote.\n",
+        "- an item\n\n  > [!TIP]\n  > Alerts nest inside list items.\n",
+    ):
+        assert kinds(src) == []
+        assert fixed(src) == src
+
+
+def test_a_line_that_only_looks_like_an_alert_marker_still_joins():
+    """The match is deliberately narrow: only the five documented types, alone."""
+    for src, joined in (
+        ("> [!NOPE]\n> body\n", "> [!NOPE] body\n"),
+        ("> [!NOTE] already inline\n> body\n", "> [!NOTE] already inline body\n"),
+        ("> [!note] extra words\n> body\n", "> [!note] extra words body\n"),
+    ):
+        assert kinds(src) == ["split-block"]
+        assert fixed(src) == joined
+
+
 # --------------------------------------------------------------------------
 # Class B — setext hazard
 # --------------------------------------------------------------------------
