@@ -482,6 +482,47 @@ def test_out_of_scope_targets_are_rejected(tc, target, why):
     assert isinstance(excinfo.value, tc.UnsupportedTargetError), why
 
 
+@pytest.mark.parametrize(
+    ("target", "why"),
+    [
+        (f"https://gİthub.com/{REPO}/issues/196#issuecomment-1", "U+0130 folds to `i` under Unicode IGNORECASE"),
+        (f"https://github.com/{REPO}/iſſues/196", "U+017F folds to `s`, so `iſſues` matched `issues`"),
+        ("１９６", "fullwidth digits are `\\d`, and `int()` reads them as 196"),
+        ("١٩٦", "Arabic-Indic digits, likewise"),
+        (f"https://github.com/{REPO}/issues/١٩٦", "non-ASCII digits inside a URL"),
+    ],
+    ids=["dotted-capital-i-host", "long-s-path", "fullwidth-number", "arabic-indic-number", "non-ascii-in-url"],
+)
+def test_non_ascii_lookalike_targets_are_rejected(tc, target, why):
+    """F003: Python's case-insensitive matching folds Unicode, and `\\d` is Unicode-wide.
+
+    `gİthub.com` full-matched the host pattern and resolved as an ordinary
+    `issue_comment` against the real repository — a lookalike address treated as
+    trusted. Non-ASCII digits are the same bug in the number: `int("١٩٦") == 196`.
+    """
+    with pytest.raises(tc.UnsupportedTargetError) as excinfo:
+        tc.parse_target(target, REPO)
+    assert "must be plain ASCII" in str(excinfo.value), why
+
+
+@pytest.mark.parametrize(
+    ("target", "kind"),
+    [
+        (f"https://github.com/{REPO}/ISSUES/196", "issue_body"),
+        (f"https://github.com/{REPO}/Discussions/185", "discussion_body"),
+        (f"https://github.com/{REPO}/issues/196#ISSUECOMMENT-1", "issue_comment"),
+    ],
+)
+def test_a_case_shifted_path_resolves_to_the_object_it_reads_as(tc, target, kind):
+    """F003: the host pattern is case-insensitive, so the captured noun could be `ISSUES`.
+
+    `"ISSUES" == "issues"` is False, and the kind was chosen by that comparison —
+    so `/ISSUES/196` fell through to `discussion_body` and a URL that reads
+    "issue 196" fetched *discussion* 196.
+    """
+    assert tc.parse_target(target, REPO)["kind"] == kind
+
+
 def test_parse_target_binds_to_the_repo_it_is_given(tc):
     """The same URL is in scope for its own repository and out of scope for another."""
     url = f"https://github.com/{REPO}/issues/196"
@@ -501,6 +542,68 @@ def test_issue_comment_from_another_issue_is_rejected(tc, monkeypatch):
     monkeypatch.setattr(tc, "run_gh", make_gh(tc, permissions={"harrysun2006": "admin"}, issue_comments={"77": row}))
     with pytest.raises(tc.TaskCommentError, match="not issue #196"):
         tc.fetch_target(f"https://github.com/{REPO}/issues/196#issuecomment-77", REPO)
+
+
+def test_a_different_comment_on_the_same_issue_is_rejected(tc, monkeypatch):
+    """F003: bind the object's identity, not just the issue it sits on.
+
+    The container check (`is this comment on issue #196?`) passes for every
+    comment on the issue. A response requested as comment `77` that carries
+    `html_url` and `id` for comment `88` was pinned as if it were `77`, and
+    `recheck` would then follow the substituted URL for the rest of the run.
+    """
+    row = issue_comment_row("88", "harrysun2006", "a different comment on the same issue")
+    monkeypatch.setattr(tc, "run_gh", make_gh(tc, permissions={"harrysun2006": "admin"}, issue_comments={"77": row}))
+    with pytest.raises(tc.UnsupportedTargetError) as excinfo:
+        tc.fetch_target(f"https://github.com/{REPO}/issues/196#issuecomment-77", REPO)
+    assert "88" in str(excinfo.value)
+
+
+def test_a_returned_id_that_contradicts_its_own_anchor_is_rejected(tc, monkeypatch):
+    """Anchor and `id` are checked independently — one can lie while the other agrees."""
+    row = issue_comment_row("77", "harrysun2006", "body")
+    row["id"] = 88  # the anchor says 77, the object says 88
+    monkeypatch.setattr(tc, "run_gh", make_gh(tc, permissions={"harrysun2006": "admin"}, issue_comments={"77": row}))
+    with pytest.raises(tc.UnsupportedTargetError, match="returned comment id 88"):
+        tc.fetch_target(f"https://github.com/{REPO}/issues/196#issuecomment-77", REPO)
+
+
+def test_discussion_comment_whose_url_points_elsewhere_is_rejected(tc, monkeypatch):
+    """The GraphQL node is bound to its address too, not only to its `databaseId`.
+
+    `provenance["url"]` is what every later re-check re-fetches, so a node whose
+    `url` names another discussion would move the pin to a thread nobody
+    dispatched.
+    """
+    payload = {
+        "data": {
+            "repository": {
+                "discussion": {
+                    "url": f"https://github.com/{REPO}/discussions/185",
+                    "body": "root",
+                    "updatedAt": "2026-09-13T22:12:29Z",
+                    "author": {"login": "harrysun2006"},
+                    "comments": {
+                        "pageInfo": {"hasNextPage": False, "endCursor": None},
+                        "nodes": [
+                            {
+                                "id": "DC_kwDO7",
+                                "databaseId": 7,
+                                "url": f"https://github.com/{REPO}/discussions/999#discussioncomment-7",
+                                "updatedAt": "2026-09-13T22:28:58Z",
+                                "body": "the task",
+                                "author": {"login": "harrysun2006"},
+                                "replies": {"pageInfo": {"hasNextPage": False, "endCursor": None}, "nodes": []},
+                            }
+                        ],
+                    },
+                }
+            }
+        }
+    }
+    monkeypatch.setattr(tc, "run_gh", lambda args: json.dumps(payload))
+    with pytest.raises(tc.UnsupportedTargetError, match="discussion #185"):
+        tc.fetch_target(f"https://github.com/{REPO}/discussions/185#discussioncomment-7", REPO)
 
 
 def test_discussion_comment_resolves(tc, monkeypatch):
@@ -550,6 +653,63 @@ def test_discussion_reply_past_the_first_page_resolves(tc, monkeypatch):
     assert got["body"] == "reply 1249"
     reply_calls = [call for call in fake.calls if any("commentId=" in arg for arg in call)]
     assert len(reply_calls) == 2, "replies 101-250 need two further pages"
+
+
+def _graphql_calls(fake) -> int:
+    return len([call for call in fake.calls if call[:2] == ["api", "graphql"]])
+
+
+def big_discussion(number: int = 185, *, comments: int = 101, replies: int = 101, body: str = "the body") -> dict:
+    """A thread long enough that eager expansion costs a request per reply page."""
+    nodes = [
+        comment(cid, f"comment {cid}", replies=[comment(cid * 10_000 + i, f"reply {i}") for i in range(replies)])
+        for cid in range(1, comments + 1)
+    ]
+    return discussion(number, nodes, body=body)
+
+
+def test_a_discussion_body_costs_one_graphql_call(tc, monkeypatch):
+    """F008: the body is in the first response; the comment connection is not needed.
+
+    Body resolution went through the exhaustive path anyway — 103 calls for a
+    discussion with 101 comments and 101 replies each, for a field that arrived
+    in call one.
+    """
+    fake = make_gh(tc, permissions={"harrysun2006": "admin"}, discussions={185: big_discussion()})
+    monkeypatch.setattr(tc, "run_gh", fake)
+
+    got = tc.fetch_target(f"https://github.com/{REPO}/discussions/185", REPO)
+    assert got["body"] == "the body"
+    assert _graphql_calls(fake) == 1
+
+
+def test_finding_an_early_comment_does_not_expand_the_whole_thread(tc, monkeypatch):
+    """F008: pages are searched as they arrive, and reply threads only if needed."""
+    fake = make_gh(tc, permissions={"harrysun2006": "admin"}, discussions={185: big_discussion()})
+    monkeypatch.setattr(tc, "run_gh", fake)
+
+    got = tc.fetch_target(f"https://github.com/{REPO}/discussions/185#discussioncomment-1", REPO)
+    assert got["body"] == "comment 1"
+    assert _graphql_calls(fake) == 1, "the target is on the first page; nothing else has to be fetched"
+
+
+def test_the_page_cap_is_one_budget_for_the_whole_lookup(tc, monkeypatch):
+    """F008: a per-connection cap multiplies by the number of reply threads.
+
+    With a cap of N pages *each*, a discussion with T threads could spend N*T
+    requests before giving up. One budget for the lookup stops at N.
+    """
+    monkeypatch.setattr(tc, "MAX_GRAPHQL_PAGES", 3)
+    fake = make_gh(
+        tc,
+        permissions={"harrysun2006": "admin"},
+        discussions={185: big_discussion(comments=5, replies=150)},
+    )
+    monkeypatch.setattr(tc, "run_gh", fake)
+
+    with pytest.raises(tc.GhError, match="budget"):
+        tc.fetch_target(f"https://github.com/{REPO}/discussions/185#discussioncomment-404404", REPO)
+    assert _graphql_calls(fake) == 3, "the budget is spent across connections, not restarted per thread"
 
 
 def test_missing_discussion_comment_is_not_found(tc, monkeypatch):
@@ -656,6 +816,64 @@ def test_unusable_api_response_exits_with_a_documented_code(tc, monkeypatch, tmp
         tc.fetch_target("196", REPO)
     argv = ["fetch", f"https://github.com/{REPO}/issues/196", "--out", str(tmp_path / "task")]
     assert tc.main(argv) == tc.EXIT_USAGE
+
+
+def test_a_missing_gh_binary_exits_with_a_documented_code(tc, monkeypatch, tmp_path, capsys):
+    """F006: process-launch failure happens before any HTTP status exists.
+
+    `subprocess.run(["gh", ...])` raised `FileNotFoundError` straight out of the
+    resolver, so a machine without the GitHub CLI got exit `1` and a traceback —
+    a code the contract does not define and a caller cannot classify.
+    """
+
+    def no_gh(argv, **kwargs):
+        raise FileNotFoundError(2, "No such file or directory", "gh")
+
+    monkeypatch.setattr(tc.subprocess, "run", no_gh)
+    with pytest.raises(tc.GhError, match="gh could not be run"):
+        tc.run_gh(["api", "repos/x/y/issues/1"])
+    assert tc.main(["fetch", "196", "--out", str(tmp_path / "task")]) == tc.EXIT_USAGE
+    assert "GitHub CLI must be installed" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{"errors": ["boom"]}, {"errors": "boom"}, {"errors": [{"message": "boom"}]}],
+    ids=["list-of-strings", "bare-string", "documented-shape"],
+)
+def test_graphql_error_payloads_of_any_shape_are_reported_not_raised(tc, monkeypatch, payload):
+    """F006: `{"errors": ["boom"]}` raised `AttributeError` — untyped, exit `1`."""
+    assert tc._graphql_errors(payload) == "boom"
+    monkeypatch.setattr(tc, "run_gh", lambda args: json.dumps(payload))
+    with pytest.raises(tc.GhError, match="boom"):
+        tc.fetch_target(f"https://github.com/{REPO}/discussions/185", REPO)
+
+
+def test_an_unexpected_internal_error_exits_seventy_not_one(tc, monkeypatch, tmp_path, capsys):
+    """F006: the catch-all. A bug is still a failure, and `1` is not a documented code.
+
+    Anything the module does not raise deliberately — here a write that fails —
+    lands on `70` (`EX_SOFTWARE`) with nothing on stdout, so no caller can read a
+    crash as a result.
+    """
+    row = issue_comment_row("31", "harrysun2006", "do the thing\n")
+    monkeypatch.setattr(tc, "run_gh", make_gh(tc, permissions={"harrysun2006": "admin"}, issue_comments={"31": row}))
+
+    def boom(*args, **kwargs):
+        raise OSError("No space left on device")
+
+    monkeypatch.setattr(tc, "write_snapshot", boom)
+    assert tc.main(["fetch", row["html_url"], "--out", str(tmp_path / "task")]) == tc.EXIT_INTERNAL
+    captured = capsys.readouterr()
+    assert captured.out == "", "a crash must not print anything a caller could read as a result"
+    assert "internal error" in captured.err
+
+
+def test_every_exit_code_the_resolver_can_return_is_documented():
+    """The exit surface is the interface, so the document has to list all of it."""
+    contract = CONTRACT_MD.read_text(encoding="utf-8")
+    for code in ("0", "2", "3", "10", "20", "70"):
+        assert f"| `{code}` |" in contract, f"exit {code} is reachable but the contract does not document it"
 
 
 # --------------------------------------------------------------------------
@@ -825,6 +1043,34 @@ def test_a_body_without_attachments_records_an_empty_list(tc):
     assert tc.extract_attachments("plain task text, https://example.com/not-an-asset\n") == []
 
 
+def test_image_syntax_inside_code_is_not_an_attachment(tc):
+    """F009: a fenced block or a code span *displays* markdown, it does not reference it.
+
+    A task that documents this very format had its own example recorded as a live
+    attachment, which puts a fact in `provenance.json` and in the posted block
+    that is simply not true of the comment.
+    """
+    body = (
+        "## Task\n\n"
+        "Write the block like this:\n\n"
+        "```markdown\n"
+        "![example](https://github.com/user-attachments/assets/in-a-fence)\n"
+        "```\n\n"
+        "~~~\n"
+        '<img src="https://user-images.githubusercontent.com/1/in-a-tilde-fence.png">\n'
+        "~~~\n\n"
+        "Inline: `https://github.com/user-attachments/assets/in-a-span` is the shape.\n\n"
+        "The actual screenshot: ![real](https://github.com/user-attachments/assets/real)\n"
+    )
+    assert tc.extract_attachments(body) == ["https://github.com/user-attachments/assets/real"]
+
+
+def test_a_bare_asset_url_does_not_swallow_a_trailing_backtick(tc):
+    """F009: the recorded URL was `…/asset``, which resolves to nothing."""
+    body = "see https://github.com/user-attachments/assets/asset` for the screenshot\n"
+    assert tc.extract_attachments(body) == ["https://github.com/user-attachments/assets/asset"]
+
+
 def test_provenance_block_carries_url_and_hash(tc):
     provenance = {
         "url": f"https://github.com/{REPO}/issues/196#issuecomment-1",
@@ -864,14 +1110,33 @@ def test_no_discovery_mode_exists(tc):
 
 CARVE_OUT_RE = re.compile(r"One deliberate exception, and only one: \*\*(?P<sentence>.+?)\*\*", re.DOTALL)
 
-# One phrase per kind the resolver will promote from data to instruction. If a
-# kind is added, `CLAUDE.md` has to name it here or the surfaces have drifted.
-KIND_PHRASES = {
-    "issue_comment": "issue comment",
-    "discussion_comment": "discussion comment or reply",
-    "issue_body": "body of an issue or discussion",
-    "discussion_body": "body of an issue or discussion",
+# One row per kind the resolver promotes from data to instruction: the URL a
+# human would actually be handed, and the phrase `CLAUDE.md` has to use for it.
+# Checked against `SUPPORTED_KINDS`, so a new kind fails here until both the rule
+# and a resolvable address exist for it.
+TRUSTED_SURFACE = {
+    "issue_comment": (f"https://github.com/{REPO}/issues/196#issuecomment-1", "comment on an issue"),
+    "discussion_comment": (
+        f"https://github.com/{REPO}/discussions/185#discussioncomment-1",
+        "comment or reply on a discussion",
+    ),
+    "issue_body": (f"https://github.com/{REPO}/issues/196", "body of an issue or discussion"),
+    "discussion_body": (f"https://github.com/{REPO}/discussions/185", "body of an issue or discussion"),
 }
+
+# The other direction: surfaces that stay data, each with the word the rule has to
+# use to say so. Phrase-presence alone cannot catch prose *broader* than the
+# resolver — "an issue comment" reads as covering PR conversation comments, which
+# the resolver rejects — so every row asserts both sides at once.
+UNTRUSTED_SURFACE = [
+    (f"https://github.com/{REPO}/pull/228#issuecomment-1", "conversation comments", "PR conversation comment"),
+    (f"https://github.com/{REPO}/pull/228", "pull-request bodies", "PR body"),
+    (f"https://github.com/{REPO}/pull/228#discussion_r1", "review comments", "PR review comment"),
+    (f"https://github.com/{REPO}/commit/deadbeef#commitcomment-1", "commit comments", "commit comment"),
+    (f"https://github.com/{REPO}/wiki/Home", "wikis", "wiki page"),
+    ("https://gist.github.com/harrysun2006/abc123", "gists", "gist"),
+    (f"https://github.com/{REPO}/releases/tag/v1", "releases", "release"),
+]
 
 
 def carve_out_sentence() -> str:
@@ -880,14 +1145,46 @@ def carve_out_sentence() -> str:
     return match["sentence"].strip()
 
 
-def test_carve_out_covers_exactly_the_kinds_the_resolver_resolves(tc):
+def test_trusted_surface_is_the_same_in_the_rule_and_in_the_resolver(tc):
     """F005: `CLAUDE.md` granted instruction status to "a comment"; the resolver also
     executes issue and discussion bodies. A harness reading one and a harness reading
     the other disagreed about what is executable."""
     sentence = carve_out_sentence()
-    assert set(KIND_PHRASES) == set(tc.SUPPORTED_KINDS)
-    for kind, phrase in KIND_PHRASES.items():
+    assert set(TRUSTED_SURFACE) == set(tc.SUPPORTED_KINDS)
+    for kind, (url, phrase) in TRUSTED_SURFACE.items():
+        assert tc.parse_target(url, REPO)["kind"] == kind, f"{kind} is named in the rule but does not resolve"
         assert phrase in sentence, f"{kind} is resolvable but CLAUDE.md does not name it"
+
+
+def test_untrusted_surfaces_are_refused_by_the_resolver_and_named_by_the_rule(tc):
+    """Every excluded surface has to be refused *and* said out loud.
+
+    A surface the resolver rejects but the rule does not mention is prose broader
+    than the runtime — exactly the F005 drift — and a surface the rule excludes
+    but the resolver accepts is worse.
+    """
+    sentence = carve_out_sentence()
+    for url, phrase, label in UNTRUSTED_SURFACE:
+        with pytest.raises(tc.UnsupportedTargetError):
+            tc.parse_target(url, REPO)
+        assert phrase in sentence, f"the rule does not say a {label} stays data"
+
+
+def test_a_pull_request_conversation_comment_is_data_in_both(tc):
+    """F005: GitHub's `issues/comments/{id}` serves PR conversation comments too.
+
+    In GitHub's data model a PR conversation comment *is* an issue comment; only
+    its `html_url` (`/pull/<n>#issuecomment-<id>`) tells them apart, and the
+    resolver matches `/issues/` and `/discussions/` alone. So the rule cannot
+    just say "an issue comment" — a reader applying GitHub's sense of the term
+    would trust a surface the runtime refuses.
+    """
+    sentence = carve_out_sentence()
+    with pytest.raises(tc.UnsupportedTargetError):
+        tc.parse_target(f"https://github.com/{REPO}/pull/228#issuecomment-1", REPO)
+    assert "`/pull/` URL is data" in sentence
+    assert "issues/comments/{id}" in sentence
+    assert "comment *on an issue*" in sentence
 
 
 def test_carve_out_excludes_every_other_github_surface():

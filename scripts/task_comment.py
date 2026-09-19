@@ -25,9 +25,11 @@ Four properties, in the order they are enforced:
      source stops at WAIT_HUMAN.
 
 Targets are bound to one repository on `github.com`: the URL's own host and
-`owner/name` must be the repository being resolved, and that repository must be
-trusted. The carve-out in `CLAUDE.md` principle 1 covers *this* repository, so a
-comment living anywhere else stays data no matter who wrote it.
+`owner/name` must be the repository being resolved, that repository must be
+trusted, and the object GitHub answers with must be the object the URL named —
+down to the comment id, because a comment id is global. The carve-out in
+`CLAUDE.md` principle 1 covers *this* repository, so a comment living anywhere
+else stays data no matter who wrote it.
 
 Usage:
   python scripts/task_comment.py fetch <url|#n> --out runs/<slug>/<run_id>/task
@@ -37,12 +39,15 @@ Usage:
 Exit codes:
   0  — ok / body unchanged
   2  — usage, unsupported or out-of-scope target, target not found, unusable API
-       response, or no snapshot at the given path
+       response, `gh` could not be run, or no snapshot at the given path
   3  — refused: author lacks write access, or the repository is not trusted
   10 — body APPENDED since the snapshot (adopt, log the new hash, continue)
   20 — stop at WAIT_HUMAN: body REWRITTEN or truncated, the source comment was
        DELETED, the pinned object changed identity, or the local snapshot no
        longer matches the `sha256` recorded beside it
+  70 — an unexpected internal error (a bug here). Never "continue": the exit
+       surface is closed, so a defect gets a code of its own rather than the
+       bare `1` and traceback a caller cannot classify.
 """
 
 from __future__ import annotations
@@ -55,6 +60,7 @@ import os
 import re
 import subprocess
 import sys
+import traceback
 from pathlib import Path
 
 DEFAULT_REPO = "amyteq/tt_pangu"
@@ -70,8 +76,11 @@ WRITE_PERMISSIONS = frozenset({"admin", "write"})
 # The complete instruction surface: the only things this resolver will promote
 # from data to instruction. `CLAUDE.md` principle 1 enumerates the same four, and
 # `tests/test_task_comment_contract.py` fails if the two lists drift apart. Every
-# other GitHub surface — pull-request bodies and review comments, commit
-# comments, wikis, gists, releases — stays data.
+# other GitHub surface stays data — commit comments, wikis, gists, releases, and
+# *every* pull-request surface. That last one is the easy mistake: in GitHub's
+# data model a PR conversation comment is an "issue comment", served by the same
+# `issues/comments/{id}` endpoint, and only its `/pull/...` html_url tells them
+# apart. `parse_target` matches `/issues/` and `/discussions/` and nothing else.
 SUPPORTED_KINDS = ("issue_comment", "discussion_comment", "issue_body", "discussion_body")
 
 EXIT_OK = 0
@@ -79,19 +88,27 @@ EXIT_USAGE = 2
 EXIT_REFUSED = 3
 EXIT_APPENDED = 10
 EXIT_REWRITTEN = 20
+EXIT_INTERNAL = 70  # sysexits.h EX_SOFTWARE — a bug here, not a usage or trust outcome
 
 # GraphQL pages 100 nodes at a time. The cap is a loop guard, not a limit anyone
 # should reach: it stops loudly rather than silently returning a partial thread.
+# It is one budget for the whole resolution (`_PageBudget`), not one per
+# connection: a per-connection cap multiplies by the number of reply threads.
 GRAPHQL_PAGE_SIZE = 100
 MAX_GRAPHQL_PAGES = 50
 
-BARE_NUMBER_RE = re.compile(r"#?(?P<number>\d+)")
+# `re.ASCII` throughout, on every pattern a target is matched against. Without it
+# `\d` accepts `١٩٦` — which `int()` then reads as 196 — and `re.IGNORECASE`
+# does full Unicode case folding, under which `gİthub.com` matches `github.com`
+# and `iſſues` matches `issues`. Both turn a lookalike string into a resolved
+# object on the real repository. `parse_target` also rejects non-ASCII outright.
+BARE_NUMBER_RE = re.compile(r"#?(?P<number>\d+)", re.ASCII)
 
 # A GitHub issue/discussion URL for *some* repository. Only used to tell "wrong
 # repository" apart from "not a task URL at all" in the error message.
 ANY_GITHUB_ITEM_RE = re.compile(
     r"https?://(?P<host>[^/\s]+)/(?P<owner>[^/\s]+)/(?P<name>[^/\s]+)/(?:issues|discussions)/\d+",
-    re.IGNORECASE,
+    re.IGNORECASE | re.ASCII,
 )
 
 # Attachment URLs GitHub itself hosts. Matched inside the body so the pin records
@@ -100,9 +117,15 @@ GITHUB_ASSET_HOSTS = (
     r"github\.com/user-attachments/",
     r"(?:[a-z0-9-]+\.)?githubusercontent\.com/",
 )
-MARKDOWN_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(\s*<?(?P<url>[^)\s>]+)")
+MARKDOWN_IMAGE_RE = re.compile(r"!\[[^\]]*\]\(\s*<?(?P<url>[^)\s>`]+)")
 HTML_IMAGE_RE = re.compile(r"<img\b[^>]*?\bsrc\s*=\s*[\"'](?P<url>[^\"']+)[\"']", re.IGNORECASE)
-ASSET_URL_RE = re.compile(r"https://(?:" + "|".join(GITHUB_ASSET_HOSTS) + r")[^\s)>\]\"']+", re.IGNORECASE)
+ASSET_URL_RE = re.compile(r"https://(?:" + "|".join(GITHUB_ASSET_HOSTS) + r")[^\s)>\]\"'`]+", re.IGNORECASE)
+
+# Markdown regions whose contents are displayed rather than referenced. A fenced
+# block or an inline code span that *shows* image syntax is documentation, not an
+# attachment, so those regions are blanked before extraction (`_strip_code`).
+CODE_FENCE_RE = re.compile(r"^(?P<fence>`{3,}|~{3,})[^\n]*\n.*?(?:^(?P=fence)[^\n]*$|\Z)", re.MULTILINE | re.DOTALL)
+CODE_SPAN_RE = re.compile(r"(?P<ticks>`+)[^\n]*?(?P=ticks)")
 
 DISCUSSION_QUERY = """
 query($owner:String!, $name:String!, $number:Int!, $after:String) {
@@ -179,11 +202,21 @@ def run_gh(args: list[str]) -> str:
     A 404 is raised as `NotFoundError` and everything else as `GhError`, because
     the bare-number fallback may only swallow "this object does not exist" — a
     transient 5xx or an authorization failure must not be read as "not an issue,
-    try the discussion".
+    try the discussion". The 404 test is deliberately strict: a wording GitHub
+    spells differently fails closed as `GhError` (exit `2`, a stop), whereas a
+    loose test would let a 403 or a 500 be swallowed as "not found" and resolve
+    a same-numbered discussion instead. Fail-closed costs a label; fail-open
+    executes the wrong task.
 
     Tests monkeypatch this; nothing else in the module touches the network.
     """
-    proc = subprocess.run(["gh", *args], capture_output=True, text=True)
+    try:
+        proc = subprocess.run(["gh", *args], capture_output=True, text=True)
+    except OSError as exc:
+        # `gh` missing or not executable. This happens before any HTTP status
+        # exists, so it is neither a 404 nor an API error — and it must not
+        # escape as a bare `FileNotFoundError` traceback and exit `1`.
+        raise GhError(f"gh could not be run: {exc}; the GitHub CLI must be installed and on PATH") from exc
     if proc.returncode != 0:
         stderr = proc.stderr.strip()
         message = f"gh {' '.join(args)} failed: {stderr}"
@@ -227,6 +260,11 @@ def _target_pattern(repo: str) -> re.Pattern[str]:
     Host and `owner/name` are baked in, and the whole target must match: an
     unanchored search would accept `https://evil.example/...`, another
     repository, or a URL buried in surrounding prose.
+
+    `re.ASCII` restricts the case-insensitive matching to ASCII. Without it
+    Python folds Unicode, so `gİthub.com` matches `github.com` and `iſſues`
+    matches `issues` — and `\\d` accepts non-ASCII digits that `int()` then reads
+    as ordinary numbers.
     """
     owner, _, name = repo.partition("/")
     return re.compile(
@@ -234,7 +272,7 @@ def _target_pattern(repo: str) -> re.Pattern[str]:
         rf"{re.escape(owner)}/{re.escape(name)}/"
         r"(?P<noun>issues|discussions)/(?P<number>\d+)/?"
         r"(?:#(?P<fragment>issuecomment|discussioncomment)-(?P<cid>\d+))?",
-        re.IGNORECASE,
+        re.IGNORECASE | re.ASCII,
     )
 
 
@@ -249,13 +287,29 @@ def parse_target(target: str, repo: str = DEFAULT_REPO) -> dict:
     """
     target = target.strip()
 
+    # Every legal target is plain ASCII — a `github.com` URL for this repository's
+    # ASCII `owner/name`, or a number — so non-ASCII is refused before any
+    # matching rather than left to the patterns. It renders as a trusted address
+    # and addresses something else: `gİthub.com` is not `github.com`, and `١٩٦`
+    # is not `196` even though `int()` says it is.
+    if not target.isascii():
+        raise UnsupportedTargetError(
+            f"unsupported target: {target!r} — a task target must be plain ASCII; "
+            "a non-ASCII host, owner/name or number can display as a trusted address "
+            "while resolving somewhere else"
+        )
+
     match = BARE_NUMBER_RE.fullmatch(target)
     if match:
         return {"kind": "bare_number", "number": int(match["number"])}
 
     match = _target_pattern(repo).fullmatch(target)
     if match:
-        noun, fragment = match["noun"], match["fragment"]
+        # Lower-cased before they are compared, or `/ISSUES/196` falls past the
+        # `issues` test and resolves as discussion #196 — a URL that reads as one
+        # object fetching another.
+        noun = match["noun"].lower()
+        fragment = match["fragment"].lower() if match["fragment"] else None
         number = int(match["number"])
         if fragment is None:
             return {"kind": "issue_body" if noun == "issues" else "discussion_body", "number": number}
@@ -286,23 +340,49 @@ def parse_target(target: str, repo: str = DEFAULT_REPO) -> dict:
     )
 
 
+def _bind_url(html_url: str, repo: str, *, kind: str, number: int, comment_id: str | None, what: str) -> None:
+    """Assert the object GitHub answered with is the object that was dispatched.
+
+    The response's own address is re-parsed and compared field by field. Binding
+    the *container* is not enough: a comment id is global, so a request for
+    comment `77` can be answered with comment `88` on the very issue the URL
+    named, and the container test passes. Whatever is pinned here is what
+    `recheck` re-fetches for the rest of the run, so it has to be the dispatched
+    object down to its id.
+    """
+    label = kind.replace("_", " ")
+    noun = "issue" if kind.startswith("issue") else "discussion"
+    try:
+        parsed = parse_target(html_url, repo)
+    except UnsupportedTargetError as exc:
+        raise UnsupportedTargetError(f"{what} resolves to {html_url}, which is not an in-scope {label}") from exc
+    if parsed["kind"] != kind or parsed["number"] != number:
+        raise UnsupportedTargetError(f"{what} belongs to {html_url}, not {noun} #{number} of {repo}")
+    if comment_id is not None and str(parsed.get("comment_id")) != str(comment_id):
+        raise UnsupportedTargetError(
+            f"{what} was dispatched but GitHub answered with {html_url} — a different comment on {noun} #{number}"
+        )
+
+
 def _fetch_issue_comment(repo: str, number: int, comment_id: str) -> dict:
     row = _gh_json(["api", f"repos/{repo}/issues/comments/{comment_id}"])
     what = f"issue comment {comment_id}"
     html_url = _dig(row, "html_url", what=what)
+    returned_id = str(_dig(row, "id", what=what))
     # The comment id is global: `issues/comments/{id}` happily returns a comment
-    # that lives on another issue or on a pull request. Confirm the object the
-    # URL claimed is the object GitHub returned, or the pin describes something
-    # the human never dispatched.
-    try:
-        parsed = parse_target(html_url, repo)
-    except UnsupportedTargetError as exc:
-        raise UnsupportedTargetError(f"{what} resolves to {html_url}, which is not an in-scope issue comment") from exc
-    if parsed["kind"] != "issue_comment" or parsed["number"] != number:
-        raise UnsupportedTargetError(f"{what} belongs to {html_url}, not issue #{number} of {repo}")
+    # that lives on another issue or on a pull request. Both halves of the
+    # response's identity are checked, because each catches what the other
+    # misses — the anchor says which comment the URL names, `id` says which
+    # object the API actually returned, and both must be the dispatched id.
+    _bind_url(html_url, repo, kind="issue_comment", number=number, comment_id=comment_id, what=what)
+    if returned_id != str(comment_id):
+        raise UnsupportedTargetError(
+            f"{what} was dispatched but GitHub returned comment id {returned_id}; "
+            "the pinned object must be the one the URL named"
+        )
     return {
         "url": html_url,
-        "comment_id": str(_dig(row, "id", what=what)),
+        "comment_id": returned_id,
         "author": _dig(row, "user", "login", what=what),
         "updated_at": _dig(row, "updated_at", what=what),
         "kind": "issue_comment",
@@ -321,8 +401,10 @@ def _fetch_issue_body(repo: str, number: int) -> dict:
             f"out-of-scope target: #{number} in {repo} is a pull request, not an issue; "
             "the contract covers issue and discussion comments and bodies"
         )
+    html_url = _dig(row, "html_url", what=what)
+    _bind_url(html_url, repo, kind="issue_body", number=number, comment_id=None, what=what)
     return {
-        "url": _dig(row, "html_url", what=what),
+        "url": html_url,
         "comment_id": f"issue-{number}",
         "author": _dig(row, "user", "login", what=what),
         "updated_at": _dig(row, "updated_at", what=what),
@@ -344,106 +426,152 @@ def _graphql(query: str, **variables) -> dict:
 
 
 def _graphql_errors(raw) -> str:
-    if isinstance(raw, dict) and raw.get("errors"):
-        return "; ".join(str(err.get("message", err)) for err in raw["errors"])
-    return ""
+    """Flatten a GraphQL `errors` payload to one string, whatever shape it has.
+
+    `{"errors": [{"message": ...}]}` is the documented shape, but this runs on
+    whatever arrives: a list of strings, or a bare string, must read as an error
+    rather than raise `AttributeError` out of the resolver's typed hierarchy.
+    """
+    if not isinstance(raw, dict) or not raw.get("errors"):
+        return ""
+    errors = raw["errors"]
+    if not isinstance(errors, list):
+        return str(errors)
+    return "; ".join(str(err.get("message", err)) if isinstance(err, dict) else str(err) for err in errors)
 
 
-def _fetch_reply_page(comment_node_id: str, cursor: str | None) -> dict:
-    raw = _graphql(REPLIES_QUERY, commentId=comment_node_id, after=cursor)
-    errors = _graphql_errors(raw)
-    node = _dig(raw, "data", "node", what="discussion comment replies") if not errors else None
-    if node is None:
-        raise GhError(f"replies for comment {comment_node_id} could not be read: {errors or 'null node'}")
-    return _dig(node, "replies", what="discussion comment replies")
+class _PageBudget:
+    """One GraphQL page budget for one resolution, shared by every connection.
 
+    A per-connection cap is not a cap: with one budget per reply thread, a
+    discussion with a thousand threads could spend fifty thousand requests before
+    anything gave up. This counts every page the lookup asks for, comments and
+    replies alike, and stops loudly at the limit.
+    """
 
-def _expand_replies(node: dict, number: int) -> None:
-    """Page a comment's replies in place, so a reply past the first page resolves."""
-    replies = node.get("replies") or {}
-    collected = list(replies.get("nodes") or [])
-    page_info = replies.get("pageInfo") or {}
-    pages = 1
-    while page_info.get("hasNextPage"):
-        if pages >= MAX_GRAPHQL_PAGES:
+    def __init__(self, limit: int | None = None) -> None:
+        self.limit = MAX_GRAPHQL_PAGES if limit is None else limit
+        self.spent = 0
+
+    def spend(self, what: str) -> None:
+        if self.spent >= self.limit:
             raise GhError(
-                f"comment {node.get('databaseId')} on discussion #{number} has more than "
-                f"{MAX_GRAPHQL_PAGES * GRAPHQL_PAGE_SIZE} replies; refusing to page further"
+                f"{what}: refusing to page further — this lookup has already spent its "
+                f"{self.limit}-page GraphQL budget ({self.limit * GRAPHQL_PAGE_SIZE} nodes)"
             )
-        page = _fetch_reply_page(_dig(node, "id", what="discussion comment"), page_info.get("endCursor"))
-        collected.extend(page.get("nodes") or [])
-        page_info = page.get("pageInfo") or {}
-        pages += 1
-    node["replies"] = {"nodes": collected}
+        self.spent += 1
 
 
-def _discussion_payload(repo: str, number: int) -> dict:
-    """The discussion with *every* comment and reply — paged, never truncated.
+def _discussion_pages(repo: str, number: int, budget: _PageBudget):
+    """Yield the discussion one comment page at a time, in API order.
 
-    `first:100` alone silently drops the 101st comment, and a dropped comment is
-    reported as "not found": the resolver would tell a human their task URL does
-    not exist because the thread grew.
+    A generator, not a collected payload: a lookup stops at the page that answers
+    it. `first:100` on its own silently drops the 101st comment, and a dropped
+    comment is not reported as dropped — it is reported as "not found", telling a
+    human their task URL does not exist because the thread grew.
     """
     owner, _, name = repo.partition("/")
-    discussion: dict | None = None
-    comments: list[dict] = []
     cursor: str | None = None
-
-    for _page in range(MAX_GRAPHQL_PAGES):
+    what = f"discussion #{number} in {repo}"
+    while True:
+        budget.spend(what)
         raw = _graphql(DISCUSSION_QUERY, owner=owner, name=name, number=number, after=cursor)
         errors = _graphql_errors(raw)
         page = None if errors else _dig(raw, "data", "repository", "discussion", what=f"discussion #{number}")
         if page is None:
             if errors:
-                raise GhError(f"discussion #{number} in {repo} could not be read: {errors}")
+                raise GhError(f"{what} could not be read: {errors}")
             raise NotFoundError(f"discussion #{number} not found in {repo}")
-        if discussion is None:
-            discussion = page
-        page_comments = _dig(page, "comments", what=f"discussion #{number}")
-        comments.extend(page_comments.get("nodes") or [])
-        page_info = page_comments.get("pageInfo") or {}
+        yield page
+        page_info = _dig(page, "comments", what=f"discussion #{number}").get("pageInfo") or {}
         if not page_info.get("hasNextPage"):
-            break
+            return
         cursor = page_info.get("endCursor")
-    else:
-        raise GhError(
-            f"discussion #{number} in {repo} has more than {MAX_GRAPHQL_PAGES * GRAPHQL_PAGE_SIZE} "
-            "comments; refusing to page further"
-        )
-
-    for node in comments:
-        _expand_replies(node, number)
-    discussion["comments"] = {"nodes": comments}
-    return discussion
 
 
-def _fetch_discussion_comment(repo: str, number: int, comment_id: str) -> dict:
-    discussion = _discussion_payload(repo, number)
-    nodes = list(discussion["comments"]["nodes"])
-    # Replies are comments too — a task can be dispatched from one, so search both levels.
-    for node in discussion["comments"]["nodes"]:
-        nodes.extend(node.get("replies", {}).get("nodes", []))
+def _remaining_replies(node: dict, number: int, budget: _PageBudget):
+    """Yield one comment's replies past the first page, a page at a time."""
+    page_info = (node.get("replies") or {}).get("pageInfo") or {}
+    what = f"replies to comment {node.get('databaseId')} on discussion #{number}"
+    while page_info.get("hasNextPage"):
+        budget.spend(what)
+        node_id = _dig(node, "id", what="discussion comment")
+        raw = _graphql(REPLIES_QUERY, commentId=node_id, after=page_info.get("endCursor"))
+        errors = _graphql_errors(raw)
+        payload = _dig(raw, "data", "node", what=what) if not errors else None
+        if payload is None:
+            raise GhError(f"{what} could not be read: {errors or 'null node'}")
+        replies = _dig(payload, "replies", what=what)
+        yield from replies.get("nodes") or []
+        page_info = replies.get("pageInfo") or {}
 
-    for node in nodes:
-        if str(node.get("databaseId")) == str(comment_id):
-            return {
-                "url": _dig(node, "url", what=f"discussion comment {comment_id}"),
-                "comment_id": str(node["databaseId"]),
-                "author": (node.get("author") or {}).get("login", ""),
-                "updated_at": _dig(node, "updatedAt", what=f"discussion comment {comment_id}"),
-                "kind": "discussion_comment",
-                "body": node.get("body") or "",
-            }
+
+def _find_discussion_comment(repo: str, number: int, comment_id: str) -> dict:
+    """Search the thread for one comment, stopping at the page that contains it.
+
+    Lazy on purpose. Expanding every reply thread before looking anything up cost
+    one request per thread even when the target was the first comment on the
+    first page, which on a long discussion is thousands of calls and a rate
+    limit instead of a resolved task. Replies are comments too — a task can be
+    dispatched from one — so both levels are searched, but a thread's later
+    pages are only fetched once the free nodes are known not to hold the target.
+    """
+    target = str(comment_id)
+    budget = _PageBudget()
+    for page in _discussion_pages(repo, number, budget):
+        deferred: list[dict] = []
+        for node in _dig(page, "comments", what=f"discussion #{number}").get("nodes") or []:
+            if str(node.get("databaseId")) == target:
+                return node
+            replies = node.get("replies") or {}
+            for reply in replies.get("nodes") or []:
+                if str(reply.get("databaseId")) == target:
+                    return reply
+            if (replies.get("pageInfo") or {}).get("hasNextPage"):
+                deferred.append(node)
+        for node in deferred:
+            for reply in _remaining_replies(node, number, budget):
+                if str(reply.get("databaseId")) == target:
+                    return reply
     raise NotFoundError(f"discussion comment {comment_id} not found on discussion #{number}")
 
 
-def _fetch_discussion_body(repo: str, number: int) -> dict:
-    discussion = _discussion_payload(repo, number)
+def _fetch_discussion_comment(repo: str, number: int, comment_id: str) -> dict:
+    node = _find_discussion_comment(repo, number, comment_id)
+    what = f"discussion comment {comment_id}"
+    url = _dig(node, "url", what=what)
+    # The node was selected by `databaseId`, but its `url` is what gets pinned and
+    # re-fetched, so it is bound to the dispatched address like the REST path.
+    _bind_url(url, repo, kind="discussion_comment", number=number, comment_id=comment_id, what=what)
     return {
-        "url": _dig(discussion, "url", what=f"discussion #{number}"),
+        "url": url,
+        "comment_id": str(node["databaseId"]),
+        "author": (node.get("author") or {}).get("login", ""),
+        "updated_at": _dig(node, "updatedAt", what=what),
+        "kind": "discussion_comment",
+        "body": node.get("body") or "",
+    }
+
+
+def _fetch_discussion_body(repo: str, number: int) -> dict:
+    """The discussion's own body — one GraphQL call, however long the thread is.
+
+    Body, author, URL and timestamp all arrive in the first response, so the
+    comment connection is never paged for a body target.
+    """
+    pages = _discussion_pages(repo, number, _PageBudget())
+    try:
+        discussion = next(pages)
+    finally:
+        pages.close()
+    what = f"discussion #{number}"
+    url = _dig(discussion, "url", what=what)
+    _bind_url(url, repo, kind="discussion_body", number=number, comment_id=None, what=what)
+    return {
+        "url": url,
         "comment_id": f"discussion-{number}",
         "author": (discussion.get("author") or {}).get("login", ""),
-        "updated_at": _dig(discussion, "updatedAt", what=f"discussion #{number}"),
+        "updated_at": _dig(discussion, "updatedAt", what=what),
         "kind": "discussion_body",
         "body": discussion.get("body") or "",
     }
@@ -516,6 +644,17 @@ def body_sha256(body: str) -> str:
     return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
 
+def _strip_code(body: str) -> str:
+    """Blank out fenced blocks and inline code spans, keeping the line structure.
+
+    Fences are removed first so stray backticks inside them cannot pair up with
+    real ones outside. Each removed region leaves its newlines behind, so the
+    text around it cannot be glued into syntax that was never written.
+    """
+    without_fences = CODE_FENCE_RE.sub(lambda match: "\n" * match.group(0).count("\n"), body)
+    return CODE_SPAN_RE.sub(" ", without_fences)
+
+
 def extract_attachments(body: str) -> list[str]:
     """URLs of images/attachments referenced by the body, sorted and deduplicated.
 
@@ -524,11 +663,19 @@ def extract_attachments(body: str) -> list[str]:
     (`github.com/user-attachments/…`, `*.githubusercontent.com/…`). The bytes
     behind these URLs are *not* hashed — only the body is — so a swapped image is
     not detected by the pin.
+
+    Image syntax inside a fenced block or an inline code span is *displayed*, not
+    referenced — a task that documents this very format is the obvious case — so
+    those regions are blanked first. This is not a CommonMark parser: a URL in an
+    HTML comment, in a link reference definition, or in a code span that wraps
+    across lines is still recorded. Over-recording puts a wrong line in the
+    durable record; it does not widen what is executable.
     """
+    scannable = _strip_code(body)
     urls: set[str] = set()
     for pattern in (MARKDOWN_IMAGE_RE, HTML_IMAGE_RE):
-        urls.update(match["url"].rstrip(">") for match in pattern.finditer(body))
-    urls.update(match.group(0) for match in ASSET_URL_RE.finditer(body))
+        urls.update(match["url"].rstrip(">") for match in pattern.finditer(scannable))
+    urls.update(match.group(0) for match in ASSET_URL_RE.finditer(scannable))
     return sorted(url for url in urls if url)
 
 
@@ -732,6 +879,16 @@ def main(argv: list[str] | None = None) -> int:
     except TaskCommentError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_USAGE
+    except Exception:
+        # The last line of a closed exit surface. The contract promises every
+        # failure lands on a documented code, and a bug here is still a failure:
+        # a caller that reads exit `1` and a traceback cannot tell "the resolver
+        # crashed" from "your shell could not find python". `70` is never
+        # "continue". The traceback goes to stderr because a defect should stay
+        # debuggable; stdout is left empty so nothing reads as a result.
+        traceback.print_exc()
+        print(f"internal error: the resolver failed unexpectedly (exit {EXIT_INTERNAL})", file=sys.stderr)
+        return EXIT_INTERNAL
 
 
 if __name__ == "__main__":
