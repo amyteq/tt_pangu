@@ -171,6 +171,19 @@ LINKDEF_TITLE_DELIMS = {'"': '"', "'": "'", "(": ")"}
 QUOTE_RE = re.compile(r"^ {0,3}> ?")
 HARD_BREAK_RE = re.compile(r"(?:  +|\\)$")
 
+# A GitHub alert's type marker, alone on its blockquote line. GitHub renders the
+# callout only in that shape — marker line, then the body on the line below — so
+# the break after it is semantic, not whitespace. The five documented types are
+# matched and nothing else: a wider match would silently exempt real prose, while
+# a narrow one leaves today's behaviour in place. Quote markers are matched here
+# rather than stripped by `split_quote`, which leaves them in place on a line
+# indented far enough into a list. Syntax reference:
+# https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax#alerts
+ALERT_MARKER_RE = re.compile(
+    r"^[ \t]*(?:>[ \t]*)*\[!(?:NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*$",
+    re.IGNORECASE,
+)
+
 # CommonMark HTML blocks do not all end the same way. Types 1-5 run to their own
 # terminator and may contain blank lines — an `<!-- ... -->` comment spanning a
 # blank line is the common case here, and ending it early would let the engine
@@ -1037,9 +1050,14 @@ def scan(lines: list[str]) -> list[ScanLine]:
                 i += 1
                 prev_open, open_line = True, content
                 continue
-            if HARD_BREAK_RE.search(open_line):
+            if HARD_BREAK_RE.search(open_line) or ALERT_MARKER_RE.match(open_line):
                 # An explicit hard break is authored intent; joining would change
-                # rendering. Leave it, and leave the line it introduces.
+                # rendering. Leave it, and leave the line it introduces. A GitHub
+                # alert's type marker is the same kind of control line: the
+                # callout exists only while `> [!NOTE]` stands alone above its
+                # body, so a join demotes it to an ordinary blockquote printing
+                # the literal `[!NOTE]`. The body below is left open, so a body
+                # that really is hard-wrapped is still reported and rejoined.
                 emit(raw, content, depth, BREAK_CONTINUATION)
                 i += 1
                 prev_open, open_line = True, content
