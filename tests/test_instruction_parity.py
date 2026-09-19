@@ -2055,7 +2055,7 @@ def test_both_writers_use_the_shared_provenance_check():
 
 # --- an input the header names has to be there (#218) -------------------------
 # `verify_tree_matches_commit` closes on "nothing differs", which a commit that
-# never contained the prompt satisfies. These four pin the third guarantee.
+# never contained the prompt satisfies. The tests below pin the third guarantee.
 
 SMOKE_PROMPT = "docs/evidence/issue-189-codex-parity/smoke-prompt.txt"
 
