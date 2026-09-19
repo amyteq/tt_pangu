@@ -1,8 +1,14 @@
-"""Unit tests for the ADR-0024 soft-wrap engine (`scripts/check_md_wrap.py`).
+"""Unit tests for the ADR-0024 soft-wrap gate (`scripts/check_md_wrap.py`).
 
-The engine's contract is narrow and worth pinning precisely: it finds exactly
-two violation classes, it never looks inside a block where line breaks are
-semantic, and `--fix` changes whitespace and nothing else.
+The gate's contract is narrow and worth pinning precisely: it finds exactly two
+violation classes, it never looks inside a block where line breaks are semantic,
+and it reports without ever writing.
+
+Most assertions here come in pairs — which lines were flagged, and what the
+document looks like with every flagged line rejoined. The second is `fixed()`
+below: a test oracle rather than shipped behaviour, because a joined document
+says which line continues which block far more legibly than a list of line
+numbers can.
 """
 
 from __future__ import annotations
@@ -22,11 +28,28 @@ _spec.loader.exec_module(mdwrap)
 
 
 def kinds(text: str) -> list[str]:
-    return [v.kind for v in mdwrap.analyse(text)[0]]
+    return [v.kind for v in mdwrap.analyse(text)]
 
 
 def fixed(text: str) -> str:
-    return mdwrap.analyse(text)[1]
+    """Rejoin every split block, and give every `---` the blank line it is missing.
+
+    This is the tests' oracle, not a feature: the gate reports and writes
+    nothing (issue #237). It reads the same `scan()` the gate does, so what it
+    produces is exactly the engine's own opinion of where each block begins and
+    which container holds it — stated as a document a reader can check.
+    """
+    had_newline = text.endswith("\n")
+    lines = text[:-1].split("\n") if had_newline else text.split("\n")
+    out: list[str] = []
+    for line in mdwrap.scan(lines):
+        if line.role == mdwrap.SPLIT:
+            out[-1] = out[-1].rstrip() + " " + line.tail
+            continue
+        if line.role == mdwrap.SETEXT_H2:
+            out.append(line.raw[: len(line.raw) - len(line.content)])
+        out.append(line.raw)
+    return "\n".join(out) + ("\n" if had_newline else "")
 
 
 # --------------------------------------------------------------------------
@@ -144,7 +167,6 @@ def test_bare_table_ends_with_the_list_item_holding_it():
     src = "- item\n\n  a | b\n  --- | ---\nafter one\nafter two\n"
     assert kinds(src) == ["split-block"]
     assert fixed(src) == "- item\n\n  a | b\n  --- | ---\nafter one after two\n"
-    assert mdwrap.structure(src)["tables"] == [(2, 2)]
 
 
 def test_a_bare_table_inside_a_list_item_still_runs_to_its_own_end():
@@ -425,28 +447,16 @@ def test_an_unclosed_fence_in_a_list_item_ends_with_the_item():
         "> a | b\n> --- | ---\n\nafter one\nafter two\n",  # a bare table leaving a quote
     ],
 )
-def test_a_repair_below_a_closed_container_is_reported_and_accepted(src):
-    """Finding the violation is only half of it; the safety net has to allow the repair.
+def test_prose_below_a_closed_container_is_ordinary_prose(src):
+    """A fence, a comment or a table ends with the container holding it.
 
-    `analyse` learned that a fence ends with its container while `structure` did
-    not, so the prose below one still counted as fenced code and the correct,
-    rendering-preserving rewrite was refused as `fenced code content changed`.
-    Both readings now come from one scan. Regression for round-4 finding F016 on
-    PR #226; the last shape was already accepted and guards the table path.
+    When a second reader of the file kept its own fence state it ran an
+    unclosed fence to the end of the document, so the prose below the
+    blockquote that had already closed it was read as more code and its wrap
+    went unreported. One scan now answers for both. Regression for round-4
+    finding F016 on PR #226; the last shape guards the table path.
     """
-    renderer = _renderer()
     assert kinds(src) == ["split-block"]
-    assert mdwrap.unsafe_fix_reason(src, fixed(src), renderer) is None
-
-
-def test_the_equivalence_heuristic_ends_a_fence_where_the_engine_does():
-    """The shared scan, asserted directly: `code` stops at the blockquote's end."""
-    assert mdwrap.structure("> ```\n> code\n\nafter one\nafter two\n")["code"] == "code"
-
-
-def test_the_equivalence_heuristic_reads_no_fence_inside_a_comment():
-    """An HTML block is opaque to both readings, so the backticks in it open nothing."""
-    assert mdwrap.structure("<!--\n```\n-->\n\nafter one\nafter two\n")["code"] == ""
 
 
 def test_backtick_in_the_info_string_is_not_a_fence():
@@ -949,19 +959,6 @@ def test_a_real_code_block_inside_a_list_item_is_still_never_inspected():
     assert fixed(src) == src
 
 
-def test_the_equivalence_heuristic_counts_the_items_the_engine_does():
-    """`structure()` is the second opinion, and it has to agree on what a list item is.
-
-    Counting an over-indented marker as an item made `compare_structure` report
-    `list-item count changed` for a rewrite the renderer accepts, so `--fix`
-    refused a file it should have rewritten. `docs/tasks/m12/M12-T006-end-to-end-local.md`
-    is the live instance, found by rendering all 788 tracked files.
-    """
-    src = "4. step\n\n   d. sub-step\n        - not a marker at this depth\n"
-    assert mdwrap.structure(src)["list_items"] == 1
-    assert mdwrap.compare_structure(src, fixed(src)) == []
-
-
 # --------------------------------------------------------------------------
 # Frontmatter vs a leading thematic break
 # --------------------------------------------------------------------------
@@ -1001,7 +998,8 @@ def test_compliant_file_is_byte_identical():
     assert fixed(src) == src
 
 
-def test_fix_is_idempotent():
+def test_a_document_with_every_violation_repaired_reports_nothing():
+    """What the gate asks for is reachable: rejoin the reported lines and it goes quiet."""
     src = "A paragraph hard\nwrapped here.\n\n- item that\n  wrapped\n"
     once = fixed(src)
     assert kinds(once) == []
@@ -1013,30 +1011,27 @@ def test_trailing_newline_state_is_preserved():
     assert fixed("a\nb\n") == "a b\n"
 
 
-def test_repair_selects_which_classes_are_written_out():
-    """Both classes are always reported; `repair` only picks what is rewritten."""
+def test_both_classes_are_reported_from_one_document():
+    """Each violation is reported once, in line order, whatever class it is."""
     src = "A paragraph hard\nwrapped.\n\nClosing prose.\n---\n\nEnd.\n"
-    assert kinds(src) == ["split-block", "setext-rule"]
-    joined = mdwrap.analyse(src, repair=(mdwrap.SPLIT_BLOCK,))[1]
-    assert joined == "A paragraph hard wrapped.\n\nClosing prose.\n---\n\nEnd.\n"
-    ruled = mdwrap.analyse(src, repair=(mdwrap.SETEXT_RULE,))[1]
-    assert ruled == "A paragraph hard\nwrapped.\n\nClosing prose.\n\n---\n\nEnd.\n"
+    assert [(v.line, v.kind) for v in mdwrap.analyse(src)] == [(2, "split-block"), (5, "setext-rule")]
 
 
 # --------------------------------------------------------------------------
-# The --fix safety net
+# The command line
 #
-# `--check` must keep working with no third-party package installed; `--fix`
-# must never write a rewrite that changes what the file renders to.
+# It must keep working with no third-party package installed, and it must never
+# write to the files it checks.
 # --------------------------------------------------------------------------
 
 
 def test_the_checker_imports_only_the_standard_library():
-    """CI runs `--check` on a bare setup-python that installs nothing.
+    """CI runs this on a bare setup-python that installs nothing.
 
-    markdown-it-py is imported inside `load_renderer()`, on the `--fix` path
-    only, and this pins that: a new module-level import of a third-party package
-    would turn every CI run red instead of failing here.
+    Nothing outside the standard library is imported anywhere now — the one
+    third-party import this file ever had was the renderer that verified
+    `--fix`, and that went with it (issue #237). A new module-level import of a
+    third-party package would turn every CI run red instead of failing here.
     """
     import ast
 
@@ -1051,383 +1046,42 @@ def test_the_checker_imports_only_the_standard_library():
     assert imported <= set(sys.stdlib_module_names), sorted(imported - set(sys.stdlib_module_names))
 
 
-def test_canonical_html_collapses_whitespace_only_outside_verbatim_elements():
-    assert mdwrap.canonical_html("<p>a\nb</p>") == mdwrap.canonical_html("<p>a b</p>")
-    assert mdwrap.canonical_html("<pre>a\nb</pre>") != mdwrap.canonical_html("<pre>a b</pre>")
-
-
-def _renderer():
-    pytest.importorskip("markdown_it", reason="--fix's safety net needs markdown-it-py")
-    return mdwrap.load_renderer()
-
-
-def test_an_ordinary_reflow_passes_the_safety_net():
-    renderer = _renderer()
-    src = "A paragraph hard\nwrapped.\n\n- item that\n  wrapped\n"
-    assert mdwrap.unsafe_fix_reason(src, fixed(src), renderer) is None
-
-
-def test_the_class_b_repair_passes_the_safety_net():
-    """It changes the rendering on purpose, so it is checked structurally instead."""
-    renderer = _renderer()
-    src = "Some closing prose.\n---\n\nNext section.\n"
-    assert mdwrap.unsafe_fix_reason(src, fixed(src), renderer) is None
-
-
-@pytest.mark.parametrize(
-    "src",
-    [
-        "- > Some text\n  > ---\n",
-        "1. > Some text\n   > ---\n",
-        "- > - Some text\n  >   ---\n",
-        "> - > Some text\n>   > ---\n",
-        "> Some text\n> ---\n",
-        "- Some text\n  ---\n",
-        "Some text\n---\n",
-    ],
-    ids=["list-quote", "ordered-quote", "list-quote-list", "quote-list-quote", "quote", "list", "top-level"],
-)
-def test_the_class_b_repair_leaves_every_container_where_it_was(src):
-    """Rendered, not fingerprinted: the break must stay in the list and quote it was in."""
-    renderer = _renderer()
-    repaired = fixed(src)
-    assert repaired != src
-    assert mdwrap.HtmlScan(renderer.render(repaired)).containers == mdwrap.HtmlScan(renderer.render(src)).containers
-    assert mdwrap.unsafe_fix_reason(src, repaired, renderer) is None
-
-
-def test_a_rewrite_that_moves_content_between_containers_is_refused():
-    """The safety net's blind spot, closed: it reads the source with the same
-    container model the repair does, so a blank line at the wrong nesting looked
-    correct to both — same prose, same list count, same nesting, a setext heading
-    only disappearing. Only the rendered HTML shows the break leaving the list.
-    Regression for round-7 finding F028 on PR #226.
-    """
-    renderer = _renderer()
-    src = "- > Some text\n  > ---\n"
-    moved = "- > Some text\n> \n  > ---\n"  # what the repair produced before F028
-    assert mdwrap.compare_structure(src, moved) == []
-    assert mdwrap.unsafe_fix_reason(src, moved, renderer) == (
-        "the rewrite moves content across a list or blockquote boundary"
-    )
-
-
-def test_a_rewrite_that_would_change_rendering_is_refused():
-    """Indented backticks under a paragraph are one code span; joining rewrites it.
-
-    The engine reports these lines — correctly, they are a hard-wrapped
-    paragraph — but the whitespace-only rejoin does not survive rendering, so
-    the file must not be written.
-    """
-    renderer = _renderer()
-    src = "para\n    ```\n    code\n    ```\nafter\n"
-    assert kinds(src)
-    assert mdwrap.unsafe_fix_reason(src, fixed(src), renderer) == (
-        "rejoining its split blocks would change the rendered output"
-    )
-
-
-def test_a_white_space_css_declaration_refuses_the_rewrite():
-    """`canonical_html` collapses whitespace a `white-space: pre` span preserves.
-
-    Moving the soundness claim onto the renderer did not make it sound: this
-    rewrite compared equal and was written, while a browser shows the newline.
-    A document the canonicaliser cannot judge is now refused instead. Regression
-    for round-3 finding F007 on PR #226.
-    """
-    renderer = _renderer()
-    src = 'before <span style="white-space: pre">a\nb</span> after\n'
-    assert kinds(src) == ["split-block"]
-    reason = mdwrap.unsafe_fix_reason(src, fixed(src), renderer)
-    assert reason is not None and "white-space" in reason
-
-
-@pytest.mark.parametrize(
-    "css",
-    [
-        "white-space: pre",
-        "white-space:pre-wrap",
-        "white-space : break-spaces",
-        "WHITE-SPACE: PRE-LINE",
-        "white-space:/**/pre",  # a comment is a token separator, so this is the declaration
-        "white-space/**/:pre",
-        "white-spac\\65:pre",  # and a property name may be escaped
-        "white-spac\\65 :pre",
-        "white-space-collapse: preserve",  # the longhand preserves breaks too
-        "white-space: pre !important",
-        "white-space: inherit",  # cannot be classified: the parent is not visible here
-        "white-space: var(--x)",
-        "white-space: unset",
-    ],
-)
-def test_every_whitespace_preserving_css_value_is_caught(css):
-    """Read as CSS, not matched as text. Regression for round-5 finding F022 on PR #226.
-
-    The guard looked in the right places by then — a real `style` attribute, the
-    text of a real `<style>` — but still recognised the declaration with a
-    pattern anchored on `white-space` followed by a colon. A CSS comment and a
-    CSS escape are both legal between those two, so `white-space:/**/pre` slipped
-    past and `--fix` joined across a newline a browser shows. The last three
-    cases are the conservative half: a value this cannot resolve is refused
-    rather than assumed safe.
-    """
-    assert mdwrap.unverifiable_reason(f"<p style='{css}'>a b</p>") is not None
-    assert mdwrap.unverifiable_reason(f"<style>\n.x {{ {css}; }}\n</style>\n<p>a b</p>") is not None
-
-
-@pytest.mark.parametrize(
-    "css",
-    [
-        "color: red",
-        "white-space: normal",
-        "white-space: nowrap",
-        "white-space: collapse balance",  # the shorthand's other components
-        "content: 'white-space:pre'",  # a string is not a declaration
-        "white-spac/**/e:pre",  # two idents, so no `white-space` property at all
-        "font-family: 'a;b'; color: red",
-        "background: url(a;b.png)",
-    ],
-)
-def test_css_that_collapses_whitespace_still_allows_the_repair(css):
-    """The other half of F022: refusing everything would be no safer than missing this.
-
-    A refusal costs a contributor a manual fix, so the reader has to keep the
-    declarations it can resolve apart from the ones it cannot — including the
-    three ways a `;` or a `:` can appear without separating anything.
-    """
-    assert mdwrap.unverifiable_reason(f"<p style='{css}'>a b</p>") is None
-    assert mdwrap.unverifiable_reason(f"<style>\n.x {{ {css}; }}\n</style>\n<p>a b</p>") is None
-
-
-@pytest.mark.parametrize(
-    "css",
-    [
-        '--x:"/*";white-space:pre',  # an unterminated one, which is where the reader broke
-        '--x:"a;/*";white-space:pre',
-        '--x:"/*x*/";white-space:pre',  # a closed one, already read correctly before
-        'white-space:/*"*/pre',  # and the other nesting: a quote inside a comment opens no string
-    ],
-)
-def test_a_comment_delimiter_inside_a_css_string_hides_no_declaration(css):
-    """`/*` inside a quoted value is string data, so it starts no comment.
-
-    Round 5 replaced the `white-space` pattern with a reader but stripped
-    comments before tokenising strings, so an unterminated `/*` inside a string
-    swallowed the rest of the declaration block: the `white-space: pre` behind it
-    was invisible and `--fix` joined across a newline a browser shows. On this
-    input the reader was weaker than the pattern it replaced. Comments are now
-    tokenised in the same pass as strings and escapes. Regression for round-6
-    finding F024 on PR #226.
-    """
-    assert mdwrap.unverifiable_reason(f"<p style='{css}'>a b</p>") is not None
-    assert mdwrap.unverifiable_reason(f"<style>\n.x {{ {css}; }}\n</style>\n<p>a b</p>") is not None
-
-
-@pytest.mark.parametrize(
-    "css",
-    [
-        'content:"/*";color:red',
-        'content:"/*";white-space:normal',  # read, and then classified as collapsing
-        'content:"*/";color:red',
-        "color:red;/*unclosed",  # an unclosed comment outside a string really does run to the end
-    ],
-)
-def test_a_comment_shaped_string_still_allows_the_repair(css):
-    """The overshoot guard on F024: reading the declarations is not refusing every file."""
-    assert mdwrap.unverifiable_reason(f"<p style='{css}'>a b</p>") is None
-    assert mdwrap.unverifiable_reason(f"<style>\n.x {{ {css}; }}\n</style>\n<p>a b</p>") is None
-
-
-def test_a_declaration_behind_a_quoted_comment_opener_refuses_the_rewrite():
-    """F024 end to end: the file `--fix` would have rewritten is refused instead."""
-    renderer = _renderer()
-    src = "before <span style='--x:\"/*\";white-space:pre'>a\nb</span> after\n"
-    assert kinds(src) == ["split-block"]
-    reason = mdwrap.unsafe_fix_reason(src, fixed(src), renderer)
-    assert reason is not None and "white-space" in reason
-
-
-def test_ordinary_rendered_html_is_verifiable():
-    """The other direction: nothing about a plain document is unjudgeable."""
-    assert mdwrap.unverifiable_reason("<p>a b</p>\n<pre>code\n</pre>\n") is None
-
-
-def test_writing_about_white_space_pre_does_not_make_a_file_unfixable():
-    """The declaration is CSS only where CSS lives — `style=`, or a `<style>` element.
-
-    ADR-0024 documents this very hazard, so its own rendered output contains the
-    string inside a `<code>` span with the quotes escaped. Matching that refused
-    `--fix` on the ADR, which is the unfixable-red-build failure mode the guard
-    exists to prevent.
-    """
-    renderer = _renderer()
-    src = 'A `<span style="white-space: pre">` span keeps its breaks, as does\n`white-space: pre-wrap`.\n'
-    assert kinds(src) == ["split-block"]
-    assert mdwrap.unverifiable_reason(renderer.render(src)) is None
-    assert mdwrap.unsafe_fix_reason(src, fixed(src), renderer) is None
-
-
-def test_an_unbalanced_verbatim_element_refuses_the_rewrite():
-    """An unclosed `<pre>` preformats everything below it, and a text scan cannot see it.
-
-    A verbatim region needs a closing tag to be found at all, so whitespace a
-    browser preserves would be collapsed and compared equal. Part of round-3
-    finding F007 on PR #226.
-    """
-    renderer = _renderer()
-    src = "> <pre>\n> x\n\npara one\npara two\n"
-    assert kinds(src) == ["split-block"]
-    reason = mdwrap.unsafe_fix_reason(src, fixed(src), renderer)
-    assert reason is not None and "unbalanced <pre>" in reason
-
-
-def test_a_self_closing_pre_is_still_unbalanced():
-    """A browser ignores the `/` on a non-void element, so `<pre/>` opens a `<pre>`.
-
-    Reading it as a complete empty element balances it and hides the hazard.
-    """
-    assert mdwrap.unverifiable_reason("<pre/>\n<p>a b</p>\n") is not None
-
-
-@pytest.mark.parametrize(
-    "tag",
-    [
-        "<span style=white-space:pre>",  # unquoted, the reopened F007 reproduction
-        "<span style='white-space: pre'>",
-        '<span style = "white-space: pre" >',
-        "<span class=x style=white-space:pre-wrap data-y=1>",
-    ],
-)
-def test_a_style_attribute_refuses_the_rewrite_however_it_is_quoted(tag):
-    """A valid unquoted attribute value reached the same browser-visible corruption.
-
-    The guard read quoted values only, so `style=white-space:pre` bypassed it and
-    `--fix` joined across a newline the reader can see. Widening the pattern is
-    not the fix — parsing HTML with a regular expression is why it was wrong —
-    so the attribute now comes from `HtmlScan`. Regression for round-4 finding
-    F007 on PR #226.
-    """
-    renderer = _renderer()
-    src = f"before {tag}a\nb</span> after\n"
-    assert kinds(src) == ["split-block"]
-    reason = mdwrap.unsafe_fix_reason(src, fixed(src), renderer)
-    assert reason is not None and "white-space" in reason
-
-
-@pytest.mark.parametrize(
-    "html",
-    [
-        "<!-- mention <pre> -->\n<p>a b</p>\n",  # a comment is not markup
-        "<!-- <span style='white-space: pre'> -->\n<p>a b</p>\n",
-        '<script>var x = "<pre>";</script>\n<p>a b</p>\n',  # raw-text content is text
-        "<textarea><pre></textarea>\n<p>a b</p>\n",
-    ],
-)
-def test_a_verbatim_tag_that_is_not_a_tag_leaves_the_document_verifiable(html):
-    """Tag-looking text in a comment or a raw-text element creates no element.
-
-    Counting pattern matches across serialized HTML called these unbalanced and
-    refused a repair that both renderers agree is safe — the unfixable-red-build
-    failure mode again. Regression for round-4 finding F018 on PR #226.
-    """
-    assert mdwrap.unverifiable_reason(html) is None
-
-
-def test_a_comment_mentioning_pre_still_allows_the_repair():
-    """The end-to-end shape behind F018: one real finding, and it is repairable."""
-    renderer = _renderer()
-    src = "<!-- mention <pre> -->\n\nafter one\nafter two\n"
-    assert kinds(src) == ["split-block"]
-    assert mdwrap.unsafe_fix_reason(src, fixed(src), renderer) is None
-
-
-def test_a_commented_pre_opens_no_verbatim_region():
-    """`canonical_html` had the same flaw: its region pattern matched into a comment.
-
-    A `<pre>` named in a comment and a real `</pre>` later would bracket the
-    prose between them, freezing its whitespace and refusing any repair there.
-    """
-    html = "<!-- <pre> -->\n<p>a\nb</p>\n<pre>x\ny</pre>\n"
-    assert mdwrap.canonical_html(html) == mdwrap.canonical_html(html.replace("<p>a\nb</p>", "<p>a b</p>"))
-    assert mdwrap.canonical_html(html) != mdwrap.canonical_html(html.replace("<pre>x\ny</pre>", "<pre>x y</pre>"))
-
-
-def test_fix_writes_a_safe_rewrite_and_refuses_an_unsafe_one(tmp_path, monkeypatch, capsys):
-    _renderer()
-    safe = tmp_path / "safe.md"
-    safe.write_text("A paragraph hard\nwrapped.\n", encoding="utf-8")
-    unsafe = tmp_path / "unsafe.md"
-    unsafe.write_text("para\n    ```\n    code\n    ```\nafter\n", encoding="utf-8")
-    monkeypatch.setattr(mdwrap, "repo_root", lambda: tmp_path)
-
-    code = mdwrap.main(["--fix", "--files", "safe.md", "unsafe.md"])
-
-    assert code == 1, "a refusal is a failure, not a silent skip"
-    assert safe.read_text(encoding="utf-8") == "A paragraph hard wrapped.\n"
-    assert unsafe.read_text(encoding="utf-8") == "para\n    ```\n    code\n    ```\nafter\n"
-    out = capsys.readouterr()
-    assert "unsafe.md: REFUSED" in out.out
-    assert "1 file(s) refused" in out.err
-
-
-def test_fix_never_leaves_a_half_written_file(tmp_path, monkeypatch):
-    """The rewrite lands whole or not at all.
-
-    `Path.write_text` truncates the target first, so an interruption between the
-    truncate and the write left a partially written Markdown file — the one
-    outcome this tool must never produce. Regression for round-3 finding F015 on
-    PR #226.
-    """
-    _renderer()
+def test_check_reports_and_leaves_the_file_alone(tmp_path, monkeypatch, capsys):
+    """The gate's whole contract: a located message, a non-zero exit, an untouched file."""
     target = tmp_path / "a.md"
     original = "A paragraph hard\nwrapped.\n"
     target.write_text(original, encoding="utf-8")
     monkeypatch.setattr(mdwrap, "repo_root", lambda: tmp_path)
 
-    def interrupted(src, dst):
-        raise OSError("interrupted between write and rename")
-
-    monkeypatch.setattr(mdwrap.os, "replace", interrupted)
-
-    with pytest.raises(OSError):
-        mdwrap.main(["--fix", "--files", "a.md"])
-
-    assert target.read_text(encoding="utf-8") == original, "the original must survive intact"
-    assert [p.name for p in tmp_path.iterdir()] == ["a.md"], "no temporary file left behind"
-
-
-def test_fix_states_the_boundary_of_what_it_verified(tmp_path, monkeypatch, capsys):
-    """An unqualified guarantee is worse than a stated limit, so --fix prints the limit."""
-    _renderer()
-    target = tmp_path / "a.md"
-    target.write_text("A paragraph hard\nwrapped.\n", encoding="utf-8")
-    monkeypatch.setattr(mdwrap, "repo_root", lambda: tmp_path)
-
-    assert mdwrap.main(["--fix", "--files", "a.md"]) == 0
-    err = capsys.readouterr().err
-    assert "markdown-it-py" in err and "cmark-gfm" in err and "ADR-0024" in err
-
-
-def test_fix_refuses_to_run_at_all_without_the_renderer(tmp_path, monkeypatch, capsys):
-    """Fail closed: no verifier, no rewrite. A warning in a log is not a safety net."""
-    target = tmp_path / "a.md"
-    target.write_text("A paragraph hard\nwrapped.\n", encoding="utf-8")
-    monkeypatch.setattr(mdwrap, "repo_root", lambda: tmp_path)
-    monkeypatch.setattr(mdwrap, "load_renderer", lambda: None)
-
-    assert mdwrap.main(["--fix", "--files", "a.md"]) == 2
-    assert target.read_text(encoding="utf-8") == "A paragraph hard\nwrapped.\n"
-    assert "markdown-it-py" in capsys.readouterr().err
-
-
-def test_check_still_runs_without_the_renderer(tmp_path, monkeypatch, capsys):
-    target = tmp_path / "a.md"
-    target.write_text("A paragraph hard\nwrapped.\n", encoding="utf-8")
-    monkeypatch.setattr(mdwrap, "repo_root", lambda: tmp_path)
-    monkeypatch.setattr(mdwrap, "load_renderer", lambda: None)
-
     assert mdwrap.main(["--files", "a.md"]) == 1
-    assert "split-block" in capsys.readouterr().out
+    assert target.read_text(encoding="utf-8") == original, "a gate never edits the file it checks"
+    out = capsys.readouterr()
+    assert "a.md:2: split-block" in out.out
+    assert "1 violation(s)" in out.err
+
+
+def test_a_compliant_file_exits_zero(tmp_path, monkeypatch, capsys):
+    target = tmp_path / "a.md"
+    target.write_text("One line, left for the renderer to wrap.\n", encoding="utf-8")
+    monkeypatch.setattr(mdwrap, "repo_root", lambda: tmp_path)
+
+    assert mdwrap.main(["--files", "a.md"]) == 0
+    assert "No violations." in capsys.readouterr().err
+
+
+def test_nothing_on_the_command_line_can_ask_it_to_rewrite_a_file():
+    """There is no `--fix`, and that is the contract rather than an omission.
+
+    Keeping a rewrite of someone's prose honest needed a renderer, a structural
+    fingerprint and an HTML/CSS reader to know when the rendering could be
+    trusted — most of the file, and the home of nearly every defect the review
+    of PR #226 turned up. A checker that cannot write cannot corrupt (#237).
+    """
+    with pytest.raises(SystemExit) as raised:
+        mdwrap.build_parser().parse_args(["--fix", "--files", "a.md"])
+    assert raised.value.code == 2
+    assert not hasattr(mdwrap, "write_atomically")
+    assert not hasattr(mdwrap, "load_renderer")
 
 
 # --------------------------------------------------------------------------
@@ -1471,86 +1125,3 @@ def test_allowlist_covers_the_agent_context_files():
     assert any(p.startswith("docs/adr/") for p in paths), "ADRs stay in the allowlist (owner decision, issue #210)"
     assert any(p.startswith(".claude/skills/") for p in paths)
     assert not any(mdwrap.is_exempt(p) for p in paths)
-
-
-# --------------------------------------------------------------------------
-# Structural equivalence
-# --------------------------------------------------------------------------
-
-
-def test_equivalence_holds_across_a_reflow():
-    before = "# T\n\nA paragraph hard\nwrapped over lines.\n\n- item one\n- item two\n"
-    assert mdwrap.compare_structure(before, fixed(before)) == []
-
-
-def test_equivalence_detects_a_word_change():
-    before = "A paragraph here.\n"
-    after = "A paragraph there.\n"
-    assert "prose text changed (not a whitespace-only edit)" in mdwrap.compare_structure(before, after)
-
-
-def test_equivalence_detects_a_dropped_link():
-    before = "See [docs](https://example.com/a) and [more](https://example.com/b).\n"
-    after = "See [docs](https://example.com/a) and more.\n"
-    assert mdwrap.compare_structure(before, after)
-
-
-def test_equivalence_allows_a_repaired_table():
-    """Rejoining a split row repairs a table that was malformed before."""
-    before = "| a | b |\n|---|---|\n| a long cell that\nkept going | d |\n"
-    assert mdwrap.compare_structure(before, fixed(before)) == []
-
-
-# Round-1 finding F007 on PR #226: `--equivalence` passed all three of these.
-
-
-def test_equivalence_detects_lost_list_nesting():
-    before = "- outer\n  - inner one\n  - inner two\n"
-    after = "- outer\n- inner one\n- inner two\n"
-    assert "list nesting changed" in mdwrap.compare_structure(before, after)
-
-
-def test_equivalence_detects_a_paragraph_becoming_a_setext_heading():
-    before = "Some closing prose.\n\n---\n\nNext section.\n"
-    after = "Some closing prose.\n---\n\nNext section.\n"
-    assert any("setext heading" in d for d in mdwrap.compare_structure(before, after))
-
-
-def test_equivalence_allows_the_class_b_repair():
-    """The reverse direction — removing a setext heading — is what `--fix` does."""
-    before = "Some closing prose.\n---\n\nNext section.\n"
-    assert mdwrap.compare_structure(before, fixed(before)) == []
-
-
-def test_equivalence_detects_a_flattened_pipe_less_table():
-    before = "a | b\n--- | ---\nc | d\n"
-    after = "a | b --- | --- c | d\n"
-    assert any("table dimensions changed" in d for d in mdwrap.compare_structure(before, after))
-
-
-def test_equivalence_holds_across_a_pipe_less_table_reflow():
-    before = "Prose that is hard\nwrapped.\n\na | b\n--- | ---\nc | d\n"
-    assert mdwrap.compare_structure(before, fixed(before)) == []
-
-
-# Round-2 finding F007: `--equivalence` passed corruption of its own. The sound
-# check is now the renderer; these close the two structural holes that were
-# cheap to close.
-
-
-def test_equivalence_detects_a_table_that_vanished_entirely():
-    """An empty table set is vacuously well-formed, so the count has to match too."""
-    before = "| a | b |\n|---|---|\n| c |\n"
-    after = "a b --- --- c\n"
-    assert any("table dimensions changed" in d for d in mdwrap.compare_structure(before, after))
-
-
-def test_equivalence_detects_a_deleted_hard_break():
-    before = "intro line\nvalue: `x`  \nnext line\n"
-    after = "intro line value: `x` next line\n"
-    assert "authored hard breaks changed: 1 -> 0" in mdwrap.compare_structure(before, after)
-
-
-def test_equivalence_allows_a_reflow_that_carries_the_hard_break_along():
-    before = "intro line\nvalue: `x`  \nnext line\n"
-    assert mdwrap.compare_structure(before, fixed(before)) == []

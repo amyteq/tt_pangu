@@ -154,10 +154,9 @@ jobs:
   md-wrap:
     name: markdown soft wrap (ADR-0024)
     runs-on: ${{ vars.CI_RUNNER || 'ubuntu-latest' }}
-    # This job installs nothing on purpose: both steps run `--check`, which is
-    # standard-library only. `--fix` is the mode that needs markdown-it-py (it
-    # renders its own rewrite before writing it) — if a step here ever grows a
-    # `--fix`, it needs `pip install markdown-it-py` on that step alone.
+    # This job installs nothing on purpose, and a test pins that: the checker
+    # imports only the standard library. It reports and never writes, so there
+    # is no mode here that needs a package.
     steps:
       # fetch-depth: 0 so `--changed` has a merge base to diff against.
       - uses: actions/checkout@v4
