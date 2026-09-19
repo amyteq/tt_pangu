@@ -7,11 +7,15 @@
 
 The header says which commit both harnesses read and that they read the prompt
 unedited. Both claims are verified in `scripts/evidence_provenance.py` rather
-than believed: the named commit must be HEAD, and nothing may differ from it
-except the three evidence files the writers themselves produce. `smoke-prompt.txt`
-is an input, so it is not exempt — an earlier version of this script exempted the
-whole evidence directory and would have stamped "Prompt … unedited" over an
-edited prompt.
+than believed: the named commit must be HEAD, nothing may differ from it except
+the three evidence files the writers themselves produce, and `smoke-prompt.txt`
+must exist as a regular file at that commit — not a directory, and not a symlink
+whose target the commit does not contain. `smoke-prompt.txt` is an input, so it is not
+exempt — an earlier version of this script exempted the whole evidence directory
+and would have stamped "Prompt … unedited" over an edited prompt. The existence
+check is separate because "nothing differs" is also true of a commit that never
+contained the prompt, which would have stamped the same claim over a file that
+was not there (#218).
 
 It cannot check that the answer files came from the run you think they did, or
 that the harness identities below are accurate. Those stay attestations; pass
@@ -33,11 +37,13 @@ from evidence_provenance import (
     REPO_ROOT,
     fail,
     verify_commit_is_head,
+    verify_paths_exist,
     verify_tree_matches_commit,
 )
 
 TOOL = "write_codex_smoke_evidence"
 EVIDENCE = REPO_ROOT / "docs" / "evidence" / "issue-189-codex-parity"
+SMOKE_PROMPT = EVIDENCE_PREFIX + "smoke-prompt.txt"
 
 CODEX_HARNESS = "codex-cli 0.154.0, `gpt-5.6-sol`, `model_reasoning_effort=low`, `--sandbox read-only`"
 CLAUDE_HARNESS = "claude -p, `claude-opus-5[1m]`"
@@ -76,6 +82,15 @@ def main() -> None:
 
     commit = verify_commit_is_head(TOOL, args.commit)
     verify_tree_matches_commit(TOOL, commit)
+    # After the tree check, not before. The tree check is the broader
+    # precondition and the one an operator actually trips — harness scratch under
+    # `.claude/` makes the tree dirty far more often than the prompt goes missing
+    # — and it gives the better diagnosis for the overlapping case: a prompt that
+    # is present on disk but absent from the commit is reported there as an
+    # untracked file, which is what the operator has to fix. Only once the state
+    # is otherwise sound does "the commit never held this input" become the
+    # accurate thing to say.
+    verify_paths_exist(TOOL, commit, [SMOKE_PROMPT])
     write("Codex", CODEX_HARNESS, args.codex, args.codex_seconds, commit)
     write("Claude Code", CLAUDE_HARNESS, args.claude, args.claude_seconds, commit)
 

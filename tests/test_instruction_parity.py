@@ -8,8 +8,10 @@ these tests are the CI guard that says so.
 
 from __future__ import annotations
 
+import ast
 import importlib.util
 import re
+import shutil
 import subprocess
 import sys
 import textwrap
@@ -2264,6 +2266,223 @@ def test_both_writers_use_the_shared_provenance_check():
         source = (REPO_ROOT / "scripts" / script).read_text(encoding="utf-8")
         assert "from evidence_provenance import" in source, f"{script} does not use the shared check"
         assert "verify_tree_matches_commit" in source, f"{script} does not verify the tree"
+
+
+# --- an input the header names has to be there (#218) -------------------------
+# `verify_tree_matches_commit` closes on "nothing differs", which a commit that
+# never contained the prompt satisfies. The tests below pin the third guarantee.
+
+SMOKE_PROMPT = "docs/evidence/issue-189-codex-parity/smoke-prompt.txt"
+
+
+def _drop_the_prompt(repo):
+    """Commit away `smoke-prompt.txt`, leaving a clean tree that never held it."""
+    subprocess.run(["git", "rm", "-q", SMOKE_PROMPT], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-qm", "drop the prompt"], cwd=repo, check=True, capture_output=True)
+
+
+def test_provenance_refuses_a_prompt_absent_from_the_commit(provenance, scratch_repo):
+    """The gap F019 found: the tree check passes, so only this one can refuse.
+
+    The first assertion is the defect itself, kept here so the reason this
+    function exists cannot be deleted without the test saying so.
+    """
+    _drop_the_prompt(scratch_repo)
+    provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
+    with pytest.raises(SystemExit):
+        provenance.verify_paths_exist("test", "HEAD", [SMOKE_PROMPT], root=scratch_repo)
+
+
+def test_provenance_resolves_the_path_at_the_commit_not_on_disk(provenance, scratch_repo):
+    """An untracked prompt in the worktree must not satisfy a claim about the commit."""
+    _drop_the_prompt(scratch_repo)
+    (scratch_repo / SMOKE_PROMPT).write_text("the prompt\n", encoding="utf-8")
+    assert (scratch_repo / SMOKE_PROMPT).is_file(), "fixture is wrong: the file should be on disk"
+    with pytest.raises(SystemExit):
+        provenance.verify_paths_exist("test", "HEAD", [SMOKE_PROMPT], root=scratch_repo)
+
+
+def test_provenance_accepts_a_prompt_committed_at_the_commit(provenance, scratch_repo):
+    """The fixture commits the prompt, which is the ordinary case — no refusal."""
+    provenance.verify_paths_exist("test", "HEAD", [SMOKE_PROMPT], root=scratch_repo)
+
+
+def test_provenance_refuses_a_directory_as_a_present_input(provenance, scratch_repo):
+    """`git cat-file -e <commit>:docs` succeeds — a tree satisfies mere existence.
+
+    Checking the tree entry's mode is what keeps "this input is a file at the
+    commit" from degrading into "something is there under that name".
+    """
+    with pytest.raises(SystemExit):
+        provenance.verify_paths_exist("test", "HEAD", ["docs"], root=scratch_repo)
+
+
+def test_provenance_refuses_a_symlinked_input(provenance, scratch_repo):
+    """Git stores a symlink as a blob, so the object type alone would accept one.
+
+    A committed `smoke-prompt.txt` that is a symlink to content outside the
+    commit keeps the worktree clean — `git status` sees the link, not its target
+    — while the bytes the harness actually read stay free to change. The mode is
+    what separates a real input from a pointer at one.
+    """
+    prompt = scratch_repo / SMOKE_PROMPT
+    prompt.unlink()
+    prompt.symlink_to("../../../outside-the-commit.txt")
+    subprocess.run(["git", "add", "-A"], cwd=scratch_repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-qm", "symlink the prompt"], cwd=scratch_repo, check=True, capture_output=True)
+    entry = subprocess.run(
+        ["git", "ls-tree", "HEAD", "--", SMOKE_PROMPT],
+        cwd=scratch_repo,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+    assert entry[:2] == ["120000", "blob"], (
+        f"fixture is wrong: the prompt should be committed as a symlink, git reports {entry[:2]}"
+    )
+    provenance.verify_tree_matches_commit("test", "HEAD", root=scratch_repo)
+    with pytest.raises(SystemExit):
+        provenance.verify_paths_exist("test", "HEAD", [SMOKE_PROMPT], root=scratch_repo)
+
+
+SMOKE_WRITER = REPO_ROOT / "scripts" / "write_codex_smoke_evidence.py"
+
+
+def _unconditional_calls(func: ast.FunctionDef) -> list[ast.Call]:
+    """Every bare call statement directly in `func`'s body, in execution order.
+
+    Directly in the body on purpose: a call nested inside an `if` or a `try` is
+    not evidence that the check runs, and the list index is the order the
+    before-the-writes assertion needs.
+    """
+    return [node.value for node in func.body if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)]
+
+
+def test_no_smoke_header_claim_without_the_check_that_backs_it():
+    """AC4: the writer may not claim an input was verified unless it verified it.
+
+    Read as a syntax tree, not as text. A substring pin passes on a call that is
+    commented out and fails on an equivalent multiline one, so it tests the
+    formatting rather than the guarantee; `ast.unparse` normalises the formatting
+    away and a comment leaves no node at all. The ordering assertion is the other
+    half: a check that runs after `write()` refuses only once the evidence has
+    already been stamped.
+
+    Paired deliberately — if the header's wording is ever retired, the first
+    assertion fails and says to retarget this test rather than quietly passing.
+    """
+    source = SMOKE_WRITER.read_text(encoding="utf-8")
+    assert "verified unmodified against that commit" in source, (
+        "the smoke header no longer claims the prompt was verified against the commit. "
+        "Point this test at the claim that replaced it, or drop it."
+    )
+    module = ast.parse(source)
+    main = next((n for n in module.body if isinstance(n, ast.FunctionDef) and n.name == "main"), None)
+    assert main is not None, "write_codex_smoke_evidence.py no longer defines main(); retarget this test"
+
+    calls = _unconditional_calls(main)
+    checks = [
+        i for i, call in enumerate(calls) if ast.unparse(call) == "verify_paths_exist(TOOL, commit, [SMOKE_PROMPT])"
+    ]
+    assert checks, (
+        "the smoke header claims the prompt was verified against the commit, but main() has no "
+        "unconditional verify_paths_exist(TOOL, commit, [SMOKE_PROMPT]) statement, so nothing "
+        "establishes the prompt is there (#218)."
+    )
+    writes = [i for i, call in enumerate(calls) if isinstance(call.func, ast.Name) and call.func.id == "write"]
+    assert writes, "main() no longer calls write(); retarget this test at whatever emits the evidence"
+    assert min(checks) < min(writes), (
+        "main() calls verify_paths_exist after write(), so the header is stamped before the check "
+        "can refuse — the evidence file is already on disk by then (#218)."
+    )
+    assert 'SMOKE_PROMPT = EVIDENCE_PREFIX + "smoke-prompt.txt"' in source, (
+        "the checked path is no longer the prompt the header names"
+    )
+
+
+def _install_the_writer(repo):
+    """Copy both scripts into `repo` and commit them; return the writer's path.
+
+    The writer resolves `REPO_ROOT` from its own `__file__`, so running a copy
+    inside the scratch repository is what keeps this test off the real working
+    tree — the boundary the module docstring and #218's task both insist on.
+    """
+    scripts = repo / "scripts"
+    scripts.mkdir(exist_ok=True)
+    for name in ("evidence_provenance.py", "write_codex_smoke_evidence.py"):
+        shutil.copy(REPO_ROOT / "scripts" / name, scripts / name)
+    subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-qm", "install the writer"], cwd=repo, check=True, capture_output=True)
+    return scripts / "write_codex_smoke_evidence.py"
+
+
+def _run_the_writer(repo, writer, answers):
+    """Invoke the copied writer's real `main` and return the completed process.
+
+    `-B`: importing `evidence_provenance` would otherwise leave
+    `scripts/__pycache__/` untracked, and the tree check would refuse on that
+    instead of on what the test is about. The answer files live outside the
+    repository for the same reason.
+    """
+    codex, claude = answers / "codex.txt", answers / "claude.txt"
+    codex.write_text("codex answer\n", encoding="utf-8")
+    claude.write_text("claude answer\n", encoding="utf-8")
+    return subprocess.run(
+        [
+            sys.executable,
+            "-B",
+            str(writer),
+            "--codex",
+            str(codex),
+            "--claude",
+            str(claude),
+            "--codex-seconds",
+            "15",
+            "--claude-seconds",
+            "16",
+        ],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+    )
+
+
+def test_the_smoke_writer_refuses_before_writing_when_the_prompt_is_absent(scratch_repo, tmp_path_factory):
+    """AC2/AC4 end to end: the real `main`, and nothing on disk when it refuses.
+
+    The source pin above says the call is there and runs first; this says what
+    that buys. Deleting the call makes the writer succeed, and moving it after
+    `write()` leaves the header stamped — either way the last assertion fails.
+    """
+    _drop_the_prompt(scratch_repo)
+    writer = _install_the_writer(scratch_repo)
+    output = scratch_repo / "docs" / "evidence" / "issue-189-codex-parity" / "smoke-codex.md"
+
+    result = _run_the_writer(scratch_repo, writer, tmp_path_factory.mktemp("answers"))
+
+    assert result.returncode != 0, f"the writer wrote evidence for a prompt that is not there: {result.stdout}"
+    assert "smoke-prompt.txt" in result.stderr, f"the refusal does not name the missing input: {result.stderr}"
+    assert output.read_text(encoding="utf-8") == "an answer\n", (
+        "the writer stamped the header before refusing, so the evidence file exists with a claim "
+        "the check was about to reject"
+    )
+
+
+def test_the_smoke_writer_writes_when_the_prompt_is_committed(scratch_repo, tmp_path_factory):
+    """The control for the refusal above: it must not pass for an unrelated reason.
+
+    Same fixture minus the missing prompt — if the writer refused here too, the
+    test above would prove nothing about `verify_paths_exist`.
+    """
+    writer = _install_the_writer(scratch_repo)
+    output = scratch_repo / "docs" / "evidence" / "issue-189-codex-parity" / "smoke-codex.md"
+
+    result = _run_the_writer(scratch_repo, writer, tmp_path_factory.mktemp("answers"))
+
+    assert result.returncode == 0, f"the writer refused a well-formed run: {result.stderr}"
+    written = output.read_text(encoding="utf-8")
+    assert "verified unmodified against that commit" in written
+    assert written.endswith("codex answer\n")
 
 
 def test_provenance_refuses_a_rename_onto_an_exempt_output(provenance, scratch_repo):
