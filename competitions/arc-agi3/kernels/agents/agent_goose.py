@@ -29,12 +29,13 @@ from arcengine import FrameData, GameAction, GameState
 
 # --- Inlined from utils.py ---
 
-def setup_experiment_directory(base_output_dir='runs'):
+
+def setup_experiment_directory(base_output_dir="runs"):
     """Create directories for outputs and logging."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_dir = os.path.join(base_output_dir, timestamp)
     os.makedirs(base_dir, exist_ok=True)
-    log_file = os.path.join(base_dir, 'logs.log')
+    log_file = os.path.join(base_dir, "logs.log")
     print(f"Experiment directory created: {base_dir}")
     return base_dir, log_file
 
@@ -61,6 +62,7 @@ def setup_logging_for_experiment(log_file_path):
 
 
 # --- ActionModel CNN ---
+
 
 class ActionModel(nn.Module):
     """CNN that predicts which actions will result in new frames with shared conv backbone."""
@@ -116,10 +118,11 @@ class ActionModel(nn.Module):
 
 # --- Action Agent (StochasticGoose) ---
 
+
 class MyAgent(Agent):
     """CNN-based action learning agent that predicts which actions cause frame changes."""
 
-    MAX_ACTIONS = float('inf')
+    MAX_ACTIONS = float("inf")
     _MAX_FRAMES = 10  # PERF: Keep only the last N frames (sliding window)
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
@@ -131,7 +134,7 @@ class MyAgent(Agent):
         self.start_time = time.time()
 
         # Device configuration
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Action agent using device: {self.device}")
 
         # Setup experiment directory and logging
@@ -164,8 +167,13 @@ class MyAgent(Agent):
         self.prev_action_idx = None
 
         # Action mapping
-        self.action_list = [GameAction.ACTION1, GameAction.ACTION2, GameAction.ACTION3,
-                           GameAction.ACTION4, GameAction.ACTION5]
+        self.action_list = [
+            GameAction.ACTION1,
+            GameAction.ACTION2,
+            GameAction.ACTION3,
+            GameAction.ACTION4,
+            GameAction.ACTION5,
+        ]
 
         self.log_dir = env_dir
         self.logger.info(f"Action agent initialized for game_id: {self.game_id}")
@@ -174,16 +182,17 @@ class MyAgent(Agent):
         """Override to cap frames list at _MAX_FRAMES (sliding window)."""
         self.frames.append(frame)
         if len(self.frames) > self._MAX_FRAMES:
-            self.frames = self.frames[-self._MAX_FRAMES:]
+            self.frames = self.frames[-self._MAX_FRAMES :]
         if frame.guid:
             self.guid = frame.guid
         if hasattr(self, "recorder") and not self.is_playback:
             import json
+
             self.recorder.record(json.loads(frame.model_dump_json()))
 
     def _get_score(self, frame):
         """Get score from frame, compatible with both patched and standard FrameData."""
-        return getattr(frame, 'score', None) or frame.levels_completed
+        return getattr(frame, "score", None) or frame.levels_completed
 
     def _sample_from_combined_output(self, combined_logits, available_actions=None):
         """Sample from combined 5 + 64x64 action space with masking for invalid actions."""
@@ -191,18 +200,18 @@ class MyAgent(Agent):
         coord_logits = combined_logits[5:]
 
         if available_actions is not None and len(available_actions) > 0:
-            action_mask = torch.full_like(action_logits, float('-inf'))
+            action_mask = torch.full_like(action_logits, float("-inf"))
             action6_available = False
             for action in available_actions:
                 # Gateway sends raw ints [1,2,...,6], not GameAction enums
-                action_id = action.value if hasattr(action, 'value') else int(action)
+                action_id = action.value if hasattr(action, "value") else int(action)
                 if 1 <= action_id <= 5:
                     action_mask[action_id - 1] = 0.0
                 elif action_id == 6:
                     action6_available = True
             action_logits = action_logits + action_mask
             if not action6_available:
-                coord_logits = coord_logits + torch.full_like(coord_logits, float('-inf'))
+                coord_logits = coord_logits + torch.full_like(coord_logits, float("-inf"))
 
         action_probs = torch.sigmoid(action_logits)
         coord_probs_raw = torch.sigmoid(coord_logits)
@@ -230,8 +239,9 @@ class MyAgent(Agent):
         """Convert frame data to tensor format for the model."""
         frame = np.array(frame_data.frame, dtype=np.int64)
         frame = frame[-1]
-        assert frame.shape == (self.grid_size, self.grid_size), \
+        assert frame.shape == (self.grid_size, self.grid_size), (
             f"Expected frame shape ({self.grid_size}, {self.grid_size}), got {frame.shape}"
+        )
         tensor = torch.zeros(self.num_colours, self.grid_size, self.grid_size, dtype=torch.float32)
         tensor.scatter_(0, torch.from_numpy(frame).unsqueeze(0), 1)
         return tensor.to(self.device)
@@ -239,7 +249,7 @@ class MyAgent(Agent):
     def _compute_experience_hash(self, frame, action_idx):
         """Compute hash for frame+action combination to ensure uniqueness."""
         frame_bytes = frame.tobytes()
-        hash_input = frame_bytes + str(action_idx).encode('utf-8')
+        hash_input = frame_bytes + str(action_idx).encode("utf-8")
         return hashlib.md5(hash_input).hexdigest()
 
     def _train_action_model(self):
@@ -250,9 +260,9 @@ class MyAgent(Agent):
         batch_indices = np.random.choice(len(self.experience_buffer), self.batch_size, replace=False)
         batch = [self.experience_buffer[i] for i in batch_indices]
 
-        states = torch.stack([torch.from_numpy(exp['state']).float().to(self.device) for exp in batch])
-        action_indices = torch.tensor([exp['action_idx'] for exp in batch], dtype=torch.long, device=self.device)
-        rewards = torch.tensor([exp['reward'] for exp in batch], dtype=torch.float32, device=self.device)
+        states = torch.stack([torch.from_numpy(exp["state"]).float().to(self.device) for exp in batch])
+        action_indices = torch.tensor([exp["action_idx"] for exp in batch], dtype=torch.long, device=self.device)
+        rewards = torch.tensor([exp["reward"] for exp in batch], dtype=torch.float32, device=self.device)
 
         self.optimizer.zero_grad()
 
@@ -278,10 +288,12 @@ class MyAgent(Agent):
     def is_done(self, frames, latest_frame):
         """Decide if the agent is done playing."""
         try:
-            return any([
-                latest_frame.state is GameState.WIN,
-                self._has_time_elapsed(),
-            ])
+            return any(
+                [
+                    latest_frame.state is GameState.WIN,
+                    self._has_time_elapsed(),
+                ]
+            )
         except Exception as e:
             print(f"[DEBUG] is_done crashed: {e}")
             traceback.print_exc()
@@ -297,14 +309,16 @@ class MyAgent(Agent):
                 print(f"[DEBUG] latest_frame.levels_completed: {latest_frame.levels_completed}")
                 print(f"[DEBUG] has score: {hasattr(latest_frame, 'score')}")
                 print(f"[DEBUG] available_actions: {getattr(latest_frame, 'available_actions', 'N/A')}")
-                if hasattr(latest_frame, 'frame') and latest_frame.frame:
+                if hasattr(latest_frame, "frame") and latest_frame.frame:
                     frame_arr = np.array(latest_frame.frame)
                     print(f"[DEBUG] frame shape: {frame_arr.shape}")
 
             # Check if score/level has changed (triggers model reset for new level)
             current_level = self._get_score(latest_frame)
             if current_level != self.current_score:
-                self.logger.info(f"Score changed from {self.current_score} to {current_level} at action {self.action_counter}")
+                self.logger.info(
+                    f"Score changed from {self.current_score} to {current_level} at action {self.action_counter}"
+                )
                 print(f"Score changed from {self.current_score} to {current_level} at action {self.action_counter}")
 
                 self.experience_buffer.clear()
@@ -312,7 +326,9 @@ class MyAgent(Agent):
                 print("Cleared experience buffer - new level reached")
 
                 # Reset network and optimizer for new level
-                self.action_model = ActionModel(input_channels=self.num_colours, grid_size=self.grid_size).to(self.device)
+                self.action_model = ActionModel(input_channels=self.num_colours, grid_size=self.grid_size).to(
+                    self.device
+                )
                 self.optimizer = optim.Adam(self.action_model.parameters(), lr=0.0001)
                 print("Reset action model and optimizer for new level")
 
@@ -344,15 +360,15 @@ class MyAgent(Agent):
                     current_frame_np = current_frame.cpu().numpy().astype(bool)
                     frame_changed = not np.array_equal(self.prev_frame, current_frame_np)
                     experience = {
-                        'state': self.prev_frame,
-                        'action_idx': self.prev_action_idx,
-                        'reward': 1.0 if frame_changed else 0.0
+                        "state": self.prev_frame,
+                        "action_idx": self.prev_action_idx,
+                        "reward": 1.0 if frame_changed else 0.0,
                     }
                     self.experience_buffer.append(experience)
                     self.experience_hashes.add(experience_hash)
 
             # Get action predictions
-            available_actions = getattr(latest_frame, 'available_actions', None)
+            available_actions = getattr(latest_frame, "available_actions", None)
             with torch.no_grad():
                 combined_logits = self.action_model(current_frame.unsqueeze(0))
                 combined_logits = combined_logits.squeeze(0)

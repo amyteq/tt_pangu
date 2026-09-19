@@ -10,7 +10,12 @@ state_reason: "budget.submissions.verified_daily_limit is null -- §6 refuses a 
 
 competition_type: simulation_agent  # interactive turn-based game environments (NOT static grids)
 metric: RHAE — Relative Human Action Efficiency = (human_actions / agent_actions)^2, capped 1.0/level
+launch: null                    # not recorded here; arc-agi2 records 2026-03-25 for the ARC Prize 2026 opening
 deadline: 2026-11-02            # submissions close; entry/team-merge 2026-10-26; winners 2026-12-04
+closing_window_days: null       # ADR-0022 §5; not computable while `launch` is null
+timing_verified_source: null    # no dated read of these dates is recorded
+timing_verified_at: null        # A3 fail-closed. This competition is already PAUSED_BUDGET
+timing_verified_ttl: 30d        #   on the submission limit, so timing is not the binding gap
 primary_artifact: agent          # an interactive agent, not a static notebook output
 submission_mode: notebook        # Kaggle notebook, one-click runnable, <12h, no internet at eval
 data_policy: api                 # environments served via the arc-agi API/SDK, not a file download

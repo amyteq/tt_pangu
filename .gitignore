@@ -56,6 +56,13 @@ data/ctf/*/*/attachments/*.img
 # generated run artifacts and outputs — do not commit unless explicitly reviewed
 artifacts/
 runs/
+# ADR-0023 ledger records: competitions/<slug>/ledger/runs/ and .../artifacts/ hold the
+# Run / Artifact RECORDS — a few hundred bytes of YAML each, naming the bulk output the
+# two rules above exclude. These ARE committed; CI validates them. The negation names the
+# directories themselves, because a re-include cannot reach inside a still-excluded
+# directory (same reason as the data/* + !data/ctf/ pair above).
+!competitions/*/ledger/artifacts/
+!competitions/*/ledger/runs/
 
 # agent audit/transient state — do not commit unless intentionally reviewed
 .agent/

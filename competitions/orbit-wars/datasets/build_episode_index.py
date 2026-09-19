@@ -53,16 +53,7 @@ def build(replay_root, out_root, top_players=None):
         w = csv.DictWriter(f, fieldnames=FIELDS)
         w.writeheader()
         for r in rows:
-            w.writerow(
-                {
-                    k: (
-                        json.dumps(r.get(k))
-                        if isinstance(r.get(k), (list, dict))
-                        else r.get(k)
-                    )
-                    for k in FIELDS
-                }
-            )
+            w.writerow({k: (json.dumps(r.get(k)) if isinstance(r.get(k), (list, dict)) else r.get(k)) for k in FIELDS})
     summary = {
         "replays_seen": len(rows) + malformed,
         "indexed": len(rows),
@@ -78,9 +69,7 @@ def build(replay_root, out_root, top_players=None):
 
 
 def main():
-    ap = argparse.ArgumentParser(
-        description="Build Orbit Wars episode index from a replay corpus."
-    )
+    ap = argparse.ArgumentParser(description="Build Orbit Wars episode index from a replay corpus.")
     ap.add_argument(
         "--replay-root",
         required=True,

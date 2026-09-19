@@ -1,0 +1,33 @@
+# Contract: contracts/run.yaml
+id: RUN-0001
+competition: sec-attack
+experiment_id: EXP-0001
+attempt: 1
+supersedes: null
+executor: kaggle_kernel
+external_ref: "harrysun2006/sec-attack-jed-x (v3)"
+run_dir: null
+command: "kernels/attack_kaggle.py, built into the sec-attack-jed-x notebook by kernels/build_kaggle_nb.py"
+config_hash: null
+seed: null
+status: succeeded
+started_at: 2026-06-28
+finished_at: 2026-06-28
+gpu_hours: null
+metrics:
+  max_findings: 40
+  fanout: 20
+artifacts:
+  - ART-0001
+log_paths: []
+error_class: none
+error_summary: null
+provenance: backfilled
+recorded_at: 2026-09-17
+notes: >-
+  A code competition: the scored rerun happens inside the competition's evaluator, so this
+  Run's identity is a kernel version and there is no local run directory. The kernel must
+  use T4 (machine_shape NvidiaTeslaT4 plus a BYOD docker image; P100 is rejected) and must
+  write a schema-valid submission.csv stub during Save&Run, because serve() only emits the
+  real file during the scored rerun - both are recorded in submissions.md as fixes that
+  made code submission work at all.

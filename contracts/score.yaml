@@ -1,0 +1,106 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://github.com/amyteq/tt_pangu/blob/main/contracts/score.yaml"
+title: Score
+description: >-
+  What the platform returned for one Submission. A separate entity, not a field on
+  Submission, for a reason that is operational rather than tidy: the Submission
+  record is written BEFORE dispatch (ADR-0022 §5 A6), while the score arrives
+  later — sometimes much later. nemo's private LB was released 2026-06-16, the day
+  AFTER the competition closed; orbit-wars' ladder score arrives over hours to
+  days. Folding a late-arriving value into the pre-dispatch record would mean
+  rewriting the authorization record after the fact.
+
+  So Score is append-only per reading, and it carries its own provenance: WHICH
+  API or page it was read from, and WHEN. `is_eligible` and `selected_for_final`
+  are what ADR-0022 §3's `best` rule reads — an ineligible or unselected score is
+  an observation, never the competition's best.
+
+type: object
+additionalProperties: false
+required:
+  - id
+  - competition
+  - submission_ref
+  - experiment_id
+  - metric
+  - public_score
+  - private_score
+  - public_rank
+  - public_total
+  - private_rank
+  - private_total
+  - scored_at
+  - private_released_at
+  - is_eligible
+  - selected_for_final
+  - source
+  - read_at
+  - provenance
+  - recorded_at
+  - notes
+properties:
+  id:
+    type: string
+    pattern: "^SCORE-[0-9]{4,}$"
+  competition:
+    type: string
+    pattern: "^[a-z0-9][a-z0-9-]*$"
+  submission_ref:
+    description: The Submission `ref` this scores. One Score per submission per reading.
+    type: string
+    pattern: "^INT-(BACKFILL-)?[0-9A-Za-z-]+$"
+  experiment_id:
+    description: Denormalised so a score can be attributed without walking the chain.
+    type: [string, "null"]
+    pattern: "^EXP-[0-9]{4,}$"
+  metric:
+    description: The metric these numbers are on, matching the Experiment's `metric.name`.
+    type: [string, "null"]
+  public_score:
+    type: [number, "null"]
+  private_score:
+    description: Null until the private leaderboard is released.
+    type: [number, "null"]
+  public_rank:
+    type: [integer, "null"]
+    minimum: 1
+  public_total:
+    description: Teams on the public leaderboard when `public_rank` was read. A rank without a denominator is not a result.
+    type: [integer, "null"]
+    minimum: 1
+  private_rank:
+    type: [integer, "null"]
+    minimum: 1
+  private_total:
+    type: [integer, "null"]
+    minimum: 1
+  scored_at:
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}:[0-9]{2}(:[0-9]{2})?Z)?$"
+  private_released_at:
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  is_eligible:
+    description: >-
+      Whether this score counts for the standing at all. A post-deadline
+      late-window score is NOT eligible however good it is: nemo's eq-aug scored
+      0.86/0.86 — the campaign's best private — in the 100/day window after the
+      deadline, and counted for nothing. Three-valued: null is "not established".
+    type: [boolean, "null"]
+  selected_for_final:
+    description: Mirrors the Submission's field. Null means selection was never verified.
+    type: [boolean, "null"]
+  source:
+    description: Exactly where this reading came from — the API call, the CLI command, or the page.
+    type: [string, "null"]
+  read_at:
+    description: When the reading was taken. A score read before the private release has a null private_score.
+    type: [string, "null"]
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  provenance:
+    enum: [live, backfilled]
+  recorded_at:
+    type: string
+    pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+  notes:
+    type: [string, "null"]

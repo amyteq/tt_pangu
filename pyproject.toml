@@ -22,7 +22,7 @@ llm = ["litellm>=1.40"]
 # `ruff lint + format check` job always agree — an unpinned bump (e.g.
 # 0.14->0.15 reflowed multi-line lambda bodies) silently passed locally but
 # failed CI. Bump CI (.github/workflows/test.yml) and this line together.
-dev = ["pytest>=8", "ruff==0.15.14"]
+dev = ["pytest>=8", "ruff==0.15.14", "jsonschema>=4.21"]
 # Required by the M13 Kaggle-replay eval suites (kaggle_replay_titanic /
 # kaggle_replay_spaceship_titanic / kaggle_replay_house_prices). Lean
 # install (`.[dev]`) keeps these out; CI installs `.[dev,eval]` so the
@@ -66,7 +66,12 @@ ignore = [
   "F841",   # Local variable `...` is assigned to but never used
 ]
 
-# [tool.ruff.format]
+[tool.ruff.format]
+# sec-attack is a closed competition and this notebook has already been pushed to
+# Kaggle; reformatting a kernel that shipped cannot be re-verified against the
+# competition and buys nothing. Scoped to the formatter on purpose — `ruff check`
+# still lints the file, which a top-level [tool.ruff] exclude would prevent.
+exclude = ["competitions/sec-attack/kernels/sec-attack-jed.ipynb"]
 # quote-style = "preserve"
 # indent-style = "space"
 # line-ending = "auto"

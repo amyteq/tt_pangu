@@ -100,8 +100,115 @@ def compact(command: str) -> str:
     return " ".join(command.strip().split())
 
 
+# --- command normalisation (issue #204) --------------------------------------
+#
+# The deny/ask patterns below match words in the command string, so they only
+# recognise the spellings they were written for. Two consequences, both real:
+#
+# - `gh` accepts a flag between the binary and the subcommand, and runs it the
+#   same way: `gh --repo OWNER/REPO issue delete 1` == `gh issue delete 1`. The
+#   pattern assumed the two words were adjacent, so the flagged spelling reached
+#   no rule at all.
+# - Matching the *whole* command string means a heredoc or a quoted message that
+#   merely writes *about* a gated verb is refused, although it executes nothing.
+#
+# Both are handled by normalising the command before matching. Every step here is
+# a deletion, never a reordering or a re-quoting, so normalisation can only make
+# the matcher see less — it can never fabricate a word sequence that the operator
+# did not type.
+
+# gh flags that may legally precede the subcommand. `--repo` / `-R` are the ones
+# gh 2.100.0 actually accepts there (verified against repo-scoped commands);
+# `--hostname` is included because gh accepts it on `auth` / `api` and a future
+# version may widen it. Boolean forms take no value.
+GH_LEADING_FLAGS = re.compile(
+    r"\bgh(?:\s+(?:--repo|-R|--hostname)(?:=\S+|\s+\S+)|\s+(?:--help|-h|--version))+",
+    flags=re.IGNORECASE,
+)
+
+# A heredoc opener: `<<TAG`, `<<'TAG'`, `<<"TAG"`, `<<-TAG`.
+HEREDOC_START = re.compile(r"<<-?\s*(?P<quote>['\"]?)(?P<tag>[A-Za-z_][A-Za-z0-9_]*)(?P=quote)")
+
+# Programs that execute what they are handed. If any of them appears at a command
+# position, heredoc bodies stay in scope: `bash <<EOF ... EOF` and
+# `cat <<EOF | bash` really do run their payload.
+INTERPRETERS = {
+    "ash",
+    "bash",
+    "csh",
+    "dash",
+    "env",
+    "eval",
+    "fish",
+    "ksh",
+    "node",
+    "perl",
+    "php",
+    "python",
+    "python3",
+    "ruby",
+    "sh",
+    "source",
+    "xargs",
+    "zsh",
+}
+
+# A word in command position: start of string, or after a pipe/separator/substitution,
+# optionally preceded by VAR=value assignments.
+COMMAND_POSITION = re.compile(r"(?:^|[|;&\n]|\$\(|`)\s*(?:\w+=\S+\s+)*(?P<program>[\w./-]+)")
+
+# The literal value of a message-carrying flag. Single quotes never expand; double
+# quotes are only accepted when they contain no `$`, backtick or backslash, so a
+# payload that could execute something — `--body "$(cat ~/.ssh/id_rsa)"` — is left
+# in place and still matched.
+LITERAL_MESSAGE_PAYLOAD = re.compile(
+    r"(?<![\w-])(?:-m|--message|-b|--body|-t|--title|--notes)(?:\s+|=)(?:'[^']*'|\"[^\"$`\\]*\")"
+)
+
+
+def mentions_interpreter(command: str) -> bool:
+    return any(Path(match.group("program")).name in INTERPRETERS for match in COMMAND_POSITION.finditer(command))
+
+
+def strip_heredoc_bodies(command: str) -> str:
+    """Drop heredoc payloads, unless something in the command line would execute them.
+
+    A heredoc written to a file (`cat > note.md <<'EOF' … EOF`) is data. A heredoc
+    fed to a shell (`bash <<'EOF' … EOF`, `cat <<'EOF' | bash`) is code, so it is
+    left untouched and keeps facing every rule below.
+    """
+    if "<<" not in command or mentions_interpreter(command):
+        return command
+
+    lines = command.split("\n")
+    kept: list[str] = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        kept.append(line)
+        index += 1
+        opener = HEREDOC_START.search(line)
+        if not opener:
+            continue
+        tag = opener.group("tag")
+        while index < len(lines) and lines[index].strip() != tag:
+            index += 1
+        if index < len(lines):
+            kept.append(lines[index])
+            index += 1
+    return "\n".join(kept)
+
+
+def normalize_command(command: str) -> str:
+    """Canonicalise a command for matching: inert payloads out, gh flag noise out."""
+    text = strip_heredoc_bodies(command)
+    text = LITERAL_MESSAGE_PAYLOAD.sub(" ", text)
+    text = GH_LEADING_FLAGS.sub("gh", text)
+    return compact(text)
+
+
 def bash_decision(command: str) -> tuple[str | None, str | None]:
-    c = compact(command)
+    c = normalize_command(command)
     lc = c.lower()
 
     # Hard deny: host-destructive, privilege escalation, secret
@@ -125,9 +232,15 @@ def bash_decision(command: str) -> tuple[str | None, str | None]:
         (r"\bdd\s+.*\bof=/dev/", "Refusing raw disk write."),
         (r"\bmkfs(\.|\s|$)", "Refusing filesystem formatting command."),
         (r"\bshutdown\b|\breboot\b|\bhalt\b", "Refusing host power command."),
-        (r"\bgit\s+push\s+(-f|--force|--force-with-lease)", "Refusing force push."),
         (
-            r"\bgit\s+push\b[^|]*?(--delete\b|\s:\S)",
+            # The flag is legal anywhere in the push, not only straight after it:
+            # `git push origin main --force` and `git push --quiet --force origin main`
+            # are the same action as `git push --force origin main`.
+            r"\bgit\s+push\b[^|;&]*?\s(-f|--force|--force-with-lease)\b",
+            "Refusing force push.",
+        ),
+        (
+            r"\bgit\s+push\b[^|;&]*?(--delete\b|\s:\S)",
             "Refusing remote branch deletion (preserve GitHub branch history).",
         ),
         (
@@ -137,6 +250,13 @@ def bash_decision(command: str) -> tuple[str | None, str | None]:
         (
             r"\bgh\s+extension\s+remove\b",
             "Refusing gh extension removal.",
+        ),
+        (
+            # CLAUDE.md:103 lists this with the permanent-deletion remote writes.
+            # The script's own --i-mean-it token is a second line of defence, not
+            # this one: a bare --apply must not reach GitHub from the agent.
+            r"\bsync_labels\.py\b[^|;&]*?\s--apply\b",
+            "Refusing scripts/sync_labels.py --apply (remote label write requires human approval).",
         ),
         (
             r"\bdocker\s+run\b.*\s--privileged\b",
