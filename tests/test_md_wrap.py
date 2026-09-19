@@ -216,6 +216,44 @@ def test_a_hard_wrapped_setext_h1_is_still_joined():
     assert fixed(src) == "A heading split over two lines\n===\n"
 
 
+@pytest.mark.parametrize(
+    ("src", "want"),
+    [
+        ("- > Some text\n  > ---\n", "- > Some text\n  > \n  > ---\n"),
+        ("1. > Some text\n   > ---\n", "1. > Some text\n   > \n   > ---\n"),
+        ("- > - Some text\n  >   ---\n", "- > - Some text\n  > \n  >   ---\n"),
+        ("> - > Some text\n>   > ---\n", "> - > Some text\n>   > \n>   > ---\n"),
+    ],
+    ids=["list-quote", "ordered-quote", "list-quote-list", "quote-list-quote"],
+)
+def test_the_inserted_blank_line_keeps_the_rules_own_container(src, want):
+    """A quote inside a list needs the list's indentation on the blank line too.
+
+    Synthesising the prefix as one `> ` per quote level rebuilt the quotes and
+    dropped the list: the blank line landed at the margin, which closed the item,
+    and the thematic break below it rendered in a new top-level blockquote after
+    the list. Copying the prefix the `---` already carries cannot do that.
+    Regression for round-7 finding F028 on PR #226.
+    """
+    assert kinds(src) == ["setext-rule"]
+    assert fixed(src) == want
+
+
+@pytest.mark.parametrize(
+    ("src", "want"),
+    [
+        ("Some text\n---\n", "Some text\n\n---\n"),
+        ("> Some text\n> ---\n", "> Some text\n> \n> ---\n"),
+        ("- Some text\n  ---\n", "- Some text\n\n  ---\n"),
+    ],
+    ids=["top-level", "quote", "list"],
+)
+def test_the_plain_containers_still_get_the_blank_line_they_always_did(src, want):
+    """The three shapes the prefix change must leave exactly as they were."""
+    assert kinds(src) == ["setext-rule"]
+    assert fixed(src) == want
+
+
 # --------------------------------------------------------------------------
 # Blocks where line breaks are semantic
 # --------------------------------------------------------------------------
@@ -979,6 +1017,44 @@ def test_the_class_b_repair_passes_the_safety_net():
     renderer = _renderer()
     src = "Some closing prose.\n---\n\nNext section.\n"
     assert mdwrap.unsafe_fix_reason(src, fixed(src), renderer) is None
+
+
+@pytest.mark.parametrize(
+    "src",
+    [
+        "- > Some text\n  > ---\n",
+        "1. > Some text\n   > ---\n",
+        "- > - Some text\n  >   ---\n",
+        "> - > Some text\n>   > ---\n",
+        "> Some text\n> ---\n",
+        "- Some text\n  ---\n",
+        "Some text\n---\n",
+    ],
+    ids=["list-quote", "ordered-quote", "list-quote-list", "quote-list-quote", "quote", "list", "top-level"],
+)
+def test_the_class_b_repair_leaves_every_container_where_it_was(src):
+    """Rendered, not fingerprinted: the break must stay in the list and quote it was in."""
+    renderer = _renderer()
+    repaired = fixed(src)
+    assert repaired != src
+    assert mdwrap.HtmlScan(renderer.render(repaired)).containers == mdwrap.HtmlScan(renderer.render(src)).containers
+    assert mdwrap.unsafe_fix_reason(src, repaired, renderer) is None
+
+
+def test_a_rewrite_that_moves_content_between_containers_is_refused():
+    """The safety net's blind spot, closed: it reads the source with the same
+    container model the repair does, so a blank line at the wrong nesting looked
+    correct to both — same prose, same list count, same nesting, a setext heading
+    only disappearing. Only the rendered HTML shows the break leaving the list.
+    Regression for round-7 finding F028 on PR #226.
+    """
+    renderer = _renderer()
+    src = "- > Some text\n  > ---\n"
+    moved = "- > Some text\n> \n  > ---\n"  # what the repair produced before F028
+    assert mdwrap.compare_structure(src, moved) == []
+    assert mdwrap.unsafe_fix_reason(src, moved, renderer) == (
+        "the rewrite moves content across a list or blockquote boundary"
+    )
 
 
 def test_a_rewrite_that_would_change_rendering_is_refused():
