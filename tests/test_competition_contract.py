@@ -4,6 +4,7 @@ These check documents and YAML, not the future budget/approval runtime. No
 credentials, external APIs, or competition actions are involved.
 """
 
+from datetime import date
 from pathlib import Path
 import re
 
@@ -116,3 +117,19 @@ def test_existing_autonomy_annotation_preserves_the_documented_gate_floor():
         block = config.get("autonomy", config.get("_base", {}).get("autonomy"))
         if block is not None:
             assert expected <= set(block["human_gated"])
+
+
+@pytest.mark.parametrize("path", LIVE, ids=lambda p: p.parent.name)
+def test_open_status_requires_future_or_current_deadline(path):
+    record = read_yaml(path.read_text())
+    if record["status"] != "open":
+        return
+    deadline = record.get("deadline")
+    if deadline is None:
+        return
+    parsed = deadline if isinstance(deadline, date) else date.fromisoformat(deadline)
+    today = date.today()
+    assert parsed >= today, (
+        f"{path.parent.name}: status is 'open' but deadline {parsed.isoformat()} is in the past "
+        f"(today {today.isoformat()}); flip status to 'closed' or update deadline from a verified source"
+    )
