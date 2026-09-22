@@ -70,7 +70,7 @@ Runtime secrets and deployment settings live in `.env` at the repo root (gitigno
 
 ## Repository conventions
 
-- `competitions/<slug>/` — per-competition experiment code (`.py`) and LB writeups; phase-1 state of record alongside the tracking issue.
+- `competitions/<slug>/` — per-competition experiment code (`.py`) and LB writeups; phase-1 state of record alongside the tracking issue. Source-control policy — what belongs in this tree, what does not, and where rolling state lives — is [`competitions/POLICY.md`](./competitions/POLICY.md) (per [#195](https://github.com/amyteq/tt_pangu/issues/195)).
 - `tools/kca/` — the `kca` CLI; `src/` — application/agent source; `scripts/` — local utilities and experiment runners.
 - `experiments/` — experiment definitions, not heavy outputs; `runs/<competition>/<run_id>/` — run artifacts; `data/` — local data mount (never commit raw competition data).
 - `docs/` — design notes, ADRs, decisions; `supabase/migrations/` — schema migrations (KCA control plane).
