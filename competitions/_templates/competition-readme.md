@@ -14,12 +14,9 @@
 ## Key links
 - machine-readable record (authoritative): ./competition.yaml + ./ledger/
 - rules: ./rules.md
-- strategy: ./strategy.md
-- tasks: ./tasks.md
-- submissions: ./submissions.md
 - bugs: ./bugs.md
-- references: ./references.md
 - insights: ./insights.md
+- rolling state (strategy / tasks / submissions / notes / references) lives in this competition's tracking issue, not in this folder — see [`../POLICY.md`](../POLICY.md).
 
 ## Current top 3 priorities
 1.
