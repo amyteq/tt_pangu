@@ -2,6 +2,14 @@
   "repository": "amyteq/tt_pangu",
   "base_sha": "968a501b837272f0c52c1b3dbc844ae2c8cb3995",
   "draft_only": true,
+  "portable_home_rewrites": [
+    {
+      "scope": "local",
+      "kind": "allow",
+      "rule_index": 7,
+      "normalization": "absolute inspected home to ~/"
+    }
+  ],
   "source_sha256": {
     ".claude/settings.json": "28fc083b19e49b2fb1b19c112672f0742b12033d42a04fcce13ae967323397e3",
     ".claude/settings.local.json": "009ce16b1af27749acb65e850612bffd558c9051ad5dc19df5d4bab269b533fc"

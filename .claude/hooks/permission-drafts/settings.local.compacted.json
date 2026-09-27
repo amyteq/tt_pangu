@@ -6,7 +6,7 @@
       "Bash(env -u KCA_ALLOW_REMOTE python tools/kca/kca.py ctf flag submit --event demo --challenge x --flag-file /tmp/_flag_test.txt --dry-run)",
       "Bash(echo \"exit=$?\")",
       "Bash(env -u KCA_ALLOW_REMOTE python tools/kca/kca.py ctf flag submit --event demo --challenge x --flag-file /tmp/_flag_test.txt)",
-      "Read(//home/harry/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/**)", "Bash(kaggle kernels *)",
+      "Read(~/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/**)", "Bash(kaggle kernels *)",
       "Bash(kaggle models *)", "WebFetch(domain:storage.googleapis.com)"
     ]
   },
