@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:ndownloader.figshare.com)", "WebFetch(domain:supabase-db)",
+      "Read(//home/harry/competitions/kaggle-nvidia-nemotron-model-reasoning-challenge/**)",
+      "WebFetch(domain:storage.googleapis.com)"
+    ]
+  },
+  "enabledMcpjsonServers": ["playwright"],
+  "worktree": {
+    "bgIsolation": "worktree"
+  },
+  "enableAllProjectMcpServers": true
+}

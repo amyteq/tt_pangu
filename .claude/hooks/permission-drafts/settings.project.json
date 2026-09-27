@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "defaultMode": "auto",
+    "allow": [
+      "Read", "Edit", "Write", "MultiEdit", "Glob", "Grep", "LS", "NotebookRead", "NotebookEdit", "WebFetch",
+      "WebSearch", "Bash(git status *)", "Bash(git diff *)", "Bash(git log *)", "Bash(git show *)", "Bash(gh pr view *)",
+      "Bash(gh pr checks *)", "Bash(gh issue view *)", "Bash(npm test)", "Bash(make lint test)"
+    ],
+    "ask": [
+      "Bash(rmdir *)", "Bash(git clean*)", "Bash(supabase db push*)", "Bash(supabase db reset*)",
+      "Bash(kaggle kernels push*)", "Bash(kaggle datasets create*)", "Bash(kaggle datasets version*)",
+      "Bash(python tools/kca/kca.py kaggle push*)", "Bash(python tools/kca/kca.py kaggle upload*)",
+      "Bash(kca ctf flag submit*)", "Bash(kca ctf solver run*)", "Bash(python tools/kca/kca.py ctf flag submit*)",
+      "Bash(python tools/kca/kca.py ctf solver run*)"
+    ],
+    "deny": [
+      "Read(./.env.production)", "Read(./.env.test)", "Read(./secrets/**)", "Read(~/.ssh/**)", "Read(~/.aws/**)",
+      "Read(~/.config/gcloud/**)", "Read(~/.config/gh/hosts.yml)", "Edit(./.env)", "Edit(./.env.local)",
+      "Edit(./.env.development)", "Edit(./.env.production)", "Edit(./.env.test)", "Edit(./secrets/**)",
+      "Edit(~/.ssh/**)", "Edit(~/.aws/**)", "Edit(~/.config/gcloud/**)", "Bash(sudo*)", "Bash(su *)", "Bash(doas*)",
+      "Bash(docker run *--privileged*)", "Bash(chmod 777*)", "Bash(chown * / *)", "Bash(mkfs*)", "Bash(dd *of=/dev*)",
+      "Bash(shutdown*)", "Bash(reboot*)", "Bash(halt*)", "Bash(gh issue delete*)", "Bash(gh label delete*)",
+      "Bash(gh release delete*)", "Bash(gh repo delete*)", "Bash(gh secret delete*)", "Bash(gh webhook delete*)",
+      "Bash(gh ssh-key delete*)", "Bash(gh gpg-key delete*)", "Bash(gh cache delete*)", "Bash(gh run delete*)",
+      "Bash(gh extension remove*)", "Bash(curl *169.254.169.254*)", "Bash(wget *169.254.169.254*)",
+      "Bash(curl *metadata.google*)", "Bash(wget *metadata.google*)", "Bash(psql * -c *drop database*)",
+      "Bash(psql * -c *drop schema*)", "Bash(psql * -c *truncate*)", "Bash(psql * -c *delete from*)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": false,
+    "autoAllowBashIfSandboxed": true,
+    "allowUnsandboxedCommands": true,
+    "filesystem": {
+      "denyRead": ["~/.aws", "~/.config/gcloud", "~/.config/gh/hosts.yml"],
+      "denyWrite": ["/etc", "/usr", "/var", "~/.ssh", "~/.aws", "~/.config/gcloud", "~/.config/gh"],
+      "allowWrite": [".", "/tmp"]
+    },
+    "network": {
+      "allowedDomains": [
+        "api.anthropic.com", "claude.ai", "github.com", "api.github.com", "raw.githubusercontent.com",
+        "objects.githubusercontent.com", "kaggle.com", "*.kaggle.com", "supabase.co", "*.supabase.co", "pypi.org",
+        "files.pythonhosted.org", "registry.npmjs.org", "playwright.dev", "localhost", "127.0.0.1"
+      ],
+      "deniedDomains": ["169.254.169.254", "metadata.google"]
+    }
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Read|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard_development_permissions.py\"",
+            "timeout": 20
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/format_gate.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/audit_event.py"
+          }
+        ]
+      }
+    ],
+    "ConfigChange": [
+      {
+        "matcher": "project_settings|skills",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/audit_event.py"
+          }
+        ]
+      }
+    ]
+  }
+}
