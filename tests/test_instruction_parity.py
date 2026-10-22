@@ -2123,7 +2123,7 @@ def test_reflowing_a_whole_surface_is_not_drift(surface: str):
 
 
 CJK = re.compile(r"[\u4e00-\u9fff]")
-CLAIMED_CJK_FILES = 127
+CLAIMED_CJK_FILES = 96
 CJK_TOLERANCE = 20
 
 

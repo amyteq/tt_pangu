@@ -1,0 +1,170 @@
+[
+  {
+    "path": "competitions/sec-attack/research.md",
+    "rule": "credential-assignment",
+    "line_sha256": "f5eed3905675648dd853128f673f15458356e19f27d4bf1d2394b031f0d7196a",
+    "reason": "Fictional challenge seed example quoted in the competition research notes; not an account credential."
+  },
+  {
+    "path": "docs/milestones/m14/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "faa01801ab565b45a73b7c97f11b7f32bdc0d467fd7e7c69776abd3161f6335b",
+    "reason": "Existing documentation-only placeholder or deliberately fake scanner smoke-test token."
+  },
+  {
+    "path": "docs/tasks/m9_2/M9_2-T001-save-log-smoke-and-docs.md",
+    "rule": "model-api-key",
+    "line_sha256": "00923eefda85a5198d1dc55b138744b3230715bea0049045db492e9a3588f086",
+    "reason": "Existing documentation-only placeholder or deliberately fake scanner smoke-test token."
+  },
+  {
+    "path": "docs/tooling/env-configuration.md",
+    "rule": "credential-url",
+    "line_sha256": "30f02fca7da1fa8f07400c6f8bc89881ec4d40ced2da73f135cdd4df6ef992f2",
+    "reason": "Existing documentation-only placeholder or deliberately fake scanner smoke-test token."
+  },
+  {
+    "path": "env.example",
+    "rule": "credential-url",
+    "line_sha256": "40104a1ab8de76f2e49264f09a42e4258e94cd1feeed57215b6981edc085cf23",
+    "reason": "Existing documentation-only placeholder or deliberately fake scanner smoke-test token."
+  },
+  {
+    "path": "tests/_audit_grep.py",
+    "rule": "credential-assignment",
+    "line_sha256": "d95bb0e922831aa7dc413c3969cb4d0def06f004c8b4ba004e6d7c99ebf6707c",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/_audit_grep.py",
+    "rule": "model-api-key",
+    "line_sha256": "d95bb0e922831aa7dc413c3969cb4d0def06f004c8b4ba004e6d7c99ebf6707c",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_agent_notify.py",
+    "rule": "telegram-token",
+    "line_sha256": "a6ad4ff6a7b49c5d3fc9a930617e3d07b0aa93a1f748f5f0d6a0d108416595fd",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_agent_notify.py",
+    "rule": "credential-assignment",
+    "line_sha256": "a89b0d40ad306b232b9dc4b7f7562d165e80af1cf2a843cc833260cbc2b53d90",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_agent_notify.py",
+    "rule": "github-token",
+    "line_sha256": "6342d4510c147e5d90475e1797e9776057f3e01c0bbf83a7f685ed7bdf9d4edb",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_exp_cc_masking.py",
+    "rule": "credential-assignment",
+    "line_sha256": "7ad624f7502db56f30de4feab4c31294ae3e9037c85447b20a0fa6a76cf705e6",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_exp_cc_masking.py",
+    "rule": "model-api-key",
+    "line_sha256": "7ad624f7502db56f30de4feab4c31294ae3e9037c85447b20a0fa6a76cf705e6",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_m13_t006_routes.py",
+    "rule": "credential-assignment",
+    "line_sha256": "26ea48fa3e15dbb686440e6d9687cda307cca73d08ec7994f6b16b8f3c1b1d5f",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_m13_t006_routes.py",
+    "rule": "credential-assignment",
+    "line_sha256": "26ea48fa3e15dbb686440e6d9687cda307cca73d08ec7994f6b16b8f3c1b1d5f",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_m14_stuck.py",
+    "rule": "credential-assignment",
+    "line_sha256": "19cfa5ee95150178847eade80b66d29afaabbbea7fd1e9bddb9465a048d1ae16",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_m14_stuck.py",
+    "rule": "aws-access-key",
+    "line_sha256": "3fb55c542cfd1fac67dfdb6e155ab58ab296f704b7b6edf37b8f1f44766e7a5e",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_m14_stuck.py",
+    "rule": "aws-access-key",
+    "line_sha256": "9cc9523275380ee29134fcbfadb1f739ceb410e571e532ab1d2ac50274809f85",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "telegram-token",
+    "line_sha256": "c51afd506fe50b352ddcd869f292ae111a1ea35c53671308cfe6bd11591df4a2",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "credential-assignment",
+    "line_sha256": "b68aa44d43ad4f0f64c08d6fbb7214c0cf41b57206b956f09f26feec81f36ea1",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "telegram-token",
+    "line_sha256": "11bf3133feb79e93bef3270ed82ad96d3015e164087dbe28f36794f63918d3be",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "github-token",
+    "line_sha256": "410bf03c8b9c7c3f09e2d23dc461818c778f953ccc25dc46bfd73ca9c81aad0c",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "google-api-key",
+    "line_sha256": "d7964a1a084bade7d50d10d62cbd31cc7c241b0876ec557664774f38e3204b2d",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "credential-assignment",
+    "line_sha256": "89b8a1c7bd34decf876fb28afbaf26db36b0a4e21fa7d1510564205191cd4188",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "credential-assignment",
+    "line_sha256": "1c2bf5d842b053d73819ee4c9e3968727627b138d455299abc957b4d2d427351",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "model-api-key",
+    "line_sha256": "2df94f242e5f6b3e2e540b329cd7b2e012c8a4e65cfa68e5260ebc9a98cfdf62",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "credential-assignment",
+    "line_sha256": "b171d4db3adb1ad092172f4a8c71678ca62a5684eddfcc77379fc20a0bff2689",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tools/kca/db.py",
+    "rule": "credential-url",
+    "line_sha256": "e5e5853eb038e3226f4521a5f5a976dc811e50042fb511f60b69d9fbca2c517d",
+    "reason": "Redacted DSN renderer or illustrative DSN comment, not a configured connection."
+  },
+  {
+    "path": "tools/kca/stuck.py",
+    "rule": "credential-url",
+    "line_sha256": "f7c95e5df3d46154662fda03e9515b211858710a3c975cce473fdd3f283b7c2b",
+    "reason": "Redacted DSN renderer or illustrative DSN comment, not a configured connection."
+  }
+]
