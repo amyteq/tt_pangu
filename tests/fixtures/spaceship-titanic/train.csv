@@ -1,0 +1,201 @@
+PassengerId,HomePlanet,CryoSleep,Cabin,Destination,Age,VIP,RoomService,FoodCourt,ShoppingMall,Spa,VRDeck,Name,Transported
+9000_01,Mars,True,,TRAPPIST-1e,,True,0,0,0,0,0,Synthetic traveller 0000,True
+9001_01,Mars,False,E/2/S,TRAPPIST-1e,35,False,291,1439,822,360,916,Synthetic traveller 0001,True
+9002_01,Earth,True,D/3/P,55 Cancri e,32,False,0,0,0,0,0,Synthetic traveller 0002,True
+9003_01,Earth,False,A/4/P,TRAPPIST-1e,72,False,1127,877,452,145,259,Synthetic traveller 0003,False
+9004_01,Europa,True,F/5/S,TRAPPIST-1e,31,False,0,0,0,0,0,Synthetic traveller 0004,True
+9005_01,Europa,False,C/6/P,PSO J318.5-22,76,False,48,588,618,564,989,Synthetic traveller 0005,True
+9006_01,Earth,False,D/7/S,55 Cancri e,69,False,6,1549,235,713,177,Synthetic traveller 0006,False
+9007_01,Europa,False,F/8/S,PSO J318.5-22,73,False,966,1116,464,1272,267,Synthetic traveller 0007,True
+9008_01,Mars,False,A/9/S,55 Cancri e,22,False,99,608,451,737,528,Synthetic traveller 0008,False
+9009_01,Europa,False,C/10/P,PSO J318.5-22,21,False,195,961,45,885,457,Synthetic traveller 0009,True
+9010_01,Europa,False,A/11/P,55 Cancri e,14,False,970,522,204,1075,402,Synthetic traveller 0010,True
+9011_01,Mars,True,B/12/S,PSO J318.5-22,33,False,0,0,0,0,0,Synthetic traveller 0011,True
+9012_01,Earth,True,F/13/S,55 Cancri e,23,False,0,0,0,0,0,Synthetic traveller 0012,True
+9013_01,Earth,True,D/14/P,55 Cancri e,74,True,0,0,0,0,0,Synthetic traveller 0013,True
+9014_01,Earth,True,B/15/P,55 Cancri e,65,False,0,0,0,0,0,Synthetic traveller 0014,True
+9015_01,Mars,True,D/16/P,TRAPPIST-1e,51,False,0,0,0,0,0,Synthetic traveller 0015,False
+9016_01,Europa,False,A/17/S,55 Cancri e,17,False,673,393,663,315,903,Synthetic traveller 0016,True
+9017_01,Earth,True,B/18/S,55 Cancri e,,False,0,0,0,0,0,Synthetic traveller 0017,True
+9018_01,Mars,False,A/19/S,TRAPPIST-1e,60,False,1064,1461,693,404,82,Synthetic traveller 0018,False
+9019_01,Mars,False,B/20/S,TRAPPIST-1e,34,False,726,176,692,949,193,Synthetic traveller 0019,False
+9020_01,Europa,False,D/21/S,55 Cancri e,60,False,186,274,656,651,856,Synthetic traveller 0020,True
+9021_01,Europa,False,A/22/P,55 Cancri e,12,False,160,476,144,417,646,Synthetic traveller 0021,False
+9022_01,Earth,True,C/23/S,55 Cancri e,23,False,0,0,0,0,0,Synthetic traveller 0022,True
+9023_01,Europa,True,,TRAPPIST-1e,2,False,0,0,0,0,0,Synthetic traveller 0023,True
+9024_01,Europa,False,B/25/S,55 Cancri e,44,False,1192,35,186,471,319,Synthetic traveller 0024,True
+9025_01,Europa,False,D/26/P,TRAPPIST-1e,19,False,1122,1211,705,183,452,Synthetic traveller 0025,False
+9026_01,Earth,False,A/27/S,55 Cancri e,15,True,1086,1673,442,1118,449,Synthetic traveller 0026,False
+9027_01,Earth,False,D/28/P,55 Cancri e,61,False,948,173,339,865,464,Synthetic traveller 0027,True
+9028_01,Europa,False,B/29/P,55 Cancri e,32,False,703,1558,678,134,343,Synthetic traveller 0028,True
+9029_01,Earth,True,F/30/P,55 Cancri e,35,False,0,0,0,0,0,Synthetic traveller 0029,False
+9030_01,Earth,True,A/31/S,PSO J318.5-22,45,False,0,0,0,0,0,Synthetic traveller 0030,True
+9031_01,Europa,False,B/32/P,55 Cancri e,50,False,1177,1292,512,66,730,Synthetic traveller 0031,False
+9032_01,Earth,True,F/33/S,55 Cancri e,80,False,0,0,0,0,0,Synthetic traveller 0032,True
+9033_01,Mars,False,A/34/S,55 Cancri e,54,False,1084,1050,234,234,7,Synthetic traveller 0033,True
+9034_01,Earth,True,A/35/S,TRAPPIST-1e,,False,0,0,0,0,0,Synthetic traveller 0034,True
+9035_01,Mars,True,C/36/S,TRAPPIST-1e,39,False,0,0,0,0,0,Synthetic traveller 0035,True
+9036_01,Earth,True,E/37/P,PSO J318.5-22,39,False,0,0,0,0,0,Synthetic traveller 0036,True
+9037_01,Earth,True,A/38/S,55 Cancri e,27,False,0,0,0,0,0,Synthetic traveller 0037,False
+9038_01,Mars,False,C/39/S,55 Cancri e,70,False,839,590,782,1191,17,Synthetic traveller 0038,False
+9039_01,Earth,True,C/40/S,PSO J318.5-22,29,True,0,0,0,0,0,Synthetic traveller 0039,True
+9040_01,Mars,False,F/41/P,55 Cancri e,22,False,623,1685,58,453,865,Synthetic traveller 0040,False
+9041_01,Earth,False,A/42/S,55 Cancri e,16,False,1121,402,546,847,226,Synthetic traveller 0041,True
+9042_01,Earth,False,A/43/P,PSO J318.5-22,57,False,1097,237,60,1391,482,Synthetic traveller 0042,False
+9043_01,Europa,True,C/44/P,55 Cancri e,21,False,0,0,0,0,0,Synthetic traveller 0043,True
+9044_01,Mars,False,D/45/S,TRAPPIST-1e,38,False,329,62,598,221,284,Synthetic traveller 0044,False
+9045_01,Europa,True,D/46/S,55 Cancri e,56,False,0,0,0,0,0,Synthetic traveller 0045,True
+9046_01,Mars,True,,55 Cancri e,55,False,0,0,0,0,0,Synthetic traveller 0046,True
+9047_01,Europa,True,D/48/S,55 Cancri e,14,False,0,0,0,0,0,Synthetic traveller 0047,False
+9048_01,Europa,True,F/49/P,55 Cancri e,80,False,0,0,0,0,0,Synthetic traveller 0048,False
+9049_01,Europa,False,E/50/P,PSO J318.5-22,40,False,755,313,121,728,51,Synthetic traveller 0049,True
+9050_01,Europa,True,F/51/P,PSO J318.5-22,68,False,0,0,0,0,0,Synthetic traveller 0050,True
+9051_01,Europa,False,A/52/P,55 Cancri e,,False,748,286,473,983,554,Synthetic traveller 0051,True
+9052_01,Mars,True,D/53/P,PSO J318.5-22,56,True,0,0,0,0,0,Synthetic traveller 0052,True
+9053_01,Earth,True,C/54/P,55 Cancri e,48,False,0,0,0,0,0,Synthetic traveller 0053,True
+9054_01,Europa,True,E/55/P,TRAPPIST-1e,54,False,0,0,0,0,0,Synthetic traveller 0054,True
+9055_01,Mars,True,B/56/S,TRAPPIST-1e,80,False,0,0,0,0,0,Synthetic traveller 0055,True
+9056_01,Europa,True,E/57/P,TRAPPIST-1e,8,False,0,0,0,0,0,Synthetic traveller 0056,False
+9057_01,Earth,False,C/58/P,TRAPPIST-1e,74,False,494,678,133,1082,696,Synthetic traveller 0057,True
+9058_01,Europa,True,B/59/P,TRAPPIST-1e,27,False,0,0,0,0,0,Synthetic traveller 0058,True
+9059_01,Earth,True,A/60/P,PSO J318.5-22,54,False,0,0,0,0,0,Synthetic traveller 0059,True
+9060_01,Earth,True,A/61/P,PSO J318.5-22,37,False,0,0,0,0,0,Synthetic traveller 0060,True
+9061_01,Earth,True,E/62/S,TRAPPIST-1e,69,False,0,0,0,0,0,Synthetic traveller 0061,True
+9062_01,Earth,True,A/63/P,PSO J318.5-22,36,False,0,0,0,0,0,Synthetic traveller 0062,False
+9063_01,Mars,False,D/64/P,TRAPPIST-1e,36,False,57,1343,96,1165,175,Synthetic traveller 0063,True
+9064_01,Earth,True,D/65/S,TRAPPIST-1e,9,False,0,0,0,0,0,Synthetic traveller 0064,False
+9065_01,Mars,True,B/66/S,PSO J318.5-22,46,True,0,0,0,0,0,Synthetic traveller 0065,True
+9066_01,Europa,False,C/67/P,55 Cancri e,55,False,827,703,547,1166,739,Synthetic traveller 0066,True
+9067_01,Mars,False,B/68/P,TRAPPIST-1e,73,False,689,170,620,786,996,Synthetic traveller 0067,False
+9068_01,Europa,True,C/69/P,TRAPPIST-1e,,False,0,0,0,0,0,Synthetic traveller 0068,True
+9069_01,Mars,False,,PSO J318.5-22,57,False,380,1321,509,947,171,Synthetic traveller 0069,False
+9070_01,Europa,True,B/71/S,TRAPPIST-1e,47,False,0,0,0,0,0,Synthetic traveller 0070,True
+9071_01,Earth,False,E/72/S,PSO J318.5-22,58,False,338,536,620,244,160,Synthetic traveller 0071,True
+9072_01,Mars,False,B/73/P,PSO J318.5-22,74,False,631,1053,776,1111,515,Synthetic traveller 0072,False
+9073_01,Earth,True,E/74/P,55 Cancri e,3,False,0,0,0,0,0,Synthetic traveller 0073,True
+9074_01,Earth,False,C/75/P,55 Cancri e,11,False,394,1137,259,168,282,Synthetic traveller 0074,False
+9075_01,Earth,True,B/76/P,55 Cancri e,73,False,0,0,0,0,0,Synthetic traveller 0075,True
+9076_01,Europa,True,C/77/S,PSO J318.5-22,23,False,0,0,0,0,0,Synthetic traveller 0076,True
+9077_01,Mars,True,C/78/S,TRAPPIST-1e,6,False,0,0,0,0,0,Synthetic traveller 0077,True
+9078_01,Europa,True,A/79/S,55 Cancri e,77,True,0,0,0,0,0,Synthetic traveller 0078,True
+9079_01,Mars,True,A/80/P,TRAPPIST-1e,55,False,0,0,0,0,0,Synthetic traveller 0079,True
+9080_01,Mars,False,A/81/P,TRAPPIST-1e,76,False,343,1557,402,58,205,Synthetic traveller 0080,False
+9081_01,Europa,False,B/82/S,55 Cancri e,80,False,1152,1726,547,527,720,Synthetic traveller 0081,True
+9082_01,Mars,False,E/83/S,TRAPPIST-1e,19,False,20,802,728,956,908,Synthetic traveller 0082,False
+9083_01,Earth,False,A/84/S,TRAPPIST-1e,29,False,883,298,308,1214,304,Synthetic traveller 0083,False
+9084_01,Europa,True,F/85/P,TRAPPIST-1e,5,False,0,0,0,0,0,Synthetic traveller 0084,True
+9085_01,Europa,False,E/86/P,55 Cancri e,,False,1,1473,636,107,132,Synthetic traveller 0085,True
+9086_01,Europa,False,E/87/S,PSO J318.5-22,29,False,1137,223,102,543,814,Synthetic traveller 0086,True
+9087_01,Earth,True,C/88/P,PSO J318.5-22,22,False,0,0,0,0,0,Synthetic traveller 0087,True
+9088_01,Earth,True,A/89/S,55 Cancri e,28,False,0,0,0,0,0,Synthetic traveller 0088,True
+9089_01,Europa,False,A/90/S,TRAPPIST-1e,42,False,33,1627,761,1078,25,Synthetic traveller 0089,True
+9090_01,Mars,False,E/91/P,TRAPPIST-1e,63,False,237,909,552,531,979,Synthetic traveller 0090,False
+9091_01,Mars,True,A/92/S,TRAPPIST-1e,56,True,0,0,0,0,0,Synthetic traveller 0091,False
+9092_01,Earth,True,,TRAPPIST-1e,19,False,0,0,0,0,0,Synthetic traveller 0092,True
+9093_01,Europa,True,F/94/S,55 Cancri e,27,False,0,0,0,0,0,Synthetic traveller 0093,True
+9094_01,Mars,True,B/95/P,PSO J318.5-22,27,False,0,0,0,0,0,Synthetic traveller 0094,True
+9095_01,Europa,False,A/96/S,TRAPPIST-1e,42,False,1124,107,623,809,879,Synthetic traveller 0095,True
+9096_01,Europa,False,C/97/S,TRAPPIST-1e,10,False,90,1721,668,9,866,Synthetic traveller 0096,True
+9097_01,Europa,False,F/98/P,TRAPPIST-1e,61,False,1123,13,175,600,107,Synthetic traveller 0097,False
+9098_01,Europa,False,D/99/P,TRAPPIST-1e,78,False,412,1003,357,100,903,Synthetic traveller 0098,True
+9099_01,Europa,True,E/100/S,TRAPPIST-1e,23,False,0,0,0,0,0,Synthetic traveller 0099,True
+9100_01,Earth,False,B/101/P,TRAPPIST-1e,24,False,799,1440,805,1396,211,Synthetic traveller 0100,False
+9101_01,Earth,True,B/102/S,PSO J318.5-22,6,False,0,0,0,0,0,Synthetic traveller 0101,True
+9102_01,Mars,False,A/103/P,TRAPPIST-1e,,False,1019,525,500,599,125,Synthetic traveller 0102,False
+9103_01,Mars,False,D/104/P,TRAPPIST-1e,15,False,515,1292,465,231,313,Synthetic traveller 0103,False
+9104_01,Europa,True,B/105/S,TRAPPIST-1e,42,True,0,0,0,0,0,Synthetic traveller 0104,True
+9105_01,Earth,True,C/106/P,PSO J318.5-22,63,False,0,0,0,0,0,Synthetic traveller 0105,True
+9106_01,Mars,False,A/107/P,TRAPPIST-1e,46,False,1116,745,591,24,481,Synthetic traveller 0106,False
+9107_01,Europa,False,B/108/S,PSO J318.5-22,69,False,889,1512,866,957,597,Synthetic traveller 0107,True
+9108_01,Europa,False,C/109/P,TRAPPIST-1e,49,False,1134,1219,858,822,352,Synthetic traveller 0108,True
+9109_01,Mars,False,E/110/S,TRAPPIST-1e,61,False,705,919,637,239,218,Synthetic traveller 0109,False
+9110_01,Mars,True,D/111/P,PSO J318.5-22,19,False,0,0,0,0,0,Synthetic traveller 0110,True
+9111_01,Europa,False,E/112/S,PSO J318.5-22,10,False,82,348,405,987,188,Synthetic traveller 0111,True
+9112_01,Mars,False,B/113/S,TRAPPIST-1e,57,False,9,1448,569,145,984,Synthetic traveller 0112,True
+9113_01,Europa,True,F/114/S,55 Cancri e,13,False,0,0,0,0,0,Synthetic traveller 0113,True
+9114_01,Mars,True,D/115/P,PSO J318.5-22,42,False,0,0,0,0,0,Synthetic traveller 0114,True
+9115_01,Mars,True,,TRAPPIST-1e,10,False,0,0,0,0,0,Synthetic traveller 0115,False
+9116_01,Mars,False,E/117/P,TRAPPIST-1e,23,False,917,838,427,457,762,Synthetic traveller 0116,False
+9117_01,Earth,False,A/118/P,PSO J318.5-22,66,True,1135,310,169,546,72,Synthetic traveller 0117,False
+9118_01,Earth,True,C/119/S,PSO J318.5-22,40,False,0,0,0,0,0,Synthetic traveller 0118,True
+9119_01,Europa,True,B/120/S,TRAPPIST-1e,,False,0,0,0,0,0,Synthetic traveller 0119,False
+9120_01,Earth,False,B/121/S,PSO J318.5-22,21,False,1059,1622,758,742,566,Synthetic traveller 0120,False
+9121_01,Earth,False,C/122/P,PSO J318.5-22,65,False,900,998,168,1009,647,Synthetic traveller 0121,False
+9122_01,Europa,True,E/123/P,55 Cancri e,9,False,0,0,0,0,0,Synthetic traveller 0122,True
+9123_01,Earth,False,A/124/P,PSO J318.5-22,17,False,598,1528,799,849,159,Synthetic traveller 0123,False
+9124_01,Earth,True,A/125/S,55 Cancri e,65,False,0,0,0,0,0,Synthetic traveller 0124,True
+9125_01,Europa,False,C/126/S,TRAPPIST-1e,67,False,2,453,456,599,846,Synthetic traveller 0125,True
+9126_01,Europa,False,B/127/P,TRAPPIST-1e,13,False,682,498,701,849,669,Synthetic traveller 0126,True
+9127_01,Earth,False,E/128/P,55 Cancri e,37,False,29,1114,634,955,374,Synthetic traveller 0127,False
+9128_01,Mars,False,C/129/S,TRAPPIST-1e,68,False,597,119,786,725,259,Synthetic traveller 0128,False
+9129_01,Earth,True,F/130/P,55 Cancri e,72,False,0,0,0,0,0,Synthetic traveller 0129,True
+9130_01,Europa,True,C/131/P,PSO J318.5-22,60,True,0,0,0,0,0,Synthetic traveller 0130,True
+9131_01,Earth,False,B/132/S,TRAPPIST-1e,31,False,188,1427,583,252,446,Synthetic traveller 0131,False
+9132_01,Mars,True,E/133/S,55 Cancri e,23,False,0,0,0,0,0,Synthetic traveller 0132,True
+9133_01,Europa,True,D/134/P,TRAPPIST-1e,6,False,0,0,0,0,0,Synthetic traveller 0133,True
+9134_01,Earth,True,E/135/S,PSO J318.5-22,51,False,0,0,0,0,0,Synthetic traveller 0134,True
+9135_01,Mars,True,C/136/S,PSO J318.5-22,43,False,0,0,0,0,0,Synthetic traveller 0135,True
+9136_01,Europa,True,F/137/S,TRAPPIST-1e,,False,0,0,0,0,0,Synthetic traveller 0136,True
+9137_01,Mars,False,B/138/S,55 Cancri e,36,False,264,617,863,1335,738,Synthetic traveller 0137,False
+9138_01,Mars,True,,55 Cancri e,4,False,0,0,0,0,0,Synthetic traveller 0138,False
+9139_01,Earth,False,C/140/P,55 Cancri e,51,False,1007,945,220,5,956,Synthetic traveller 0139,False
+9140_01,Earth,False,D/141/P,TRAPPIST-1e,68,False,891,834,554,767,626,Synthetic traveller 0140,False
+9141_01,Earth,True,F/142/S,PSO J318.5-22,62,False,0,0,0,0,0,Synthetic traveller 0141,True
+9142_01,Europa,False,D/143/P,TRAPPIST-1e,59,False,981,1174,825,477,110,Synthetic traveller 0142,True
+9143_01,Earth,False,F/144/P,TRAPPIST-1e,14,True,954,1666,681,1298,202,Synthetic traveller 0143,True
+9144_01,Earth,False,C/145/P,PSO J318.5-22,30,False,1194,209,890,953,847,Synthetic traveller 0144,False
+9145_01,Europa,False,A/146/P,55 Cancri e,70,False,389,574,115,279,644,Synthetic traveller 0145,True
+9146_01,Europa,False,B/147/S,PSO J318.5-22,23,False,131,1342,498,268,724,Synthetic traveller 0146,True
+9147_01,Europa,True,E/148/S,55 Cancri e,47,False,0,0,0,0,0,Synthetic traveller 0147,True
+9148_01,Earth,True,F/149/S,55 Cancri e,28,False,0,0,0,0,0,Synthetic traveller 0148,True
+9149_01,Mars,False,A/150/P,TRAPPIST-1e,66,False,513,1142,723,1342,586,Synthetic traveller 0149,False
+9150_01,Earth,False,F/151/S,TRAPPIST-1e,9,False,341,648,82,754,789,Synthetic traveller 0150,False
+9151_01,Earth,True,C/152/S,55 Cancri e,68,False,0,0,0,0,0,Synthetic traveller 0151,True
+9152_01,Mars,True,E/153/P,PSO J318.5-22,67,False,0,0,0,0,0,Synthetic traveller 0152,True
+9153_01,Europa,False,B/154/P,55 Cancri e,,False,740,700,884,1250,584,Synthetic traveller 0153,True
+9154_01,Earth,True,F/155/S,PSO J318.5-22,69,False,0,0,0,0,0,Synthetic traveller 0154,False
+9155_01,Mars,False,D/156/S,TRAPPIST-1e,13,False,920,398,879,1244,242,Synthetic traveller 0155,False
+9156_01,Europa,True,B/157/P,PSO J318.5-22,31,True,0,0,0,0,0,Synthetic traveller 0156,True
+9157_01,Earth,True,F/158/P,PSO J318.5-22,16,False,0,0,0,0,0,Synthetic traveller 0157,True
+9158_01,Mars,False,B/159/S,55 Cancri e,53,False,417,899,863,795,580,Synthetic traveller 0158,False
+9159_01,Earth,True,F/160/S,TRAPPIST-1e,68,False,0,0,0,0,0,Synthetic traveller 0159,True
+9160_01,Earth,False,C/161/S,55 Cancri e,41,False,697,1493,836,852,715,Synthetic traveller 0160,False
+9161_01,Earth,True,,55 Cancri e,32,False,0,0,0,0,0,Synthetic traveller 0161,True
+9162_01,Earth,False,E/163/P,TRAPPIST-1e,74,False,254,383,896,445,126,Synthetic traveller 0162,False
+9163_01,Mars,True,C/164/S,55 Cancri e,62,False,0,0,0,0,0,Synthetic traveller 0163,True
+9164_01,Europa,True,C/165/S,TRAPPIST-1e,72,False,0,0,0,0,0,Synthetic traveller 0164,True
+9165_01,Mars,True,B/166/P,TRAPPIST-1e,12,False,0,0,0,0,0,Synthetic traveller 0165,True
+9166_01,Europa,False,A/167/S,TRAPPIST-1e,18,False,248,880,720,133,670,Synthetic traveller 0166,False
+9167_01,Europa,True,A/168/S,PSO J318.5-22,17,False,0,0,0,0,0,Synthetic traveller 0167,True
+9168_01,Earth,True,C/169/S,PSO J318.5-22,7,False,0,0,0,0,0,Synthetic traveller 0168,True
+9169_01,Europa,False,A/170/S,TRAPPIST-1e,16,True,81,454,280,248,416,Synthetic traveller 0169,True
+9170_01,Mars,True,F/171/P,TRAPPIST-1e,,False,0,0,0,0,0,Synthetic traveller 0170,True
+9171_01,Mars,True,B/172/S,55 Cancri e,53,False,0,0,0,0,0,Synthetic traveller 0171,True
+9172_01,Earth,False,E/173/P,55 Cancri e,44,False,670,1290,268,1185,469,Synthetic traveller 0172,False
+9173_01,Earth,True,D/174/S,TRAPPIST-1e,7,False,0,0,0,0,0,Synthetic traveller 0173,True
+9174_01,Mars,True,C/175/P,PSO J318.5-22,60,False,0,0,0,0,0,Synthetic traveller 0174,False
+9175_01,Europa,True,A/176/S,55 Cancri e,18,False,0,0,0,0,0,Synthetic traveller 0175,True
+9176_01,Mars,False,A/177/S,TRAPPIST-1e,19,False,1046,1616,308,54,725,Synthetic traveller 0176,False
+9177_01,Earth,True,B/178/P,TRAPPIST-1e,53,False,0,0,0,0,0,Synthetic traveller 0177,True
+9178_01,Europa,True,B/179/P,55 Cancri e,9,False,0,0,0,0,0,Synthetic traveller 0178,True
+9179_01,Mars,True,B/180/P,PSO J318.5-22,27,False,0,0,0,0,0,Synthetic traveller 0179,True
+9180_01,Earth,False,C/181/P,PSO J318.5-22,46,False,1024,621,315,134,899,Synthetic traveller 0180,False
+9181_01,Mars,False,D/182/P,TRAPPIST-1e,22,False,839,836,708,1186,826,Synthetic traveller 0181,False
+9182_01,Earth,True,C/183/P,PSO J318.5-22,59,True,0,0,0,0,0,Synthetic traveller 0182,True
+9183_01,Europa,False,A/184/P,PSO J318.5-22,77,False,935,679,63,985,232,Synthetic traveller 0183,True
+9184_01,Earth,False,,PSO J318.5-22,31,False,67,644,271,933,913,Synthetic traveller 0184,False
+9185_01,Earth,True,B/186/S,TRAPPIST-1e,29,False,0,0,0,0,0,Synthetic traveller 0185,True
+9186_01,Earth,False,B/187/S,55 Cancri e,7,False,693,4,776,1185,611,Synthetic traveller 0186,False
+9187_01,Mars,False,B/188/S,PSO J318.5-22,,False,72,330,128,412,434,Synthetic traveller 0187,False
+9188_01,Earth,True,E/189/P,TRAPPIST-1e,64,False,0,0,0,0,0,Synthetic traveller 0188,True
+9189_01,Mars,True,B/190/P,TRAPPIST-1e,40,False,0,0,0,0,0,Synthetic traveller 0189,True
+9190_01,Earth,False,F/191/S,TRAPPIST-1e,24,False,1074,100,443,403,692,Synthetic traveller 0190,False
+9191_01,Europa,True,A/192/P,55 Cancri e,25,False,0,0,0,0,0,Synthetic traveller 0191,True
+9192_01,Europa,False,A/193/P,PSO J318.5-22,73,False,279,308,117,564,16,Synthetic traveller 0192,True
+9193_01,Earth,False,F/194/S,55 Cancri e,64,False,444,1495,209,85,715,Synthetic traveller 0193,False
+9194_01,Europa,True,D/195/P,55 Cancri e,70,False,0,0,0,0,0,Synthetic traveller 0194,True
+9195_01,Earth,False,D/196/P,TRAPPIST-1e,24,True,1019,446,200,948,276,Synthetic traveller 0195,False
+9196_01,Mars,False,A/197/S,TRAPPIST-1e,34,False,297,1093,742,613,127,Synthetic traveller 0196,False
+9197_01,Earth,True,A/198/S,TRAPPIST-1e,55,False,0,0,0,0,0,Synthetic traveller 0197,False
+9198_01,Europa,False,B/199/P,TRAPPIST-1e,5,False,372,359,212,1000,1000,Synthetic traveller 0198,True
+9199_01,Mars,True,A/200/P,TRAPPIST-1e,50,False,0,0,0,0,0,Synthetic traveller 0199,True

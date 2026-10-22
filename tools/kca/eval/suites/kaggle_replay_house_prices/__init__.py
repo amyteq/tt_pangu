@@ -1,7 +1,7 @@
 """kaggle_replay_house_prices — offline Ridge baseline replay (M13-T003).
 
-Mirrors the M5-T008 House Prices RMSLE baseline but reads a frozen
-sub-sample from ``tests/fixtures/house-prices/train.csv``. Uses Ridge
+Mirrors the M5-T008 House Prices RMSLE pipeline but reads original
+synthetic examples from ``tests/fixtures/house-prices/train.csv``. Uses Ridge
 (a strict LR-equivalent for regression) rather than LinearRegression to
 keep the metric stable across versions of sklearn's default solver.
 
@@ -31,9 +31,9 @@ from .._kaggle_replay import (
 
 SUITE_NAME = "kaggle-replay-house-prices"
 SUITE_CATEGORY = "kaggle_replay"
-SUITE_VERSION = "0.1.0"
+SUITE_VERSION = "0.2.0"
 SUITE_DESCRIPTION = (
-    "Offline House Prices Ridge baseline replay (M13-T003). Records "
+    "Synthetic House Prices-shaped Ridge replay (fixture v0.2). Records "
     "RMSLE on a 5-fold CV + holdout against tests/fixtures/house-prices/."
 )
 
@@ -137,6 +137,8 @@ def _run_case() -> dict[str, Any]:
         "n_folds": _N_FOLDS,
         "model": "Ridge(alpha=1.0)",
         "fixture": _FIXTURE,
+        "fixture_origin": "synthetic",
+        "fixture_version": "synthetic-2026-10-22",
         "route": "mocked",
     }
 
@@ -171,6 +173,8 @@ def register(db_module: object | None) -> dict[str, Any]:
         metadata={
             "case_count": 1,
             "fixture": _FIXTURE,
+            "fixture_origin": "synthetic",
+            "fixture_version": "synthetic-2026-10-22",
             "target": _TARGET,
             "model": "Ridge(alpha=1.0)",
             "metric": "rmsle",

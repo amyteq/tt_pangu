@@ -3,7 +3,7 @@
 This is the CI-friendly counterpart to ``tests/test_m9_smoke.py`` (the
 DB-gated regression-assertion module). It exercises the full M9 path —
 research → baseline → CV → ``submission.csv`` → reviewer-gate → decision
-approve — *in dry-run mode*, on a tiny fixture slice (~80 train rows / 40
+approve — *in dry-run mode*, on synthetic fixtures (200 train rows / 40
 test rows), with **no network**, **no DB**, and **no real Kaggle
 credentials**.
 
@@ -132,7 +132,7 @@ def test_baseline_pipeline_on_fixture_produces_submission_csv(tmp_path):
     """Run the same preprocessing + LR pipeline as
     ``scripts/baseline_lr_spaceship.py`` against the small fixture slice.
 
-    Uses ``n_splits=3`` instead of 5 because the fixture is 80 rows. The
+    Uses ``n_splits=3`` on the 200-row synthetic fixture. The
     point is the *shape* of the output, not a meaningful CV score.
     """
     from sklearn.compose import ColumnTransformer
