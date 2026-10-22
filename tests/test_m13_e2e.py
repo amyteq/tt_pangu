@@ -194,6 +194,8 @@ def test_kaggle_replays_run_mocked(scrubbed_env):
         # All three replays carry a "fixture" key plus at least one
         # score-shaped metric.
         assert "fixture" in metrics or "model" in metrics, f"{name} missing fixture/model in metrics: {metrics}"
+        assert metrics["fixture_origin"] == "synthetic"
+        assert metrics["fixture_version"] == "synthetic-2026-10-22"
 
 
 # ---------------------------------------------------------------------------

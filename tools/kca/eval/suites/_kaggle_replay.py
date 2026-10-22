@@ -1,7 +1,7 @@
 """Shared helpers for the M13-T003 Kaggle replay suites.
 
-Each replay (Titanic / Spaceship Titanic / House Prices) reads a frozen
-sub-sample of the canonical training CSV from ``tests/fixtures/<comp>/``
+Each replay (Titanic / Spaceship Titanic / House Prices) reads original
+synthetic, schema-compatible CSV fixtures from ``tests/fixtures/<comp>/``
 and runs a deterministic baseline (LR for classification, Ridge for
 regression). Metrics land in ``eval_results.metrics`` per the
 ``architecture/eval-regression-suite.md`` contract.
