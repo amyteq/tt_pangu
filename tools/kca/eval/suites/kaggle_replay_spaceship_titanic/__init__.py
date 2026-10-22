@@ -1,9 +1,8 @@
 """kaggle_replay_spaceship_titanic — offline LR replay (M13-T003).
 
-Mirrors the M9-T002 baseline-LR experiment, but against the frozen
-``tests/fixtures/spaceship-titanic/train.csv`` sub-sample. The point is
-NOT to reproduce the M9 leaderboard score (the fixture is 200 rows;
-M9 trained on the full 8693-row train set). The point is a
+Mirrors the M9-T002 baseline-LR pipeline using original synthetic rows
+in ``tests/fixtures/spaceship-titanic/train.csv``. This is not competition
+data and cannot reproduce a leaderboard score. The point is a
 deterministic baseline against which future regressions on the eval
 pipeline can be detected.
 
@@ -32,9 +31,9 @@ from .._kaggle_replay import (
 
 SUITE_NAME = "kaggle-replay-spaceship-titanic"
 SUITE_CATEGORY = "kaggle_replay"
-SUITE_VERSION = "0.1.0"
+SUITE_VERSION = "0.2.0"
 SUITE_DESCRIPTION = (
-    "Offline Spaceship Titanic LR baseline replay (M13-T003). Mirrors "
+    "Synthetic Spaceship Titanic-shaped LR replay (fixture v0.2). Mirrors "
     "M9-T002's preprocessing against tests/fixtures/spaceship-titanic/."
 )
 
@@ -126,6 +125,8 @@ def _run_case() -> dict[str, Any]:
         "n_folds": _N_FOLDS,
         "model": "LogisticRegression(max_iter=2000)",
         "fixture": _FIXTURE,
+        "fixture_origin": "synthetic",
+        "fixture_version": "synthetic-2026-10-22",
         "route": "mocked",
     }
 
@@ -160,6 +161,8 @@ def register(db_module: object | None) -> dict[str, Any]:
         metadata={
             "case_count": 1,
             "fixture": _FIXTURE,
+            "fixture_origin": "synthetic",
+            "fixture_version": "synthetic-2026-10-22",
             "target": _TARGET,
             "model": "LogisticRegression(max_iter=2000)",
         },

@@ -1,6 +1,6 @@
 """kaggle_replay_titanic — offline Titanic LR baseline replay (M13-T003).
 
-Reads ``tests/fixtures/titanic/train.csv`` and fits a deterministic
+Reads the synthetic ``tests/fixtures/titanic/train.csv`` and fits a deterministic
 logistic-regression baseline on a fixed feature set. No real Kaggle
 network. No LLM. No notebook/kernel push.
 
@@ -12,8 +12,8 @@ Records the following metrics into ``eval_results.metrics``:
 - ``fit_time_ms``      — wall-clock fit time on the full train set
 - ``n_train``, ``n_holdout``, ``n_folds`` — dataset shape
 
-The values are not LB-comparable (fixture is 200 rows, not the full
-891-row Titanic train set); they are a deterministic baseline against
+The values are not LB-comparable: the fixture contains 200 invented
+rows, not competition data. They are a deterministic baseline against
 which future PRs can detect regressions in the platform's eval pipeline.
 """
 
@@ -31,10 +31,8 @@ from .._kaggle_replay import (
 
 SUITE_NAME = "kaggle-replay-titanic"
 SUITE_CATEGORY = "kaggle_replay"
-SUITE_VERSION = "0.1.0"
-SUITE_DESCRIPTION = (
-    "Offline Titanic LR baseline replay (M13-T003). Reads tests/fixtures/titanic/train.csv; no Kaggle network, no LLM."
-)
+SUITE_VERSION = "0.2.0"
+SUITE_DESCRIPTION = "Synthetic Titanic-shaped LR replay (fixture v0.2). Reads tests/fixtures/titanic/train.csv; no Kaggle network, no LLM."
 
 _FIXTURE = "titanic"
 _TARGET = "Survived"
@@ -108,6 +106,8 @@ def _run_case() -> dict[str, Any]:
         "n_folds": _N_FOLDS,
         "model": "LogisticRegression(max_iter=2000)",
         "fixture": _FIXTURE,
+        "fixture_origin": "synthetic",
+        "fixture_version": "synthetic-2026-10-22",
         "route": "mocked",
     }
 
@@ -142,6 +142,8 @@ def register(db_module: object | None) -> dict[str, Any]:
         metadata={
             "case_count": 1,
             "fixture": _FIXTURE,
+            "fixture_origin": "synthetic",
+            "fixture_version": "synthetic-2026-10-22",
             "target": _TARGET,
             "model": "LogisticRegression(max_iter=2000)",
         },

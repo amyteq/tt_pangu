@@ -19,6 +19,8 @@ The scan does not read untracked local credential files, contact services, valid
 
 ## Source cleanup is not history cleanup
 
+The [external research index](../../competitions/nvidia-nemotron/external/README.md) links original competitor articles instead of redistributing their full text or figures. The three tabular replay suites use [original synthetic fixtures](../../tests/fixtures/README.md), not downloaded competition rows. Their `0.2.0` metrics are a new fixture baseline and are not comparable with earlier runs. This source replacement does not remove earlier copies from Git history.
+
 Removing a file in a new commit leaves its old contents available through earlier commits, branches, tags and PR diffs. Before converting a private repository to public, rotate/revoke any previously exposed credential, then choose either a new sanitized snapshot with no inherited history or a separately authorized comprehensive history purge. Confirm old PRs, discussions, attachments, workflow logs/artifacts and cached references are addressed. Do not describe a green current-source scan as approval to publish the original repository.
 
 For a repository that must not run any work for outside contributors, disable Actions and remove the repository from relevant GitHub App installations as separate controls. Disabling Actions alone does not disable installed-app automation. Do not attach a self-hosted runner to public fork code. Repository settings, organization policies and product-side agent settings require live verification; source instructions cannot enforce them.

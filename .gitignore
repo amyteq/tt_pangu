@@ -116,3 +116,7 @@ notebooks/generated/*
 
 # Playwright MCP session dumps (console logs / page snapshots; transient)
 .playwright-mcp/
+
+# Third-party article exports are local research inputs, not public source.
+/competitions/nvidia-nemotron/external/*/writeup/raw/
+/competitions/nvidia-nemotron/external/*/writeup/images/
