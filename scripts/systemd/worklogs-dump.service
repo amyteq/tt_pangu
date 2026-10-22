@@ -1,7 +1,7 @@
 [Unit]
-Description=Dump Claude Code session worklogs and merge to main (exp_cc.py)
+Description=Retired transcript publisher (no-op; disable its timer)
 Documentation=https://github.com/amyteq/tt_pangu/blob/main/docs/tooling/worklogs-systemd-timer.md
-# Needs the network to fetch/push and to talk to the GitHub API.
+# Retained for existing installations only; the script performs no network or Git writes.
 After=network-online.target
 Wants=network-online.target
 
@@ -16,8 +16,6 @@ TimeoutStartSec=2400
 # Optional overrides — uncomment/edit as needed (see the script header):
 # Environment=WORKLOG_REPO_DIR=%h/test/tt_pangu
 # Environment=WORKLOG_MAMBA_ENV=v3.12.12
-# Environment=WORKLOG_MERGE_MODE=pr
-# Environment=GH_REPO=amyteq/tt_pangu
 
 [Install]
 WantedBy=default.target
