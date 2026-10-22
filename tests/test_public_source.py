@@ -74,6 +74,26 @@ class PublicSourceCheckTests(unittest.TestCase):
             self.assertEqual(data, str(target).encode())
             self.assertTrue(check.scan_text("worklogs", data.decode()))
 
+    def test_common_password_on_remote_host_is_still_a_credential(self):
+        text = "postgres://postgres:postgres@db.example.invalid/db"
+        self.assertTrue(check.scan_text("config.py", text))
+
+    def test_private_key_inside_json_is_detected(self):
+        key = "-----BEGIN " + "PRIVATE KEY-----\n" + "Abcd" * 24 + "\n-----END " + "PRIVATE KEY-----"
+        for text in [key, json.dumps({"private_key": key}), json.dumps({"private_key": key.replace("\n", "\r\n")})]:
+            self.assertTrue(any(h.rule == "private-key-block" for h in check.scan_text("service.json", text)))
+
+    def test_private_key_blocks_cannot_be_waived_by_a_header_line_hash(self):
+        text = "-----BEGIN " + "PRIVATE KEY-----\n" + "Abcd" * 24 + "\n-----END " + "PRIVATE KEY-----"
+        hit = check.scan_text("example.pem", text)[0]
+        entry = {
+            "path": hit.path,
+            "rule": hit.rule,
+            "line_sha256": check.line_digest(text, 1),
+            "reason": "Not a valid exception",
+        }
+        self.assertFalse(check.allowed(hit, text, [entry]))
+
     def test_placeholder_database_credentials_are_not_real_exposures(self):
         self.assertEqual(check.scan_text("docs/setup.md", "postgres://postgres:postgres@localhost/db"), [])
 
