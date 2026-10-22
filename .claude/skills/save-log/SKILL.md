@@ -42,7 +42,7 @@ The skill shells out to `python scripts/save_claude_session_log.py "$session"`, 
 3. Refuses to export anything that is not `completed` or `stopped` unless `--allow-any-state` is set.
 4. Locates the transcript JSONL under `~/.claude/projects/` (no fallback to `claude logs` terminal output — ANSI escape sequences would corrupt the export).
 5. Calls `uvx claude-code-log@latest --detail low --format md --compact` to render clean Markdown.
-6. Runs a nine-pattern secret scan on the rendered output and refuses to write if any pattern matches, unless `--allow-secret-like` is set.
+6. Runs a configured secret-pattern scan on the rendered output and refuses to write if any pattern matches, unless `--allow-secret-like` is set.
 7. Writes atomically to `logs/<safe-name>.md` (overwrites any previous export with the same name).
 
 ## Output
@@ -70,11 +70,11 @@ The script also prints a JSON closeout to stdout:
 
 - Reads only `~/.claude/projects/`, `~/.claude/jobs/`, and the stdout of `claude agents --json`. Does not read `.env*`, `~/.kaggle/kaggle.json`, `~/.ssh/**`, `~/.aws/**`, `~/.config/gcloud/**`, `~/.config/gh/**`, or `secrets/**` — even though the CLAUDE.md dev-phase carve-out allows some of those, this skill has no need for credentials.
 - `disable-model-invocation: true` — only a human typing `/save-log` may trigger this skill. The model must not invoke it programmatically.
-- Refuses to write if any of the nine secret patterns in `SECRET_PATTERNS` match the rendered transcript. Override with `--allow-secret-like` only after inspecting the transcript by hand.
+- Refuses to write if any of the configured secret patterns in `SECRET_PATTERNS` match the rendered transcript. Override with `--allow-secret-like` only after inspecting the transcript by hand.
 
 ## Out of scope
 
-- No commit of `logs/<name>.md`. The human decides per-export whether to commit (default: don't, unless evidentially load-bearing).
+- Never commit exported transcripts. `logs/`, `worklogs/` and `.agent/` are local-only; masking known token shapes does not make a transcript safe to publish. Write a new sanitized evidence summary instead.
 - No `claude logs` ANSI-strip fallback. If the transcript JSONL can't be located, the script fails loudly with the exact `find` hint.
 - No `--all` mode. One session per invocation.
 

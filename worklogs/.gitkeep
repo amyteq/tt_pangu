@@ -1,4 +1,0 @@
-# This directory holds Markdown dumps of Claude Code sessions produced by
-# scripts/exp_cc.py and committed by .github/workflows/worklogs-dump.yml.
-# It is intentionally tracked (see .gitignore). This .gitkeep keeps the
-# directory present before the first dump lands.

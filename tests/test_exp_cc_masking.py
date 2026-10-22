@@ -5,7 +5,7 @@ These exercise the pure helpers (no Claude transcripts, no network):
 - mask_secret_like_text masks every known secret shape in place, leaves
   surrounding markdown / variable names readable, collapses private-key
   blocks, and is idempotent.
-- the CLI default output directory is `worklogs`.
+- the CLI default output directory is `.agent/worklogs`.
 """
 
 from __future__ import annotations
@@ -115,10 +115,10 @@ def test_scan_still_detects_after_pattern_refactor():
 # --- CLI defaults -----------------------------------------------------------
 
 
-def test_default_output_dir_is_worklogs():
+def test_default_output_dir_is_local_worklogs():
     parser = exp_cc.build_parser()
     args = parser.parse_args([])
-    assert args.output_dir == "worklogs"
+    assert args.output_dir == ".agent/worklogs"
 
 
 # --- filename disambiguation (no overwrite on same name) --------------------
@@ -225,3 +225,27 @@ def test_header_has_no_timestamp_or_output():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+def test_database_url_password_is_detected_and_masked():
+    password = "SyntheticOnly" + "aB7%21" * 4
+    text = "postgresql://demo:" + password + "@db.example.invalid/postgres"
+    assert any(x["label"] == "database URL password" for x in exp_cc.scan_secret_like_lines(text))
+    assert password not in exp_cc.mask_secret_like_text(text)
+    assert "@db.example.invalid/postgres" in exp_cc.mask_secret_like_text(text)
+
+
+def test_pgpassword_assignment_is_detected_and_masked():
+    password = "SyntheticOnly" + "xY9" * 6
+    text = "PGPASSWORD='" + password + "'"
+    assert any(x["label"] == "Postgres env password" for x in exp_cc.scan_secret_like_lines(text))
+    assert password not in exp_cc.mask_secret_like_text(text)
+
+
+def test_secret_scan_diagnostics_withhold_the_entire_match():
+    password = "SyntheticOnly" + "xY9" * 6
+    text = "postgresql://demo:" + password + "@db.example.invalid/postgres"
+    locations = exp_cc.scan_secret_like_lines(text)
+    assert locations
+    assert all(x["match_preview"] == "[redacted]" for x in locations)
+    assert password[-3:] not in repr(locations)
