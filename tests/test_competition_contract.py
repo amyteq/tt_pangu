@@ -4,6 +4,7 @@ These check documents and YAML, not the future budget/approval runtime. No
 credentials, external APIs, or competition actions are involved.
 """
 
+from datetime import date, datetime
 from pathlib import Path
 import re
 
@@ -116,3 +117,30 @@ def test_existing_autonomy_annotation_preserves_the_documented_gate_floor():
         block = config.get("autonomy", config.get("_base", {}).get("autonomy"))
         if block is not None:
             assert expected <= set(block["human_gated"])
+
+
+@pytest.mark.parametrize("path", LIVE, ids=lambda p: p.parent.name)
+def test_status_is_closed_once_the_deadline_has_passed(path):
+    """A competition whose final-submission `deadline` is in the past must not
+    still claim `status: open`. Enforces the second half of issue #195 AC4 —
+    "a CI check catches the next one" — so a stale `active`/`open` row cannot
+    sit un-noticed after the submission window has closed.
+
+    `unknown` is tolerated: a reader with no way to verify today's date is
+    deliberately allowed to defer, and the YAML comment conventions already
+    carry the audit trail. `closed` is the required terminal.
+    """
+    record = read_yaml(path.read_text())
+    deadline = record.get("deadline")
+    if deadline is None:
+        pytest.skip("no deadline recorded")
+    if isinstance(deadline, datetime):
+        deadline = deadline.date()
+    assert isinstance(deadline, date), f"deadline must parse as YYYY-MM-DD, got {type(deadline).__name__}"
+    today = date.today()
+    if deadline < today and record["status"] == "open":
+        pytest.fail(
+            f"{path.parent.name}: deadline {deadline.isoformat()} is in the past "
+            f"(today={today.isoformat()}) but status is still 'open'. "
+            "Set status to 'closed' (or 'unknown' if the window state cannot be verified)."
+        )
