@@ -1,0 +1,542 @@
+[
+  {
+    "path": "competitions/sec-attack/research.md",
+    "rule": "credential-assignment",
+    "line_sha256": "f5eed3905675648dd853128f673f15458356e19f27d4bf1d2394b031f0d7196a",
+    "reason": "Fictional challenge seed example quoted in the competition research notes; not an account credential."
+  },
+  {
+    "path": "docs/milestones/m14/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "faa01801ab565b45a73b7c97f11b7f32bdc0d467fd7e7c69776abd3161f6335b",
+    "reason": "Existing documentation-only placeholder or deliberately fake scanner smoke-test token."
+  },
+  {
+    "path": "docs/tasks/m9_2/M9_2-T001-save-log-smoke-and-docs.md",
+    "rule": "model-api-key",
+    "line_sha256": "00923eefda85a5198d1dc55b138744b3230715bea0049045db492e9a3588f086",
+    "reason": "Existing documentation-only placeholder or deliberately fake scanner smoke-test token."
+  },
+  {
+    "path": "docs/tooling/env-configuration.md",
+    "rule": "credential-url",
+    "line_sha256": "30f02fca7da1fa8f07400c6f8bc89881ec4d40ced2da73f135cdd4df6ef992f2",
+    "reason": "Existing documentation-only placeholder or deliberately fake scanner smoke-test token."
+  },
+  {
+    "path": "env.example",
+    "rule": "credential-url",
+    "line_sha256": "40104a1ab8de76f2e49264f09a42e4258e94cd1feeed57215b6981edc085cf23",
+    "reason": "Existing documentation-only placeholder or deliberately fake scanner smoke-test token."
+  },
+  {
+    "path": "tests/_audit_grep.py",
+    "rule": "credential-assignment",
+    "line_sha256": "d95bb0e922831aa7dc413c3969cb4d0def06f004c8b4ba004e6d7c99ebf6707c",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/_audit_grep.py",
+    "rule": "model-api-key",
+    "line_sha256": "d95bb0e922831aa7dc413c3969cb4d0def06f004c8b4ba004e6d7c99ebf6707c",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_agent_notify.py",
+    "rule": "telegram-token",
+    "line_sha256": "a6ad4ff6a7b49c5d3fc9a930617e3d07b0aa93a1f748f5f0d6a0d108416595fd",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_agent_notify.py",
+    "rule": "credential-assignment",
+    "line_sha256": "a89b0d40ad306b232b9dc4b7f7562d165e80af1cf2a843cc833260cbc2b53d90",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_agent_notify.py",
+    "rule": "github-token",
+    "line_sha256": "6342d4510c147e5d90475e1797e9776057f3e01c0bbf83a7f685ed7bdf9d4edb",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_exp_cc_masking.py",
+    "rule": "credential-assignment",
+    "line_sha256": "7ad624f7502db56f30de4feab4c31294ae3e9037c85447b20a0fa6a76cf705e6",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_exp_cc_masking.py",
+    "rule": "model-api-key",
+    "line_sha256": "7ad624f7502db56f30de4feab4c31294ae3e9037c85447b20a0fa6a76cf705e6",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_m13_t006_routes.py",
+    "rule": "credential-assignment",
+    "line_sha256": "26ea48fa3e15dbb686440e6d9687cda307cca73d08ec7994f6b16b8f3c1b1d5f",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_m13_t006_routes.py",
+    "rule": "credential-assignment",
+    "line_sha256": "26ea48fa3e15dbb686440e6d9687cda307cca73d08ec7994f6b16b8f3c1b1d5f",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_m14_stuck.py",
+    "rule": "credential-assignment",
+    "line_sha256": "19cfa5ee95150178847eade80b66d29afaabbbea7fd1e9bddb9465a048d1ae16",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_m14_stuck.py",
+    "rule": "aws-access-key",
+    "line_sha256": "3fb55c542cfd1fac67dfdb6e155ab58ab296f704b7b6edf37b8f1f44766e7a5e",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_m14_stuck.py",
+    "rule": "aws-access-key",
+    "line_sha256": "9cc9523275380ee29134fcbfadb1f739ceb410e571e532ab1d2ac50274809f85",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "telegram-token",
+    "line_sha256": "c51afd506fe50b352ddcd869f292ae111a1ea35c53671308cfe6bd11591df4a2",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "credential-assignment",
+    "line_sha256": "b68aa44d43ad4f0f64c08d6fbb7214c0cf41b57206b956f09f26feec81f36ea1",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "telegram-token",
+    "line_sha256": "11bf3133feb79e93bef3270ed82ad96d3015e164087dbe28f36794f63918d3be",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "github-token",
+    "line_sha256": "410bf03c8b9c7c3f09e2d23dc461818c778f953ccc25dc46bfd73ca9c81aad0c",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "google-api-key",
+    "line_sha256": "d7964a1a084bade7d50d10d62cbd31cc7c241b0876ec557664774f38e3204b2d",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "credential-assignment",
+    "line_sha256": "89b8a1c7bd34decf876fb28afbaf26db36b0a4e21fa7d1510564205191cd4188",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "credential-assignment",
+    "line_sha256": "1c2bf5d842b053d73819ee4c9e3968727627b138d455299abc957b4d2d427351",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "model-api-key",
+    "line_sha256": "2df94f242e5f6b3e2e540b329cd7b2e012c8a4e65cfa68e5260ebc9a98cfdf62",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "credential-assignment",
+    "line_sha256": "b171d4db3adb1ad092172f4a8c71678ca62a5684eddfcc77379fc20a0bff2689",
+    "reason": "Existing synthetic redaction fixture or missing-key error assertion; reviewed as non-production data."
+  },
+  {
+    "path": "tools/kca/db.py",
+    "rule": "credential-url",
+    "line_sha256": "e5e5853eb038e3226f4521a5f5a976dc811e50042fb511f60b69d9fbca2c517d",
+    "reason": "Redacted DSN renderer or illustrative DSN comment, not a configured connection."
+  },
+  {
+    "path": "tools/kca/stuck.py",
+    "rule": "credential-url",
+    "line_sha256": "f7c95e5df3d46154662fda03e9515b211858710a3c975cce473fdd3f283b7c2b",
+    "reason": "Redacted DSN renderer or illustrative DSN comment, not a configured connection."
+  },
+  {
+    "path": "docs/meeting-notes/2026-05-19-r3.md",
+    "rule": "credential-url",
+    "line_sha256": "3e9aec1a522437725374efd7dc21ce3ff1a27e7752b746d7a0e38697387b3c3c",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/meeting-notes/2026-05-20-r1.md",
+    "rule": "credential-url",
+    "line_sha256": "ccfdc511ba51327d315911742d7e55daa5d240ddf07f237e826f610e601b82a8",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/meeting-notes/2026-05-20-r1.md",
+    "rule": "credential-url",
+    "line_sha256": "3f84cd636d5cb62591db74bd733c21e81d20d16b3f823e83f9e8b6c9e0413b5d",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/meeting-notes/2026-05-20-r1.md",
+    "rule": "credential-url",
+    "line_sha256": "0417243ae80030e3bdca669ad9ae1280b7d8ae185845866f20bd25b4b13afbdf",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/meeting-notes/2026-05-20-r2.md",
+    "rule": "credential-url",
+    "line_sha256": "b8eb57f0758b594c4f9e53ab7e2fd42fbb9e750cc6d912c91ff6054204edb06a",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/meeting-notes/2026-05-20-r2.md",
+    "rule": "credential-url",
+    "line_sha256": "914474d526712f5d0c427dd23ad11a1ebad2216a944ce7b095e319a74112a60d",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/meeting-notes/2026-05-20-r2.md",
+    "rule": "credential-url",
+    "line_sha256": "83bfabe26b097b4aad4120b16772078f7d4b79c52fd9c0c33c0df91c66f5b426",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/meeting-notes/2026-05-23-r1.md",
+    "rule": "credential-url",
+    "line_sha256": "d5002aaa6fd3a7de63abd54b2f64b51abf285508291b0e30c6f7e7b1bdaf1374",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestone-loop-protocol.md",
+    "rule": "credential-url",
+    "line_sha256": "98ae93fd5d30ee393f71df58e99d26d7a1b7b6ff0dc0d1dc706704fa748ff872",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m10/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "ddafa48ef9f20d37a2c632737d4b87b8dd3438ebb6cb36b0dc17b969b6be2d96",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m10/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "d8d076f291b60c5484fe6429cd47cfeaa1e5c2b93b773a981b6d0abd2c741879",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m10/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "44a7147c8b5e01aa5e9c84f74f898a4c2c844930571240f01fd67bcfa03e6857",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m10/handoff.md",
+    "rule": "credential-url",
+    "line_sha256": "329afd574685575059c76561a1cc493b344e66017dd3a08e38664ffb6a312fc8",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m10/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "acd53702a2f45933b192ea38002c1b654b1d673e9ba71725c1bc87fb484859ee",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m10/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "ea2b58182216fd841ad77cbacea007ac297cbeed855d6a6e4ea6d5dab7cce368",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m11/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "acd53702a2f45933b192ea38002c1b654b1d673e9ba71725c1bc87fb484859ee",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m11/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "ea2b58182216fd841ad77cbacea007ac297cbeed855d6a6e4ea6d5dab7cce368",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m12/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "acd53702a2f45933b192ea38002c1b654b1d673e9ba71725c1bc87fb484859ee",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m12/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "ea2b58182216fd841ad77cbacea007ac297cbeed855d6a6e4ea6d5dab7cce368",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m13/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "f69f9525d99c497286c4af07872908d4ba88cdd31663dac97c12af26813c8f46",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m13/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "ea2b58182216fd841ad77cbacea007ac297cbeed855d6a6e4ea6d5dab7cce368",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m5/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "6500d38dbb0bb69e560e8e2e3e3d78c3e1f127753920a382648c743b45eef00d",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m5/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "83bfabe26b097b4aad4120b16772078f7d4b79c52fd9c0c33c0df91c66f5b426",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m5/handoff.md",
+    "rule": "credential-url",
+    "line_sha256": "77139e3e1ab1de541071f43945536d897be787593c5eb7f655932c2c9dd40d33",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m5/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "b6094bcf78b01ed5e740e75903412a31c67300c9ec08cfe7a26e9d052e8e6f1f",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m5/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "03bd601832c62db8aec1e138cfe3c52f07551f1f06d2aa8b0ab0aa3cf88b87c8",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m6/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "5c83b8e69752b9022b46afcd14d67899ea48bc36d981f16eb550725332c9e96a",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m6/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "3d9f9a47b6b6123bf224998d3966dd6aef4b37e0557fc9dc0b6d9f1f7d43a9b8",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m6/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "83bfabe26b097b4aad4120b16772078f7d4b79c52fd9c0c33c0df91c66f5b426",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m6/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "ea2b58182216fd841ad77cbacea007ac297cbeed855d6a6e4ea6d5dab7cce368",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m6/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "d5002aaa6fd3a7de63abd54b2f64b51abf285508291b0e30c6f7e7b1bdaf1374",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m7/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "974fe648b83b2a3c58b49b59984a31e1be55074ab8a6c52a94916702c01d680b",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m7/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "bfe9b91696e0263d93c71546bed6c7ed7d2f170b0c27e074f4cd2e252e9215a1",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m7/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "83bfabe26b097b4aad4120b16772078f7d4b79c52fd9c0c33c0df91c66f5b426",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m7/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "ea2b58182216fd841ad77cbacea007ac297cbeed855d6a6e4ea6d5dab7cce368",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m7/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "110d4db7af51567b1e4d9f3c23f12e3908610660861bc85dd12b6e5cc46d2b1a",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m8/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "b3b663d60a8faff3ad8b6280e3c839d76a6831ac6756f711f195917a8d068573",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m8/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "b352359af4b4bdea9803b9da4ee2a0e9359a0885bef96bc09c63270739758d91",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m8/handoff.md",
+    "rule": "credential-url",
+    "line_sha256": "88ad9d34b5ddd8294c6984908315de6b714ee2dcd03494891b41d55c0ec86622",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m8/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "83bfabe26b097b4aad4120b16772078f7d4b79c52fd9c0c33c0df91c66f5b426",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m8/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "ea2b58182216fd841ad77cbacea007ac297cbeed855d6a6e4ea6d5dab7cce368",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m8/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "110d4db7af51567b1e4d9f3c23f12e3908610660861bc85dd12b6e5cc46d2b1a",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m8_5/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "6500d38dbb0bb69e560e8e2e3e3d78c3e1f127753920a382648c743b45eef00d",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m8_5/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "7f6f1c6fd1e7e5d2e3b2f9ad26bb198af6b1a625585d3db1de47cfe4a58d57df",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m8_5/handoff.md",
+    "rule": "credential-url",
+    "line_sha256": "41d1624687245d393cd6b0b9849e562342c81fe45839442e6dbaf52ee934739a",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m8_5/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "ea2b58182216fd841ad77cbacea007ac297cbeed855d6a6e4ea6d5dab7cce368",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m9/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "b3b663d60a8faff3ad8b6280e3c839d76a6831ac6756f711f195917a8d068573",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m9/final-review.md",
+    "rule": "credential-url",
+    "line_sha256": "44a7147c8b5e01aa5e9c84f74f898a4c2c844930571240f01fd67bcfa03e6857",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m9/handoff.md",
+    "rule": "credential-url",
+    "line_sha256": "41d1624687245d393cd6b0b9849e562342c81fe45839442e6dbaf52ee934739a",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m9/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "acd53702a2f45933b192ea38002c1b654b1d673e9ba71725c1bc87fb484859ee",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m9/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "ea2b58182216fd841ad77cbacea007ac297cbeed855d6a6e4ea6d5dab7cce368",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m9_3/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "b00e11f5eb76318b3751fd5cf52f99d2d531e366de9873bb8f0961f77acf2d5e",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/milestones/m9_3/loop-prompts.md",
+    "rule": "credential-url",
+    "line_sha256": "ea2b58182216fd841ad77cbacea007ac297cbeed855d6a6e4ea6d5dab7cce368",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/tasks/m13/M13-T001-migration-and-cli.md",
+    "rule": "credential-url",
+    "line_sha256": "371a30041c9573bd916e79365887748c32b6a08bac0dda5081938f59a402a05a",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "docs/tooling/env-configuration.md",
+    "rule": "credential-url",
+    "line_sha256": "3e9aec1a522437725374efd7dc21ce3ff1a27e7752b746d7a0e38697387b3c3c",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "env.example",
+    "rule": "credential-url",
+    "line_sha256": "13a826884c8cdeca7e826fa4a3666a9e22ac7c66f18a9db9503a71fc28287358",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "scripts/m10_t002_local_train.py",
+    "rule": "credential-url",
+    "line_sha256": "a1dee4ff8ff02c14d6e83df802aa4efe38385b7192fd4a493caa1afc37f01402",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "scripts/m10_t005_local_train.py",
+    "rule": "credential-url",
+    "line_sha256": "a1dee4ff8ff02c14d6e83df802aa4efe38385b7192fd4a493caa1afc37f01402",
+    "reason": "Existing historical local-development default DB example; infrastructure identifiers still require privacy review before public release."
+  },
+  {
+    "path": "tests/test_m11_db.py",
+    "rule": "credential-url",
+    "line_sha256": "67af037b3a51ad4771980788c4f6403616ac66cc3acf75a69f41eff211ad72f4",
+    "reason": "Synthetic default-password DSN in a redaction or negative scanner test, not a configured service."
+  },
+  {
+    "path": "tests/test_m14_stuck.py",
+    "rule": "credential-url",
+    "line_sha256": "9f8d3116a0a83a0f1c83b212578b3e53f796aad96535b5445baa150e7c0c42ec",
+    "reason": "Synthetic default-password DSN in a redaction or negative scanner test, not a configured service."
+  },
+  {
+    "path": "tests/test_notify.py",
+    "rule": "credential-url",
+    "line_sha256": "bd6ac51232b0343c0d6bda502e5c55aed378e59ab8199beb5177c7ed98168125",
+    "reason": "Synthetic default-password DSN in a redaction or negative scanner test, not a configured service."
+  },
+  {
+    "path": "tests/test_public_source.py",
+    "rule": "credential-url",
+    "line_sha256": "b826c258855b839c7cddf2fdd0f014986ca7b1c6123904abe19c9c9f604a3914",
+    "reason": "Synthetic default-password DSN in a redaction or negative scanner test, not a configured service."
+  }
+]

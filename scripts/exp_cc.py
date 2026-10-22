@@ -6,12 +6,13 @@ Builds on the conventions of scripts/save_claude_session_log.py:
   `claude agents --json`. Does NOT read .env*, kaggle.json, ~/.ssh,
   ~/.aws, ~/.config/gcloud, ~/.config/gh, or secrets/.
 - Renders through `uvx claude-code-log@latest --format md --compact`.
-- Writes Markdown dumps to `worklogs/` under the repo root by default
+- Writes Markdown dumps to `.agent/worklogs/` under the repo root by default
   (override with --output-dir).
 - Refuses to write transcripts containing secret-like patterns unless
   --allow-secret-like is passed; with that flag the matched secrets are
   masked (first/last 3 chars kept, the rest replaced with '*') so the
-  dumped worklog never carries the raw value.
+  matched values are obscured. This is not a complete privacy or secret scan;
+  exported transcripts must remain local and must never be committed.
 
 Differences from scripts/save_claude_session_log.py:
 - `--all` (default) exports every session discoverable for the project.
@@ -62,6 +63,12 @@ MASK_KEEP = 3
 # a positive index masks only that capturing group (so for `KEY=value` style
 # assignments the variable name stays visible and only the value is masked).
 SECRET_PATTERNS: list[tuple[str, str, int]] = [
+    (
+        r"(\b(?:postgres(?:ql)?|mysql|mongodb|redis)://[^\s/:@]+:)([^\s@]+)(@)",
+        "database URL password",
+        2,
+    ),
+    (r"(\bPGPASSWORD\s*=\s*['\"]?)([^\s'\";]{8,})", "Postgres env password", 2),
     (r"github_pat_[A-Za-z0-9_]{20,}", "GitHub fine-grained PAT", 0),
     (r"\bgh[opsu]_[A-Za-z0-9_]{20,}", "GitHub token", 0),
     (r"\bsk-ant-[A-Za-z0-9_\-]{20,}", "Anthropic API key", 0),
@@ -527,16 +534,8 @@ def run_claude_code_log(transcript: Path, tmp_md: Path, detail: str) -> None:
 
 
 def redact_match(matched: str) -> str:
-    """Mask the middle of a matched secret-like substring so the caller
-    can recognise what tripped the scan without echoing the secret."""
-    if not matched:
-        return ""
-    if "PRIVATE KEY" in matched.upper():
-        return "[private key block]"
-    s = matched.strip()
-    if len(s) <= 8:
-        return "***"
-    return f"{s[:4]}...{s[-4:]} (len={len(s)})"
+    """Withhold the entire match; diagnostics need a rule and location only."""
+    return "[redacted]" if matched else ""
 
 
 def scan_secret_like_lines(text: str) -> list[dict[str, Any]]:
@@ -708,7 +707,8 @@ def export_one(
             }
 
         # When writing despite secret-like hits (--allow-secret-like), mask the
-        # secret bodies first so the dumped worklog never carries the raw value.
+        # secret bodies first. This is not a complete privacy or secret scan;
+        # exported transcripts must remain local and must never be committed.
         masked = bool(locations)
         if masked:
             final_text = mask_secret_like_text(final_text)
@@ -749,7 +749,7 @@ def build_parser() -> argparse.ArgumentParser:
             "  python temp/export_claude_session_logs.py\n"
             "  python temp/export_claude_session_logs.py --name M7\n"
             "  python temp/export_claude_session_logs.py --id 01F8ABC\n"
-            "  python temp/export_claude_session_logs.py --json --output-dir worklogs\n"
+            "  python temp/export_claude_session_logs.py --json --output-dir .agent/worklogs\n"
             "  python temp/export_claude_session_logs.py --allow-any-state --detail high\n"
         ),
     )
@@ -792,8 +792,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--output-dir",
-        default="worklogs",
-        help="Output directory, relative to repo root (default: worklogs).",
+        default=".agent/worklogs",
+        help="Output directory, relative to repo root (default: .agent/worklogs).",
     )
     parser.add_argument(
         "--json",
