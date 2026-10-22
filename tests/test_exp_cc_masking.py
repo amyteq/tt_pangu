@@ -240,3 +240,12 @@ def test_pgpassword_assignment_is_detected_and_masked():
     text = "PGPASSWORD='" + password + "'"
     assert any(x["label"] == "Postgres env password" for x in exp_cc.scan_secret_like_lines(text))
     assert password not in exp_cc.mask_secret_like_text(text)
+
+
+def test_secret_scan_diagnostics_withhold_the_entire_match():
+    password = "SyntheticOnly" + "xY9" * 6
+    text = "postgresql://demo:" + password + "@db.example.invalid/postgres"
+    locations = exp_cc.scan_secret_like_lines(text)
+    assert locations
+    assert all(x["match_preview"] == "[redacted]" for x in locations)
+    assert password[-3:] not in repr(locations)

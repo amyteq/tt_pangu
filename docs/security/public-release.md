@@ -13,7 +13,7 @@ python -m pytest tests/test_public_source.py tests/test_exp_cc_masking.py
 
 The dependency-free check scans tracked file bytes, blocks transcript headers and private output paths, and detects selected token, password-assignment, authenticated-URL and service-role-JWT formats. It prints only file, line and rule, never the matched value. The staged mode checks exactly the index intended for commit. Privacy mode additionally reports personal paths, emails and private IPs for manual review; `--strict-privacy` makes those review findings blocking.
 
-Synthetic examples use exact-line SHA-256 exceptions in `scripts/public-source-allowlist.json`, with a documented reason. No test directory is exempt. A changed value or path invalidates an exception. Review each exception: a matching hash proves only that the bytes were explicitly allowed, not that they are safe.
+Synthetic examples and historical local-development default DSNs use exact-line SHA-256 exceptions in `scripts/public-source-allowlist.json`, with a documented reason. Those historical DSNs still require the separate privacy review of infrastructure details. No test directory is exempt. A changed value or path invalidates an exception. Review each exception: a matching hash proves only that the bytes were explicitly allowed, not that they are safe.
 
 The scan does not read untracked local credential files, contact services, validate credentials, follow working-tree symlinks or scan binary payloads. It does not certify absence of secrets or private data. Review images, notebooks with outputs, embedded documents, external code and dataset/model redistribution rights separately. Never publish a credential to test whether the check catches it.
 

@@ -534,16 +534,8 @@ def run_claude_code_log(transcript: Path, tmp_md: Path, detail: str) -> None:
 
 
 def redact_match(matched: str) -> str:
-    """Mask the middle of a matched secret-like substring so the caller
-    can recognise what tripped the scan without echoing the secret."""
-    if not matched:
-        return ""
-    if "PRIVATE KEY" in matched.upper():
-        return "[private key block]"
-    s = matched.strip()
-    if len(s) <= 8:
-        return "***"
-    return f"{s[:4]}...{s[-4:]} (len={len(s)})"
+    """Withhold the entire match; diagnostics need a rule and location only."""
+    return "[redacted]" if matched else ""
 
 
 def scan_secret_like_lines(text: str) -> list[dict[str, Any]]:
@@ -801,7 +793,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--output-dir",
         default=".agent/worklogs",
-        help="Output directory, relative to repo root (default: worklogs).",
+        help="Output directory, relative to repo root (default: .agent/worklogs).",
     )
     parser.add_argument(
         "--json",

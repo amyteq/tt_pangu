@@ -13,6 +13,7 @@ import hashlib
 import json
 import re
 import subprocess
+from urllib.parse import urlsplit
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
@@ -34,8 +35,9 @@ RULES = {
         r"\s*[=:]\s*[\"']?([A-Za-z0-9_./+%=-]{16,})"
     ),
     "private-key-block": re.compile(
-        r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----\s*\n"
-        r"[A-Za-z0-9+/=\r\n]+-----END (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"
+        r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----[ \t]*(?:\r?\n|\\r\\n|\\n)"
+        r"(?:[A-Za-z0-9+/=]+(?:\r?\n|\\r\\n|\\n))+"
+        r"-----END (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----"
     ),
     "service-role-jwt": re.compile(r"\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{15,}"),
 }
@@ -86,7 +88,14 @@ def scan_text(path: str, text: str, *, privacy: bool = False) -> list[Finding]:
         for match in regex.finditer(text):
             value = match.group(1) if match.lastindex else match.group(0)
             if placeholder(value):
-                continue
+                if rule != "credential-url":
+                    continue
+                try:
+                    host = urlsplit(match.group(0)).hostname
+                except ValueError:
+                    host = None
+                if host in {"localhost", "127.0.0.1", "::1"}:
+                    continue
             if rule == "service-role-jwt":
                 try:
                     claims = json.loads(base64.urlsafe_b64decode(value.split(".")[1] + "==="))
@@ -109,7 +118,7 @@ def line_digest(text: str, line: int) -> str:
 def allowed(finding: Finding, text: str, entries: list[dict]) -> bool:
     # Only credentials can have synthetic-test exceptions. Transcripts, private
     # paths, binary files and privacy-review findings cannot be waived here.
-    if finding.rule not in RULES:
+    if finding.rule not in RULES or finding.rule == "private-key-block":
         return False
     digest = line_digest(text, finding.line)
     return any(
