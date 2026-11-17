@@ -1,8 +1,10 @@
 # at-refine-issue skill validation
 
+> Retired on 2026-11-17: the skill moved unchanged to `.claude/archived/at-refine-issue/` ([amyteq/tt_tools#33](https://github.com/amyteq/tt_tools/issues/33)), and the gitmunk `dev-skills` plugin replaces it. Paths to the skill below now point at the archived copy; the record is otherwise unchanged.
+
 Issue: [#209](https://github.com/amyteq/tt_pangu/issues/209). Task: [implementation work order, revision 1](https://github.com/amyteq/tt_pangu/issues/209#issuecomment-5697118933). Validated 2026-09-16 in worktree branch `worktree-issue-209-at-refine-issue`, based on `8f95082`.
 
-The deliverable is a Markdown development skill plus two references. It adds no service, helper script, runtime configuration, test code, or dependency. The [skill](../../.claude/skills/at-refine-issue/SKILL.md) is canonical; the [README](../../README.md#claude-code-project-skills) supplies discovery and invocation. The mechanical checks C1–C8 ran offline, against fixtures and against read-only copies of #209's own artifacts. The scenario matrix mixes those executed checks with behavioral walkthroughs of the written rules; every row says which it is, and the split is repeated under [Limitations](#limitations). **No GitHub state was mutated by this validation** — the only remote calls were `GET` on #209 and its task comment, plus `--help` invocations of `gh`.
+The deliverable is a Markdown development skill plus two references. It adds no service, helper script, runtime configuration, test code, or dependency. The [skill](../../.claude/archived/at-refine-issue/SKILL.md) is canonical; the [README](../../README.md#claude-code-project-skills) supplies discovery and invocation. The mechanical checks C1–C8 ran offline, against fixtures and against read-only copies of #209's own artifacts. The scenario matrix mixes those executed checks with behavioral walkthroughs of the written rules; every row says which it is, and the split is repeated under [Limitations](#limitations). **No GitHub state was mutated by this validation** — the only remote calls were `GET` on #209 and its task comment, plus `--help` invocations of `gh`.
 
 ## Repository checks
 
@@ -37,7 +39,7 @@ Two checks were wrong on first run and were corrected, not the artifacts:
 - C2 initially flagged `[Linked issue / discussion / ADR](url)` and `[Implementation task, revision R](<real permalink>)` — placeholders inside the fenced templates and inline code spans, which are not links. The checker now strips fenced blocks and inline code before extracting links.
 - C5 initially flagged five matches in #209's published bodies. All five are prose *describing* the prompt shape — AC4's own text contains `` `/goal Execute from <comment-url> ...` `` in backticks, and the verbatim quoted user request contains it too. The rule is that a published *launch prompt* or link target carries no placeholder, so the check was narrowed to fenced blocks that begin with `Execute from` / `/goal Execute from`, plus link targets. It passed with zero leaks.
 
-C4–C8 exercise #209's own published artifacts, which a different session produced from the same contract before this skill file existed. That makes them an independent conformance fixture: the template in [task-comment.md](../../.claude/skills/at-refine-issue/references/task-comment.md) matches artifacts the skill did not generate.
+C4–C8 exercise #209's own published artifacts, which a different session produced from the same contract before this skill file existed. That makes them an independent conformance fixture: the template in [task-comment.md](../../.claude/archived/at-refine-issue/references/task-comment.md) matches artifacts the skill did not generate.
 
 ## Scenario matrix
 

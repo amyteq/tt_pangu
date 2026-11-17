@@ -1251,9 +1251,6 @@ PINNED_MENTIONS: dict[tuple[str, str], tuple[str, ...]] = {
     ("force-push", ".agents/README.md"): (
         "[prose] | hooks/.py (guard_tool, format_gate, audit_event) | absent — Codex hooks are per-user config (~/.codex/config.toml / a managed dir), never repo-shipped | Real safety asymmetry: in Codex the deletion / force-push / secret rules are enforced only by reading them, and no .agent/audit/tool-events.jsonl trail is written.",
     ),
-    ("force-push", ".agents/skills/at-review-pr/SKILL.md"): (
-        "[prose] No force-push, direct push to the base branch, or merge.",
-    ),
     ("force-push", ".agents/skills/pr-closeout-review/SKILL.md"): (
         "[prose] Force-push is not on that list and never belongs in a gap report as an approvable write: CLAUDE.md denies it outright, so a branch that was force-pushed is needs-revision and no approval record changes that.",
     ),

@@ -1,8 +1,10 @@
 # at-review-pr skill validation
 
+> Retired on 2026-11-17: the skill moved unchanged to `.claude/archived/at-review-pr/` ([amyteq/tt_tools#33](https://github.com/amyteq/tt_tools/issues/33)), and the gitmunk `dev-skills` plugin replaces it. Paths to the skill below now point at the archived copy; the record is otherwise unchanged.
+
 Issue: [#207](https://github.com/amyteq/tt_pangu/issues/207). Validated 2026-09-15 against base `8f950823257aa2476fa356294d13448ab196ac60`, then re-checked on 2026-09-16 across the live runs of the loop on [PR #208](https://github.com/amyteq/tt_pangu/pull/208) (the skill was named `pr-review-loop` in the earlier revision). Extended on 2026-09-17 by [#212](https://github.com/amyteq/tt_pangu/issues/212), which adds the `pr=<n>` first optional argument — see [that section](#prn-first-optional-argument-2026-09-17-issue-212).
 
-The deliverable is a Markdown development skill and two supporting references. It adds no execution service, helper scripts, runtime configuration, or test code. The [skill](../../.claude/skills/at-review-pr/SKILL.md) is canonical; the [README](../../README.md#claude-code-project-skills) supplies discovery and invocation.
+The deliverable is a Markdown development skill and two supporting references. It adds no execution service, helper scripts, runtime configuration, or test code. The [skill](../../.claude/archived/at-review-pr/SKILL.md) is canonical; the [README](../../README.md#claude-code-project-skills) supplies discovery and invocation.
 
 ## Checks (2026-09-15, revision before the round-1 review)
 
@@ -57,7 +59,7 @@ Round 1 of the live loop on PR #208 requested the rename to `at-review-pr`, the 
 
 ## CLI runtime-metadata probes (2026-09-16, round 2)
 
-The round-1 loop stopped because Claude's effort setting could not be observed. The author then decided that an unobservable effort may be published as the requested value. These probes establish, per CLI, which signature fields are actually retrievable, and are the evidence behind [runtime metadata](../../.claude/skills/at-review-pr/references/agents.md#runtime-metadata).
+The round-1 loop stopped because Claude's effort setting could not be observed. The author then decided that an unobservable effort may be published as the requested value. These probes establish, per CLI, which signature fields are actually retrievable, and are the evidence behind [runtime metadata](../../.claude/archived/at-review-pr/references/agents.md#runtime-metadata).
 
 | Probe | Observed |
 |---|---|
@@ -121,7 +123,7 @@ This surfaced during run `pr213-20260917a` on [PR #213](https://github.com/amyte
 
 What remains unknown is narrower than the original claim: whether the specific 2026-09-16 phase actually executed the command was not re-verified and that session's transcript is not retained. The correction is that the tool exists and the citation was plausible on its face — not a positive finding that the earlier phase ran it.
 
-The real lesson is the inverse of the one first recorded. A name that is unfamiliar from inside the repository tree is not thereby invented: host tooling is invisible to `git grep`, and "this repo does not use it" is not evidence of "it does not exist". Checking costs one `command -v`; skipping it cost a false finding that was then written into the rule, the PR record and this file, where it sat for a day instructing future coordinators to reject truthful reports. The validation-honesty rule itself is unaffected and stays in force — a genuinely invented tool name is still a report defect — but [agents.md](../../.claude/skills/at-review-pr/references/agents.md) now requires that verification step before a phase is rejected on those grounds.
+The real lesson is the inverse of the one first recorded. A name that is unfamiliar from inside the repository tree is not thereby invented: host tooling is invisible to `git grep`, and "this repo does not use it" is not evidence of "it does not exist". Checking costs one `command -v`; skipping it cost a false finding that was then written into the rule, the PR record and this file, where it sat for a day instructing future coordinators to reject truthful reports. The validation-honesty rule itself is unaffected and stays in force — a genuinely invented tool name is still a report defect — but [agents.md](../../.claude/archived/at-review-pr/references/agents.md) now requires that verification step before a phase is rejected on those grounds.
 
 ### Writer permission: still blocked, and not self-fixable
 
