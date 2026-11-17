@@ -30,7 +30,7 @@ This binds:
 
 Two consequential rules follow:
 
-- **Leave a blank line before every `---`.** Without it the preceding paragraph becomes a setext H2. This matters most for the signature separators in [`at-review-pr` report templates](../../.claude/skills/at-review-pr/references/reports.md), where the line above the rule is prose.
+- **Leave a blank line before every `---`.** Without it the preceding paragraph becomes a setext H2. This matters most for the signature separators in [`at-review-pr` report templates](../../.claude/archived/at-review-pr/references/reports.md), where the line above the rule is prose.
 - **Never hard-wrap inside a table row, a list item, or a link.** A wrapped table row stops being a table.
 
 Exempt, because line breaks are semantic there: fenced code blocks and their contents, YAML frontmatter, indented code blocks, and HTML blocks. A diff, log excerpt or file listing reproduced verbatim is exempt too — but it has to be fenced or indented four spaces to qualify. That is what makes it a block at all, to a reader and to `scripts/check_md_wrap.py` alike; verbatim text pasted as bare paragraph lines is indistinguishable from hard-wrapped prose, and gets reported like it.
